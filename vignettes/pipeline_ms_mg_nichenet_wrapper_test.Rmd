@@ -1,0 +1,545 @@
+---
+title: 'Multi-Group Multi-Sample Cell-Cell Communication Analysis via NicheNet: HNSCC
+  application'
+author: "Robin Browaeys"
+date: "5-2-2021"
+output: html_document
+---
+
+
+```{r setup, include = FALSE}
+# knitr::opts_knit$set(
+#   collapse = TRUE,
+#   # comment = "#>",
+#   warning = FALSE,
+#   message = FALSE,
+#   # root.dir = 'C:/Users/rbrowaey/work/Research/NicheNet/current_projects/CRC_NicheNet'
+#     root.dir = '../'
+# 
+# )
+knitr::opts_knit$set(root.dir = 'C:/Users/rbrowaey/work/Research/NicheNet/current_projects/CRC_NicheNet' )
+
+```
+
+In this analysis we will analyze differential cell-cell communication between different patient groups in colorectal cancer.
+
+# Step 0: Load packages and NicheNet ligand-receptor network and ligand-target matrix
+
+```{r}
+library(Seurat)
+library(BiocStyle)
+library(Nebulosa)
+library(cowplot)
+library(tidyverse)
+library(limma)
+library(muscat)
+library(ExperimentHub)
+library(scater)
+library(circlize)
+library(RColorBrewer)
+source("scripts/functions_muscat_de.R")
+```
+
+```{r}
+# LR network
+lr_network = readRDS(url("https://zenodo.org/record/3260758/files/lr_network.rds"))
+lr_network = lr_network %>% filter(! database %in% c("ppi_prediction","ppi_prediction_go"))
+lr_network = lr_network %>% dplyr::rename(ligand = from, receptor = to) %>% distinct(ligand, receptor)
+```
+
+```{r}
+ligand_target_matrix = readRDS(url("https://zenodo.org/record/3260758/files/ligand_target_matrix.rds"))
+```
+
+# Step 1: Prepare Seurat Objects for Sender and Receiver cells
+
+## T cells as receiver
+
+Set the cell type label of interest as cell identity and keep only good samples.
+In this analysis we are only interested in MSI, CMS2 and CMS4 patients, therefore we will pool all the other samples so that we don't remove cell types that have too few cells in patient groups that are not of interest to our comparison.
+
+```{r}
+getwd()
+seurat_obj_receiver = readRDS("data/seurat_obj_hnscc.rds") %>% subset(subset = celltype == "Malignant")
+DimPlot(seurat_obj_receiver)
+DimPlot(seurat_obj_receiver, group.by = "pEMT")
+DimPlot(seurat_obj_receiver, group.by = "pEMT_fine")
+```
+
+## Myeloid cells as receiver
+```{r}
+getwd()
+seurat_obj_sender = readRDS("data/seurat_obj_hnscc.rds") %>% subset(subset = celltype != "Malignant")
+DimPlot(seurat_obj_sender)
+DimPlot(seurat_obj_receiver, group.by = "pEMT")
+DimPlot(seurat_obj_receiver, group.by = "pEMT_fine")
+```
+
+# Step 2: Prepare the cell-cell communication analysis
+
+## Define senders and receivers of interest
+
+```{r}
+senders_oi = seurat_obj_sender %>% Idents() %>% unique()
+# senders_oi = c("CAF","myofibroblast")
+receivers_oi = seurat_obj_receiver %>% Idents() %>% unique()
+
+seurat_obj_sender = seurat_obj_sender %>% subset(idents = senders_oi)
+seurat_obj_receiver = seurat_obj_receiver %>% subset(idents = receivers_oi)
+```
+
+## Define in which metadata columns we can find the group, sample and cell type IDs
+
+```{r}
+sample_id = "tumor"
+group_id = "pEMT"
+celltype_id_receiver = "celltype"
+celltype_id_sender = "celltype"
+```
+
+## Define the contrasts and covariates of interest for the DE analysis, and the minimal number of cells of a cell type that each sample should have.
+
+```{r}
+covariates = NA
+contrasts_oi = c("'High-Low','Low-High'")
+contrast_tbl = tibble(contrast = 
+                        c("High-Low","Low-High"), 
+                      group = c("High","Low"))
+min_cells = 1
+
+```
+
+## Define the parameters for the NicheNet ligand activity analysis 
+
+```{r}
+logFC_threshold = 1
+p_val_threshold = 0.05
+frac_cutoff = 0.05
+p_val_adj = FALSE 
+top_n_target = 250
+```
+
+
+## Define the weights of the prioritization of both expression, differential expression and NicheNet activity information
+
+
+```{r}
+prioritizing_weights = c("scaled_lfc_ligand" = 1,
+                         "scaled_p_val_ligand" = 1,
+                         "scaled_lfc_receptor" = 1,
+                         "scaled_p_val_receptor" = 1,
+                         "scaled_activity_scaled" = 1.5,
+                         "scaled_activity" = 0.5,
+                         "scaled_avg_exprs_ligand" = 1,
+                         "scaled_avg_frq_ligand" = 1,
+                         "scaled_avg_exprs_receptor" = 1,
+                         "scaled_avg_frq_receptor" = 1,
+                         "fraction_expressing_ligand_receptor" = 1,
+                         "scaled_abundance_sender" = 0,
+                         "scaled_abundance_receiver" = 0)
+```
+
+# Step 3: Perform the cell-cell communication analysis
+
+```{r}
+output = ms_mg_nichenet_analysis(seurat_obj_receiver = seurat_obj_receiver, seurat_obj_sender = seurat_obj_sender, 
+                                celltype_id_receiver = celltype_id_receiver, celltype_id_sender = celltype_id_sender,sample_id = sample_id, group_id = group_id, 
+                                lr_network = lr_network, ligand_target_matrix = ligand_target_matrix, contrasts_oi = contrasts_oi, contrast_tbl = contrast_tbl, 
+                                prioritizing_weights = prioritizing_weights, min_cells = min_cells, logFC_threshold = logFC_threshold, p_val_threshold = p_val_threshold,  
+                                frac_cutoff = frac_cutoff, p_val_adj = p_val_adj, top_n_target = top_n_target)
+
+```
+
+```{r}
+saveRDS(output, "output/ms_mg_nichenet_output_hnscc_test")
+```
+
+# Step 4: Visualize the results of the cell-cell communication analysis
+
+## Visualization of scaled_LR_prod (average expression) and scaled_LR_frac (average fraction) per sample
+
+```{r}
+group_oi = "High"
+```
+
+```{r, fig.height=18, fig.width=12}
+prioritized_tbl_oi = output$prioritization_tables$group_prioritization_tbl %>% 
+  distinct(id, sender, receiver, lr_interaction, group, ligand_receptor_lfc_avg, activity, activity_scaled, fraction_expressing_ligand_receptor,  prioritization_score) %>% 
+  filter(ligand_receptor_lfc_avg > 0 & fraction_expressing_ligand_receptor > 0) %>% 
+  filter(group == group_oi) %>% group_by(group) %>% top_n(75, prioritization_score) 
+
+plot_oi = make_sample_lr_prod_plots(output$prioritization_tables, prioritized_tbl_oi)
+plot_oi
+```
+
+## Visualization of expression-logFC per group and ligand activity
+
+```{r}
+receiver_oi = "Malignant"
+group_oi = "High"
+```
+
+```{r, fig.width=15, fig.height=12}
+
+prioritized_tbl_oi = output$prioritization_tables$group_prioritization_tbl %>% 
+  filter(fraction_ligand_group > frac_cutoff & fraction_receptor_group > frac_cutoff) %>% 
+  distinct(id, sender, receiver, lr_interaction, group, ligand_receptor_lfc_avg, activity_scaled, fraction_ligand_group, fraction_expressing_ligand_receptor, scaled_avg_exprs_ligand, prioritization_score) %>% 
+  filter(ligand_receptor_lfc_avg > 0 & fraction_expressing_ligand_receptor > 0) %>% 
+  filter(group == group_oi & receiver == receiver_oi) %>% top_n(75, prioritization_score) 
+
+plot_oi = make_group_lfc_exprs_activity_plot(output$prioritization_tables, prioritized_tbl_oi, receiver_oi)
+plot_oi
+
+```
+
+```{r, fig.width=15, fig.height=12}
+
+prioritized_tbl_oi = output$prioritization_tables$group_prioritization_tbl %>% 
+  filter(fraction_ligand_group > frac_cutoff & fraction_receptor_group > frac_cutoff) %>% 
+  distinct(id, sender, receiver, lr_interaction, group, ligand_receptor_lfc_avg, activity_scaled, fraction_ligand_group, fraction_expressing_ligand_receptor, scaled_avg_exprs_ligand, prioritization_score) %>% 
+  filter(ligand_receptor_lfc_avg > 0 & fraction_expressing_ligand_receptor > 0) %>% 
+  filter(group == group_oi & receiver == receiver_oi) %>% top_n(75, prioritization_score) 
+
+plot_oi = make_group_lfc_exprs_activity_plot(output$prioritization_tables, prioritized_tbl_oi, receiver_oi, heights = c(10,1,1))
+plot_oi
+
+```
+
+## Circos plot of top-prioritized links
+
+```{r, fig.width=15, fig.height=12}
+prioritized_tbl_oi = output$prioritization_tables$group_prioritization_tbl %>% 
+  filter(fraction_ligand_group > frac_cutoff & fraction_receptor_group > frac_cutoff) %>% 
+  distinct(id, sender, receiver, ligand, receptor, group, prioritization_score, ligand_receptor_lfc_avg, fraction_expressing_ligand_receptor) %>% 
+  filter(ligand_receptor_lfc_avg > 0 & fraction_expressing_ligand_receptor > 0) %>% top_n(100, prioritization_score) 
+
+prioritized_tbl_oi = output$prioritization_tables$group_prioritization_tbl %>% 
+  filter(id %in% prioritized_tbl_oi$id) %>% 
+  distinct(id, sender, receiver, ligand, receptor, group) %>% left_join(prioritized_tbl_oi)
+prioritized_tbl_oi$prioritization_score[is.na(prioritized_tbl_oi$prioritization_score)] = 0
+
+
+n_senders = prioritized_tbl_oi$sender %>% unique() %>% length()
+n_receivers = prioritized_tbl_oi$receiver %>% unique() %>% length()
+
+  
+colors_sender = c("tomato","violetred3", "mediumpurple1", "royalblue")
+colors_receiver = c("darkolivegreen2")
+
+circos_list = make_circos_group_comparison(prioritized_tbl_oi, colors_sender, colors_receiver)
+
+```
+
+## Single-cell-based Nebulosa, Feature, and Violin plots of ligand-receptor interaction of interest
+
+```{r}
+prioritized_tbl_oi = output$prioritization_tables$group_prioritization_tbl %>% 
+  filter(fraction_ligand_group > frac_cutoff & fraction_receptor_group > frac_cutoff) %>% 
+  distinct(id, sender, receiver, ligand, receptor, group, prioritization_score) %>% 
+  group_by(group, receiver) %>% top_n(5, prioritization_score) 
+```
+
+```{r}
+ligand_oi = "IL24"
+receptor_oi = "IL20RB"
+group_oi = "High"
+sender_oi = "CAF"
+receiver_oi = "Malignant"
+```
+
+```{r, fig.width=9, fig.height=7}
+plot_list = make_ligand_receptor_nebulosa_feature_plot(seurat_obj_sender, seurat_obj_receiver, ligand_oi, receptor_oi, group_oi, group_id, celltype_id_sender, celltype_id_receiver, senders_oi, receivers_oi, prioritized_tbl_oi)
+plot_list$nebulosa
+plot_list$feature
+```
+
+```{r, fig.width=9, fig.height=7}
+plot_list2 = make_ligand_receptor_violin_plot(seurat_obj_sender, seurat_obj_receiver, ligand_oi, receptor_oi, sender_oi, receiver_oi, group_oi, group_id, sample_id, celltype_id_sender, celltype_id_receiver, prioritized_tbl_oi)
+plot_list2$violin_group
+plot_list2$violin_sample
+```
+
+## Visualization of ligand-activity, ligand-target links, and target gene expression
+
+```{r}
+group_oi = "High"
+receiver_oi = "Malignant"
+prioritized_tbl_oi = output$prioritization_tables$group_prioritization_tbl %>% 
+  filter(fraction_ligand_group > frac_cutoff & fraction_receptor_group > frac_cutoff) %>% 
+  distinct(id, sender, receiver, ligand, receptor, group, prioritization_score, ligand_receptor_lfc_avg, fraction_expressing_ligand_receptor, activity_scaled) %>% 
+  filter(ligand_receptor_lfc_avg > 0 & fraction_expressing_ligand_receptor > 0) %>% 
+  filter(group == group_oi & receiver == receiver_oi) %>% 
+  group_by(group) %>% top_n(100, prioritization_score) %>% top_n(50, activity_scaled) %>% arrange(-activity_scaled)
+```
+
+  
+```{r, fig.width=18, fig.height=10}
+combined_plot = make_ligand_activity_target_plot(group_oi, receiver_oi, prioritized_tbl_oi, output$ligand_activities_targets_DEgenes, contrast_tbl, output$grouping_tbl, output$receiver_info)
+combined_plot
+```
+
+  
+```{r, fig.width=18, fig.height=10}
+combined_plot = make_ligand_activity_target_plot(group_oi, receiver_oi, prioritized_tbl_oi, output$ligand_activities_targets_DEgenes, contrast_tbl, output$grouping_tbl, output$receiver_info, plot_legend = FALSE)
+combined_plot
+```
+
+```{r, fig.width=18, fig.height=10}
+combined_plot = make_ligand_activity_target_plot(group_oi, receiver_oi, prioritized_tbl_oi, output$ligand_activities_targets_DEgenes, contrast_tbl, output$grouping_tbl, output$receiver_info, plot_legend = FALSE, heights = c(1,1.2), widths = c(1,1,17))
+combined_plot
+```
+
+## Make target gene violin and nebulosa plots
+
+```{r}
+receiver_oi = "Malignant"
+group_oi = "High"
+
+output$ligand_activities_targets_DEgenes$de_genes_df %>% inner_join(contrast_tbl) %>% filter(group == group_oi) %>% arrange(p_val) %>% filter(receiver == receiver_oi) %>% top_n(100, logFC) %>% top_n(5, max_frac) 
+```
+
+  
+```{r, fig.width=10, fig.height=10}
+target_oi = "CA2"
+
+make_target_violin_plot(seurat_obj_receiver, target_oi, receiver_oi, group_oi, group_id, sample_id, celltype_id_receiver, output$prioritization_tables$group_prioritization_tbl)
+make_target_nebulosa_feature_plot(seurat_obj_receiver, target_oi, group_oi, group_id, celltype_id_receiver, receivers_oi, output$prioritization_tables$group_prioritization_tbl) # erro?
+
+```
+
+## Make Dotplot for all DE genes/targets
+
+```{r}
+receiver_oi = "Malignant"
+group_oi = "High"
+
+targets_oi1 = output$ligand_activities_targets_DEgenes$de_genes_df %>% inner_join(contrast_tbl) %>% filter(group == group_oi) %>% arrange(p_val) %>% filter(receiver == receiver_oi) %>% pull(gene) %>% unique()
+
+targets_oi2 = output$ligand_activities_targets_DEgenes$de_genes_df %>% inner_join(contrast_tbl) %>% filter(group == group_oi) %>% arrange(p_val) %>% filter(receiver == receiver_oi) %>% top_n(250, -p_val) %>% top_n(75, logFC)  %>% pull(gene) 
+
+targets_oi = intersect(targets_oi1, targets_oi2)
+
+```
+
+```{r, fig.width=8, fig.height=15}
+make_sample_target_plots(output$receiver_info, targets_oi, receiver_oi, output$grouping_tbl)
+```
+
+
+## Show ligand activities for each receiver-group combination
+
+Both scaled and absolute activities.
+
+In combination with ligand-receptor expression per sample
+
+
+```{r}
+receiver_oi = "Malignant"
+group_oi = "High"
+```
+
+```{r, fig.width=15, fig.height=12}
+
+prioritized_tbl_oi = output$prioritization_tables$group_prioritization_tbl %>% 
+  filter(fraction_ligand_group > frac_cutoff & fraction_receptor_group > frac_cutoff) %>% 
+  distinct(id, sender, receiver, lr_interaction, group, ligand_receptor_lfc_avg, activity_scaled, fraction_ligand_group, fraction_expressing_ligand_receptor, scaled_avg_exprs_ligand, prioritization_score) %>% 
+  filter(ligand_receptor_lfc_avg > 0 & fraction_expressing_ligand_receptor > 0) %>% 
+  filter(group == group_oi & receiver == receiver_oi) %>% top_n(75, prioritization_score) 
+
+plot_oi = make_sample_lr_prod_activity_plots(output$prioritization_tables,prioritized_tbl_oi)
+plot_oi
+plot_oi
+```
+
+Both scaled and absolute activities.
+
+Without ligand-receptor expression per sample
+
+Show top ligands based on ligand activity (agnostic of expression in sender)
+
+```{r, fig.width=5, fig.height=8}
+
+ligands_oi = output$prioritization_tables$ligand_activities_target_de_tbl %>% inner_join(contrast_tbl) %>% 
+  group_by(group, receiver) %>% distinct(ligand, receiver, group, activity) %>% 
+  top_n(20, activity) %>% pull(ligand) %>% unique()
+
+plot_oi = make_ligand_activity_plots(output$prioritization_tables, ligands_oi, contrast_tbl, widths = NULL)
+plot_oi
+
+```
+Show top ligands based on prioritization scores
+
+```{r, fig.width=5, fig.height=8}
+
+ligands_oi = output$prioritization_tables$group_prioritization_tbl %>% 
+  group_by(group, receiver) %>% distinct(ligand, receiver, group, prioritization_score) %>% 
+  top_n(25, prioritization_score) %>% pull(ligand) %>% unique()
+
+plot_oi = make_ligand_activity_plots(output$prioritization_tables, ligands_oi, contrast_tbl, widths = NULL)
+plot_oi
+
+```
+
+# Alternative analysis and demonstration of how to compare multiple groups in the contrasts
+
+
+```{r}
+group_id = "pEMT_fine"
+contrasts_oi = c("'High-(Medium+Low)/2'")
+contrast_tbl = tibble(contrast = 
+                        c("High-(Medium+Low)/2"), 
+                      group = c("High"))
+
+```
+
+## Define the contrasts and covariates of interest for the DE analysis, and the minimal number of cells of a cell type that each sample should have.
+
+```{r}
+output = ms_mg_nichenet_analysis(seurat_obj_receiver = seurat_obj_receiver, seurat_obj_sender = seurat_obj_sender, 
+                                celltype_id_receiver = celltype_id_receiver, celltype_id_sender = celltype_id_sender,sample_id = sample_id, group_id = group_id, 
+                                lr_network = lr_network, ligand_target_matrix = ligand_target_matrix, contrasts_oi = contrasts_oi, contrast_tbl = contrast_tbl, 
+                                prioritizing_weights = prioritizing_weights, min_cells = min_cells, logFC_threshold = logFC_threshold, p_val_threshold = p_val_threshold,  
+                                frac_cutoff = frac_cutoff, p_val_adj = p_val_adj, top_n_target = top_n_target)
+```
+
+```{r}
+group_oi = "High"
+```
+
+```{r, fig.height=18, fig.width=12}
+prioritized_tbl_oi = output$prioritization_tables$group_prioritization_tbl %>% 
+  distinct(id, sender, receiver, lr_interaction, group, ligand_receptor_lfc_avg, activity_scaled, fraction_expressing_ligand_receptor,  prioritization_score) %>% 
+  filter(ligand_receptor_lfc_avg > 0 & fraction_expressing_ligand_receptor > 0) %>% 
+  filter(group == group_oi) %>% group_by(group) %>% top_n(50, prioritization_score) 
+
+plot_oi = make_sample_lr_prod_plots(output$prioritization_tables, prioritized_tbl_oi)
+plot_oi
+
+output$prioritization_tables$sample_prioritization_tbl = output$prioritization_tables$sample_prioritization_tbl %>% mutate(group = factor(group, levels = c("High","Medium","Low"))) 
+plot_oi = make_sample_lr_prod_plots(output$prioritization_tables, prioritized_tbl_oi)
+plot_oi
+```
+
+Change the ordering of the groups:
+
+```{r, fig.height=18, fig.width=12}
+output$prioritization_tables$sample_prioritization_tbl = output$prioritization_tables$sample_prioritization_tbl %>% mutate(group = factor(group, levels = c("High","Medium","Low"))) 
+plot_oi = make_sample_lr_prod_plots(output$prioritization_tables, prioritized_tbl_oi)
+plot_oi
+```
+
+
+```{r}
+group_id = "pEMT_fine"
+contrasts_oi = c("'High-Low'")
+contrast_tbl = tibble(contrast = 
+                        c("High-Low"), 
+                      group = c("High"))
+```
+
+## Define the contrasts and covariates of interest for the DE analysis, and the minimal number of cells of a cell type that each sample should have.
+
+```{r}
+output = ms_mg_nichenet_analysis(seurat_obj_receiver = seurat_obj_receiver, seurat_obj_sender = seurat_obj_sender, 
+                                celltype_id_receiver = celltype_id_receiver, celltype_id_sender = celltype_id_sender,sample_id = sample_id, group_id = group_id, 
+                                lr_network = lr_network, ligand_target_matrix = ligand_target_matrix, contrasts_oi = contrasts_oi, contrast_tbl = contrast_tbl, 
+                                prioritizing_weights = prioritizing_weights, min_cells = min_cells, logFC_threshold = logFC_threshold, p_val_threshold = p_val_threshold,  
+                                frac_cutoff = frac_cutoff, p_val_adj = p_val_adj, top_n_target = top_n_target)
+```
+
+```{r}
+group_oi = "High"
+```
+
+```{r, fig.height=18, fig.width=12}
+prioritized_tbl_oi = output$prioritization_tables$group_prioritization_tbl %>% 
+  distinct(id, sender, receiver, lr_interaction, group, ligand_receptor_lfc_avg, activity_scaled, fraction_expressing_ligand_receptor,  prioritization_score) %>% 
+  filter(ligand_receptor_lfc_avg > 0 & fraction_expressing_ligand_receptor > 0) %>% 
+  filter(group == group_oi) %>% group_by(group) %>% top_n(50) 
+output$prioritization_tables$sample_prioritization_tbl = output$prioritization_tables$sample_prioritization_tbl %>% mutate(group = factor(group, levels = c("High","Medium","Low"))) 
+plot_oi = make_sample_lr_prod_plots(output$prioritization_tables, prioritized_tbl_oi)
+plot_oi
+```
+
+```{r}
+group_id = "pEMT_fine"
+contrasts_oi = c("'(High+Medium)/2-Low'")
+contrast_tbl = tibble(contrast = 
+                        c("(High+Medium)/2-Low"), 
+                      group = c("High"))
+
+```
+
+## Define the contrasts and covariates of interest for the DE analysis, and the minimal number of cells of a cell type that each sample should have.
+
+```{r}
+output = ms_mg_nichenet_analysis(seurat_obj_receiver = seurat_obj_receiver, seurat_obj_sender = seurat_obj_sender, 
+                                celltype_id_receiver = celltype_id_receiver, celltype_id_sender = celltype_id_sender,sample_id = sample_id, group_id = group_id, 
+                                lr_network = lr_network, ligand_target_matrix = ligand_target_matrix, contrasts_oi = contrasts_oi, contrast_tbl = contrast_tbl, 
+                                prioritizing_weights = prioritizing_weights, min_cells = min_cells, logFC_threshold = logFC_threshold, p_val_threshold = p_val_threshold,  
+                                frac_cutoff = frac_cutoff, p_val_adj = p_val_adj, top_n_target = top_n_target)
+```
+
+```{r}
+group_oi = "High"
+```
+
+```{r, fig.height=18, fig.width=12}
+prioritized_tbl_oi = output$prioritization_tables$group_prioritization_tbl %>% 
+  distinct(id, sender, receiver, lr_interaction, group, ligand_receptor_lfc_avg, activity_scaled, fraction_expressing_ligand_receptor,  prioritization_score) %>% 
+  filter(ligand_receptor_lfc_avg > 0 & fraction_expressing_ligand_receptor > 0) %>% 
+  filter(group == group_oi) %>% group_by(group) %>% top_n(50) 
+output$prioritization_tables$sample_prioritization_tbl = output$prioritization_tables$sample_prioritization_tbl %>% mutate(group = factor(group, levels = c("High","Medium","Low"))) 
+plot_oi = make_sample_lr_prod_plots(output$prioritization_tables, prioritized_tbl_oi)
+plot_oi
+```
+
+# Additional analysis: unsupervised analysis of patients based on ligand-receptor expression product
+
+PCA on ligand-receptor expression product values
+
+```{r}
+library(factoextra)
+
+lr_prod_mat_pca = prcomp(output$lr_prod_mat, center = TRUE,scale. = TRUE)
+
+res_ind = get_pca_ind(lr_prod_mat_pca)
+head(res_ind$coord)
+head(res_ind$contrib )
+
+var_info = get_pca_var(lr_prod_mat_pca)
+head(var_info$contrib)
+
+var_info$contrib[,1] %>% sort(decreasing = T) %>% head(10)
+var_info$contrib[,2] %>% sort(decreasing = T) %>% head(10)
+var_info$contrib[,3] %>% sort(decreasing = T) %>% head(10)
+
+res_ind$coord %>% data.frame() %>% rownames_to_column("sample") %>% as_tibble() %>% inner_join(output$grouping_tbl) %>% 
+  ggplot(aes(Dim.1, Dim.2, color = group)) +
+  geom_point(size = 4) + theme_bw() + scale_colour_brewer(palette = "Paired")
+
+```
+
+Check the most important PCs to predict the patient group
+
+```{r}
+rf_randomForest = randomForest::randomForest(group~., data = res_ind$coord %>% data.frame() %>% rownames_to_column("sample") %>% as_tibble() %>% inner_join(output$grouping_tbl) %>% select(-sample) %>% mutate(group = factor(group, levels = c("High","Medium","Low"))), ntree = 1000, importance = TRUE, do.trace=F)
+randomForest::varImpPlot(rf_randomForest)
+```
+
+```{r}
+res_ind$coord %>% data.frame() %>% rownames_to_column("sample") %>% as_tibble() %>% inner_join(output$grouping_tbl) %>% 
+  ggplot(aes(Dim.1, Dim.10, color = group)) +
+  geom_point(size = 4) + theme_bw() + scale_colour_brewer(palette = "Dark2")
+res_ind$coord %>% data.frame() %>% rownames_to_column("sample") %>% as_tibble() %>% inner_join(output$grouping_tbl) %>% 
+  ggplot(aes(Dim.1, Dim.6, color = group)) +
+  geom_point(size = 4) + theme_bw() + scale_colour_brewer(palette = "Dark2")
+var_info$contrib[,1] %>% sort(decreasing = T) %>% head(10)
+var_info$contrib[,10] %>% sort(decreasing = T) %>% head(10)
+var_info$contrib[,6] %>% sort(decreasing = T) %>% head(10)
+
+```
+
+References:
+
+XXXX
