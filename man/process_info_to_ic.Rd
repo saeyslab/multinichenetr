@@ -7,21 +7,30 @@
 process_info_to_ic(info_object, ic_type = "sender", lr_network)
 }
 \arguments{
-\item{info_object}{XXX}
+\item{info_object}{Output of `get_avg_frac_exprs_abund`}
 
-\item{ic_type}{XXX}
+\item{ic_type}{"sender" or "receiver": indicates whether we should keep ligands or receptors respectively.}
 
-\item{lr_network}{XXXX}
+\item{lr_network}{Prior knowledge Ligand-Receptor network (columns: ligand, receptor)}
 }
 \value{
-XXXX
+List with expression information of ligands (sender case) or receptors (receiver case) - similar to output of `get_avg_frac_exprs_abund`.
 }
 \description{
-\code{process_info_to_ic}  XXXX
+\code{process_info_to_ic}  Process cell type expression information into intercellular communication focused information. Only keep information of ligands for the sender cell type setting, and information of receptors for the receiver cell type.
 }
 \examples{
 \dontrun{
-print("XXXX")
+library(Seurat)
+library(dplyr)
+lr_network = readRDS(url("https://zenodo.org/record/3260758/files/lr_network.rds"))
+lr_network = lr_network \%>\% dplyr::rename(ligand = from, receptor = to) \%>\% dplyr::distinct(ligand, receptor)
+sample_id = "tumor"
+group_id = "pEMT"
+celltype_id = "celltype"
+celltype_info = get_avg_frac_exprs_abund(seurat_obj = seurat_obj, sample_id = sample_id, celltype_id =  celltype_id, group_id = group_id)
+receiver_info_ic = process_info_to_ic(info_object = celltype_info, ic_type = "receiver", lr_network = lr_network)
+sender_info_ic = process_info_to_ic(info_object = celltype_info, ic_type = "sender", lr_network = lr_network)
 }
 
 }

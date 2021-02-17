@@ -7,19 +7,43 @@
 ms_mg_nichenet_analysis(sender_receiver_separate = TRUE, ...)
 }
 \arguments{
-\item{sender_receiver_separate}{XXXX}
+\item{sender_receiver_separate}{Indicates whether the user gives as input one separate seurat object with sender cell types and one with receiver cell types (TRUE) or whether only one seurat object with both sender and receiver cell types of interest (FALSE).
+TRUE calls the function `ms_mg_nichenet_analysis_separate`, FALSE calls the function `ms_mg_nichenet_analysis_combined`. Default: TRUE.}
 
-\item{...}{Arguments to `ms_mg_nichenet_analysis_separate` (default; when `sender_receiver_separate = TRUE`) or `ms_mg_nichenet_analysis_combined` (when `sender_receiver_separate = FALSE`)}
+\item{...}{Arguments to `ms_mg_nichenet_analysis_separate` or `ms_mg_nichenet_analysis_combined`.}
 }
 \value{
-XXXX
+List containing different types of information and output of the MultiNicheNet analysis. 
+See `ms_mg_nichenet_analysis_separate` and `ms_mg_nichenet_analysis_combined` for more information.
 }
 \description{
-\code{ms_mg_nichenet_analysis}  XXXX
+\code{ms_mg_nichenet_analysis}  Perform a MultiNicheNet analysis. See `ms_mg_nichenet_analysis_separate` and `sender_receiver_separate` for more information.
 }
 \examples{
 \dontrun{
-print("XXXX")
+library(Seurat)
+library(dplyr)
+lr_network = readRDS(url("https://zenodo.org/record/3260758/files/lr_network.rds"))
+lr_network = lr_network \%>\% dplyr::rename(ligand = from, receptor = to) \%>\% dplyr::distinct(ligand, receptor)
+ligand_target_matrix = readRDS(url("https://zenodo.org/record/3260758/files/ligand_target_matrix.rds"))
+sample_id = "tumor"
+group_id = "pEMT"
+celltype_id = "celltype"
+covariates = NA
+contrasts_oi = c("'High-Low','Low-High'")
+contrast_tbl = tibble(contrast = c("High-Low","Low-High"), group = c("High","Low"))
+output = ms_mg_nichenet_analysis(
+     seurat_obj = seurat_obj, 
+     celltype_id = celltype_id, 
+     sample_id = sample_id, 
+     group_id = group_id,
+     covariates = covariates,
+     lr_network = lr_network, 
+     ligand_target_matrix = ligand_target_matrix, 
+     contrasts_oi = contrasts_oi, 
+     contrast_tbl = contrast_tbl, 
+     sender_receiver_separate = FALSE
+     )
 }
 
 }

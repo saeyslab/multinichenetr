@@ -1,21 +1,41 @@
 #' @title ms_mg_nichenet_analysis
 #'
-#' @description \code{ms_mg_nichenet_analysis}  XXXX
+#' @description \code{ms_mg_nichenet_analysis}  Perform a MultiNicheNet analysis. See `ms_mg_nichenet_analysis_separate` and `sender_receiver_separate` for more information.
 #' @usage ms_mg_nichenet_analysis(sender_receiver_separate = TRUE, ...)
 #'
-#' @param sender_receiver_separate XXXX
-#' @param ... Arguments to `ms_mg_nichenet_analysis_separate` (default; when `sender_receiver_separate = TRUE`) or `ms_mg_nichenet_analysis_combined` (when `sender_receiver_separate = FALSE`)
+#' @param sender_receiver_separate Indicates whether the user gives as input one separate seurat object with sender cell types and one with receiver cell types (TRUE) or whether only one seurat object with both sender and receiver cell types of interest (FALSE).
+#' TRUE calls the function `ms_mg_nichenet_analysis_separate`, FALSE calls the function `ms_mg_nichenet_analysis_combined`. Default: TRUE.
+#' @param ... Arguments to `ms_mg_nichenet_analysis_separate` or `ms_mg_nichenet_analysis_combined`. 
 #'
-#' @return XXXX
+#' @return  List containing different types of information and output of the MultiNicheNet analysis. 
+#' See `ms_mg_nichenet_analysis_separate` and `ms_mg_nichenet_analysis_combined` for more information.
 #'
-#' @import Seurat
-#' @import dplyr
-#' @import muscat
-#' @importFrom purrr map
 #'
 #' @examples
 #' \dontrun{
-#' print("XXXX")
+#' library(Seurat)
+#' library(dplyr)
+#' lr_network = readRDS(url("https://zenodo.org/record/3260758/files/lr_network.rds"))
+#' lr_network = lr_network %>% dplyr::rename(ligand = from, receptor = to) %>% dplyr::distinct(ligand, receptor)
+#' ligand_target_matrix = readRDS(url("https://zenodo.org/record/3260758/files/ligand_target_matrix.rds"))
+#' sample_id = "tumor"
+#' group_id = "pEMT"
+#' celltype_id = "celltype"
+#' covariates = NA
+#' contrasts_oi = c("'High-Low','Low-High'")
+#' contrast_tbl = tibble(contrast = c("High-Low","Low-High"), group = c("High","Low"))
+#' output = ms_mg_nichenet_analysis(
+#'      seurat_obj = seurat_obj, 
+#'      celltype_id = celltype_id, 
+#'      sample_id = sample_id, 
+#'      group_id = group_id,
+#'      covariates = covariates,
+#'      lr_network = lr_network, 
+#'      ligand_target_matrix = ligand_target_matrix, 
+#'      contrasts_oi = contrasts_oi, 
+#'      contrast_tbl = contrast_tbl, 
+#'      sender_receiver_separate = FALSE
+#'      )
 #' }
 #'
 #' @export
@@ -36,49 +56,112 @@ ms_mg_nichenet_analysis = function(sender_receiver_separate = TRUE, ...){
 
 #' @title ms_mg_nichenet_analysis_separate
 #'
-#' @description \code{ms_mg_nichenet_analysis_separate}  XXXX
+#' @description \code{ms_mg_nichenet_analysis_separate}  Perform a MultiNicheNet analysis between sender cell types and receiver cell types of interest.
 #' @usage ms_mg_nichenet_analysis_separate(
-#' seurat_obj_receiver,seurat_obj_sender,celltype_id_receiver,celltype_id_sender,sample_id,group_id,lr_network,ligand_target_matrix,contrasts_oi,contrast_tbl,
+#' seurat_obj_receiver,seurat_obj_sender,celltype_id_receiver,celltype_id_sender,sample_id,group_id, covariates, lr_network,ligand_target_matrix,contrasts_oi,contrast_tbl,
 #' prioritizing_weights = c("scaled_lfc_ligand" = 1, "scaled_p_val_ligand" = 1, "scaled_lfc_receptor" = 1, "scaled_p_val_receptor" = 1, "scaled_activity_scaled" = 1.5,
 #' "scaled_activity" = 0.5,"scaled_avg_exprs_ligand" = 1,"scaled_avg_frq_ligand" = 1,"scaled_avg_exprs_receptor" = 1, "scaled_avg_frq_receptor" = 1,
 #' "fraction_expressing_ligand_receptor" = 1,"scaled_abundance_sender" = 0, "scaled_abundance_receiver" = 0),
 #' assay_oi_sce = "RNA",assay_oi_pb ="counts",fun_oi_pb = "sum",de_method_oi = "edgeR",min_cells = 10,logFC_threshold = 0.25,p_val_threshold = 0.05,frac_cutoff = 0.05,p_val_adj = FALSE,top_n_target = 250, verbose = TRUE)
 #'
-#' @param seurat_obj_receiver XXXX
-#' @param seurat_obj_sender XXXX
-#' @param celltype_id_receiver XXXX
-#' @param celltype_id_sender XXXX
-#' @param sample_id XXXX
-#' @param group_id XXXX
-#' @param lr_network XXXX
-#' @param ligand_target_matrix XXXX
-#' @param contrasts_oi XXXX
-#' @param contrast_tbl XXXX
-#' @param prioritizing_weights XXXX
-#' @param assay_oi_sce XXXX
-#' @param assay_oi_pb XXXX
-#' @param fun_oi_pb XXXX
-#' @param de_method_oi XXXX
-#' @param min_cells XXXX
-#' @param logFC_threshold XXXX
-#' @param p_val_threshold XXXX
-#' @param frac_cutoff XXXX
-#' @param p_val_adj XXXX
-#' @param top_n_target XXXX
-#' @param verbose XXXX
+#' @param seurat_obj_receiver Seurat object containing the receiver cell types of interest
+#' @param seurat_obj_sender Seurat object containing the sender cell types of interest
+#' @param celltype_id_receiver Name of the meta data column that indicates the cell type of a cell (in seurat_obj_receiver).
+#' @param celltype_id_sender Name of the meta data column that indicates the cell type of a cell (in seurat_obj_receiver). 
+#' @param sample_id Name of the meta data column that indicates from which sample/patient a cell comes from (in both seurat_obj_receiver and seurat_obj_sender)
+#' @param group_id Name of the meta data column that indicates from which group/condition a cell comes from (in both seurat_obj_receiver and seurat_obj_sender)
+#' @param covariates NA if no covariates should be corrected for. If there should be corrected for covariates, this argument should be the name(s) of the columns in the meta data that indicate the covariate(s).
+#' @param lr_network Prior knowledge Ligand-Receptor network (columns: ligand, receptor)
+#' @param ligand_target_matrix Prior knowledge model of ligand-target regulatory potential (matrix with ligands in columns and targets in rows). See https://github.com/saeyslab/nichenetr.
+#' @param contrasts_oi String indicating the contrasts of interest (= which groups/conditions will be compared) for the differential expression and MultiNicheNet analysis. 
+#' We will demonstrate here a few examples to indicate how to write this. Check the limma package manuals for more information about defining design matrices and contrasts for differential expression analysis.
+#' If wanting to compare group A vs B: `contrasts_oi = c("'A-B'")`
+#' If wanting to compare group A vs B & B vs A: `contrasts_oi = c("'A-B','B-A'")`
+#' If wanting to compare group A vs B & A vs C & A vs D: `contrasts_oi = c("'A-B','A-C', 'A-D'")`
+#' If wanting to compare group A vs B and C: `contrasts_oi = c("'A-(B+C)/2'")`
+#' If wanting to compare group A vs B, C and D: `contrasts_oi = c("'A-(B+C+D)/3'")`
+#' If wanting to compare group A vs B, C and D & B vs A,C,D: `contrasts_oi = c("'A-(B+C+D)/3', 'B-(A+C+D)/3'")`
+#' Note that the groups A, B, ... should be present in the meta data column 'group_id'.
+#' @param contrast_tbl Data frame providing names for each of the contrasts in contrasts_oi. 
+#' Example for `contrasts_oi = c("'A-(B+C+D)/3', 'B-(A+C+D)/3'")`:
+#' `contrast_tbl = tibble(contrast = c("A-(B+C+D)/3","B-(A+C+D)/3"), group = c("A","B"))`
+#' @param prioritizing_weights Named vector indicating the relative weights of each prioritization criterion included in MultiNicheNet.
+#' Default: c("scaled_lfc_ligand" = 1,"scaled_p_val_ligand" = 1,"scaled_lfc_receptor" = 1,"scaled_p_val_receptor" = 1,
+#' "scaled_activity_scaled" = 1.5,"scaled_activity" = 0.5,"scaled_avg_exprs_ligand" = 1,"scaled_avg_frq_ligand" = 1,
+#' "scaled_avg_exprs_receptor" = 1,"scaled_avg_frq_receptor" = 1,"fraction_expressing_ligand_receptor" = 1,"scaled_abundance_sender" = 0,"scaled_abundance_receiver" = 0)
+#' Details about the meaning of this naming:
+#' scaled_lfc_ligand: importance of Log Fold Change of the ligand in a certain sender (indicates upregulation of the ligand in condition of interest compared to other conditions)
+#' scaled_p_val_ligand: importance of the DE p-value of the ligand in a certain sender (indicates upregulation of the ligand in condition of interest compared to other conditions)
+#' scaled_lfc_receptor: importance of Log Fold Change of the receptor in a certain receiver (indicates upregulation of the receptor in condition of interest compared to other conditions)
+#' scaled_p_val_receptor: importance of DE p-value of the receptor in a certain receiver (indicates upregulation of the receptor in condition of interest compared to other conditions)
+#' scaled_activity_scaled: importance of the scaled ligand activity of the ligand in a certain receiver-condition combination (indicates active signaling of a ligand in a receiver cell type in a certain condition compared to other conditions). Scaled activity: indicates the ranking of ligands in a certain receiver-condition combination.
+#' scaled_activity: importance of the absolute ligand activity of the ligand in a certain receiver-condition combination (indicates active signaling of a ligand in a receiver cell type in a certain condition compared to other conditions). Activity: indicates the absolute enrichment of predicted target genes of a ligand in the set of DE genes in a certain receiver-condition combination. See https://github.com/saeyslab/nichenetr. 
+#' scaled_avg_exprs_ligand: importance of the condition-and-sender specific expression of a ligand (average expression value). 
+#' scaled_avg_frq_ligand: importance of the condition-and-sender specific expression of a ligand (fraction of cells expressing a ligand). 
+#' scaled_avg_exprs_receptor: importance of the condition-and-receiver specific expression of a receptor (average expression value).
+#' scaled_avg_frq_receptor: importance of the condition-and-receiver specific expression of a receptor (fraction of cells expressing a receptor). 
+#' fraction_expressing_ligand_receptor: importance of the fraction of samples in a group that show high enough expression of the specific ligand-receptor pair.
+#' scaled_abundance_sender: importance of relative cell type abundance of the sender cell type.
+#' scaled_abundance_receiver: importance of relative cell type abundance of the receiver cell type.
+#' @param assay_oi_sce Indicates which assay of the Seurat object should be used. Default: "RNA". See: `Seurat::as.SingleCellExperiment`.
+#' @param assay_oi_pb Indicates which information of the assay of interest should be used (counts, scaled data,...). Default: "counts". See `muscat::aggregateData`.
+#' @param fun_oi_pb Indicates way of doing the pseudobulking. Default: "sum". See `muscat::aggregateData`.
+#' @param de_method_oi Indicates the DE method that will be used after pseudobulking. Default: "edgeR". See `muscat::pbDS`.
+#' @param min_cells Indicates the minimal number of cells that a sample should have to be considered in the DE analysis. Default: 10. See `muscat::pbDS`.
+#' @param logFC_threshold For defining the gene set of interest for NicheNet ligand activity: what is the minimum logFC a gene should have to belong to this gene set? Default: 0.25/
+#' @param p_val_threshold For defining the gene set of interest for NicheNet ligand activity: what is the maximam p-value a gene should have to belong to this gene set? Default: 0.05.
+#' @param frac_cutoff Cutoff indicating the minimum fraction of cells of a cell type in a specific sample that are necessary to consider the gene as expressed. Default: 0.05.
+#' @param p_val_adj For defining the gene set of interest for NicheNet ligand activity: should we look at the p-value corrected for multiple testing? Default: FALSE.
+#' @param top_n_target For defining NicheNet ligand-target links: which top N predicted target genes. See `nichenetr::get_weighted_ligand_target_links()`.
+#' @param verbose Indicate which different steps of the pipeline are running or not. Default: TRUE.
 #'
-#'
-#' @return XXXX
+#' @return List containing information and output of the MultiNicheNet analysis.
+#' celltype_info: contains average expression value and fraction of each cell type - sample combination,
+#' celltype_de: contains output of the differential expression analysis, 
+#' sender_receiver_info: links the expression information of the ligand in the sender cell types to the expression of the receptor in the receiver cell types, 
+#' sender_receiver_de: links the differential information of the ligand in the sender cell types to the expression of the receptor in the receiver cell types
+#' ligand_activities_targets_DEgenes: contains the output of the NicheNet ligand activity analysis, and the NicheNet ligand-target inference
+#' prioritization_tables: contains the tables with the final prioritization scores
+#' lr_prod_mat: matrix of the ligand-receptor expression product of the expressed senderLigand-receiverReceptor pairs,
+#' grouping_tbl: data frame showing the group per sample 
 #'
 #' @import Seurat
 #' @import dplyr
-#' @import muscat
-#' @importFrom purrr map
+#' @import generics
+#' @importFrom stringr str_split
+#' @importFrom tibble as_tibble
+#' @importFrom tidyr spread
 #'
 #' @examples
 #' \dontrun{
-#' print("XXXX")
-#' }
+#' library(Seurat)
+#' library(dplyr)
+#' seurat_obj_receiver = seurat_obj %>% subset(subset = celltype == "Malignant")
+#' seurat_obj_sender = seurat_obj %>% subset(subset = celltype == "CAF")
+#' lr_network = readRDS(url("https://zenodo.org/record/3260758/files/lr_network.rds"))
+#' lr_network = lr_network %>% dplyr::rename(ligand = from, receptor = to) %>% dplyr::distinct(ligand, receptor)
+#' ligand_target_matrix = readRDS(url("https://zenodo.org/record/3260758/files/ligand_target_matrix.rds"))
+#' sample_id = "tumor"
+#' group_id = "pEMT"
+#' celltype_id_receiver = "celltype"
+#' celltype_id_sender = "celltype"
+#' covariates = NA
+#' contrasts_oi = c("'High-Low','Low-High'")
+#' contrast_tbl = tibble(contrast = c("High-Low","Low-High"), group = c("High","Low"))
+#' output = ms_mg_nichenet_analysis_separate(
+#'      seurat_obj_receiver = seurat_obj_receiver, 
+#'      seurat_obj_sender = seurat_obj_sender,
+#'      celltype_id_receiver = celltype_id_receiver, 
+#'      celltype_id_sender = celltype_id_sender,
+#'      sample_id = sample_id, 
+#'      group_id = group_id, 
+#'      covariates = covariates,
+#'      lr_network = lr_network, 
+#'      ligand_target_matrix = ligand_target_matrix, 
+#'      contrasts_oi = contrasts_oi, 
+#'      contrast_tbl = contrast_tbl
+#'      )
+#'}
 #'
 #' @export
 #'
@@ -88,6 +171,7 @@ ms_mg_nichenet_analysis_separate = function(seurat_obj_receiver,
                                             celltype_id_sender,
                                             sample_id,
                                             group_id,
+                                            covariates,
                                             lr_network,
                                             ligand_target_matrix,
                                             contrasts_oi,
@@ -117,6 +201,9 @@ ms_mg_nichenet_analysis_separate = function(seurat_obj_receiver,
                                             top_n_target = 250, verbose = TRUE){
 
 
+  requireNamespace("Seurat")
+  requireNamespace("dplyr")
+  
   # input checks
 
   if (class(seurat_obj_receiver) != "Seurat") {
@@ -128,8 +215,14 @@ ms_mg_nichenet_analysis_separate = function(seurat_obj_receiver,
   if (!celltype_id_receiver %in% colnames(seurat_obj_receiver@meta.data)) {
     stop("celltype_id_receiver should be a column name in the metadata dataframe of seurat_obj_receiver")
   }
+  if (celltype_id_receiver != make.names(celltype_id_receiver)) {
+    stop("celltype_id_receiver should be a syntactically valid R name - check make.names")
+  }
   if (!celltype_id_sender %in% colnames(seurat_obj_sender@meta.data)) {
     stop("celltype_id_sender should be a column name in the metadata dataframe of seurat_obj_sender")
+  }
+  if (celltype_id_sender != make.names(celltype_id_sender)) {
+    stop("celltype_id_sender should be a syntactically valid R name - check make.names")
   }
   if (!sample_id %in% colnames(seurat_obj_receiver@meta.data)) {
     stop("sample_id should be a column name in the metadata dataframe of seurat_obj_receiver")
@@ -137,12 +230,65 @@ ms_mg_nichenet_analysis_separate = function(seurat_obj_receiver,
   if (!sample_id %in% colnames(seurat_obj_sender@meta.data)) {
     stop("sample_id should be a column name in the metadata dataframe of seurat_obj_sender")
   }
+  if (sample_id != make.names(sample_id)) {
+    stop("sample_id should be a syntactically valid R name - check make.names")
+  }
   if (!group_id %in% colnames(seurat_obj_receiver@meta.data)) {
     stop("group_id should be a column name in the metadata dataframe of seurat_obj_receiver")
   }
   if (!group_id %in% colnames(seurat_obj_sender@meta.data)) {
     stop("group_id should be a column name in the metadata dataframe of seurat_obj_sender")
   }
+  if (group_id != make.names(group_id)) {
+    stop("group_id should be a syntactically valid R name - check make.names")
+  }
+  
+  # group, sample and cell type id must not be numeric
+  if(is.double(seurat_obj_receiver@meta.data[,celltype_id_receiver])){
+    stop("seurat_obj_receiver@meta.data[,celltype_id_receiver] should be a character vector or a factor")
+  }
+  if(is.double(seurat_obj_receiver@meta.data[,group_id])){
+    stop("seurat_obj_receiver@meta.data[,group_id] should be a character vector or a factor")
+  }
+  if(is.double(seurat_obj_receiver@meta.data[,sample_id])){
+    stop("seurat_obj_receiver@meta.data[,sample_id] should be a character vector or a factor")
+  }
+  if(is.double(seurat_obj_sender@meta.data[,celltype_id_sender])){
+    stop("seurat_obj_sender@meta.data[,celltype_id_sender] should be a character vector or a factor")
+  }
+  if(is.double(seurat_obj_sender@meta.data[,group_id])){
+    stop("seurat_obj_sender@meta.data[,group_id] should be a character vector or a factor")
+  }
+  if(is.double(seurat_obj_sender@meta.data[,sample_id])){
+    stop("seurat_obj_sender@meta.data[,sample_id] should be a character vector or a factor")
+  }
+  
+  # if some of these are factors, and not all levels have syntactically valid names - prompt to change this
+  if(is.factor(seurat_obj_receiver@meta.data[,celltype_id_receiver])){
+    if(levels(seurat_obj_receiver@meta.data[,celltype_id_receiver]) != make.names(levels(seurat_obj_receiver@meta.data[,celltype_id_receiver])))
+      stop("The levels of the factor seurat_obj_receiver@meta.data[,celltype_id_receiver] should be a syntactically valid R names - see make.names")
+  }
+  if(is.factor(seurat_obj_receiver@meta.data[,group_id])){
+    if(levels(seurat_obj_receiver@meta.data[,group_id]) != make.names(levels(seurat_obj_receiver@meta.data[,group_id])))
+      stop("The levels of the factor seurat_obj_receiver@meta.data[,group_id] should be a syntactically valid R names - see make.names")
+  }
+  if(is.factor(seurat_obj_receiver@meta.data[,sample_id])){
+    if(levels(seurat_obj_receiver@meta.data[,sample_id]) != make.names(levels(seurat_obj_receiver@meta.data[,sample_id])))
+      stop("The levels of the factor seurat_obj_receiver@meta.data[,sample_id] should be a syntactically valid R names - see make.names")
+  }
+  if(is.factor(seurat_obj_sender@meta.data[,celltype_id_sender])){
+    if(levels(seurat_obj_sender@meta.data[,celltype_id_sender]) != make.names(levels(seurat_obj_sender@meta.data[,celltype_id_sender])))
+      stop("The levels of the factor seurat_obj_sender@meta.data[,celltype_id_sender] should be a syntactically valid R names - see make.names")
+  }
+  if(is.factor(seurat_obj_sender@meta.data[,group_id])){
+    if(levels(seurat_obj_sender@meta.data[,group_id]) != make.names(levels(seurat_obj_sender@meta.data[,group_id])))
+      stop("The levels of the factor seurat_obj_sender@meta.data[,group_id] should be a syntactically valid R names - see make.names")
+  }
+  if(is.factor(seurat_obj_sender@meta.data[,sample_id])){
+    if(levels(seurat_obj_sender@meta.data[,sample_id]) != make.names(levels(seurat_obj_sender@meta.data[,sample_id])))
+      stop("The levels of the factor seurat_obj_sender@meta.data[,sample_id] should be a syntactically valid R names - see make.names")
+  }
+  
   if(!is.character(contrasts_oi)){
     stop("contrasts_oi should be a character vector")
   }
@@ -428,7 +574,7 @@ ms_mg_nichenet_analysis_separate = function(seurat_obj_receiver,
   if(verbose == TRUE){
     print("Prepare the ligand-receptor expression product matrix to be used for unsupervised analyses")
   }
-  ids_oi = prioritization_tables$group_prioritization_tbl %>% dplyr::filter(fraction_expressing_ligand_receptor > 0)  %>% pull(id) %>% unique()
+  ids_oi = prioritization_tables$group_prioritization_tbl %>% dplyr::filter(fraction_expressing_ligand_receptor > 0)  %>% dplyr::pull(id) %>% unique()
 
   lr_prod_df = sender_receiver_info$avg_df %>% dplyr::inner_join(grouping_tbl, by = "sample") %>% dplyr::mutate(lr_interaction = paste(ligand, receptor, sep = "_")) %>% dplyr::mutate(id = paste(lr_interaction, sender, receiver, sep = "_")) %>% dplyr::select(sample, id, ligand_receptor_prod) %>% dplyr::filter(id %in% ids_oi) %>% dplyr::distinct() %>% tidyr::spread(id, ligand_receptor_prod)
   lr_prod_mat = lr_prod_df %>% dplyr::select(-sample) %>% data.frame() %>% as.matrix()
@@ -457,29 +603,59 @@ ms_mg_nichenet_analysis_separate = function(seurat_obj_receiver,
 }
 #' @title ms_mg_nichenet_analysis_combined
 #'
-#' @description \code{ms_mg_nichenet_analysis_combined}  XXXX
+#' @description \code{ms_mg_nichenet_analysis_combined}  Perform a MultiNicheNet analysis in an all-vs-all setting: all cell types in the data will be considered both as sender and receiver.
 #' @usage ms_mg_nichenet_analysis_combined(
-#' seurat_obj, celltype_id, sample_id,group_id,lr_network,ligand_target_matrix,contrasts_oi,contrast_tbl,
+#' seurat_obj, celltype_id, sample_id,group_id, covariates, lr_network,ligand_target_matrix,contrasts_oi,contrast_tbl,
 #' prioritizing_weights = c("scaled_lfc_ligand" = 1, "scaled_p_val_ligand" = 1, "scaled_lfc_receptor" = 1, "scaled_p_val_receptor" = 1, "scaled_activity_scaled" = 1.5,
 #' "scaled_activity" = 0.5,"scaled_avg_exprs_ligand" = 1,"scaled_avg_frq_ligand" = 1,"scaled_avg_exprs_receptor" = 1, "scaled_avg_frq_receptor" = 1,
 #' "fraction_expressing_ligand_receptor" = 1,"scaled_abundance_sender" = 0, "scaled_abundance_receiver" = 0),
 #' assay_oi_sce = "RNA",assay_oi_pb ="counts",fun_oi_pb = "sum",de_method_oi = "edgeR",min_cells = 10,logFC_threshold = 0.25,p_val_threshold = 0.05,frac_cutoff = 0.05,p_val_adj = FALSE,top_n_target = 250, verbose = TRUE)
 #'
-#' @param seurat_obj XXXX
-#' @param celltype_id XXXX
+#' @param seurat_obj Seurat object of the scRNAseq data of interest. Contains both sender and receiver cell types.
+#' @param celltype_id Name of the column in the meta data of seurat_obj that indicates the cell type of a cell.
 #' @inheritParams ms_mg_nichenet_analysis_separate
 #'
 #'
-#' @return XXXX
+#' @return List containing information and output of the MultiNicheNet analysis.
+#' celltype_info: contains average expression value and fraction of each cell type - sample combination,
+#' celltype_de: contains output of the differential expression analysis, 
+#' sender_receiver_info: links the expression information of the ligand in the sender cell types to the expression of the receptor in the receiver cell types, 
+#' sender_receiver_de: links the differential information of the ligand in the sender cell types to the expression of the receptor in the receiver cell types
+#' ligand_activities_targets_DEgenes: contains the output of the NicheNet ligand activity analysis, and the NicheNet ligand-target inference
+#' prioritization_tables: contains the tables with the final prioritization scores
+#' lr_prod_mat: matrix of the ligand-receptor expression product of the expressed senderLigand-receiverReceptor pairs,
+#' grouping_tbl: data frame showing the group per sample 
 #'
 #' @import Seurat
 #' @import dplyr
-#' @import muscat
-#' @importFrom purrr map
+#' @import generics
+#' @importFrom stringr str_split
+#' @importFrom tibble as_tibble
+#' @importFrom tidyr spread
 #'
 #' @examples
 #' \dontrun{
-#' print("XXXX")
+#' library(Seurat)
+#' library(dplyr)
+#' lr_network = readRDS(url("https://zenodo.org/record/3260758/files/lr_network.rds"))
+#' lr_network = lr_network %>% dplyr::rename(ligand = from, receptor = to) %>% dplyr::distinct(ligand, receptor)
+#' ligand_target_matrix = readRDS(url("https://zenodo.org/record/3260758/files/ligand_target_matrix.rds"))
+#' sample_id = "tumor"
+#' group_id = "pEMT"
+#' celltype_id = "celltype"
+#' covariates = NA
+#' contrasts_oi = c("'High-Low','Low-High'")
+#' contrast_tbl = tibble(contrast = c("High-Low","Low-High"), group = c("High","Low"))
+#' output = ms_mg_nichenet_analysis_combined(
+#'      seurat_obj = seurat_obj, 
+#'      celltype_id = celltype_id, 
+#'      sample_id = sample_id, 
+#'      group_id = group_id, 
+#'      covariates = covariates,
+#'      lr_network = lr_network, 
+#'      ligand_target_matrix = ligand_target_matrix, 
+#'      contrasts_oi = contrasts_oi, 
+#'      contrast_tbl = contrast_tbl)
 #' }
 #'
 #' @export
@@ -488,6 +664,7 @@ ms_mg_nichenet_analysis_combined = function(seurat_obj,
                                             celltype_id,
                                             sample_id,
                                             group_id,
+                                            covariates,
                                             lr_network,
                                             ligand_target_matrix,
                                             contrasts_oi,
@@ -517,6 +694,9 @@ ms_mg_nichenet_analysis_combined = function(seurat_obj,
                                             top_n_target = 250, verbose = TRUE){
 
 
+  requireNamespace("Seurat")
+  requireNamespace("dplyr")
+  
   # input checks
 
   if (class(seurat_obj) != "Seurat") {
@@ -525,12 +705,47 @@ ms_mg_nichenet_analysis_combined = function(seurat_obj,
   if (!celltype_id %in% colnames(seurat_obj@meta.data)) {
     stop("celltype_id should be a column name in the metadata dataframe of seurat_obj")
   }
+  if (celltype_id != make.names(celltype_id)) {
+    stop("celltype_id should be a syntactically valid R name - check make.names")
+  }
   if (!sample_id %in% colnames(seurat_obj@meta.data)) {
     stop("sample_id should be a column name in the metadata dataframe of seurat_obj")
+  }
+  if (sample_id != make.names(sample_id)) {
+    stop("sample_id should be a syntactically valid R name - check make.names")
   }
   if (!group_id %in% colnames(seurat_obj@meta.data)) {
     stop("group_id should be a column name in the metadata dataframe of seurat_obj")
   }
+  if (group_id != make.names(group_id)) {
+    stop("group_id should be a syntactically valid R name - check make.names")
+  }
+  
+  if(is.double(seurat_obj@meta.data[,celltype_id])){
+    stop("seurat_obj@meta.data[,celltype_id] should be a character vector or a factor")
+  }
+  if(is.double(seurat_obj@meta.data[,group_id])){
+    stop("seurat_obj@meta.data[,group_id] should be a character vector or a factor")
+  }
+  if(is.double(seurat_obj@meta.data[,sample_id])){
+    stop("seurat_obj@meta.data[,sample_id] should be a character vector or a factor")
+  }
+
+  # if some of these are factors, and not all levels have syntactically valid names - prompt to change this
+  if(is.factor(seurat_obj@meta.data[,celltype_id])){
+    if(levels(seurat_obj@meta.data[,celltype_id]) != make.names(levels(seurat_obj@meta.data[,celltype_id])))
+    stop("The levels of the factor seurat_obj@meta.data[,celltype_id] should be a syntactically valid R names - see make.names")
+  }
+  if(is.factor(seurat_obj@meta.data[,group_id])){
+    if(levels(seurat_obj@meta.data[,group_id]) != make.names(levels(seurat_obj@meta.data[,group_id])))
+      stop("The levels of the factor seurat_obj@meta.data[,group_id] should be a syntactically valid R names - see make.names")
+  }
+  if(is.factor(seurat_obj@meta.data[,sample_id])){
+    if(levels(seurat_obj@meta.data[,sample_id]) != make.names(levels(seurat_obj@meta.data[,sample_id])))
+      stop("The levels of the factor seurat_obj@meta.data[,sample_id] should be a syntactically valid R names - see make.names")
+  }
+  
+  
   if(!is.character(contrasts_oi)){
     stop("contrasts_oi should be a character vector")
   }
@@ -792,7 +1007,7 @@ ms_mg_nichenet_analysis_combined = function(seurat_obj,
   if(verbose == TRUE){
     print("Prepare the ligand-receptor expression product matrix to be used for unsupervised analyses")
   }
-  ids_oi = prioritization_tables$group_prioritization_tbl %>% dplyr::filter(fraction_expressing_ligand_receptor > 0)  %>% pull(id) %>% unique()
+  ids_oi = prioritization_tables$group_prioritization_tbl %>% dplyr::filter(fraction_expressing_ligand_receptor > 0)  %>% dplyr::pull(id) %>% unique()
 
   lr_prod_df = sender_receiver_info$avg_df %>% dplyr::inner_join(grouping_tbl, by = "sample") %>% dplyr::mutate(lr_interaction = paste(ligand, receptor, sep = "_")) %>% dplyr::mutate(id = paste(lr_interaction, sender, receiver, sep = "_")) %>% dplyr::select(sample, id, ligand_receptor_prod) %>% dplyr::filter(id %in% ids_oi) %>% dplyr::distinct() %>% tidyr::spread(id, ligand_receptor_prod)
   lr_prod_mat = lr_prod_df %>% dplyr::select(-sample) %>% data.frame() %>% as.matrix()

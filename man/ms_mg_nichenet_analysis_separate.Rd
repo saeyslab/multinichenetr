@@ -5,66 +5,129 @@
 \title{ms_mg_nichenet_analysis_separate}
 \usage{
 ms_mg_nichenet_analysis_separate(
-seurat_obj_receiver,seurat_obj_sender,celltype_id_receiver,celltype_id_sender,sample_id,group_id,lr_network,ligand_target_matrix,contrasts_oi,contrast_tbl,
+seurat_obj_receiver,seurat_obj_sender,celltype_id_receiver,celltype_id_sender,sample_id,group_id, covariates, lr_network,ligand_target_matrix,contrasts_oi,contrast_tbl,
 prioritizing_weights = c("scaled_lfc_ligand" = 1, "scaled_p_val_ligand" = 1, "scaled_lfc_receptor" = 1, "scaled_p_val_receptor" = 1, "scaled_activity_scaled" = 1.5,
 "scaled_activity" = 0.5,"scaled_avg_exprs_ligand" = 1,"scaled_avg_frq_ligand" = 1,"scaled_avg_exprs_receptor" = 1, "scaled_avg_frq_receptor" = 1,
 "fraction_expressing_ligand_receptor" = 1,"scaled_abundance_sender" = 0, "scaled_abundance_receiver" = 0),
 assay_oi_sce = "RNA",assay_oi_pb ="counts",fun_oi_pb = "sum",de_method_oi = "edgeR",min_cells = 10,logFC_threshold = 0.25,p_val_threshold = 0.05,frac_cutoff = 0.05,p_val_adj = FALSE,top_n_target = 250, verbose = TRUE)
 }
 \arguments{
-\item{seurat_obj_receiver}{XXXX}
+\item{seurat_obj_receiver}{Seurat object containing the receiver cell types of interest}
 
-\item{seurat_obj_sender}{XXXX}
+\item{seurat_obj_sender}{Seurat object containing the sender cell types of interest}
 
-\item{celltype_id_receiver}{XXXX}
+\item{celltype_id_receiver}{Name of the meta data column that indicates the cell type of a cell (in seurat_obj_receiver).}
 
-\item{celltype_id_sender}{XXXX}
+\item{celltype_id_sender}{Name of the meta data column that indicates the cell type of a cell (in seurat_obj_receiver).}
 
-\item{sample_id}{XXXX}
+\item{sample_id}{Name of the meta data column that indicates from which sample/patient a cell comes from (in both seurat_obj_receiver and seurat_obj_sender)}
 
-\item{group_id}{XXXX}
+\item{group_id}{Name of the meta data column that indicates from which group/condition a cell comes from (in both seurat_obj_receiver and seurat_obj_sender)}
 
-\item{lr_network}{XXXX}
+\item{covariates}{NA if no covariates should be corrected for. If there should be corrected for covariates, this argument should be the name(s) of the columns in the meta data that indicate the covariate(s).}
 
-\item{ligand_target_matrix}{XXXX}
+\item{lr_network}{Prior knowledge Ligand-Receptor network (columns: ligand, receptor)}
 
-\item{contrasts_oi}{XXXX}
+\item{ligand_target_matrix}{Prior knowledge model of ligand-target regulatory potential (matrix with ligands in columns and targets in rows). See https://github.com/saeyslab/nichenetr.}
 
-\item{contrast_tbl}{XXXX}
+\item{contrasts_oi}{String indicating the contrasts of interest (= which groups/conditions will be compared) for the differential expression and MultiNicheNet analysis. 
+We will demonstrate here a few examples to indicate how to write this. Check the limma package manuals for more information about defining design matrices and contrasts for differential expression analysis.
+If wanting to compare group A vs B: `contrasts_oi = c("'A-B'")`
+If wanting to compare group A vs B & B vs A: `contrasts_oi = c("'A-B','B-A'")`
+If wanting to compare group A vs B & A vs C & A vs D: `contrasts_oi = c("'A-B','A-C', 'A-D'")`
+If wanting to compare group A vs B and C: `contrasts_oi = c("'A-(B+C)/2'")`
+If wanting to compare group A vs B, C and D: `contrasts_oi = c("'A-(B+C+D)/3'")`
+If wanting to compare group A vs B, C and D & B vs A,C,D: `contrasts_oi = c("'A-(B+C+D)/3', 'B-(A+C+D)/3'")`
+Note that the groups A, B, ... should be present in the meta data column 'group_id'.}
 
-\item{prioritizing_weights}{XXXX}
+\item{contrast_tbl}{Data frame providing names for each of the contrasts in contrasts_oi. 
+Example for `contrasts_oi = c("'A-(B+C+D)/3', 'B-(A+C+D)/3'")`:
+`contrast_tbl = tibble(contrast = c("A-(B+C+D)/3","B-(A+C+D)/3"), group = c("A","B"))`}
 
-\item{assay_oi_sce}{XXXX}
+\item{prioritizing_weights}{Named vector indicating the relative weights of each prioritization criterion included in MultiNicheNet.
+Default: c("scaled_lfc_ligand" = 1,"scaled_p_val_ligand" = 1,"scaled_lfc_receptor" = 1,"scaled_p_val_receptor" = 1,
+"scaled_activity_scaled" = 1.5,"scaled_activity" = 0.5,"scaled_avg_exprs_ligand" = 1,"scaled_avg_frq_ligand" = 1,
+"scaled_avg_exprs_receptor" = 1,"scaled_avg_frq_receptor" = 1,"fraction_expressing_ligand_receptor" = 1,"scaled_abundance_sender" = 0,"scaled_abundance_receiver" = 0)
+Details about the meaning of this naming:
+scaled_lfc_ligand: importance of Log Fold Change of the ligand in a certain sender (indicates upregulation of the ligand in condition of interest compared to other conditions)
+scaled_p_val_ligand: importance of the DE p-value of the ligand in a certain sender (indicates upregulation of the ligand in condition of interest compared to other conditions)
+scaled_lfc_receptor: importance of Log Fold Change of the receptor in a certain receiver (indicates upregulation of the receptor in condition of interest compared to other conditions)
+scaled_p_val_receptor: importance of DE p-value of the receptor in a certain receiver (indicates upregulation of the receptor in condition of interest compared to other conditions)
+scaled_activity_scaled: importance of the scaled ligand activity of the ligand in a certain receiver-condition combination (indicates active signaling of a ligand in a receiver cell type in a certain condition compared to other conditions). Scaled activity: indicates the ranking of ligands in a certain receiver-condition combination.
+scaled_activity: importance of the absolute ligand activity of the ligand in a certain receiver-condition combination (indicates active signaling of a ligand in a receiver cell type in a certain condition compared to other conditions). Activity: indicates the absolute enrichment of predicted target genes of a ligand in the set of DE genes in a certain receiver-condition combination. See https://github.com/saeyslab/nichenetr. 
+scaled_avg_exprs_ligand: importance of the condition-and-sender specific expression of a ligand (average expression value). 
+scaled_avg_frq_ligand: importance of the condition-and-sender specific expression of a ligand (fraction of cells expressing a ligand). 
+scaled_avg_exprs_receptor: importance of the condition-and-receiver specific expression of a receptor (average expression value).
+scaled_avg_frq_receptor: importance of the condition-and-receiver specific expression of a receptor (fraction of cells expressing a receptor). 
+fraction_expressing_ligand_receptor: importance of the fraction of samples in a group that show high enough expression of the specific ligand-receptor pair.
+scaled_abundance_sender: importance of relative cell type abundance of the sender cell type.
+scaled_abundance_receiver: importance of relative cell type abundance of the receiver cell type.}
 
-\item{assay_oi_pb}{XXXX}
+\item{assay_oi_sce}{Indicates which assay of the Seurat object should be used. Default: "RNA". See: `Seurat::as.SingleCellExperiment`.}
 
-\item{fun_oi_pb}{XXXX}
+\item{assay_oi_pb}{Indicates which information of the assay of interest should be used (counts, scaled data,...). Default: "counts". See `muscat::aggregateData`.}
 
-\item{de_method_oi}{XXXX}
+\item{fun_oi_pb}{Indicates way of doing the pseudobulking. Default: "sum". See `muscat::aggregateData`.}
 
-\item{min_cells}{XXXX}
+\item{de_method_oi}{Indicates the DE method that will be used after pseudobulking. Default: "edgeR". See `muscat::pbDS`.}
 
-\item{logFC_threshold}{XXXX}
+\item{min_cells}{Indicates the minimal number of cells that a sample should have to be considered in the DE analysis. Default: 10. See `muscat::pbDS`.}
 
-\item{p_val_threshold}{XXXX}
+\item{logFC_threshold}{For defining the gene set of interest for NicheNet ligand activity: what is the minimum logFC a gene should have to belong to this gene set? Default: 0.25/}
 
-\item{frac_cutoff}{XXXX}
+\item{p_val_threshold}{For defining the gene set of interest for NicheNet ligand activity: what is the maximam p-value a gene should have to belong to this gene set? Default: 0.05.}
 
-\item{p_val_adj}{XXXX}
+\item{frac_cutoff}{Cutoff indicating the minimum fraction of cells of a cell type in a specific sample that are necessary to consider the gene as expressed. Default: 0.05.}
 
-\item{top_n_target}{XXXX}
+\item{p_val_adj}{For defining the gene set of interest for NicheNet ligand activity: should we look at the p-value corrected for multiple testing? Default: FALSE.}
 
-\item{verbose}{XXXX}
+\item{top_n_target}{For defining NicheNet ligand-target links: which top N predicted target genes. See `nichenetr::get_weighted_ligand_target_links()`.}
+
+\item{verbose}{Indicate which different steps of the pipeline are running or not. Default: TRUE.}
 }
 \value{
-XXXX
+List containing information and output of the MultiNicheNet analysis.
+celltype_info: contains average expression value and fraction of each cell type - sample combination,
+celltype_de: contains output of the differential expression analysis, 
+sender_receiver_info: links the expression information of the ligand in the sender cell types to the expression of the receptor in the receiver cell types, 
+sender_receiver_de: links the differential information of the ligand in the sender cell types to the expression of the receptor in the receiver cell types
+ligand_activities_targets_DEgenes: contains the output of the NicheNet ligand activity analysis, and the NicheNet ligand-target inference
+prioritization_tables: contains the tables with the final prioritization scores
+lr_prod_mat: matrix of the ligand-receptor expression product of the expressed senderLigand-receiverReceptor pairs,
+grouping_tbl: data frame showing the group per sample
 }
 \description{
-\code{ms_mg_nichenet_analysis_separate}  XXXX
+\code{ms_mg_nichenet_analysis_separate}  Perform a MultiNicheNet analysis between sender cell types and receiver cell types of interest.
 }
 \examples{
 \dontrun{
-print("XXXX")
+library(Seurat)
+library(dplyr)
+seurat_obj_receiver = seurat_obj \%>\% subset(subset = celltype == "Malignant")
+seurat_obj_sender = seurat_obj \%>\% subset(subset = celltype == "CAF")
+lr_network = readRDS(url("https://zenodo.org/record/3260758/files/lr_network.rds"))
+lr_network = lr_network \%>\% dplyr::rename(ligand = from, receptor = to) \%>\% dplyr::distinct(ligand, receptor)
+ligand_target_matrix = readRDS(url("https://zenodo.org/record/3260758/files/ligand_target_matrix.rds"))
+sample_id = "tumor"
+group_id = "pEMT"
+celltype_id_receiver = "celltype"
+celltype_id_sender = "celltype"
+covariates = NA
+contrasts_oi = c("'High-Low','Low-High'")
+contrast_tbl = tibble(contrast = c("High-Low","Low-High"), group = c("High","Low"))
+output = ms_mg_nichenet_analysis_separate(
+     seurat_obj_receiver = seurat_obj_receiver, 
+     seurat_obj_sender = seurat_obj_sender,
+     celltype_id_receiver = celltype_id_receiver, 
+     celltype_id_sender = celltype_id_sender,
+     sample_id = sample_id, 
+     group_id = group_id, 
+     covariates = covariates,
+     lr_network = lr_network, 
+     ligand_target_matrix = ligand_target_matrix, 
+     contrasts_oi = contrasts_oi, 
+     contrast_tbl = contrast_tbl
+     )
 }
 
 }

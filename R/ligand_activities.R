@@ -1,30 +1,59 @@
 #' @title get_ligand_activities_targets_DEgenes
 #'
-#' @description \code{get_ligand_activities_targets_DEgenes}  XXXX
+#' @description \code{get_ligand_activities_targets_DEgenes}  Predict NicheNet ligand activities and ligand-target links for the receiver cell types. Uses `nichenetr::predict_ligand_activities()` and `nichenetr::get_weighted_ligand_target_links()` under the hood.
 #' @usage get_ligand_activities_targets_DEgenes(receiver_de, receivers_oi, receiver_frq_df_group, ligand_target_matrix, logFC_threshold = 0.25, p_val_threshold = 0.05, frac_cutoff = 0.05, p_val_adj = FALSE, top_n_target = 250)
 #'
 #' @inheritParams ms_mg_nichenet_analysis_separate
 #' @inheritParams combine_sender_receiver_info_ic
 #' @inheritParams combine_sender_receiver_de
-#' @param receiver_frq_df_group XXX
+#' @param receiver_frq_df_group frq_df_group output data frame from output of `get_avg_frac_exprs_abund`.
 #'
-#' @return XXXX
+#' @return List with two data frames: one data frame containing the ligand activities and ligand-target links, one containing the DE gene information.
 #'
 #' @import Seurat
 #' @import dplyr
 #' @import muscat
+#' @import nichenetr
+#' @import tibble
+#' @import tidyr
 #' @importFrom purrr map
 #'
 #' @examples
 #' \dontrun{
-#' print("XXXX")
+#' library(Seurat)
+#' library(dplyr)
+#' lr_network = readRDS(url("https://zenodo.org/record/3260758/files/lr_network.rds"))
+#' lr_network = lr_network %>% dplyr::rename(ligand = from, receptor = to) %>% dplyr::distinct(ligand, receptor)
+#' ligand_target_matrix = readRDS(url("https://zenodo.org/record/3260758/files/ligand_target_matrix.rds"))
+#' sample_id = "tumor"
+#' group_id = "pEMT"
+#' celltype_id = "celltype"
+#' covariates = NA
+#' contrasts_oi = c("'High-Low','Low-High'")
+#' receivers_oi = Idents(seurat_obj) %>% unique()
+#' celltype_info = get_avg_frac_exprs_abund(seurat_obj = seurat_obj, sample_id = sample_id, celltype_id =  celltype_id, group_id = group_id)
+#' celltype_de = perform_muscat_de_analysis(
+#'    seurat_obj = seurat_obj,
+#'    sample_id = sample_id,
+#'    celltype_id = celltype_id,
+#'    group_id = group_id,
+#'    covariates = covariates,
+#'    contrasts = contrasts_oi)
+#' ligand_activities_targets_DEgenes = get_ligand_activities_targets_DEgenes(
+#'    receiver_de = celltype_de,
+#'    receivers_oi = receivers_oi,
+#'    receiver_frq_df_group = celltype_info$frq_df_group,
+#'    ligand_target_matrix = ligand_target_matrix)
 #' }
 #'
 #' @export
 #'
 get_ligand_activities_targets_DEgenes = function(receiver_de, receivers_oi, receiver_frq_df_group, ligand_target_matrix, logFC_threshold = 0.25, p_val_threshold = 0.05, frac_cutoff = 0.05, p_val_adj = FALSE, top_n_target = 250){
 
-  # consider other dplyr::filtering of the target genes? based on fraction of samples in a group that should have enough expression?
+  
+  requireNamespace("dplyr")
+  
+  # consider other filtering of the target genes? based on fraction of samples in a group that should have enough expression?
 
   ligand_activities_targets_geneset_ALL = receivers_oi %>%
     lapply(function(receiver_oi, receiver_de, receiver_frq_df_group, frac_cutoff){

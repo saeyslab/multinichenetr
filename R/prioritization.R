@@ -5,33 +5,90 @@ scale_quantile_adapted = function(x){
 }
 #' @title generate_prioritization_tables
 #'
-#' @description \code{generate_prioritization_tables}  XXXX
+#' @description \code{generate_prioritization_tables}  Perform the MultiNicheNet prioritization of cell-cell interactions. 
+#' User can choose the importance attached to each of the following prioritization criteria: differential expression of ligand and receptor, cell-type-condition-specificity of expression of ligand and receptor, NicheNet ligand activity, fraction of samples in a group that express a senderLigand-receiverReceptor pair, relative cell type abundance of sender/receiver.
 #' @usage generate_prioritization_tables(sender_receiver_info, sender_receiver_de, ligand_activities_targets_DEgenes, contrast_tbl, sender_receiver_tbl, grouping_tbl, prioritizing_weights, fraction_cutoff)
 #'
 #' @inheritParams ms_mg_nichenet_analysis_combined
 #' @inheritParams combine_sender_receiver_info_ic
-#' @param sender_receiver_info XXX
-#' @param sender_receiver_de XXX
-#' @param ligand_activities_targets_DEgenes XXX
-#' @param sender_receiver_tbl XXX
-#' @param grouping_tbl XXX
+#' @param sender_receiver_info Output of `combine_sender_receiver_info_ic`
+#' @param sender_receiver_de Output of `combine_sender_receiver_de`
+#' @param ligand_activities_targets_DEgenes Output of `get_ligand_activities_targets_DEgenes`
+#' @param sender_receiver_tbl Data frame with all sender-receiver cell type combinations (columns: sender and receiver)
+#' @param grouping_tbl Data frame showing the groups of each sample (and covariates per sample if applicable) (columns: sample and group; and if applicable all covariates of interest)
 #'
-#' @return XXXX
+#' @return List containing multiple data frames prioritized senderLigand-receiverReceptor interactions (with sample- and group-based expression information), ligand activities and ligand-target links.
 #'
-#' @import Seurat
 #' @import dplyr
-#' @import muscat
-#' @importFrom purrr map
+#' @import nichenetr
 #'
 #' @examples
 #' \dontrun{
-#' print("XXXX")
+#' library(Seurat)
+#' library(dplyr)
+#' lr_network = readRDS(url("https://zenodo.org/record/3260758/files/lr_network.rds"))
+#' lr_network = lr_network %>% dplyr::rename(ligand = from, receptor = to) %>% dplyr::distinct(ligand, receptor)
+#' ligand_target_matrix = readRDS(url("https://zenodo.org/record/3260758/files/ligand_target_matrix.rds"))
+#' sample_id = "tumor"
+#' group_id = "pEMT"
+#' celltype_id = "celltype"
+#' covariates = NA
+#' contrasts_oi = c("'High-Low','Low-High'")
+#' contrast_tbl = tibble(contrast = c("High-Low","Low-High"), group = c("High","Low"))
+#' celltype_info = get_avg_frac_exprs_abund(seurat_obj = seurat_obj, sample_id = sample_id, celltype_id =  celltype_id, group_id = group_id)
+#' 
+#' receiver_info_ic = process_info_to_ic(info_object = celltype_info, ic_type = "receiver", lr_network = lr_network)
+#' sender_info_ic = process_info_to_ic(info_object = celltype_info, ic_type = "sender", lr_network = lr_network)
+#' senders_oi = Idents(seurat_obj) %>% unique()
+#' receivers_oi = Idents(seurat_obj) %>% unique()
+#' sender_receiver_info = combine_sender_receiver_info_ic(sender_info = sender_info_ic,receiver_info = receiver_info_ic,senders_oi = senders_oi,receivers_oi = receivers_oi,lr_network = lr_network)
+#' 
+#' celltype_de = perform_muscat_de_analysis(
+#'    seurat_obj = seurat_obj,
+#'    sample_id = sample_id,
+#'    celltype_id = celltype_id,
+#'    group_id = group_id,
+#'    covariates = covariates,
+#'    contrasts = contrasts_oi)
+#'    
+#' sender_receiver_de = combine_sender_receiver_de(
+#'  sender_de = celltype_de,
+#'  receiver_de = celltype_de,
+#'  senders_oi = senders_oi,
+#'  receivers_oi = receivers_oi,
+#'  lr_network = lr_network)
+#'  
+#' ligand_activities_targets_DEgenes = get_ligand_activities_targets_DEgenes(
+#'    receiver_de = celltype_de,
+#'    receivers_oi = receivers_oi,
+#'    receiver_frq_df_group = celltype_info$frq_df_group,
+#'    ligand_target_matrix = ligand_target_matrix)
+#' 
+#' 
+#' sender_receiver_tbl = sender_receiver_de %>% dplyr::distinct(sender, receiver)
+#' metadata_combined = seurat_obj@meta.data %>% tibble::as_tibble()
+#' grouping_tbl = metadata_combined[,c(sample_id, group_id)] %>% tibble::as_tibble() %>% dplyr::distinct()
+#' colnames(grouping_tbl) = c("sample","group") 
+#' 
+#' prioritizing_weights = c("scaled_lfc_ligand" = 1,"scaled_p_val_ligand" = 1,"scaled_lfc_receptor" = 1,"scaled_p_val_receptor" = 1,"scaled_activity_scaled" = 1.5,"scaled_activity" = 0.5,"scaled_avg_exprs_ligand" = 1,"scaled_avg_frq_ligand" = 1,"scaled_avg_exprs_receptor" = 1,"scaled_avg_frq_receptor" = 1,"fraction_expressing_ligand_receptor" = 1,"scaled_abundance_sender" = 0,"scaled_abundance_receiver" = 0)
+#' frac_cutoff = 0.05
+#' prioritization_tables = generate_prioritization_tables(
+#'     sender_receiver_info = sender_receiver_info,
+#'     sender_receiver_de = sender_receiver_de,
+#'     ligand_activities_targets_DEgenes = ligand_activities_targets_DEgenes,
+#'     contrast_tbl = contrast_tbl,
+#'     sender_receiver_tbl = sender_receiver_tbl,
+#'     grouping_tbl = grouping_tbl,
+#'     prioritizing_weights = prioritizing_weights,
+#'     fraction_cutoff = frac_cutoff)
 #' }
 #'
 #' @export
 #'
 generate_prioritization_tables = function(sender_receiver_info, sender_receiver_de, ligand_activities_targets_DEgenes, contrast_tbl, sender_receiver_tbl, grouping_tbl, prioritizing_weights, fraction_cutoff){
 
+  requireNamespace("dplyr")
+  
   # Group prioritization table -------------------------------------------------------------------------------------------------------------------------------------------
 
   # receiver-focused prioritization for receptor: contrast - receiver - receptor - lfc_receptor - p_adj_receptor: group by contrast and receiver: score each receptor based on those rankings

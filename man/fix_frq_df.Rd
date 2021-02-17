@@ -7,19 +7,27 @@
 fix_frq_df(seurat_obj, frq_celltype_samples)
 }
 \arguments{
-\item{seurat_obj}{XXXX}
+\item{seurat_obj}{Seurat object of the scRNAseq data of interest. Contains both sender and receiver cell types.}
 
-\item{frq_celltype_samples}{XXXX}
+\item{frq_celltype_samples}{Sample-average data frame output of `get_muscat_exprs_frac`}
 }
 \value{
-XXXX
+Fixed data frame with fraction of cells expressing a gene.
 }
 \description{
-\code{fix_frq_df}  XXXX
+\code{fix_frq_df}  Fix muscat-bug in fraction calculation in case that expression fraction would be NA / NaN. Change NA to 0.
 }
 \examples{
 \dontrun{
-print("XXXX")
+library(Seurat)
+library(dplyr)
+sample_id = "tumor"
+group_id = "pEMT"
+celltype_id = "celltype"
+frq_df = get_muscat_exprs_frac(seurat_obj, sample_id = sample_id, celltype_id =  celltype_id, group_id = group_id, assay_oi_sce = assay_oi) \%>\% .$frq_celltype_samples
+if(nrow(frq_df \%>\% dplyr::filter(is.na(fraction_sample))) > 0 | nrow(frq_df \%>\% dplyr::filter(is.nan(fraction_sample))) > 0) {
+  frq_df = fix_frq_df(seurat_obj, frq_df)
+  }
 }
 
 }

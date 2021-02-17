@@ -7,25 +7,38 @@
 combine_sender_receiver_info_ic(sender_info, receiver_info, senders_oi, receivers_oi, lr_network)
 }
 \arguments{
-\item{sender_info}{XXX}
+\item{sender_info}{Output of `process_info_to_ic` with `ic_type = "sender"`}
 
-\item{receiver_info}{XXX}
+\item{receiver_info}{Output of `process_info_to_ic` with `ic_type = "receiver"`}
 
-\item{senders_oi}{XXX}
+\item{senders_oi}{Character vector indicating the names of the sender cell types of interest}
 
-\item{receivers_oi}{XXX}
+\item{receivers_oi}{Character vector indicating the names of the receiver cell types of interest}
 
-\item{lr_network}{XXXX}
+\item{lr_network}{Prior knowledge Ligand-Receptor network (columns: ligand, receptor)}
 }
 \value{
-XXXX
+List with data frames containing ligand-receptor sender-receiver combined expression information (see output of `get_avg_frac_exprs_abund` and `process_info_to_ic`)
 }
 \description{
-\code{combine_sender_receiver_info_ic}  XXXX
+\code{combine_sender_receiver_info_ic}  Link the ligand-expression information of the Sender cell type to the receptor-expression information of the Receiver cell type. Linking via prior knowledge ligand-receptor network.
 }
 \examples{
 \dontrun{
-print("XXXX")
+library(Seurat)
+library(dplyr)
+lr_network = readRDS(url("https://zenodo.org/record/3260758/files/lr_network.rds"))
+lr_network = lr_network \%>\% dplyr::rename(ligand = from, receptor = to) \%>\% dplyr::distinct(ligand, receptor)
+sample_id = "tumor"
+group_id = "pEMT"
+celltype_id = "celltype"
+celltype_info = get_avg_frac_exprs_abund(seurat_obj = seurat_obj, sample_id = sample_id, celltype_id =  celltype_id, group_id = group_id)
+receiver_info_ic = process_info_to_ic(info_object = celltype_info, ic_type = "receiver", lr_network = lr_network)
+sender_info_ic = process_info_to_ic(info_object = celltype_info, ic_type = "sender", lr_network = lr_network)
+senders_oi = Idents(seurat_obj) \%>\% unique()
+receivers_oi = Idents(seurat_obj) \%>\% unique()
+sender_receiver_info = combine_sender_receiver_info_ic(sender_info = sender_info_ic,receiver_info = receiver_info_ic,senders_oi = senders_oi,receivers_oi = receivers_oi,lr_network = lr_network)
+  
 }
 
 }

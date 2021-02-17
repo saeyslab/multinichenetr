@@ -7,23 +7,28 @@
 get_avg_frac_exprs_abund(seurat_obj, sample_id, celltype_id, group_id, assay_oi = "RNA")
 }
 \arguments{
-\item{seurat_obj}{XXXX}
+\item{seurat_obj}{Seurat object of the scRNAseq data of interest. Contains both sender and receiver cell types.}
 
-\item{sample_id}{XXXX}
+\item{sample_id}{Name of the meta data column that indicates from which sample/patient a cell comes from (in both seurat_obj_receiver and seurat_obj_sender)}
 
-\item{celltype_id}{XXXX}
+\item{celltype_id}{Name of the column in the meta data of seurat_obj that indicates the cell type of a cell.}
 
-\item{group_id}{XXXX}
+\item{group_id}{Name of the meta data column that indicates from which group/condition a cell comes from (in both seurat_obj_receiver and seurat_obj_sender)}
 }
 \value{
-XXXX
+List containing data frames with average and fraction of expression per sample and per group, and relative cell type abundances as well.
 }
 \description{
-\code{get_avg_frac_exprs_abund}  XXXX
+\code{get_avg_frac_exprs_abund}  Calculate the average and fraction of expression of each gene per sample and per group. Calculate relative abundances of cell types as well.
 }
 \examples{
 \dontrun{
-print("XXXX")
+library(Seurat)
+library(dplyr)
+sample_id = "tumor"
+group_id = "pEMT"
+celltype_id = "celltype"
+celltype_info = get_avg_frac_exprs_abund(seurat_obj = seurat_obj, sample_id = sample_id, celltype_id =  celltype_id, group_id = group_id)
 }
 
 }

@@ -4,4 +4,4 @@ library(dplyr)
 library(Seurat)
 library(testthat)
 
-test_check("spatialnichenetr", filter = "utils")
+test_check("multinichenetr", filter = "pipeline")

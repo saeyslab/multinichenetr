@@ -7,25 +7,30 @@
 get_muscat_exprs_avg(seurat_obj, sample_id, celltype_id, group_id, assay_oi_sce = "RNA")
 }
 \arguments{
-\item{seurat_obj}{XXXX}
+\item{seurat_obj}{Seurat object of the scRNAseq data of interest. Contains both sender and receiver cell types.}
 
-\item{sample_id}{XXXX}
+\item{sample_id}{Name of the meta data column that indicates from which sample/patient a cell comes from (in both seurat_obj_receiver and seurat_obj_sender)}
 
-\item{celltype_id}{XXXX}
+\item{celltype_id}{Name of the column in the meta data of seurat_obj that indicates the cell type of a cell.}
 
-\item{group_id}{XXXX}
+\item{group_id}{Name of the meta data column that indicates from which group/condition a cell comes from (in both seurat_obj_receiver and seurat_obj_sender)}
 
-\item{assay_oi_sce}{XXXX}
+\item{assay_oi_sce}{Indicates which assay of the Seurat object should be used. Default: "RNA". See: `Seurat::as.SingleCellExperiment`.}
 }
 \value{
-XXXX
+Data frame with average gene expression per sample and per group.
 }
 \description{
-\code{get_muscat_exprs_avg}  XXXX
+\code{get_muscat_exprs_avg}  Calculate sample- and group-average of gene expression per cell type.
 }
 \examples{
 \dontrun{
-print("XXXX")
+library(Seurat)
+library(dplyr)
+sample_id = "tumor"
+group_id = "pEMT"
+celltype_id = "celltype"
+muscat_exprs_avg = get_muscat_exprs_avg(seurat_obj = seurat_obj, sample_id = sample_id, celltype_id =  celltype_id, group_id = group_id)
 }
 
 }

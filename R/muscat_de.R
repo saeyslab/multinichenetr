@@ -1,26 +1,48 @@
 #' @title perform_muscat_de_analysis
 #'
-#' @description \code{perform_muscat_de_analysis}  XXXX
+#' @description \code{perform_muscat_de_analysis} Perform differential expression analysis via Muscat - Pseudobulking approach.
 #' @usage perform_muscat_de_analysis(seurat_obj, sample_id, celltype_id, group_id, covariates, contrasts, assay_oi_sce = "RNA", assay_oi_pb = "counts", fun_oi_pb = "sum", de_method_oi = "edgeR", min_cells = 10)
 #'
 #' @inheritParams ms_mg_nichenet_analysis_combined
 #'
-#' @return XXXX
+#' @return List with a SingleCellExperiment object and the output of the differential expression analysis (`muscat::pbDS()`)
 #'
 #' @import Seurat
 #' @import dplyr
 #' @import muscat
-#' @importFrom purrr map
+#' @importFrom SummarizedExperiment assayNames 
+#' @importFrom S4Vectors metadata
+#' @importFrom limma makeContrasts
 #'
 #' @examples
 #' \dontrun{
-#' print("XXXX")
-#' }
+#' library(Seurat)
+#' library(dplyr)
+#' lr_network = readRDS(url("https://zenodo.org/record/3260758/files/lr_network.rds"))
+#' lr_network = lr_network %>% dplyr::rename(ligand = from, receptor = to) %>% dplyr::distinct(ligand, receptor)
+#' sample_id = "tumor"
+#' group_id = "pEMT"
+#' celltype_id = "celltype"
+#' covariates = NA
+#' contrasts_oi = c("'High-Low','Low-High'")
+#' senders_oi = Idents(seurat_obj) %>% unique()
+#' receivers_oi = Idents(seurat_obj) %>% unique()
+#' celltype_de = perform_muscat_de_analysis(
+#'    seurat_obj = seurat_obj,
+#'    sample_id = sample_id,
+#'    celltype_id = celltype_id,
+#'    group_id = group_id,
+#'    covariates = covariates,
+#'    contrasts = contrasts_oi)
+#'}
 #'
 #' @export
 #'
 perform_muscat_de_analysis = function(seurat_obj, sample_id, celltype_id, group_id, covariates, contrasts, assay_oi_sce = "RNA", assay_oi_pb = "counts", fun_oi_pb = "sum", de_method_oi = "edgeR", min_cells = 10){
 
+  requireNamespace("Seurat")
+  requireNamespace("dplyr")
+  
   # convert seurat to SCE object
   sce = Seurat::as.SingleCellExperiment(seurat_obj, assay = assay_oi_sce)
 
@@ -56,7 +78,7 @@ perform_muscat_de_analysis = function(seurat_obj, sample_id, celltype_id, group_
   if('sample_id' != sample_id){
     extra_metadata$sample_id = extra_metadata[[sample_id]]
   }
-  ei = metadata(sce)$experiment_info
+  ei = S4Vectors::metadata(sce)$experiment_info
 
   ei = ei %>%  dplyr::inner_join(extra_metadata, by = "sample_id")
 
@@ -71,10 +93,10 @@ perform_muscat_de_analysis = function(seurat_obj, sample_id, celltype_id, group_
 
   }
 
-  contrast = eval(parse(text=paste("makeContrasts(", contrasts, ",levels=design)",sep="")))
+  contrast = eval(parse(text=paste("limma::makeContrasts(", contrasts, ",levels=design)",sep="")))
 
-  # check which cell types will be excluded
-  n_cells = metadata(pb)$n_cells
+  # check which cell types will be excluded - Inner Muscat code
+  n_cells = S4Vectors::metadata(pb)$n_cells
   celltypes = SummarizedExperiment::assayNames(pb)
   names(celltypes) = celltypes
   excluded_celltypes = celltypes %>% lapply(function(k){

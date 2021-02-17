@@ -7,25 +7,49 @@
 combine_sender_receiver_de(sender_de, receiver_de, senders_oi, receivers_oi, lr_network)
 }
 \arguments{
-\item{sender_de}{XXX}
+\item{sender_de}{Differential expression analysis output for the sender cell types. Output of `perform_muscat_de_analysis`.}
 
-\item{receiver_de}{XXX}
+\item{receiver_de}{Differential expression analysis output for the receiver cell types. Output of `perform_muscat_de_analysis`.}
 
-\item{senders_oi}{XXX}
+\item{senders_oi}{Character vector indicating the names of the sender cell types of interest}
 
-\item{receivers_oi}{XXX}
+\item{receivers_oi}{Character vector indicating the names of the receiver cell types of interest}
 
-\item{lr_network}{XXXX}
+\item{lr_network}{Prior knowledge Ligand-Receptor network (columns: ligand, receptor)}
 }
 \value{
-XXXX
+Data frame combining Muscat DE output for sender and receiver linked to each other through joining by the ligand-receptor network.
 }
 \description{
-\code{combine_sender_receiver_de}  XXXX
+\code{combine_sender_receiver_de}  Combine Muscat differential expression output for senders and receivers by linkgin ligands to receptors based on the prior knowledge ligand-receptor network.
 }
 \examples{
 \dontrun{
-print("XXXX")
+library(Seurat)
+library(dplyr)
+lr_network = readRDS(url("https://zenodo.org/record/3260758/files/lr_network.rds"))
+lr_network = lr_network \%>\% dplyr::rename(ligand = from, receptor = to) \%>\% dplyr::distinct(ligand, receptor)
+sample_id = "tumor"
+group_id = "pEMT"
+celltype_id = "celltype"
+covariates = NA
+contrasts_oi = c("'High-Low','Low-High'")
+senders_oi = Idents(seurat_obj) \%>\% unique()
+receivers_oi = Idents(seurat_obj) \%>\% unique()
+celltype_de = perform_muscat_de_analysis(
+   seurat_obj = seurat_obj,
+   sample_id = sample_id,
+   celltype_id = celltype_id,
+   group_id = group_id,
+   covariates = covariates,
+   contrasts = contrasts_oi)
+
+sender_receiver_de = combine_sender_receiver_de(
+ sender_de = celltype_de,
+ receiver_de = celltype_de,
+ senders_oi = senders_oi,
+ receivers_oi = receivers_oi,
+ lr_network = lr_network)
 }
 
 }

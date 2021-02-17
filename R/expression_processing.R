@@ -1,26 +1,37 @@
 #' @title get_muscat_exprs_frac
 #'
-#' @description \code{get_muscat_exprs_frac}  XXXX
+#' @description \code{get_muscat_exprs_frac} Calculate sample- and group-average of fraction of cells in a cell type expressing a gene.
 #' @usage get_muscat_exprs_frac(seurat_obj, sample_id, celltype_id, group_id, assay_oi_sce = "RNA")
 #'
 #' @inheritParams ms_mg_nichenet_analysis_combined
 #'
-#' @return XXXX
+#' @return List with two dataframes: one with fraction of cells in a cell type expressing a gene, averaged per sample; and one averaged per group.
 #'
 #' @import Seurat
 #' @import dplyr
 #' @import muscat
+#' @import tibble
+#' @import tidyr
 #' @importFrom purrr map
+#' @importFrom magrittr set_names
 #'
 #' @examples
 #' \dontrun{
-#' print("XXXX")
+#' library(Seurat)
+#' library(dplyr)
+#' sample_id = "tumor"
+#' group_id = "pEMT"
+#' celltype_id = "celltype"
+#' muscat_exprs_frac = get_muscat_exprs_frac(seurat_obj = seurat_obj, sample_id = sample_id, celltype_id =  celltype_id, group_id = group_id)
 #' }
 #'
 #' @export
 #'
 get_muscat_exprs_frac = function(seurat_obj, sample_id, celltype_id, group_id, assay_oi_sce = "RNA"){
 
+  requireNamespace("Seurat")
+  requireNamespace("dplyr")
+  
   # convert seurat to SCE object
   sce = Seurat::as.SingleCellExperiment(seurat_obj, assay = assay_oi_sce)
 
@@ -60,27 +71,38 @@ get_muscat_exprs_frac = function(seurat_obj, sample_id, celltype_id, group_id, a
 
 #' @title get_muscat_exprs_avg
 #'
-#' @description \code{get_muscat_exprs_avg}  XXXX
+#' @description \code{get_muscat_exprs_avg}  Calculate sample- and group-average of gene expression per cell type.
 #' @usage get_muscat_exprs_avg(seurat_obj, sample_id, celltype_id, group_id, assay_oi_sce = "RNA")
 #'
 #' @inheritParams ms_mg_nichenet_analysis_combined
 #'
-#' @return XXXX
+#' @return Data frame with average gene expression per sample and per group.
 #'
 #' @import Seurat
 #' @import dplyr
 #' @import muscat
+#' @import tibble
+#' @import tidyr
+#' @importFrom scater computeLibraryFactors logNormCounts
 #' @importFrom purrr map
 #'
 #' @examples
 #' \dontrun{
-#' print("XXXX")
+#' library(Seurat)
+#' library(dplyr)
+#' sample_id = "tumor"
+#' group_id = "pEMT"
+#' celltype_id = "celltype"
+#' muscat_exprs_avg = get_muscat_exprs_avg(seurat_obj = seurat_obj, sample_id = sample_id, celltype_id =  celltype_id, group_id = group_id)
 #' }
 #'
 #' @export
 #'
 get_muscat_exprs_avg = function(seurat_obj, sample_id, celltype_id, group_id, assay_oi_sce = "RNA"){
 
+  requireNamespace("Seurat")
+  requireNamespace("dplyr")
+  
   # convert seurat to SCE object
   sce = Seurat::as.SingleCellExperiment(seurat_obj, assay = assay_oi_sce)
 
@@ -112,27 +134,38 @@ get_muscat_exprs_avg = function(seurat_obj, sample_id, celltype_id, group_id, as
 
 #' @title fix_frq_df
 #'
-#' @description \code{fix_frq_df}  XXXX
+#' @description \code{fix_frq_df}  Fix muscat-bug in fraction calculation in case that expression fraction would be NA / NaN. Change NA to 0.
 #' @usage fix_frq_df(seurat_obj, frq_celltype_samples)
 #'
 #' @inheritParams ms_mg_nichenet_analysis_combined
-#' @param frq_celltype_samples XXXX
+#' @param frq_celltype_samples Sample-average data frame output of `get_muscat_exprs_frac`
 #'
-#' @return XXXX
+#' @return Fixed data frame with fraction of cells expressing a gene.
 #'
 #' @import Seurat
 #' @import dplyr
-#' @import muscat
-#' @importFrom purrr map
+#' @importFrom magrittr set_names
 #'
 #' @examples
 #' \dontrun{
-#' print("XXXX")
+#' library(Seurat)
+#' library(dplyr)
+#' sample_id = "tumor"
+#' group_id = "pEMT"
+#' celltype_id = "celltype"
+#' frq_df = get_muscat_exprs_frac(seurat_obj, sample_id = sample_id, celltype_id =  celltype_id, group_id = group_id, assay_oi_sce = assay_oi) %>% .$frq_celltype_samples
+#' if(nrow(frq_df %>% dplyr::filter(is.na(fraction_sample))) > 0 | nrow(frq_df %>% dplyr::filter(is.nan(fraction_sample))) > 0) {
+#'   frq_df = fix_frq_df(seurat_obj, frq_df)
+#'   }
 #' }
 #'
 #' @export
 #'
 fix_frq_df = function(seurat_obj, frq_celltype_samples){
+  
+  requireNamespace("Seurat")
+  requireNamespace("dplyr")
+  
   genes = seurat_obj@assays$RNA@data %>% rownames()
   gene_mapping = genes %>% magrittr::set_names(seq(length(genes)))
 
@@ -152,26 +185,35 @@ fix_frq_df = function(seurat_obj, frq_celltype_samples){
 
 #' @title get_avg_frac_exprs_abund
 #'
-#' @description \code{get_avg_frac_exprs_abund}  XXXX
+#' @description \code{get_avg_frac_exprs_abund}  Calculate the average and fraction of expression of each gene per sample and per group. Calculate relative abundances of cell types as well.
 #' @usage get_avg_frac_exprs_abund(seurat_obj, sample_id, celltype_id, group_id, assay_oi = "RNA")
 #'
 #' @inheritParams ms_mg_nichenet_analysis_combined
 #'
-#' @return XXXX
+#' @return List containing data frames with average and fraction of expression per sample and per group, and relative cell type abundances as well.
 #'
 #' @import Seurat
 #' @import dplyr
-#' @import muscat
-#' @importFrom purrr map
+#' @import tibble
+#' @importFrom tidyr gather
 #'
 #' @examples
 #' \dontrun{
-#' print("XXXX")
+#' library(Seurat)
+#' library(dplyr)
+#' sample_id = "tumor"
+#' group_id = "pEMT"
+#' celltype_id = "celltype"
+#' celltype_info = get_avg_frac_exprs_abund(seurat_obj = seurat_obj, sample_id = sample_id, celltype_id =  celltype_id, group_id = group_id)
 #' }
 #'
 #' @export
 #'
 get_avg_frac_exprs_abund = function(seurat_obj, sample_id, celltype_id, group_id, assay_oi = "RNA"){
+  
+  requireNamespace("Seurat")
+  requireNamespace("dplyr")
+  
   ## calculate averages, fractions, relative abundance of a cell type in a group
 
   # calculate average expression
@@ -226,31 +268,39 @@ get_avg_frac_exprs_abund = function(seurat_obj, sample_id, celltype_id, group_id
 
 #' @title process_info_to_ic
 #'
-#' @description \code{process_info_to_ic}  XXXX
+#' @description \code{process_info_to_ic}  Process cell type expression information into intercellular communication focused information. Only keep information of ligands for the sender cell type setting, and information of receptors for the receiver cell type.
 #' @usage process_info_to_ic(info_object, ic_type = "sender", lr_network)
 #'
 #' @inheritParams ms_mg_nichenet_analysis_combined
-#' @param info_object XXX
-#' @param ic_type XXX
+#' @param info_object Output of `get_avg_frac_exprs_abund`
+#' @param ic_type "sender" or "receiver": indicates whether we should keep ligands or receptors respectively.
 #'
-#' @return XXXX
+#' @return List with expression information of ligands (sender case) or receptors (receiver case) - similar to output of `get_avg_frac_exprs_abund`.
 #'
-#' @import Seurat
 #' @import dplyr
-#' @import muscat
-#' @importFrom purrr map
 #'
 #' @examples
 #' \dontrun{
-#' print("XXXX")
+#' library(Seurat)
+#' library(dplyr)
+#' lr_network = readRDS(url("https://zenodo.org/record/3260758/files/lr_network.rds"))
+#' lr_network = lr_network %>% dplyr::rename(ligand = from, receptor = to) %>% dplyr::distinct(ligand, receptor)
+#' sample_id = "tumor"
+#' group_id = "pEMT"
+#' celltype_id = "celltype"
+#' celltype_info = get_avg_frac_exprs_abund(seurat_obj = seurat_obj, sample_id = sample_id, celltype_id =  celltype_id, group_id = group_id)
+#' receiver_info_ic = process_info_to_ic(info_object = celltype_info, ic_type = "receiver", lr_network = lr_network)
+#' sender_info_ic = process_info_to_ic(info_object = celltype_info, ic_type = "sender", lr_network = lr_network)
 #' }
 #'
 #' @export
 #'
 process_info_to_ic = function(info_object, ic_type = "sender", lr_network){
+  
+  requireNamespace("dplyr")
 
-  ligands = lr_network %>% pull(ligand) %>% unique()
-  receptors = lr_network %>% pull(receptor) %>% unique()
+  ligands = lr_network %>% dplyr::pull(ligand) %>% unique()
+  receptors = lr_network %>% dplyr::pull(receptor) %>% unique()
 
   if(ic_type == "sender"){
     avg_df = info_object$avg_df %>% dplyr::filter(gene %in% ligands) %>% dplyr::rename(sender = celltype, ligand = gene, avg_ligand = average_sample)
@@ -276,31 +326,43 @@ process_info_to_ic = function(info_object, ic_type = "sender", lr_network){
 
 #' @title combine_sender_receiver_info_ic
 #'
-#' @description \code{combine_sender_receiver_info_ic}  XXXX
+#' @description \code{combine_sender_receiver_info_ic}  Link the ligand-expression information of the Sender cell type to the receptor-expression information of the Receiver cell type. Linking via prior knowledge ligand-receptor network.
 #' @usage combine_sender_receiver_info_ic(sender_info, receiver_info, senders_oi, receivers_oi, lr_network)
 #'
 #' @inheritParams ms_mg_nichenet_analysis_combined
-#' @param sender_info XXX
-#' @param receiver_info XXX
-#' @param senders_oi XXX
-#' @param receivers_oi XXX
+#' @param sender_info Output of `process_info_to_ic` with `ic_type = "sender"`
+#' @param receiver_info Output of `process_info_to_ic` with `ic_type = "receiver"`
+#' @param senders_oi Character vector indicating the names of the sender cell types of interest
+#' @param receivers_oi Character vector indicating the names of the receiver cell types of interest
 #'
-#' @return XXXX
+#' @return List with data frames containing ligand-receptor sender-receiver combined expression information (see output of `get_avg_frac_exprs_abund` and `process_info_to_ic`)
 #'
-#' @import Seurat
 #' @import dplyr
-#' @import muscat
-#' @importFrom purrr map
 #'
 #' @examples
 #' \dontrun{
-#' print("XXXX")
+#' library(Seurat)
+#' library(dplyr)
+#' lr_network = readRDS(url("https://zenodo.org/record/3260758/files/lr_network.rds"))
+#' lr_network = lr_network %>% dplyr::rename(ligand = from, receptor = to) %>% dplyr::distinct(ligand, receptor)
+#' sample_id = "tumor"
+#' group_id = "pEMT"
+#' celltype_id = "celltype"
+#' celltype_info = get_avg_frac_exprs_abund(seurat_obj = seurat_obj, sample_id = sample_id, celltype_id =  celltype_id, group_id = group_id)
+#' receiver_info_ic = process_info_to_ic(info_object = celltype_info, ic_type = "receiver", lr_network = lr_network)
+#' sender_info_ic = process_info_to_ic(info_object = celltype_info, ic_type = "sender", lr_network = lr_network)
+#' senders_oi = Idents(seurat_obj) %>% unique()
+#' receivers_oi = Idents(seurat_obj) %>% unique()
+#' sender_receiver_info = combine_sender_receiver_info_ic(sender_info = sender_info_ic,receiver_info = receiver_info_ic,senders_oi = senders_oi,receivers_oi = receivers_oi,lr_network = lr_network)
+#'   
 #' }
 #'
 #' @export
 #'
 combine_sender_receiver_info_ic = function(sender_info, receiver_info, senders_oi, receivers_oi, lr_network){
 
+  requireNamespace("dplyr")
+  
   # combine avg_df
   avg_df_sender = sender_info$avg_df %>% dplyr::filter(sender %in% senders_oi)
   avg_df_receiver = receiver_info$avg_df %>% dplyr::filter(receiver %in% receivers_oi)
@@ -343,30 +405,54 @@ combine_sender_receiver_info_ic = function(sender_info, receiver_info, senders_o
 
 #' @title combine_sender_receiver_de
 #'
-#' @description \code{combine_sender_receiver_de}  XXXX
+#' @description \code{combine_sender_receiver_de}  Combine Muscat differential expression output for senders and receivers by linkgin ligands to receptors based on the prior knowledge ligand-receptor network.
 #' @usage combine_sender_receiver_de(sender_de, receiver_de, senders_oi, receivers_oi, lr_network)
 #'
 #' @inheritParams ms_mg_nichenet_analysis_combined
 #' @inheritParams combine_sender_receiver_info_ic
-#' @param sender_de XXX
-#' @param receiver_de XXX
+#' @param sender_de Differential expression analysis output for the sender cell types. Output of `perform_muscat_de_analysis`.
+#' @param receiver_de Differential expression analysis output for the receiver cell types. Output of `perform_muscat_de_analysis`.
 #'
-#' @return XXXX
+#' @return Data frame combining Muscat DE output for sender and receiver linked to each other through joining by the ligand-receptor network.
 #'
-#' @import Seurat
 #' @import dplyr
 #' @import muscat
-#' @importFrom purrr map
 #'
 #' @examples
 #' \dontrun{
-#' print("XXXX")
+#' library(Seurat)
+#' library(dplyr)
+#' lr_network = readRDS(url("https://zenodo.org/record/3260758/files/lr_network.rds"))
+#' lr_network = lr_network %>% dplyr::rename(ligand = from, receptor = to) %>% dplyr::distinct(ligand, receptor)
+#' sample_id = "tumor"
+#' group_id = "pEMT"
+#' celltype_id = "celltype"
+#' covariates = NA
+#' contrasts_oi = c("'High-Low','Low-High'")
+#' senders_oi = Idents(seurat_obj) %>% unique()
+#' receivers_oi = Idents(seurat_obj) %>% unique()
+#' celltype_de = perform_muscat_de_analysis(
+#'    seurat_obj = seurat_obj,
+#'    sample_id = sample_id,
+#'    celltype_id = celltype_id,
+#'    group_id = group_id,
+#'    covariates = covariates,
+#'    contrasts = contrasts_oi)
+#'
+#'sender_receiver_de = combine_sender_receiver_de(
+#'  sender_de = celltype_de,
+#'  receiver_de = celltype_de,
+#'  senders_oi = senders_oi,
+#'  receivers_oi = receivers_oi,
+#'  lr_network = lr_network)
 #' }
 #'
 #' @export
 #'
 combine_sender_receiver_de = function(sender_de, receiver_de, senders_oi, receivers_oi, lr_network){
 
+  requireNamespace("dplyr")
+  
   de_output_tidy_sender = muscat::resDS(sender_de$sce, sender_de$de_output, bind = "row", cpm = FALSE, frq = FALSE) %>% tibble::as_tibble()
   de_output_tidy_receiver = muscat::resDS(receiver_de$sce, receiver_de$de_output, bind = "row", cpm = FALSE, frq = FALSE) %>% tibble::as_tibble()
 

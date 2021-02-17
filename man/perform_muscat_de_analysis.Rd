@@ -7,33 +7,52 @@
 perform_muscat_de_analysis(seurat_obj, sample_id, celltype_id, group_id, covariates, contrasts, assay_oi_sce = "RNA", assay_oi_pb = "counts", fun_oi_pb = "sum", de_method_oi = "edgeR", min_cells = 10)
 }
 \arguments{
-\item{seurat_obj}{XXXX}
+\item{seurat_obj}{Seurat object of the scRNAseq data of interest. Contains both sender and receiver cell types.}
 
-\item{sample_id}{XXXX}
+\item{sample_id}{Name of the meta data column that indicates from which sample/patient a cell comes from (in both seurat_obj_receiver and seurat_obj_sender)}
 
-\item{celltype_id}{XXXX}
+\item{celltype_id}{Name of the column in the meta data of seurat_obj that indicates the cell type of a cell.}
 
-\item{group_id}{XXXX}
+\item{group_id}{Name of the meta data column that indicates from which group/condition a cell comes from (in both seurat_obj_receiver and seurat_obj_sender)}
 
-\item{assay_oi_sce}{XXXX}
+\item{covariates}{NA if no covariates should be corrected for. If there should be corrected for covariates, this argument should be the name(s) of the columns in the meta data that indicate the covariate(s).}
 
-\item{assay_oi_pb}{XXXX}
+\item{assay_oi_sce}{Indicates which assay of the Seurat object should be used. Default: "RNA". See: `Seurat::as.SingleCellExperiment`.}
 
-\item{fun_oi_pb}{XXXX}
+\item{assay_oi_pb}{Indicates which information of the assay of interest should be used (counts, scaled data,...). Default: "counts". See `muscat::aggregateData`.}
 
-\item{de_method_oi}{XXXX}
+\item{fun_oi_pb}{Indicates way of doing the pseudobulking. Default: "sum". See `muscat::aggregateData`.}
 
-\item{min_cells}{XXXX}
+\item{de_method_oi}{Indicates the DE method that will be used after pseudobulking. Default: "edgeR". See `muscat::pbDS`.}
+
+\item{min_cells}{Indicates the minimal number of cells that a sample should have to be considered in the DE analysis. Default: 10. See `muscat::pbDS`.}
 }
 \value{
-XXXX
+List with a SingleCellExperiment object and the output of the differential expression analysis (`muscat::pbDS()`)
 }
 \description{
-\code{perform_muscat_de_analysis}  XXXX
+\code{perform_muscat_de_analysis} Perform differential expression analysis via Muscat - Pseudobulking approach.
 }
 \examples{
 \dontrun{
-print("XXXX")
+library(Seurat)
+library(dplyr)
+lr_network = readRDS(url("https://zenodo.org/record/3260758/files/lr_network.rds"))
+lr_network = lr_network \%>\% dplyr::rename(ligand = from, receptor = to) \%>\% dplyr::distinct(ligand, receptor)
+sample_id = "tumor"
+group_id = "pEMT"
+celltype_id = "celltype"
+covariates = NA
+contrasts_oi = c("'High-Low','Low-High'")
+senders_oi = Idents(seurat_obj) \%>\% unique()
+receivers_oi = Idents(seurat_obj) \%>\% unique()
+celltype_de = perform_muscat_de_analysis(
+   seurat_obj = seurat_obj,
+   sample_id = sample_id,
+   celltype_id = celltype_id,
+   group_id = group_id,
+   covariates = covariates,
+   contrasts = contrasts_oi)
 }
 
 }

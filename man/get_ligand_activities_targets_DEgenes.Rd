@@ -7,33 +7,56 @@
 get_ligand_activities_targets_DEgenes(receiver_de, receivers_oi, receiver_frq_df_group, ligand_target_matrix, logFC_threshold = 0.25, p_val_threshold = 0.05, frac_cutoff = 0.05, p_val_adj = FALSE, top_n_target = 250)
 }
 \arguments{
-\item{receiver_de}{XXX}
+\item{receiver_de}{Differential expression analysis output for the receiver cell types. Output of `perform_muscat_de_analysis`.}
 
-\item{receivers_oi}{XXX}
+\item{receivers_oi}{Character vector indicating the names of the receiver cell types of interest}
 
-\item{receiver_frq_df_group}{XXX}
+\item{receiver_frq_df_group}{frq_df_group output data frame from output of `get_avg_frac_exprs_abund`.}
 
-\item{ligand_target_matrix}{XXXX}
+\item{ligand_target_matrix}{Prior knowledge model of ligand-target regulatory potential (matrix with ligands in columns and targets in rows). See https://github.com/saeyslab/nichenetr.}
 
-\item{logFC_threshold}{XXXX}
+\item{logFC_threshold}{For defining the gene set of interest for NicheNet ligand activity: what is the minimum logFC a gene should have to belong to this gene set? Default: 0.25/}
 
-\item{p_val_threshold}{XXXX}
+\item{p_val_threshold}{For defining the gene set of interest for NicheNet ligand activity: what is the maximam p-value a gene should have to belong to this gene set? Default: 0.05.}
 
-\item{frac_cutoff}{XXXX}
+\item{frac_cutoff}{Cutoff indicating the minimum fraction of cells of a cell type in a specific sample that are necessary to consider the gene as expressed. Default: 0.05.}
 
-\item{p_val_adj}{XXXX}
+\item{p_val_adj}{For defining the gene set of interest for NicheNet ligand activity: should we look at the p-value corrected for multiple testing? Default: FALSE.}
 
-\item{top_n_target}{XXXX}
+\item{top_n_target}{For defining NicheNet ligand-target links: which top N predicted target genes. See `nichenetr::get_weighted_ligand_target_links()`.}
 }
 \value{
-XXXX
+List with two data frames: one data frame containing the ligand activities and ligand-target links, one containing the DE gene information.
 }
 \description{
-\code{get_ligand_activities_targets_DEgenes}  XXXX
+\code{get_ligand_activities_targets_DEgenes}  Predict NicheNet ligand activities and ligand-target links for the receiver cell types. Uses `nichenetr::predict_ligand_activities()` and `nichenetr::get_weighted_ligand_target_links()` under the hood.
 }
 \examples{
 \dontrun{
-print("XXXX")
+library(Seurat)
+library(dplyr)
+lr_network = readRDS(url("https://zenodo.org/record/3260758/files/lr_network.rds"))
+lr_network = lr_network \%>\% dplyr::rename(ligand = from, receptor = to) \%>\% dplyr::distinct(ligand, receptor)
+ligand_target_matrix = readRDS(url("https://zenodo.org/record/3260758/files/ligand_target_matrix.rds"))
+sample_id = "tumor"
+group_id = "pEMT"
+celltype_id = "celltype"
+covariates = NA
+contrasts_oi = c("'High-Low','Low-High'")
+receivers_oi = Idents(seurat_obj) \%>\% unique()
+celltype_info = get_avg_frac_exprs_abund(seurat_obj = seurat_obj, sample_id = sample_id, celltype_id =  celltype_id, group_id = group_id)
+celltype_de = perform_muscat_de_analysis(
+   seurat_obj = seurat_obj,
+   sample_id = sample_id,
+   celltype_id = celltype_id,
+   group_id = group_id,
+   covariates = covariates,
+   contrasts = contrasts_oi)
+ligand_activities_targets_DEgenes = get_ligand_activities_targets_DEgenes(
+   receiver_de = celltype_de,
+   receivers_oi = receivers_oi,
+   receiver_frq_df_group = celltype_info$frq_df_group,
+   ligand_target_matrix = ligand_target_matrix)
 }
 
 }

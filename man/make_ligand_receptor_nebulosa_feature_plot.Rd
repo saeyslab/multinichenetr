@@ -17,6 +17,8 @@ make_ligand_receptor_nebulosa_feature_plot(seurat_obj_sender, seurat_obj_receive
 
 \item{group_oi}{XXX}
 
+\item{group_id}{XXX}
+
 \item{celltype_id_sender}{XXX}
 
 \item{celltype_id_receiver}{XXX}

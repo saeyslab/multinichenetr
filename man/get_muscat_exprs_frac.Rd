@@ -7,25 +7,30 @@
 get_muscat_exprs_frac(seurat_obj, sample_id, celltype_id, group_id, assay_oi_sce = "RNA")
 }
 \arguments{
-\item{seurat_obj}{XXXX}
+\item{seurat_obj}{Seurat object of the scRNAseq data of interest. Contains both sender and receiver cell types.}
 
-\item{sample_id}{XXXX}
+\item{sample_id}{Name of the meta data column that indicates from which sample/patient a cell comes from (in both seurat_obj_receiver and seurat_obj_sender)}
 
-\item{celltype_id}{XXXX}
+\item{celltype_id}{Name of the column in the meta data of seurat_obj that indicates the cell type of a cell.}
 
-\item{group_id}{XXXX}
+\item{group_id}{Name of the meta data column that indicates from which group/condition a cell comes from (in both seurat_obj_receiver and seurat_obj_sender)}
 
-\item{assay_oi_sce}{XXXX}
+\item{assay_oi_sce}{Indicates which assay of the Seurat object should be used. Default: "RNA". See: `Seurat::as.SingleCellExperiment`.}
 }
 \value{
-XXXX
+List with two dataframes: one with fraction of cells in a cell type expressing a gene, averaged per sample; and one averaged per group.
 }
 \description{
-\code{get_muscat_exprs_frac}  XXXX
+\code{get_muscat_exprs_frac} Calculate sample- and group-average of fraction of cells in a cell type expressing a gene.
 }
 \examples{
 \dontrun{
-print("XXXX")
+library(Seurat)
+library(dplyr)
+sample_id = "tumor"
+group_id = "pEMT"
+celltype_id = "celltype"
+muscat_exprs_frac = get_muscat_exprs_frac(seurat_obj = seurat_obj, sample_id = sample_id, celltype_id =  celltype_id, group_id = group_id)
 }
 
 }
