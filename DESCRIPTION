@@ -43,7 +43,8 @@ Imports:
 Suggests: 
     knitr,
     testthat,
-    covr
+    covr,
+    tidyverse
 Remotes: 
   github::saeyslab/nichenetr
 RoxygenNote: 7.1.1
