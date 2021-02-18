@@ -62,7 +62,7 @@ ms_mg_nichenet_analysis = function(sender_receiver_separate = TRUE, ...){
 #' prioritizing_weights = c("scaled_lfc_ligand" = 1, "scaled_p_val_ligand" = 1, "scaled_lfc_receptor" = 1, "scaled_p_val_receptor" = 1, "scaled_activity_scaled" = 1.5,
 #' "scaled_activity" = 0.5,"scaled_avg_exprs_ligand" = 1,"scaled_avg_frq_ligand" = 1,"scaled_avg_exprs_receptor" = 1, "scaled_avg_frq_receptor" = 1,
 #' "fraction_expressing_ligand_receptor" = 1,"scaled_abundance_sender" = 0, "scaled_abundance_receiver" = 0),
-#' assay_oi_sce = "RNA",assay_oi_pb ="counts",fun_oi_pb = "sum",de_method_oi = "edgeR",min_cells = 10,logFC_threshold = 0.25,p_val_threshold = 0.05,frac_cutoff = 0.05,p_val_adj = FALSE,top_n_target = 250, verbose = TRUE)
+#' assay_oi_sce = "RNA",assay_oi_pb ="counts",fun_oi_pb = "sum",de_method_oi = "edgeR",min_cells = 10,logFC_threshold = 0.25,p_val_threshold = 0.05,frac_cutoff = 0.05,p_val_adj = FALSE,top_n_target = 250, verbose = FALSE)
 #'
 #' @param seurat_obj_receiver Seurat object containing the receiver cell types of interest
 #' @param seurat_obj_sender Seurat object containing the sender cell types of interest
@@ -82,7 +82,7 @@ ms_mg_nichenet_analysis = function(sender_receiver_separate = TRUE, ...){
 #' If wanting to compare group A vs B, C and D: `contrasts_oi = c("'A-(B+C+D)/3'")`
 #' If wanting to compare group A vs B, C and D & B vs A,C,D: `contrasts_oi = c("'A-(B+C+D)/3', 'B-(A+C+D)/3'")`
 #' Note that the groups A, B, ... should be present in the meta data column 'group_id'.
-#' @param contrast_tbl Data frame providing names for each of the contrasts in contrasts_oi. 
+#' @param contrast_tbl Data frame providing names for each of the contrasts in contrasts_oi in the 'contrast' column, and the corresponding group of interest in the 'group' column. Entries in the 'group' column should thus be present in the group_id column in the metadata. 
 #' Example for `contrasts_oi = c("'A-(B+C+D)/3', 'B-(A+C+D)/3'")`:
 #' `contrast_tbl = tibble(contrast = c("A-(B+C+D)/3","B-(A+C+D)/3"), group = c("A","B"))`
 #' @param prioritizing_weights Named vector indicating the relative weights of each prioritization criterion included in MultiNicheNet.
@@ -113,7 +113,7 @@ ms_mg_nichenet_analysis = function(sender_receiver_separate = TRUE, ...){
 #' @param frac_cutoff Cutoff indicating the minimum fraction of cells of a cell type in a specific sample that are necessary to consider the gene as expressed. Default: 0.05.
 #' @param p_val_adj For defining the gene set of interest for NicheNet ligand activity: should we look at the p-value corrected for multiple testing? Default: FALSE.
 #' @param top_n_target For defining NicheNet ligand-target links: which top N predicted target genes. See `nichenetr::get_weighted_ligand_target_links()`.
-#' @param verbose Indicate which different steps of the pipeline are running or not. Default: TRUE.
+#' @param verbose Indicate which different steps of the pipeline are running or not. Default: FALSE.
 #'
 #' @return List containing information and output of the MultiNicheNet analysis.
 #' celltype_info: contains average expression value and fraction of each cell type - sample combination,
@@ -127,7 +127,7 @@ ms_mg_nichenet_analysis = function(sender_receiver_separate = TRUE, ...){
 #'
 #' @import Seurat
 #' @import dplyr
-#' @import generics
+#' @importFrom generics setdiff intersect union
 #' @importFrom stringr str_split
 #' @importFrom tibble as_tibble
 #' @importFrom tidyr spread
@@ -198,7 +198,7 @@ ms_mg_nichenet_analysis_separate = function(seurat_obj_receiver,
                                             p_val_threshold = 0.05,
                                             frac_cutoff = 0.05,
                                             p_val_adj = FALSE,
-                                            top_n_target = 250, verbose = TRUE){
+                                            top_n_target = 250, verbose = FALSE){
 
 
   requireNamespace("Seurat")
@@ -306,17 +306,40 @@ ms_mg_nichenet_analysis_separate = function(seurat_obj_receiver,
     stringr::str_split("\\*") %>% unlist() %>% unique() %>%
     stringr::str_split("\\/") %>% unlist() %>% unique() %>% generics::setdiff(c("",",")) %>% unlist() %>% unique()
 
+  if(length(contrasts_oi) != 1 | !is.character(contrasts_oi)){
+    stop("contrasts_oi should be a character vector of length 1. See the documentation of the function for having an idea of the right format of setting your contrasts.")
+  }
   # conditions of interest in the contrast should be present in the in the contrast_tbl
   contrasts_oi_simplified = stringr::str_split(contrasts_oi, "'") %>% unlist() %>% unique() %>%
     stringr::str_split(",") %>% unlist() %>% unique() %>% generics::setdiff(c("",",")) %>% unlist() %>% unique()
 
   if (sum(conditions_oi %in% groups_oi) != length(conditions_oi)) {
-    warning("conditions written in contrasts_oi should be in the condition-indicating column! This is not the case, which can lead to errors downstream.")
+    stop("conditions written in contrasts_oi should be in the condition-indicating column! This is not the case, which can lead to errors downstream.")
   }
   if (sum(contrasts_oi_simplified %in% unique(contrast_tbl$contrast)) != length(contrasts_oi_simplified)) {
-    warning("conditions written in contrasts_oi should be in the contrast column of contrast_tbl column! This is not the case, which can lead to errors downstream.")
+    stop("conditions written in contrasts_oi should be in the contrast column of contrast_tbl column! This is not the case, which can lead to errors downstream.")
   }
 
+  
+  # 
+  groups_oi_contrast_tbl = contrast_tbl$group %>% unique()
+  if(sum(groups_oi_contrast_tbl %in% groups_oi) != length(groups_oi_contrast_tbl)){
+    warning("You have defined some groups in contrast_tbl$group that are not present seurat_obj@meta.data[,group_id]. This will result in lack of information downstream. We recommend to change your metadata or this contrast_tbl appropriately.")
+  }
+  if(length(groups_oi_contrast_tbl) != length(contrast_tbl$group)){
+    warning("According to your contrast_tbl, some of your contrasts will be assigned to the same group. This should not be a problem if this was intended, but be aware not to make mistakes in the further interpretation and plotting of the results.")
+  }
+  
+  
+  if(!is.na(covariates)){
+    if (sum(covariates %in% colnames(seurat_obj_receiver@meta.data)) != length(covariates) ) {
+      stop("covariates should be NA or all present as column name(s) in the metadata dataframe of seurat_obj_receiver")
+    }
+    if (sum(covariates %in% colnames(seurat_obj_sender@meta.data)) != length(covariates) ) {
+      stop("covariates should be NA or all present column name(s) in the metadata dataframe of seurat_obj_sender")
+    }
+  }
+  
   # Check concordance ligand-receptor network and ligand-target network - and concordance with Seurat object features
   if (!is.matrix(ligand_target_matrix)){
     stop("ligand_target_matrix should be a matrix")
@@ -326,20 +349,29 @@ ms_mg_nichenet_analysis_separate = function(seurat_obj_receiver,
   }
 
   if(! "ligand" %in% colnames(lr_network)){
-    lr_network = lr_network %>% dplyr::rename(ligand = from)
+    if("from" %in% colnames(lr_network)){
+      lr_network = lr_network %>% dplyr::rename(ligand = from)
+    } else {
+      stop("The ligand-receptor network should have the columns ligand and receptor (or: from and to)")
+    }
   }
   if(! "receptor" %in% colnames(lr_network)){
-    lr_network = lr_network %>% dplyr::rename(receptor = to)
+    if("to" %in% colnames(lr_network)){
+      lr_network = lr_network %>% dplyr::rename(receptor = to)
+    } else {
+      stop("The ligand-receptor network should have the columns ligand and receptor (or: from and to)")
+    }
   }
+  
   ligands_lrnetwork = lr_network$ligand %>% unique()
   receptors_lrnetwork = lr_network$receptor %>% unique()
   ligands_ligand_target_matrix = colnames(ligand_target_matrix)
 
-  if(length(intersect(ligands_lrnetwork, ligands_ligand_target_matrix)) != length(ligands_lrnetwork)){
+  if(length(ligands_ligand_target_matrix) < length(ligands_lrnetwork)){
     warning("Not all Ligands from your ligand-receptor network are in the ligand-target matrix")
   }
-  if(length(intersect(ligands_lrnetwork, ligands_ligand_target_matrix)) != length(ligands_lrnetwork)){
-    warning("Not all Ligands from your ligand-receptor network are in the ligand-target matrix")
+  if(length(ligands_lrnetwork) < length(ligands_ligand_target_matrix)){
+    warning("Not all Ligands from your ligand-target matrix are in the ligand-receptor network")
   }
 
   if(length(seurat_obj_sender@assays$RNA@counts %>% rownames() %>% generics::intersect(ligands_lrnetwork)) < 25 ){
@@ -533,7 +565,8 @@ ms_mg_nichenet_analysis_separate = function(seurat_obj_receiver,
     p_val_threshold = p_val_threshold,
     frac_cutoff = frac_cutoff,
     p_val_adj = p_val_adj,
-    top_n_target = top_n_target
+    top_n_target = top_n_target,
+    verbose = verbose
   )))
 
   rm(receiver_info_ic)
@@ -609,7 +642,7 @@ ms_mg_nichenet_analysis_separate = function(seurat_obj_receiver,
 #' prioritizing_weights = c("scaled_lfc_ligand" = 1, "scaled_p_val_ligand" = 1, "scaled_lfc_receptor" = 1, "scaled_p_val_receptor" = 1, "scaled_activity_scaled" = 1.5,
 #' "scaled_activity" = 0.5,"scaled_avg_exprs_ligand" = 1,"scaled_avg_frq_ligand" = 1,"scaled_avg_exprs_receptor" = 1, "scaled_avg_frq_receptor" = 1,
 #' "fraction_expressing_ligand_receptor" = 1,"scaled_abundance_sender" = 0, "scaled_abundance_receiver" = 0),
-#' assay_oi_sce = "RNA",assay_oi_pb ="counts",fun_oi_pb = "sum",de_method_oi = "edgeR",min_cells = 10,logFC_threshold = 0.25,p_val_threshold = 0.05,frac_cutoff = 0.05,p_val_adj = FALSE,top_n_target = 250, verbose = TRUE)
+#' assay_oi_sce = "RNA",assay_oi_pb ="counts",fun_oi_pb = "sum",de_method_oi = "edgeR",min_cells = 10,logFC_threshold = 0.25,p_val_threshold = 0.05,frac_cutoff = 0.05,p_val_adj = FALSE,top_n_target = 250, verbose = FALSE)
 #'
 #' @param seurat_obj Seurat object of the scRNAseq data of interest. Contains both sender and receiver cell types.
 #' @param celltype_id Name of the column in the meta data of seurat_obj that indicates the cell type of a cell.
@@ -628,7 +661,7 @@ ms_mg_nichenet_analysis_separate = function(seurat_obj_receiver,
 #'
 #' @import Seurat
 #' @import dplyr
-#' @import generics
+#' @importFrom generics setdiff intersect union
 #' @importFrom stringr str_split
 #' @importFrom tibble as_tibble
 #' @importFrom tidyr spread
@@ -691,7 +724,7 @@ ms_mg_nichenet_analysis_combined = function(seurat_obj,
                                             p_val_threshold = 0.05,
                                             frac_cutoff = 0.05,
                                             p_val_adj = FALSE,
-                                            top_n_target = 250, verbose = TRUE){
+                                            top_n_target = 250, verbose = FALSE){
 
 
   requireNamespace("Seurat")
@@ -763,17 +796,37 @@ ms_mg_nichenet_analysis_combined = function(seurat_obj,
     stringr::str_split("\\*") %>% unlist() %>% unique() %>%
     stringr::str_split("\\/") %>% unlist() %>% unique() %>% generics::setdiff(c("",",")) %>% unlist() %>% unique()
 
+  if(length(contrasts_oi) != 1 | !is.character(contrasts_oi)){
+    stop("contrasts_oi should be a character vector of length 1. See the documentation of the function for having an idea of the right format of setting your contrasts.")
+  }
+  
   # conditions of interest in the contrast should be present in the in the contrast_tbl
   contrasts_oi_simplified = stringr::str_split(contrasts_oi, "'") %>% unlist() %>% unique() %>%
     stringr::str_split(",") %>% unlist() %>% unique() %>% generics::setdiff(c("",",")) %>% unlist() %>% unique()
 
   if (sum(conditions_oi %in% groups_oi) != length(conditions_oi)) {
-    warning("conditions written in contrasts_oi should be in the condition-indicating column! This is not the case, which can lead to errors downstream.")
+    stop("conditions written in contrasts_oi should be in the condition-indicating column! This is not the case, which can lead to errors downstream.")
   }
   if (sum(contrasts_oi_simplified %in% unique(contrast_tbl$contrast)) != length(contrasts_oi_simplified)) {
-    warning("conditions written in contrasts_oi should be in the contrast column of contrast_tbl column! This is not the case, which can lead to errors downstream.")
+    stop("conditions written in contrasts_oi should be in the contrast column of contrast_tbl column! This is not the case, which can lead to errors downstream.")
   }
-
+  
+  #
+  groups_oi_contrast_tbl = contrast_tbl$group %>% unique()
+  if(sum(groups_oi_contrast_tbl %in% groups_oi) != length(groups_oi_contrast_tbl)){
+    warning("You have defined some groups in contrast_tbl$group that are not present seurat_obj@meta.data[,group_id]. This will result in lack of information downstream. We recommend to change your metadata or this contrast_tbl appropriately.")
+  }
+  
+  if(length(groups_oi_contrast_tbl) != length(contrast_tbl$group)){
+    warning("According to your contrast_tbl, some of your contrasts will be assigned to the same group. This should not be a problem if this was intended, but be aware not to make mistakes in the further interpretation and plotting of the results.")
+  }
+  
+  if(!is.na(covariates)){
+    if (sum(covariates %in% colnames(seurat_obj@meta.data)) != length(covariates) ) {
+      stop("covariates should be NA or all present as column name(s) in the metadata dataframe of seurat_obj_receiver")
+    }
+  }
+  
   # Check concordance ligand-receptor network and ligand-target network - and concordance with Seurat object features
   if (!is.matrix(ligand_target_matrix)){
     stop("ligand_target_matrix should be a matrix")
@@ -783,21 +836,31 @@ ms_mg_nichenet_analysis_combined = function(seurat_obj,
   }
 
   if(! "ligand" %in% colnames(lr_network)){
-    lr_network = lr_network %>% dplyr::rename(ligand = from)
+    if("from" %in% colnames(lr_network)){
+      lr_network = lr_network %>% dplyr::rename(ligand = from)
+    } else {
+      stop("The ligand-receptor network should have the columns ligand and receptor (or: from and to)")
+    }
   }
   if(! "receptor" %in% colnames(lr_network)){
-    lr_network = lr_network %>% dplyr::rename(receptor = to)
+    if("to" %in% colnames(lr_network)){
+      lr_network = lr_network %>% dplyr::rename(receptor = to)
+    } else {
+      stop("The ligand-receptor network should have the columns ligand and receptor (or: from and to)")
+    }
   }
+  
   ligands_lrnetwork = lr_network$ligand %>% unique()
   receptors_lrnetwork = lr_network$receptor %>% unique()
   ligands_ligand_target_matrix = colnames(ligand_target_matrix)
 
-  if(length(intersect(ligands_lrnetwork, ligands_ligand_target_matrix)) != length(ligands_lrnetwork)){
+  if(length(ligands_ligand_target_matrix) < length(ligands_lrnetwork)){
     warning("Not all Ligands from your ligand-receptor network are in the ligand-target matrix")
   }
-  if(length(intersect(ligands_lrnetwork, ligands_ligand_target_matrix)) != length(ligands_lrnetwork)){
-    warning("Not all Ligands from your ligand-receptor network are in the ligand-target matrix")
+  if(length(ligands_lrnetwork) < length(ligands_ligand_target_matrix)){
+    warning("Not all Ligands from your ligand-target matrix are in the ligand-receptor network")
   }
+  
 
   if(length(seurat_obj@assays$RNA@counts %>% rownames() %>% generics::intersect(ligands_lrnetwork)) < 25 ){
     warning("Less than 25 ligands from your ligand-receptor network are in your expression matrix of the sender cell.\nDid you convert the gene symbols of the ligand-receptor network and the ligand-target matrix if your data is not from human?")
@@ -966,7 +1029,8 @@ ms_mg_nichenet_analysis_combined = function(seurat_obj,
     p_val_threshold = p_val_threshold,
     frac_cutoff = frac_cutoff,
     p_val_adj = p_val_adj,
-    top_n_target = top_n_target
+    top_n_target = top_n_target,
+    verbose = verbose
   )))
 
   rm(receiver_info_ic)

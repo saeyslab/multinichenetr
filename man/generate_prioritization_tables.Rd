@@ -7,29 +7,107 @@
 generate_prioritization_tables(sender_receiver_info, sender_receiver_de, ligand_activities_targets_DEgenes, contrast_tbl, sender_receiver_tbl, grouping_tbl, prioritizing_weights, fraction_cutoff)
 }
 \arguments{
-\item{sender_receiver_info}{XXX}
+\item{sender_receiver_info}{Output of `combine_sender_receiver_info_ic`}
 
-\item{sender_receiver_de}{XXX}
+\item{sender_receiver_de}{Output of `combine_sender_receiver_de`}
 
-\item{ligand_activities_targets_DEgenes}{XXX}
+\item{ligand_activities_targets_DEgenes}{Output of `get_ligand_activities_targets_DEgenes`}
 
-\item{contrast_tbl}{XXXX}
+\item{contrast_tbl}{Data frame providing names for each of the contrasts in contrasts_oi in the 'contrast' column, and the corresponding group of interest in the 'group' column. Entries in the 'group' column should thus be present in the group_id column in the metadata. 
+Example for `contrasts_oi = c("'A-(B+C+D)/3', 'B-(A+C+D)/3'")`:
+`contrast_tbl = tibble(contrast = c("A-(B+C+D)/3","B-(A+C+D)/3"), group = c("A","B"))`}
 
-\item{sender_receiver_tbl}{XXX}
+\item{sender_receiver_tbl}{Data frame with all sender-receiver cell type combinations (columns: sender and receiver)}
 
-\item{grouping_tbl}{XXX}
+\item{grouping_tbl}{Data frame showing the groups of each sample (and covariates per sample if applicable) (columns: sample and group; and if applicable all covariates of interest)}
 
-\item{prioritizing_weights}{XXXX}
+\item{prioritizing_weights}{Named vector indicating the relative weights of each prioritization criterion included in MultiNicheNet.
+Default: c("scaled_lfc_ligand" = 1,"scaled_p_val_ligand" = 1,"scaled_lfc_receptor" = 1,"scaled_p_val_receptor" = 1,
+"scaled_activity_scaled" = 1.5,"scaled_activity" = 0.5,"scaled_avg_exprs_ligand" = 1,"scaled_avg_frq_ligand" = 1,
+"scaled_avg_exprs_receptor" = 1,"scaled_avg_frq_receptor" = 1,"fraction_expressing_ligand_receptor" = 1,"scaled_abundance_sender" = 0,"scaled_abundance_receiver" = 0)
+Details about the meaning of this naming:
+scaled_lfc_ligand: importance of Log Fold Change of the ligand in a certain sender (indicates upregulation of the ligand in condition of interest compared to other conditions)
+scaled_p_val_ligand: importance of the DE p-value of the ligand in a certain sender (indicates upregulation of the ligand in condition of interest compared to other conditions)
+scaled_lfc_receptor: importance of Log Fold Change of the receptor in a certain receiver (indicates upregulation of the receptor in condition of interest compared to other conditions)
+scaled_p_val_receptor: importance of DE p-value of the receptor in a certain receiver (indicates upregulation of the receptor in condition of interest compared to other conditions)
+scaled_activity_scaled: importance of the scaled ligand activity of the ligand in a certain receiver-condition combination (indicates active signaling of a ligand in a receiver cell type in a certain condition compared to other conditions). Scaled activity: indicates the ranking of ligands in a certain receiver-condition combination.
+scaled_activity: importance of the absolute ligand activity of the ligand in a certain receiver-condition combination (indicates active signaling of a ligand in a receiver cell type in a certain condition compared to other conditions). Activity: indicates the absolute enrichment of predicted target genes of a ligand in the set of DE genes in a certain receiver-condition combination. See https://github.com/saeyslab/nichenetr. 
+scaled_avg_exprs_ligand: importance of the condition-and-sender specific expression of a ligand (average expression value). 
+scaled_avg_frq_ligand: importance of the condition-and-sender specific expression of a ligand (fraction of cells expressing a ligand). 
+scaled_avg_exprs_receptor: importance of the condition-and-receiver specific expression of a receptor (average expression value).
+scaled_avg_frq_receptor: importance of the condition-and-receiver specific expression of a receptor (fraction of cells expressing a receptor). 
+fraction_expressing_ligand_receptor: importance of the fraction of samples in a group that show high enough expression of the specific ligand-receptor pair.
+scaled_abundance_sender: importance of relative cell type abundance of the sender cell type.
+scaled_abundance_receiver: importance of relative cell type abundance of the receiver cell type.}
+
+\item{fraction_cutoff}{Cutoff indicating the minimum fraction of cells of a cell type in a specific sample that are necessary to consider the gene as expressed.}
 }
 \value{
-XXXX
+List containing multiple data frames prioritized senderLigand-receiverReceptor interactions (with sample- and group-based expression information), ligand activities and ligand-target links.
 }
 \description{
-\code{generate_prioritization_tables}  XXXX
+\code{generate_prioritization_tables}  Perform the MultiNicheNet prioritization of cell-cell interactions. 
+User can choose the importance attached to each of the following prioritization criteria: differential expression of ligand and receptor, cell-type-condition-specificity of expression of ligand and receptor, NicheNet ligand activity, fraction of samples in a group that express a senderLigand-receiverReceptor pair, relative cell type abundance of sender/receiver.
 }
 \examples{
 \dontrun{
-print("XXXX")
+library(Seurat)
+library(dplyr)
+lr_network = readRDS(url("https://zenodo.org/record/3260758/files/lr_network.rds"))
+lr_network = lr_network \%>\% dplyr::rename(ligand = from, receptor = to) \%>\% dplyr::distinct(ligand, receptor)
+ligand_target_matrix = readRDS(url("https://zenodo.org/record/3260758/files/ligand_target_matrix.rds"))
+sample_id = "tumor"
+group_id = "pEMT"
+celltype_id = "celltype"
+covariates = NA
+contrasts_oi = c("'High-Low','Low-High'")
+contrast_tbl = tibble(contrast = c("High-Low","Low-High"), group = c("High","Low"))
+celltype_info = get_avg_frac_exprs_abund(seurat_obj = seurat_obj, sample_id = sample_id, celltype_id =  celltype_id, group_id = group_id)
+
+receiver_info_ic = process_info_to_ic(info_object = celltype_info, ic_type = "receiver", lr_network = lr_network)
+sender_info_ic = process_info_to_ic(info_object = celltype_info, ic_type = "sender", lr_network = lr_network)
+senders_oi = Idents(seurat_obj) \%>\% unique()
+receivers_oi = Idents(seurat_obj) \%>\% unique()
+sender_receiver_info = combine_sender_receiver_info_ic(sender_info = sender_info_ic,receiver_info = receiver_info_ic,senders_oi = senders_oi,receivers_oi = receivers_oi,lr_network = lr_network)
+
+celltype_de = perform_muscat_de_analysis(
+   seurat_obj = seurat_obj,
+   sample_id = sample_id,
+   celltype_id = celltype_id,
+   group_id = group_id,
+   covariates = covariates,
+   contrasts = contrasts_oi)
+   
+sender_receiver_de = combine_sender_receiver_de(
+ sender_de = celltype_de,
+ receiver_de = celltype_de,
+ senders_oi = senders_oi,
+ receivers_oi = receivers_oi,
+ lr_network = lr_network)
+ 
+ligand_activities_targets_DEgenes = get_ligand_activities_targets_DEgenes(
+   receiver_de = celltype_de,
+   receivers_oi = receivers_oi,
+   receiver_frq_df_group = celltype_info$frq_df_group,
+   ligand_target_matrix = ligand_target_matrix)
+
+
+sender_receiver_tbl = sender_receiver_de \%>\% dplyr::distinct(sender, receiver)
+metadata_combined = seurat_obj@meta.data \%>\% tibble::as_tibble()
+grouping_tbl = metadata_combined[,c(sample_id, group_id)] \%>\% tibble::as_tibble() \%>\% dplyr::distinct()
+colnames(grouping_tbl) = c("sample","group") 
+
+prioritizing_weights = c("scaled_lfc_ligand" = 1,"scaled_p_val_ligand" = 1,"scaled_lfc_receptor" = 1,"scaled_p_val_receptor" = 1,"scaled_activity_scaled" = 1.5,"scaled_activity" = 0.5,"scaled_avg_exprs_ligand" = 1,"scaled_avg_frq_ligand" = 1,"scaled_avg_exprs_receptor" = 1,"scaled_avg_frq_receptor" = 1,"fraction_expressing_ligand_receptor" = 1,"scaled_abundance_sender" = 0,"scaled_abundance_receiver" = 0)
+frac_cutoff = 0.05
+prioritization_tables = generate_prioritization_tables(
+    sender_receiver_info = sender_receiver_info,
+    sender_receiver_de = sender_receiver_de,
+    ligand_activities_targets_DEgenes = ligand_activities_targets_DEgenes,
+    contrast_tbl = contrast_tbl,
+    sender_receiver_tbl = sender_receiver_tbl,
+    grouping_tbl = grouping_tbl,
+    prioritizing_weights = prioritizing_weights,
+    fraction_cutoff = frac_cutoff)
 }
 
 }

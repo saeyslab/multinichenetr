@@ -189,7 +189,8 @@ fix_frq_df = function(seurat_obj, frq_celltype_samples){
 #' @usage get_avg_frac_exprs_abund(seurat_obj, sample_id, celltype_id, group_id, assay_oi = "RNA")
 #'
 #' @inheritParams ms_mg_nichenet_analysis_combined
-#'
+#' @param assay_oi Indicates which assay of the Seurat object should be used. Default: "RNA". See: `Seurat::as.SingleCellExperiment`.
+#' 
 #' @return List containing data frames with average and fraction of expression per sample and per group, and relative cell type abundances as well.
 #'
 #' @import Seurat
@@ -213,6 +214,61 @@ get_avg_frac_exprs_abund = function(seurat_obj, sample_id, celltype_id, group_id
   
   requireNamespace("Seurat")
   requireNamespace("dplyr")
+  
+  # input checks
+  
+  if (class(seurat_obj) != "Seurat") {
+    stop("seurat_obj should be a Seurat object")
+  }
+  if (!celltype_id %in% colnames(seurat_obj@meta.data)) {
+    stop("celltype_id should be a column name in the metadata dataframe of seurat_obj")
+  }
+  if (celltype_id != make.names(celltype_id)) {
+    stop("celltype_id should be a syntactically valid R name - check make.names")
+  }
+  if (!sample_id %in% colnames(seurat_obj@meta.data)) {
+    stop("sample_id should be a column name in the metadata dataframe of seurat_obj")
+  }
+  if (sample_id != make.names(sample_id)) {
+    stop("sample_id should be a syntactically valid R name - check make.names")
+  }
+  if (!group_id %in% colnames(seurat_obj@meta.data)) {
+    stop("group_id should be a column name in the metadata dataframe of seurat_obj")
+  }
+  if (group_id != make.names(group_id)) {
+    stop("group_id should be a syntactically valid R name - check make.names")
+  }
+  
+  if(is.double(seurat_obj@meta.data[,celltype_id])){
+    stop("seurat_obj@meta.data[,celltype_id] should be a character vector or a factor")
+  }
+  if(is.double(seurat_obj@meta.data[,group_id])){
+    stop("seurat_obj@meta.data[,group_id] should be a character vector or a factor")
+  }
+  if(is.double(seurat_obj@meta.data[,sample_id])){
+    stop("seurat_obj@meta.data[,sample_id] should be a character vector or a factor")
+  }
+  
+  # if some of these are factors, and not all levels have syntactically valid names - prompt to change this
+  if(is.factor(seurat_obj@meta.data[,celltype_id])){
+    if(levels(seurat_obj@meta.data[,celltype_id]) != make.names(levels(seurat_obj@meta.data[,celltype_id])))
+      stop("The levels of the factor seurat_obj@meta.data[,celltype_id] should be a syntactically valid R names - see make.names")
+  }
+  if(is.factor(seurat_obj@meta.data[,group_id])){
+    if(levels(seurat_obj@meta.data[,group_id]) != make.names(levels(seurat_obj@meta.data[,group_id])))
+      stop("The levels of the factor seurat_obj@meta.data[,group_id] should be a syntactically valid R names - see make.names")
+  }
+  if(is.factor(seurat_obj@meta.data[,sample_id])){
+    if(levels(seurat_obj@meta.data[,sample_id]) != make.names(levels(seurat_obj@meta.data[,sample_id])))
+      stop("The levels of the factor seurat_obj@meta.data[,sample_id] should be a syntactically valid R names - see make.names")
+  }
+  if(!is.character(assay_oi)){
+    stop("assay_oi should be a character vector")
+  } else {
+    if(assay_oi != "RNA"){
+      warning("are you sure you don't want to use the RNA assay?")
+    }
+  }
   
   ## calculate averages, fractions, relative abundance of a cell type in a group
 

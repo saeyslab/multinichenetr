@@ -1,7 +1,7 @@
 #' @title get_ligand_activities_targets_DEgenes
 #'
 #' @description \code{get_ligand_activities_targets_DEgenes}  Predict NicheNet ligand activities and ligand-target links for the receiver cell types. Uses `nichenetr::predict_ligand_activities()` and `nichenetr::get_weighted_ligand_target_links()` under the hood.
-#' @usage get_ligand_activities_targets_DEgenes(receiver_de, receivers_oi, receiver_frq_df_group, ligand_target_matrix, logFC_threshold = 0.25, p_val_threshold = 0.05, frac_cutoff = 0.05, p_val_adj = FALSE, top_n_target = 250)
+#' @usage get_ligand_activities_targets_DEgenes(receiver_de, receivers_oi, receiver_frq_df_group, ligand_target_matrix, logFC_threshold = 0.25, p_val_threshold = 0.05, frac_cutoff = 0.05, p_val_adj = FALSE, top_n_target = 250, verbose = FALSE)
 #'
 #' @inheritParams ms_mg_nichenet_analysis_separate
 #' @inheritParams combine_sender_receiver_info_ic
@@ -48,7 +48,7 @@
 #'
 #' @export
 #'
-get_ligand_activities_targets_DEgenes = function(receiver_de, receivers_oi, receiver_frq_df_group, ligand_target_matrix, logFC_threshold = 0.25, p_val_threshold = 0.05, frac_cutoff = 0.05, p_val_adj = FALSE, top_n_target = 250){
+get_ligand_activities_targets_DEgenes = function(receiver_de, receivers_oi, receiver_frq_df_group, ligand_target_matrix, logFC_threshold = 0.25, p_val_threshold = 0.05, frac_cutoff = 0.05, p_val_adj = FALSE, top_n_target = 250, verbose = FALSE){
 
   
   requireNamespace("dplyr")
@@ -57,9 +57,11 @@ get_ligand_activities_targets_DEgenes = function(receiver_de, receivers_oi, rece
 
   ligand_activities_targets_geneset_ALL = receivers_oi %>%
     lapply(function(receiver_oi, receiver_de, receiver_frq_df_group, frac_cutoff){
-      print("receiver_oi:")
-      print(receiver_oi %>% as.character())
-
+      if(verbose == TRUE){
+        print("receiver_oi:")
+        print(receiver_oi %>% as.character())
+      }
+      
       de_output_tidy = muscat::resDS(receiver_de$sce, receiver_de$de_output, bind = "row", cpm = FALSE, frq = FALSE) %>% tibble::as_tibble()
       de_output_tidy = de_output_tidy %>% dplyr::filter(cluster_id == receiver_oi) %>% dplyr::select(gene, cluster_id, logFC, p_val, p_adj.loc, contrast)
 
@@ -71,8 +73,10 @@ get_ligand_activities_targets_DEgenes = function(receiver_de, receivers_oi, rece
 
       ligand_activities_targets_geneset = de_output_tidy$contrast %>% unique() %>%
         lapply(function(contrast_oi,de_output_tidy){
-          print("contrast_oi:")
-          print(contrast_oi)
+          if(verbose == TRUE){
+            print("contrast_oi:")
+            print(contrast_oi)
+          }
           if(p_val_adj == TRUE){
             de_tbl_geneset = de_output_tidy %>% dplyr::inner_join(frq_tbl) %>% dplyr::filter(contrast == contrast_oi) %>% dplyr::filter(logFC > logFC_threshold & p_adj.loc < p_val_threshold & present)
             geneset_oi = de_tbl_geneset %>% dplyr::pull(gene) %>% unique() %>% dplyr::intersect(rownames(ligand_target_matrix))

@@ -27,4 +27,20 @@ usethis::use_package("grid")
 usethis::use_package("Nebulosa")
 
 
+usethis::use_package("muscat")
+usethis::use_package("limma")
+usethis::use_package("SummarizedExperiment")
+usethis::use_package("S4Vectors")
+usethis::use_package("magrittr")
+usethis::use_package("nichenetr")
+usethis::use_package("scater")
+
+usethis::use_package("RColorBrewer")
+usethis::use_package("ggpubr")
+
+
+usethis::use_package("knitr", type = "Suggests")
+usethis::use_package("testthat", type = "Suggests")
+usethis::use_package("covr", type = "Suggests")
+usethis::use_package("rmarkdown", type = "Suggests")
 

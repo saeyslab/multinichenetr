@@ -4,7 +4,7 @@
 \alias{get_ligand_activities_targets_DEgenes}
 \title{get_ligand_activities_targets_DEgenes}
 \usage{
-get_ligand_activities_targets_DEgenes(receiver_de, receivers_oi, receiver_frq_df_group, ligand_target_matrix, logFC_threshold = 0.25, p_val_threshold = 0.05, frac_cutoff = 0.05, p_val_adj = FALSE, top_n_target = 250)
+get_ligand_activities_targets_DEgenes(receiver_de, receivers_oi, receiver_frq_df_group, ligand_target_matrix, logFC_threshold = 0.25, p_val_threshold = 0.05, frac_cutoff = 0.05, p_val_adj = FALSE, top_n_target = 250, verbose = FALSE)
 }
 \arguments{
 \item{receiver_de}{Differential expression analysis output for the receiver cell types. Output of `perform_muscat_de_analysis`.}
@@ -24,6 +24,8 @@ get_ligand_activities_targets_DEgenes(receiver_de, receivers_oi, receiver_frq_df
 \item{p_val_adj}{For defining the gene set of interest for NicheNet ligand activity: should we look at the p-value corrected for multiple testing? Default: FALSE.}
 
 \item{top_n_target}{For defining NicheNet ligand-target links: which top N predicted target genes. See `nichenetr::get_weighted_ligand_target_links()`.}
+
+\item{verbose}{Indicate which different steps of the pipeline are running or not. Default: FALSE.}
 }
 \value{
 List with two data frames: one data frame containing the ligand activities and ligand-target links, one containing the DE gene information.

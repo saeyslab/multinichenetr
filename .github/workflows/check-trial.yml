@@ -1,0 +1,42 @@
+# This workflow uses actions that are not certified by GitHub.
+# They are provided by a third-party and are governed by
+# separate terms of service, privacy policy, and support
+# documentation.
+#
+# See https://github.com/r-lib/actions/tree/master/examples#readme for
+# additional example workflows available for the R community.
+
+name: R
+
+on:
+  push:
+  branches: [ main ]
+pull_request:
+  branches: [ main ]
+
+jobs:
+  build:
+  runs-on: ubuntu-latest
+strategy:
+  matrix:
+  r-version: [3.6, 4.0]
+
+steps:
+  - uses: actions/checkout@v2
+- name: Set up R ${{ matrix.r-version }}
+uses: r-lib/actions/setup-r@ffe45a39586f073cc2e9af79c4ba563b657dc6e3
+with:
+  r-version: ${{ matrix.r-version }}
+- name: Install dependencies
+run: |
+  install.packages(c("remotes", "rcmdcheck"))
+remotes::install_deps(dependencies = TRUE)
+shell: Rscript {0}
+- name: Check
+run: rcmdcheck::rcmdcheck(
+  args = c("--no-build-vignettes", "--no-manual", "--timings"),
+  build_args = c("--no-manual", "--no-resave-data", "--no-build-vignettes"),
+  error_on = "error",
+  check_dir = "check"
+)
+shell: Rscript {0}

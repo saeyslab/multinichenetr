@@ -17,7 +17,7 @@ make_featureplot(seurat_subset_oi, title_umap, gene_oi, group_oi, background_gro
 
 \item{background_groups}{XXX}
 
-\item{group_id}{}
+\item{group_id}{XXX}
 }
 \value{
 XXXX

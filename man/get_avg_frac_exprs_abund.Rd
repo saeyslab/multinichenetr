@@ -14,6 +14,8 @@ get_avg_frac_exprs_abund(seurat_obj, sample_id, celltype_id, group_id, assay_oi 
 \item{celltype_id}{Name of the column in the meta data of seurat_obj that indicates the cell type of a cell.}
 
 \item{group_id}{Name of the meta data column that indicates from which group/condition a cell comes from (in both seurat_obj_receiver and seurat_obj_sender)}
+
+\item{assay_oi}{Indicates which assay of the Seurat object should be used. Default: "RNA". See: `Seurat::as.SingleCellExperiment`.}
 }
 \value{
 List containing data frames with average and fraction of expression per sample and per group, and relative cell type abundances as well.

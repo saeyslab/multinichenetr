@@ -880,7 +880,7 @@ make_nebulosa = function(seurat_subset_oi, seurat_subset_bg, title_umap, gene_oi
 #' @param gene_oi XXX
 #' @param group_oi XXX
 #' @param background_groups XXX
-#' @param group_id
+#' @param group_id XXX
 #'
 #' @return XXXX
 #'

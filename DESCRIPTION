@@ -10,15 +10,15 @@ Description: This package allows you the investigate intercellular communication
     These datasets can contain multiple samples (e.g. patients) over different groups of interest (e.g. disease subtypes). 
     With MultiNicheNet, you can now better analyze the differences in cell-cell signaling between the different groups of interest.
     MultiNicheNet will give a you a list of the ligand-receptor interactions that are most strongly differentially expressed between patients of the different groups, and also most active in the different groups as given by the NicheNet ligand activity.
-License: GPL-3
+License: GPL-3 + file LICENSE
 Encoding: UTF-8
 LazyData: true
 URL: https://github.com/browaeysrobin/multinichenetr
 BugReports: https://github.com/browaeysrobin/multinichenetr/issues
 Depends: R (>= 3.4.0)
+biocViews:
 Imports: 
     Seurat,
-    dplyr,
     circlize,
     patchwork,
     ggplot2,
@@ -28,8 +28,22 @@ Imports:
     ComplexHeatmap,
     stringr,
     generics,
+    dplyr,
     grid,
-    Nebulosa
+    Nebulosa,
+    muscat,
+    limma,
+    SummarizedExperiment,
+    S4Vectors,
+    magrittr,
+    scater,
+    nichenetr,
+    RColorBrewer,
+    ggpubr
+Suggests: 
+    knitr,
+    testthat,
+    covr
 Remotes: 
   github::saeyslab/nichenetr
 RoxygenNote: 7.1.1

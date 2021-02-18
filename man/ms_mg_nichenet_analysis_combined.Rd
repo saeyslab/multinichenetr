@@ -9,7 +9,7 @@ seurat_obj, celltype_id, sample_id,group_id, covariates, lr_network,ligand_targe
 prioritizing_weights = c("scaled_lfc_ligand" = 1, "scaled_p_val_ligand" = 1, "scaled_lfc_receptor" = 1, "scaled_p_val_receptor" = 1, "scaled_activity_scaled" = 1.5,
 "scaled_activity" = 0.5,"scaled_avg_exprs_ligand" = 1,"scaled_avg_frq_ligand" = 1,"scaled_avg_exprs_receptor" = 1, "scaled_avg_frq_receptor" = 1,
 "fraction_expressing_ligand_receptor" = 1,"scaled_abundance_sender" = 0, "scaled_abundance_receiver" = 0),
-assay_oi_sce = "RNA",assay_oi_pb ="counts",fun_oi_pb = "sum",de_method_oi = "edgeR",min_cells = 10,logFC_threshold = 0.25,p_val_threshold = 0.05,frac_cutoff = 0.05,p_val_adj = FALSE,top_n_target = 250, verbose = TRUE)
+assay_oi_sce = "RNA",assay_oi_pb ="counts",fun_oi_pb = "sum",de_method_oi = "edgeR",min_cells = 10,logFC_threshold = 0.25,p_val_threshold = 0.05,frac_cutoff = 0.05,p_val_adj = FALSE,top_n_target = 250, verbose = FALSE)
 }
 \arguments{
 \item{seurat_obj}{Seurat object of the scRNAseq data of interest. Contains both sender and receiver cell types.}
@@ -36,7 +36,7 @@ If wanting to compare group A vs B, C and D: `contrasts_oi = c("'A-(B+C+D)/3'")`
 If wanting to compare group A vs B, C and D & B vs A,C,D: `contrasts_oi = c("'A-(B+C+D)/3', 'B-(A+C+D)/3'")`
 Note that the groups A, B, ... should be present in the meta data column 'group_id'.}
 
-\item{contrast_tbl}{Data frame providing names for each of the contrasts in contrasts_oi. 
+\item{contrast_tbl}{Data frame providing names for each of the contrasts in contrasts_oi in the 'contrast' column, and the corresponding group of interest in the 'group' column. Entries in the 'group' column should thus be present in the group_id column in the metadata. 
 Example for `contrasts_oi = c("'A-(B+C+D)/3', 'B-(A+C+D)/3'")`:
 `contrast_tbl = tibble(contrast = c("A-(B+C+D)/3","B-(A+C+D)/3"), group = c("A","B"))`}
 
@@ -79,7 +79,7 @@ scaled_abundance_receiver: importance of relative cell type abundance of the rec
 
 \item{top_n_target}{For defining NicheNet ligand-target links: which top N predicted target genes. See `nichenetr::get_weighted_ligand_target_links()`.}
 
-\item{verbose}{Indicate which different steps of the pipeline are running or not. Default: TRUE.}
+\item{verbose}{Indicate which different steps of the pipeline are running or not. Default: FALSE.}
 }
 \value{
 List containing information and output of the MultiNicheNet analysis.

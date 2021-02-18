@@ -16,7 +16,8 @@ scale_quantile_adapted = function(x){
 #' @param ligand_activities_targets_DEgenes Output of `get_ligand_activities_targets_DEgenes`
 #' @param sender_receiver_tbl Data frame with all sender-receiver cell type combinations (columns: sender and receiver)
 #' @param grouping_tbl Data frame showing the groups of each sample (and covariates per sample if applicable) (columns: sample and group; and if applicable all covariates of interest)
-#'
+#' @param fraction_cutoff Cutoff indicating the minimum fraction of cells of a cell type in a specific sample that are necessary to consider the gene as expressed. 
+#' 
 #' @return List containing multiple data frames prioritized senderLigand-receiverReceptor interactions (with sample- and group-based expression information), ligand activities and ligand-target links.
 #'
 #' @import dplyr

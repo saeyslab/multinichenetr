@@ -17,6 +17,16 @@ perform_muscat_de_analysis(seurat_obj, sample_id, celltype_id, group_id, covaria
 
 \item{covariates}{NA if no covariates should be corrected for. If there should be corrected for covariates, this argument should be the name(s) of the columns in the meta data that indicate the covariate(s).}
 
+\item{contrasts}{String indicating the contrasts of interest (= which groups/conditions will be compared) for the differential expression and MultiNicheNet analysis. 
+We will demonstrate here a few examples to indicate how to write this. Check the limma package manuals for more information about defining design matrices and contrasts for differential expression analysis.
+If wanting to compare group A vs B: `contrasts_oi = c("'A-B'")`
+If wanting to compare group A vs B & B vs A: `contrasts_oi = c("'A-B','B-A'")`
+If wanting to compare group A vs B & A vs C & A vs D: `contrasts_oi = c("'A-B','A-C', 'A-D'")`
+If wanting to compare group A vs B and C: `contrasts_oi = c("'A-(B+C)/2'")`
+If wanting to compare group A vs B, C and D: `contrasts_oi = c("'A-(B+C+D)/3'")`
+If wanting to compare group A vs B, C and D & B vs A,C,D: `contrasts_oi = c("'A-(B+C+D)/3', 'B-(A+C+D)/3'")`
+Note that the groups A, B, ... should be present in the meta data column 'group_id'.}
+
 \item{assay_oi_sce}{Indicates which assay of the Seurat object should be used. Default: "RNA". See: `Seurat::as.SingleCellExperiment`.}
 
 \item{assay_oi_pb}{Indicates which information of the assay of interest should be used (counts, scaled data,...). Default: "counts". See `muscat::aggregateData`.}
