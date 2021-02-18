@@ -1,11 +1,11 @@
 on:
   push:
-  branches:
-  - master
-- devel
-pull_request:
-  branches:
-  - master
+    branches:
+      - master
+      - devel
+  pull_request:
+    branches:
+    - master
 
 name: R-CMD-check
 
