@@ -361,6 +361,23 @@ test_that("Pipeline for all-vs-all analysis works", {
     contrast_tbl = contrast_tbl,
     top_n_target = "0"
   ))
+  # check whether parallel computation works
+  contrasts_oi = c("'High-Low'")
+  contrast_tbl = tibble(contrast = c("High-Low"), group = c("High"))
+  output = ms_mg_nichenet_analysis_combined(
+    seurat_obj = seurat_obj,
+    celltype_id = celltype_id,
+    sample_id = sample_id,
+    group_id = group_id,
+    covariates = covariates,
+    lr_network = lr_network,
+    ligand_target_matrix = ligand_target_matrix,
+    contrasts_oi = contrasts_oi,
+    contrast_tbl = contrast_tbl, 
+    n.cores = 4)
+  expect_type(output,"list")
+  expect_type(output$prioritization_tables,"list")
+  
 })
 test_that("Pipeline for separate analysis works", {
   seurat_obj_receiver = seurat_obj %>% subset(subset = celltype == "Malignant")
@@ -823,6 +840,24 @@ test_that("Pipeline for separate analysis works", {
     top_n_target = "0"
   ))
   
+  # check whether parallel computation works
+  contrasts_oi = c("'High-Low'")
+  contrast_tbl = tibble(contrast = c("High-Low"), group = c("High"))
+  output = ms_mg_nichenet_analysis_separate(
+    seurat_obj_receiver = seurat_obj_receiver,
+    seurat_obj_sender = seurat_obj_sender,
+    celltype_id_receiver = celltype_id_receiver,
+    celltype_id_sender = celltype_id_sender,
+    sample_id = sample_id,
+    group_id = group_id,
+    covariates = covariates,
+    lr_network = lr_network,
+    ligand_target_matrix = ligand_target_matrix,
+    contrasts_oi = contrasts_oi,
+    contrast_tbl = contrast_tbl, 
+    n.cores = 4)
+  expect_type(output,"list")
+  expect_type(output$prioritization_tables,"list")
   
 })
 test_that("Pipeline with wrapper function works", {

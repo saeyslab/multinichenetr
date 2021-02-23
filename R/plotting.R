@@ -8,10 +8,9 @@
 #'
 #' @return XXXX
 #'
-#' @import Seurat
+#' @import ggplot2
 #' @import dplyr
-#' @import muscat
-#' @importFrom purrr map
+#' @importFrom RColorBrewer brewer.pal
 #'
 #' @examples
 #' \dontrun{
@@ -21,7 +20,11 @@
 #' @export
 #'
 make_sample_lr_prod_plots = function(prioritization_tables, prioritized_tbl_oi){
-  filtered_data = prioritization_tables$sample_prioritization_tbl %>% dplyr::filter(id %in% prioritized_tbl_oi$id) %>% dplyr::mutate(sender_receiver = paste(sender, receiver, sep = "\nto\n")) %>%  dplyr::arrange(sender) %>% group_by(sender) %>%  dplyr::arrange(receiver)
+  
+  requireNamespace("dplyr")
+  requireNamespace("ggplot2")
+  
+  filtered_data = prioritization_tables$sample_prioritization_tbl %>% dplyr::filter(id %in% prioritized_tbl_oi$id) %>% dplyr::mutate(sender_receiver = paste(sender, receiver, sep = "\nto\n")) %>%  dplyr::arrange(sender) %>% dplyr::group_by(sender) %>%  dplyr::arrange(receiver)
   p1 = filtered_data %>%
     ggplot(aes(sample, lr_interaction, color = scaled_LR_prod, size = scaled_LR_frac)) +
     geom_point() +
@@ -63,10 +66,10 @@ make_sample_lr_prod_plots = function(prioritization_tables, prioritized_tbl_oi){
 #'
 #' @return XXXX
 #'
-#' @import Seurat
+#' @import ggplot2
 #' @import dplyr
-#' @import muscat
-#' @importFrom purrr map
+#' @importFrom RColorBrewer brewer.pal
+#' @importFrom patchwork wrap_plots
 #'
 #' @examples
 #' \dontrun{
@@ -76,8 +79,9 @@ make_sample_lr_prod_plots = function(prioritization_tables, prioritized_tbl_oi){
 #' @export
 #'
 make_sample_lr_prod_activity_plots = function(prioritization_tables, prioritized_tbl_oi, widths = NULL){
-
-  sample_data = prioritization_tables$sample_prioritization_tbl %>% dplyr::filter(id %in% prioritized_tbl_oi$id) %>% dplyr::mutate(sender_receiver = paste(sender, receiver, sep = "\nto\n")) %>%  dplyr::arrange(sender) %>% group_by(sender) %>%  dplyr::arrange(receiver)
+  requireNamespace("dplyr")
+  requireNamespace("ggplot2")
+  sample_data = prioritization_tables$sample_prioritization_tbl %>% dplyr::filter(id %in% prioritized_tbl_oi$id) %>% dplyr::mutate(sender_receiver = paste(sender, receiver, sep = "\nto\n")) %>%  dplyr::arrange(sender) %>% dplyr::group_by(sender) %>%  dplyr::arrange(receiver)
 
   group_data = prioritization_tables$group_prioritization_tbl %>% dplyr::mutate(sender_receiver = paste(sender, receiver, sep = "\nto\n")) %>% dplyr::distinct(id, sender, receiver, sender_receiver, lr_interaction, group, ligand_receptor_lfc_avg, activity, activity_scaled, fraction_ligand_group, prioritization_score, scaled_avg_exprs_ligand) %>% dplyr::filter(id %in% sample_data$id)
 
@@ -199,11 +203,11 @@ make_sample_lr_prod_activity_plots = function(prioritization_tables, prioritized
 #' @param widths XXX
 #'
 #' @return XXXX
-#'
-#' @import Seurat
+#' 
+#' @import ggplot2
 #' @import dplyr
-#' @import muscat
-#' @importFrom purrr map
+#' @importFrom RColorBrewer brewer.pal
+#' @importFrom patchwork wrap_plots
 #'
 #' @examples
 #' \dontrun{
@@ -213,7 +217,8 @@ make_sample_lr_prod_activity_plots = function(prioritization_tables, prioritized
 #' @export
 #'
 make_ligand_activity_plots = function(prioritization_tables, ligands_oi, contrast_tbl, widths = NULL){
-
+  requireNamespace("dplyr")
+  requireNamespace("ggplot2")
   group_data = prioritization_tables$ligand_activities_target_de_tbl %>% dplyr::inner_join(contrast_tbl) %>% dplyr::distinct(group, ligand, receiver, activity, activity_scaled) %>% dplyr::filter(ligand %in% ligands_oi)
 
 
@@ -309,10 +314,10 @@ make_ligand_activity_plots = function(prioritization_tables, ligands_oi, contras
 #'
 #' @return XXXX
 #'
-#' @import Seurat
+#' @import ggplot2
 #' @import dplyr
-#' @import muscat
-#' @importFrom purrr map
+#' @importFrom RColorBrewer brewer.pal
+#' @importFrom nichenetr scaling_zscore
 #'
 #' @examples
 #' \dontrun{
@@ -322,7 +327,8 @@ make_ligand_activity_plots = function(prioritization_tables, ligands_oi, contras
 #' @export
 #'
 make_sample_target_plots = function(receiver_info, targets_oi, receiver_oi, grouping_tbl){
-
+  requireNamespace("dplyr")
+  requireNamespace("ggplot2")
   avg_df =  receiver_info$avg_df %>% dplyr::filter(gene %in% targets_oi & celltype %in% receiver_oi)
   frq_df =  receiver_info$frq_df %>% dplyr::filter(gene %in% targets_oi & celltype %in% receiver_oi)
 
@@ -370,10 +376,10 @@ make_sample_target_plots = function(receiver_info, targets_oi, receiver_oi, grou
 #'
 #' @return XXXX
 #'
-#' @import Seurat
+#' @import ggplot2
 #' @import dplyr
-#' @import muscat
-#' @importFrom purrr map
+#' @importFrom RColorBrewer brewer.pal
+#' @importFrom nichenetr scaling_zscore
 #'
 #' @examples
 #' \dontrun{
@@ -383,7 +389,8 @@ make_sample_target_plots = function(receiver_info, targets_oi, receiver_oi, grou
 #' @export
 #'
 make_sample_target_plots_reversed = function(receiver_info, targets_oi, receiver_oi, grouping_tbl){
-
+  requireNamespace("dplyr")
+  requireNamespace("ggplot2")
   avg_df =  receiver_info$avg_df %>% dplyr::filter(gene %in% targets_oi & celltype %in% receiver_oi)
   frq_df =  receiver_info$frq_df %>% dplyr::filter(gene %in% targets_oi & celltype %in% receiver_oi)
 
@@ -440,10 +447,10 @@ make_sample_target_plots_reversed = function(receiver_info, targets_oi, receiver
 #'
 #' @return XXXX
 #'
-#' @import Seurat
+#' @import ggplot2
 #' @import dplyr
-#' @import muscat
-#' @importFrom purrr map
+#' @importFrom RColorBrewer brewer.pal
+#' @importFrom patchwork plot_layout wrap_plots
 #'
 #' @examples
 #' \dontrun{
@@ -453,7 +460,10 @@ make_sample_target_plots_reversed = function(receiver_info, targets_oi, receiver
 #' @export
 #'
 make_group_lfc_exprs_activity_plot = function(prioritization_tables, prioritized_tbl_oi, receiver_oi, heights = NULL){
-  filtered_data = prioritization_tables$group_prioritization_tbl %>% dplyr::filter(id %in% prioritized_tbl_oi$id & receiver == receiver_oi) %>% dplyr::mutate(sender_receiver = paste(sender, receiver, sep = "\nto\n")) %>%  dplyr::arrange(sender) %>% group_by(sender) %>%  dplyr::arrange(receiver)
+  requireNamespace("dplyr")
+  requireNamespace("ggplot2")
+  
+  filtered_data = prioritization_tables$group_prioritization_tbl %>% dplyr::filter(id %in% prioritized_tbl_oi$id & receiver == receiver_oi) %>% dplyr::mutate(sender_receiver = paste(sender, receiver, sep = "\nto\n")) %>%  dplyr::arrange(sender) %>% dplyr::group_by(sender) %>%  dplyr::arrange(receiver)
   plot_data = prioritization_tables$group_prioritization_tbl %>% dplyr::mutate(sender_receiver = paste(sender, receiver, sep = "\nto\n")) %>% dplyr::distinct(id, sender, receiver, sender_receiver, lr_interaction, group, ligand_receptor_lfc_avg, activity, activity_scaled, fraction_ligand_group, prioritization_score, scaled_avg_exprs_ligand) %>% dplyr::filter(lr_interaction %in% filtered_data$lr_interaction & receiver == receiver_oi)
 
   p_exprs = plot_data %>%
@@ -565,11 +575,15 @@ make_group_lfc_exprs_activity_plot = function(prioritization_tables, prioritized
 #'
 #' @return XXXX
 #'
-#' @import Seurat
+#' @import ggplot2
 #' @import dplyr
-#' @import muscat
-#' @importFrom purrr map
-#'
+#' @import circlize
+#' @importFrom tibble tibble
+#' @importFrom generics intersect
+#' @importFrom ComplexHeatmap draw Legend
+#' @importFrom magrittr set_names
+#' @importFrom grDevices recordPlot
+#' 
 #' @examples
 #' \dontrun{
 #' print("XXXX")
@@ -578,7 +592,11 @@ make_group_lfc_exprs_activity_plot = function(prioritization_tables, prioritized
 #' @export
 #'
 make_circos_group_comparison = function(prioritized_tbl_oi, colors_sender, colors_receiver){
-
+  
+  requireNamespace("dplyr")
+  requireNamespace("ggplot2")
+  requireNamespace("circlize")
+  
   # Link each cell type to a color
   grid_col_ligand = colors_sender
   names(grid_col_ligand) = prioritized_tbl_oi$sender %>% unique() %>% sort()
@@ -808,7 +826,7 @@ make_circos_group_comparison = function(prioritized_tbl_oi, colors_sender, color
                                   title = "Sender")
   ComplexHeatmap::draw(legend, just = c("left", "top"))
 
-  p_legend = recordPlot()
+  p_legend = grDevices::recordPlot()
 
   all_plots$legend = p_legend
 
@@ -830,9 +848,11 @@ make_circos_group_comparison = function(prioritized_tbl_oi, colors_sender, color
 #' @return XXXX
 #'
 #' @import Seurat
+#' @import ggplot2
 #' @import dplyr
-#' @import muscat
-#' @importFrom purrr map
+#' @importFrom RColorBrewer brewer.pal
+#' @importFrom Nebulosa plot_density
+#' @importFrom patchwork wrap_plots
 #'
 #' @examples
 #' \dontrun{
@@ -842,15 +862,17 @@ make_circos_group_comparison = function(prioritized_tbl_oi, colors_sender, color
 #' @export
 #'
 make_nebulosa = function(seurat_subset_oi, seurat_subset_bg, title_umap, gene_oi, group_oi, background_groups){
-
+  requireNamespace("dplyr")
+  requireNamespace("Seurat")
+  requireNamespace("ggplot2")
   warning("Do not overinterpret a Nebulosa plot. For checking Smart-seq2 data, we recommend checking the normal Feature plot.")
 
   p_dim = DimPlot(seurat_subset_oi, label = T, repel = TRUE) + ggtitle(title_umap) + theme(title = element_text(face = "bold"))
 
-  p_oi = plot_density(seurat_subset_oi, gene_oi)
+  p_oi = Nebulosa::plot_density(seurat_subset_oi, gene_oi)
   max_density_oi = p_oi$data$feature %>% max()
 
-  p_bg = plot_density(seurat_subset_bg, gene_oi)
+  p_bg = Nebulosa::plot_density(seurat_subset_bg, gene_oi)
   max_density_bg = p_bg$data$feature %>% max()
 
   limit = max(max_density_oi, max_density_bg) + 0.0025
@@ -863,7 +885,7 @@ make_nebulosa = function(seurat_subset_oi, seurat_subset_bg, title_umap, gene_oi
   p_oi = p_oi + ggtitle(paste(gene_oi, group_oi, sep = " in ")) + theme(title = element_text(face = "bold"))
   p_bg = p_bg + ggtitle(paste(gene_oi, background_groups %>% paste0(collapse = " & "), sep = " in ")) + theme(title = element_text(face = "bold"))
 
-  wrapped_plots = wrap_plots(p_dim,
+  wrapped_plots = patchwork::wrap_plots(p_dim,
                              p_oi,
                              p_bg,
                              ncol = 3,guides = "collect")
@@ -884,10 +906,11 @@ make_nebulosa = function(seurat_subset_oi, seurat_subset_bg, title_umap, gene_oi
 #'
 #' @return XXXX
 #'
-#' @import Seurat
+#' @import ggplot2
 #' @import dplyr
-#' @import muscat
-#' @importFrom purrr map
+#' @import Seurat
+#' @importFrom RColorBrewer brewer.pal
+#' @importFrom patchwork wrap_plots
 #'
 #' @examples
 #' \dontrun{
@@ -897,10 +920,14 @@ make_nebulosa = function(seurat_subset_oi, seurat_subset_bg, title_umap, gene_oi
 #' @export
 #'
 make_featureplot = function(seurat_subset_oi, title_umap, gene_oi, group_oi, background_groups, group_id){
+  requireNamespace("dplyr")
+  requireNamespace("ggplot2")
+  requireNamespace("Seurat")
+  
   p_dim = DimPlot(seurat_subset_oi, label = T, repel = TRUE) + ggtitle(title_umap) + theme(title = element_text(face = "bold"))
 
 
-  wrapped_plots = wrap_plots(p_dim,
+  wrapped_plots = patchwork::wrap_plots(p_dim,
                              FeaturePlot(seurat_subset_oi, gene_oi,split.by = eval(group_id)),
                              nrow = 1,
                              guides = "collect",
@@ -928,10 +955,12 @@ make_featureplot = function(seurat_subset_oi, title_umap, gene_oi, group_oi, bac
 #'
 #' @return XXXX
 #'
-#' @import Seurat
+#' @import ggplot2
 #' @import dplyr
-#' @import muscat
-#' @importFrom purrr map
+#' @import Seurat
+#' @importFrom RColorBrewer brewer.pal
+#' @importFrom generics setdiff
+#' @importFrom patchwork wrap_plots
 #'
 #' @examples
 #' \dontrun{
@@ -941,8 +970,12 @@ make_featureplot = function(seurat_subset_oi, title_umap, gene_oi, group_oi, bac
 #' @export
 #'
 make_ligand_receptor_nebulosa_feature_plot = function(seurat_obj_sender, seurat_obj_receiver, ligand_oi, receptor_oi, group_oi, group_id, celltype_id_sender, celltype_id_receiver, senders_oi, receivers_oi, prioritized_tbl_oi){
-  # senders_prioritized = prioritized_tbl_oi %>% dplyr::filter(ligand == ligand_oi & group == group_oi) %>% pull(sender) %>% unique()
-  # receptors_prioritized = prioritized_tbl_oi %>% dplyr::filter(receptor == receptor_oi & group == group_oi) %>% pull(receiver) %>% unique()
+  
+  requireNamespace("dplyr")
+  requireNamespace("ggplot2")
+  requireNamespace("Seurat")
+  # senders_prioritized = prioritized_tbl_oi %>% dplyr::filter(ligand == ligand_oi & group == group_oi) %>% dplyr::pull(sender) %>% unique()
+  # receptors_prioritized = prioritized_tbl_oi %>% dplyr::filter(receptor == receptor_oi & group == group_oi) %>% dplyr::pull(receiver) %>% unique()
 
   background_groups = prioritized_tbl_oi$group %>% unique() %>% generics::setdiff(group_oi)
 
@@ -976,8 +1009,8 @@ make_ligand_receptor_nebulosa_feature_plot = function(seurat_obj_sender, seurat_
 
   receiver_plots_feature = make_featureplot(seurat_subset_oi, "Receiver UMAP", receptor_oi, group_oi, background_groups, group_id)
 
-  p = wrap_plots(sender_plots, receiver_plots, nrow = 2)
-  p_feature = wrap_plots(sender_plots_feature, receiver_plots_feature, nrow = 2)
+  p = patchwork::wrap_plots(sender_plots, receiver_plots, nrow = 2)
+  p_feature = patchwork::wrap_plots(sender_plots_feature, receiver_plots_feature, nrow = 2)
 
   return(list(
     nebulosa = p,
@@ -1005,10 +1038,12 @@ make_ligand_receptor_nebulosa_feature_plot = function(seurat_obj_sender, seurat_
 #'
 #' @return XXXX
 #'
-#' @import Seurat
+#' @import ggplot2
 #' @import dplyr
-#' @import muscat
-#' @importFrom purrr map
+#' @import Seurat
+#' @importFrom RColorBrewer brewer.pal
+#' @importFrom generics setdiff
+#' @importFrom patchwork wrap_plots
 #'
 #' @examples
 #' \dontrun{
@@ -1018,7 +1053,11 @@ make_ligand_receptor_nebulosa_feature_plot = function(seurat_obj_sender, seurat_
 #' @export
 #'
 make_ligand_receptor_violin_plot = function(seurat_obj_sender, seurat_obj_receiver, ligand_oi, receptor_oi, sender_oi, receiver_oi, group_oi, group_id, sample_id, celltype_id_sender, celltype_id_receiver, prioritized_tbl_oi){
-
+  
+  requireNamespace("dplyr")
+  requireNamespace("ggplot2")
+  requireNamespace("Seurat")
+  
   background_groups = prioritized_tbl_oi$group %>% unique() %>% generics::setdiff(group_oi)
 
   seurat_subset =  seurat_obj_sender[, seurat_obj_sender@meta.data[[celltype_id_sender]] %in% sender_oi]
@@ -1070,8 +1109,8 @@ make_ligand_receptor_violin_plot = function(seurat_obj_sender, seurat_obj_receiv
   p_receiver = p + ggtitle(paste("Expression of the receptor ",receptor_oi, " in receiver cell type ", receiver_oi, sep = ""))
 
   return(list(
-    violin_group = wrap_plots(violin_group_sender, violin_group_receiver, nrow = 2),
-    violin_sample = wrap_plots(p_sender, p_receiver, nrow = 2)
+    violin_group = patchwork::wrap_plots(violin_group_sender, violin_group_receiver, nrow = 2),
+    violin_sample = patchwork::wrap_plots(p_sender, p_receiver, nrow = 2)
   ))
 
 }
@@ -1092,10 +1131,10 @@ make_ligand_receptor_violin_plot = function(seurat_obj_sender, seurat_obj_receiv
 #'
 #' @return XXXX
 #'
-#' @import Seurat
+#' @import ggplot2
 #' @import dplyr
-#' @import muscat
-#' @importFrom purrr map
+#' @import Seurat
+#' @importFrom generics setdiff
 #'
 #' @examples
 #' \dontrun{
@@ -1105,7 +1144,10 @@ make_ligand_receptor_violin_plot = function(seurat_obj_sender, seurat_obj_receiv
 #' @export
 #'
 make_target_violin_plot = function(seurat_obj_receiver, target_oi, receiver_oi, group_oi, group_id, sample_id, celltype_id_receiver, prioritized_tbl_oi){
-
+  requireNamespace("dplyr")
+  requireNamespace("ggplot2")
+  requireNamespace("Seurat")
+  
   background_groups = prioritized_tbl_oi$group %>% unique() %>% generics::setdiff(group_oi)
 
   seurat_subset =  seurat_obj_receiver[, seurat_obj_receiver@meta.data[[celltype_id_receiver]] %in% receiver_oi]
@@ -1154,10 +1196,10 @@ make_target_violin_plot = function(seurat_obj_receiver, target_oi, receiver_oi, 
 #'
 #' @return XXXX
 #'
-#' @import Seurat
+#' @import ggplot2
 #' @import dplyr
-#' @import muscat
-#' @importFrom purrr map
+#' @import Seurat
+#' @importFrom generics setdiff
 #'
 #' @examples
 #' \dontrun{
@@ -1167,8 +1209,11 @@ make_target_violin_plot = function(seurat_obj_receiver, target_oi, receiver_oi, 
 #' @export
 #'
 make_target_nebulosa_feature_plot = function(seurat_obj_receiver, target_oi, group_oi, group_id, celltype_id_receiver, receivers_oi, prioritized_tbl_oi){
-  # senders_prioritized = prioritized_tbl_oi %>% dplyr::filter(ligand == ligand_oi & group == group_oi) %>% pull(sender) %>% unique()
-  # receptors_prioritized = prioritized_tbl_oi %>% dplyr::filter(receptor == receptor_oi & group == group_oi) %>% pull(receiver) %>% unique()
+  requireNamespace("dplyr")
+  requireNamespace("ggplot2")
+  requireNamespace("Seurat")
+  # senders_prioritized = prioritized_tbl_oi %>% dplyr::filter(ligand == ligand_oi & group == group_oi) %>% dplyr::pull(sender) %>% unique()
+  # receptors_prioritized = prioritized_tbl_oi %>% dplyr::filter(receptor == receptor_oi & group == group_oi) %>% dplyr::pull(receiver) %>% unique()
 
   background_groups = prioritized_tbl_oi$group %>% unique() %>% generics::setdiff(group_oi)
 
@@ -1214,10 +1259,13 @@ make_target_nebulosa_feature_plot = function(seurat_obj_receiver, target_oi, gro
 #'
 #' @return XXXX
 #'
-#' @import Seurat
+#' @import ggplot2
 #' @import dplyr
-#' @import muscat
-#' @importFrom purrr map
+#' @importFrom RColorBrewer brewer.pal
+#' @importFrom nichenetr prepare_ligand_target_visualization make_heatmap_ggplot
+#' @importFrom generics intersect
+#' @importFrom patchwork wrap_plots
+#' @importFrom ggpubr as_ggplot
 #'
 #' @examples
 #' \dontrun{
@@ -1227,11 +1275,13 @@ make_target_nebulosa_feature_plot = function(seurat_obj_receiver, target_oi, gro
 #' @export
 #'
 make_ligand_activity_target_plot = function(group_oi, receiver_oi, prioritized_tbl_oi, ligand_activities_targets_DEgenes, contrast_tbl, grouping_tbl, receiver_info, plot_legend = TRUE, heights = NULL, widths = NULL){
-
+  requireNamespace("dplyr")
+  requireNamespace("ggplot2")
+  
   best_upstream_ligands = prioritized_tbl_oi$ligand %>% unique()
 
   # Ligand-Target heatmap
-  active_ligand_target_links_df = ligand_activities_targets_DEgenes$ligand_activities %>% ungroup() %>% dplyr::inner_join(contrast_tbl) %>% dplyr::filter(ligand %in% best_upstream_ligands & receiver == receiver_oi & group == group_oi) %>% ungroup() %>% dplyr::select(ligand, target, ligand_target_weight ) %>% dplyr::rename(weight = ligand_target_weight )
+  active_ligand_target_links_df = ligand_activities_targets_DEgenes$ligand_activities %>% dplyr::ungroup() %>% dplyr::inner_join(contrast_tbl) %>% dplyr::filter(ligand %in% best_upstream_ligands & receiver == receiver_oi & group == group_oi) %>% dplyr::ungroup() %>% dplyr::select(ligand, target, ligand_target_weight ) %>% dplyr::rename(weight = ligand_target_weight )
 
   active_ligand_target_links_df = active_ligand_target_links_df %>% dplyr::filter(!is.na(weight))
   if(active_ligand_target_links_df$target %>% unique() %>% length() <= 2){
@@ -1262,7 +1312,7 @@ make_ligand_activity_target_plot = function(group_oi, receiver_oi, prioritized_t
   p_ligand_target_network = vis_ligand_target %>% nichenetr::make_heatmap_ggplot("Prioritized ligands","Predicted target genes", color = "purple",legend_position = "top", x_axis_position = "top",legend_title = "Regulatory\nPotential")  + theme(axis.text.x = element_text(face = "italic")) + scale_fill_gradient2(low = "whitesmoke",  high = "purple", breaks = c(0,0.0045,0.0090))
 
   # Ligand-Activity-Scaled
-  ligand_pearson_df = ligand_activities_targets_DEgenes$ligand_activities %>% ungroup() %>% dplyr::filter(ligand %in% best_upstream_ligands & receiver == receiver_oi) %>% dplyr::inner_join(contrast_tbl)  %>% dplyr::select(ligand, group, activity_scaled) %>% dplyr::distinct() %>% tidyr::spread(group, activity_scaled)
+  ligand_pearson_df = ligand_activities_targets_DEgenes$ligand_activities %>% dplyr::ungroup() %>% dplyr::filter(ligand %in% best_upstream_ligands & receiver == receiver_oi) %>% dplyr::inner_join(contrast_tbl)  %>% dplyr::select(ligand, group, activity_scaled) %>% dplyr::distinct() %>% tidyr::spread(group, activity_scaled)
   ligand_pearson_matrix = ligand_pearson_df %>% dplyr::select(-ligand) %>% as.matrix() %>% magrittr::set_rownames(ligand_pearson_df$ligand)
   rownames(ligand_pearson_matrix) = rownames(ligand_pearson_matrix) %>% make.names()
   colnames(ligand_pearson_matrix) = colnames(ligand_pearson_matrix) %>% make.names()
@@ -1272,7 +1322,7 @@ make_ligand_activity_target_plot = function(group_oi, receiver_oi, prioritized_t
   p_ligand_pearson_scaled = p_ligand_pearson + custom_scale_fill
 
   # Ligand-Activity
-  ligand_pearson_df = ligand_activities_targets_DEgenes$ligand_activities %>% ungroup() %>% dplyr::filter(ligand %in% best_upstream_ligands & receiver == receiver_oi) %>% dplyr::inner_join(contrast_tbl)  %>% dplyr::select(ligand, group, activity) %>% dplyr::distinct() %>% tidyr::spread(group, activity)
+  ligand_pearson_df = ligand_activities_targets_DEgenes$ligand_activities %>% dplyr::ungroup() %>% dplyr::filter(ligand %in% best_upstream_ligands & receiver == receiver_oi) %>% dplyr::inner_join(contrast_tbl)  %>% dplyr::select(ligand, group, activity) %>% dplyr::distinct() %>% tidyr::spread(group, activity)
   ligand_pearson_matrix = ligand_pearson_df %>% dplyr::select(-ligand) %>% as.matrix() %>% magrittr::set_rownames(ligand_pearson_df$ligand)
   rownames(ligand_pearson_matrix) = rownames(ligand_pearson_matrix) %>% make.names()
   colnames(ligand_pearson_matrix) = colnames(ligand_pearson_matrix) %>% make.names()
@@ -1282,14 +1332,14 @@ make_ligand_activity_target_plot = function(group_oi, receiver_oi, prioritized_t
   p_ligand_pearson = p_ligand_pearson + custom_scale_fill
 
   # Target expression
-  groups_oi = contrast_tbl %>% pull(group) %>% unique()
+  groups_oi = contrast_tbl %>% dplyr::pull(group) %>% unique()
   p_targets = make_sample_target_plots_reversed(receiver_info, order_targets_, receiver_oi, grouping_tbl %>% dplyr::filter(group %in% groups_oi))
 
   # Combine the plots
   n_groups = ncol(vis_ligand_pearson)
   n_targets = ncol(vis_ligand_target)
   n_ligands = nrow(vis_ligand_target)
-  n_samples = grouping_tbl %>% dplyr::filter(group %in% groups_oi) %>% pull(sample) %>% length()
+  n_samples = grouping_tbl %>% dplyr::filter(group %in% groups_oi) %>% dplyr::pull(sample) %>% length()
 
   legends = patchwork::wrap_plots(ggpubr::as_ggplot(ggpubr::get_legend(p_ligand_pearson)),ggpubr::as_ggplot(ggpubr::get_legend(p_ligand_pearson_scaled)),ggpubr::as_ggplot(ggpubr::get_legend(p_ligand_target_network)), nrow = 2) %>%
     patchwork::wrap_plots(ggpubr::as_ggplot(ggpubr::get_legend(p_targets)))

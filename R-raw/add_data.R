@@ -18,6 +18,7 @@ usethis::use_package("tibble")
 usethis::use_package("tidyr")
 usethis::use_package("purrr")
 usethis::use_package("ComplexHeatmap")
+usethis::use_package("parallel")
 
 usethis::use_package("circlize")
 usethis::use_package("stringr")

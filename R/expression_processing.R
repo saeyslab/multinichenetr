@@ -47,21 +47,29 @@ get_muscat_exprs_frac = function(seurat_obj, sample_id, celltype_id, group_id, a
   groups = sce$group_id  %>% unique() %>% as.character()
 
   frq = muscat::calcExprFreqs(sce, assay = "counts", th = 0) # gives NaN sometimes...
-
+  all_genes = rownames(frq)
+  
   celltypes = sce$cluster_id %>% unique() %>% as.character()
-
-  frq_lists = celltypes %>% lapply(function(celltype_oi, frq){
+  
+  frq_lists = celltypes %>% lapply(function(celltype_oi, frq, all_genes){
     frq_celltype = frq@assays@data[[celltype_oi]]
-
+    
+    celltype_genes = rownames(frq_celltype)
+    if(sum(celltype_genes == all_genes) != length(all_genes) ){
+      warning(paste0("For Celltype ",celltype_oi, " gene names got lost while calculating the fraction of expressing of each gene with muscat::calcExprFreqs (due to a bug in this function). We temporality fixed this by."))
+      rownames(frq_celltype) = all_genes
+    }
+    
     frq_celltype_samples = frq_celltype[,samples]
     frq_celltype_samples = frq_celltype_samples %>% data.frame() %>% tibble::rownames_to_column("gene") %>% tidyr::gather(sample, fraction_sample, -gene) %>% tibble::as_tibble() %>% dplyr::mutate(celltype = celltype_oi)
-
+    
     frq_celltype_groups = frq_celltype[,groups]
     frq_celltype_groups = frq_celltype_groups %>% data.frame() %>% tibble::rownames_to_column("gene") %>% tidyr::gather(group, fraction_group, -gene) %>% tibble::as_tibble() %>% dplyr::mutate(celltype = celltype_oi)
-
+    
     return(list(frq_celltype_samples = frq_celltype_samples, frq_celltype_groups = frq_celltype_groups))
-  },frq) %>% magrittr::set_names(sce$cluster_id %>% unique())
-
+  },frq, all_genes) %>% magrittr::set_names(sce$cluster_id %>% unique())
+  
+  
   frq_celltype_samples = frq_lists %>% purrr::map("frq_celltype_samples") %>% dplyr::bind_rows()
   frq_celltype_groups = frq_lists %>% purrr::map("frq_celltype_groups") %>% dplyr::bind_rows()
   rm(frq_lists)
@@ -251,16 +259,22 @@ get_avg_frac_exprs_abund = function(seurat_obj, sample_id, celltype_id, group_id
   
   # if some of these are factors, and not all levels have syntactically valid names - prompt to change this
   if(is.factor(seurat_obj@meta.data[,celltype_id])){
-    if(levels(seurat_obj@meta.data[,celltype_id]) != make.names(levels(seurat_obj@meta.data[,celltype_id])))
+    is_make_names = levels(seurat_obj@meta.data[,celltype_id]) == make.names(levels(seurat_obj@meta.data[,celltype_id]))
+    if(sum(is_make_names) != length(levels(seurat_obj@meta.data[,celltype_id]))){
       stop("The levels of the factor seurat_obj@meta.data[,celltype_id] should be a syntactically valid R names - see make.names")
+    }
   }
   if(is.factor(seurat_obj@meta.data[,group_id])){
-    if(levels(seurat_obj@meta.data[,group_id]) != make.names(levels(seurat_obj@meta.data[,group_id])))
+    is_make_names = levels(seurat_obj@meta.data[,group_id]) == make.names(levels(seurat_obj@meta.data[,group_id]))
+    if(sum(is_make_names) != length(levels(seurat_obj@meta.data[,group_id]))){
       stop("The levels of the factor seurat_obj@meta.data[,group_id] should be a syntactically valid R names - see make.names")
+    }
   }
   if(is.factor(seurat_obj@meta.data[,sample_id])){
-    if(levels(seurat_obj@meta.data[,sample_id]) != make.names(levels(seurat_obj@meta.data[,sample_id])))
+    is_make_names = levels(seurat_obj@meta.data[,sample_id]) == make.names(levels(seurat_obj@meta.data[,sample_id]))
+    if(sum(is_make_names) != length(levels(seurat_obj@meta.data[,sample_id]))){
       stop("The levels of the factor seurat_obj@meta.data[,sample_id] should be a syntactically valid R names - see make.names")
+    }
   }
   if(!is.character(assay_oi)){
     stop("assay_oi should be a character vector")

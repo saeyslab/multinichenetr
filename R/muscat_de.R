@@ -82,16 +82,22 @@ perform_muscat_de_analysis = function(seurat_obj, sample_id, celltype_id, group_
   
   # if some of these are factors, and not all levels have syntactically valid names - prompt to change this
   if(is.factor(seurat_obj@meta.data[,celltype_id])){
-    if(levels(seurat_obj@meta.data[,celltype_id]) != make.names(levels(seurat_obj@meta.data[,celltype_id])))
+    is_make_names = levels(seurat_obj@meta.data[,celltype_id]) == make.names(levels(seurat_obj@meta.data[,celltype_id]))
+    if(sum(is_make_names) != length(levels(seurat_obj@meta.data[,celltype_id]))){
       stop("The levels of the factor seurat_obj@meta.data[,celltype_id] should be a syntactically valid R names - see make.names")
+    }
   }
   if(is.factor(seurat_obj@meta.data[,group_id])){
-    if(levels(seurat_obj@meta.data[,group_id]) != make.names(levels(seurat_obj@meta.data[,group_id])))
+    is_make_names = levels(seurat_obj@meta.data[,group_id]) == make.names(levels(seurat_obj@meta.data[,group_id]))
+    if(sum(is_make_names) != length(levels(seurat_obj@meta.data[,group_id]))){
       stop("The levels of the factor seurat_obj@meta.data[,group_id] should be a syntactically valid R names - see make.names")
+    }
   }
   if(is.factor(seurat_obj@meta.data[,sample_id])){
-    if(levels(seurat_obj@meta.data[,sample_id]) != make.names(levels(seurat_obj@meta.data[,sample_id])))
+    is_make_names = levels(seurat_obj@meta.data[,sample_id]) == make.names(levels(seurat_obj@meta.data[,sample_id]))
+    if(sum(is_make_names) != length(levels(seurat_obj@meta.data[,sample_id]))){
       stop("The levels of the factor seurat_obj@meta.data[,sample_id] should be a syntactically valid R names - see make.names")
+    }
   }
   
   if(!is.character(contrasts)){
@@ -100,14 +106,15 @@ perform_muscat_de_analysis = function(seurat_obj, sample_id, celltype_id, group_
 
   # conditions of interest in the contrast should be present in the in the group column of the metadata
   groups_oi = seurat_obj@meta.data[,group_id] %>% unique()
-  conditions_oi = stringr::str_split(contrasts, "'") %>% unlist() %>% unique() %>%
-    stringr::str_split("[:digit:]") %>% unlist() %>% unique() %>%
+  conditions_oi = stringr::str_split(contrasts_oi, "'") %>% unlist() %>% unique() %>%
+    # stringr::str_split("[:digit:]") %>% unlist() %>% unique() %>%
     stringr::str_split("\\)") %>% unlist() %>% unique() %>%
     stringr::str_split("\\(") %>% unlist() %>% unique() %>%
     stringr::str_split("-") %>% unlist() %>% unique() %>%
     stringr::str_split("\\+") %>% unlist() %>% unique() %>%
     stringr::str_split("\\*") %>% unlist() %>% unique() %>%
-    stringr::str_split("\\/") %>% unlist() %>% unique() %>% generics::setdiff(c("",",")) %>% unlist() %>% unique()
+    stringr::str_split("\\/") %>% unlist() %>% unique() %>% generics::setdiff(c("",","," ,", ", ")) %>% unlist() %>% unique()
+  conditions_oi = conditions_oi[is.na(suppressWarnings(as.numeric(conditions_oi)))]
   
   if(length(contrasts) != 1 | !is.character(contrasts)){
     stop("contrasts should be a character vector of length 1. See the documentation of the function for having an idea of the right format of setting your contrasts.")

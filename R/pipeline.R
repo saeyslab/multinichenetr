@@ -62,7 +62,7 @@ ms_mg_nichenet_analysis = function(sender_receiver_separate = TRUE, ...){
 #' prioritizing_weights = c("scaled_lfc_ligand" = 1, "scaled_p_val_ligand" = 1, "scaled_lfc_receptor" = 1, "scaled_p_val_receptor" = 1, "scaled_activity_scaled" = 1.5,
 #' "scaled_activity" = 0.5,"scaled_avg_exprs_ligand" = 1,"scaled_avg_frq_ligand" = 1,"scaled_avg_exprs_receptor" = 1, "scaled_avg_frq_receptor" = 1,
 #' "fraction_expressing_ligand_receptor" = 1,"scaled_abundance_sender" = 0, "scaled_abundance_receiver" = 0),
-#' assay_oi_sce = "RNA",assay_oi_pb ="counts",fun_oi_pb = "sum",de_method_oi = "edgeR",min_cells = 10,logFC_threshold = 0.25,p_val_threshold = 0.05,frac_cutoff = 0.05,p_val_adj = FALSE,top_n_target = 250, verbose = FALSE)
+#' assay_oi_sce = "RNA",assay_oi_pb ="counts",fun_oi_pb = "sum",de_method_oi = "edgeR",min_cells = 10,logFC_threshold = 0.25,p_val_threshold = 0.05,frac_cutoff = 0.05,p_val_adj = FALSE,top_n_target = 250, verbose = FALSE, n.cores = 1)
 #'
 #' @param seurat_obj_receiver Seurat object containing the receiver cell types of interest
 #' @param seurat_obj_sender Seurat object containing the sender cell types of interest
@@ -114,7 +114,8 @@ ms_mg_nichenet_analysis = function(sender_receiver_separate = TRUE, ...){
 #' @param p_val_adj For defining the gene set of interest for NicheNet ligand activity: should we look at the p-value corrected for multiple testing? Default: FALSE.
 #' @param top_n_target For defining NicheNet ligand-target links: which top N predicted target genes. See `nichenetr::get_weighted_ligand_target_links()`.
 #' @param verbose Indicate which different steps of the pipeline are running or not. Default: FALSE.
-#'
+#' @param n.cores The number of cores used for parallel computation of the ligand activities per receiver cell type. Default: 1 - no parallel computation.
+#' 
 #' @return List containing information and output of the MultiNicheNet analysis.
 #' celltype_info: contains average expression value and fraction of each cell type - sample combination,
 #' celltype_de: contains output of the differential expression analysis, 
@@ -198,7 +199,7 @@ ms_mg_nichenet_analysis_separate = function(seurat_obj_receiver,
                                             p_val_threshold = 0.05,
                                             frac_cutoff = 0.05,
                                             p_val_adj = FALSE,
-                                            top_n_target = 250, verbose = FALSE){
+                                            top_n_target = 250, verbose = FALSE, n.cores = 1){
 
 
   requireNamespace("Seurat")
@@ -264,31 +265,49 @@ ms_mg_nichenet_analysis_separate = function(seurat_obj_receiver,
   }
   
   # if some of these are factors, and not all levels have syntactically valid names - prompt to change this
-  if(is.factor(seurat_obj_receiver@meta.data[,celltype_id_receiver])){
-    if(levels(seurat_obj_receiver@meta.data[,celltype_id_receiver]) != make.names(levels(seurat_obj_receiver@meta.data[,celltype_id_receiver])))
-      stop("The levels of the factor seurat_obj_receiver@meta.data[,celltype_id_receiver] should be a syntactically valid R names - see make.names")
-  }
-  if(is.factor(seurat_obj_receiver@meta.data[,group_id])){
-    if(levels(seurat_obj_receiver@meta.data[,group_id]) != make.names(levels(seurat_obj_receiver@meta.data[,group_id])))
-      stop("The levels of the factor seurat_obj_receiver@meta.data[,group_id] should be a syntactically valid R names - see make.names")
-  }
-  if(is.factor(seurat_obj_receiver@meta.data[,sample_id])){
-    if(levels(seurat_obj_receiver@meta.data[,sample_id]) != make.names(levels(seurat_obj_receiver@meta.data[,sample_id])))
-      stop("The levels of the factor seurat_obj_receiver@meta.data[,sample_id] should be a syntactically valid R names - see make.names")
-  }
   if(is.factor(seurat_obj_sender@meta.data[,celltype_id_sender])){
-    if(levels(seurat_obj_sender@meta.data[,celltype_id_sender]) != make.names(levels(seurat_obj_sender@meta.data[,celltype_id_sender])))
+    is_make_names = levels(seurat_obj_sender@meta.data[,celltype_id_sender]) == make.names(levels(seurat_obj_sender@meta.data[,celltype_id_sender]))
+    if(sum(is_make_names) != length(levels(seurat_obj_sender@meta.data[,celltype_id_sender]))){
       stop("The levels of the factor seurat_obj_sender@meta.data[,celltype_id_sender] should be a syntactically valid R names - see make.names")
-  }
-  if(is.factor(seurat_obj_sender@meta.data[,group_id])){
-    if(levels(seurat_obj_sender@meta.data[,group_id]) != make.names(levels(seurat_obj_sender@meta.data[,group_id])))
-      stop("The levels of the factor seurat_obj_sender@meta.data[,group_id] should be a syntactically valid R names - see make.names")
-  }
-  if(is.factor(seurat_obj_sender@meta.data[,sample_id])){
-    if(levels(seurat_obj_sender@meta.data[,sample_id]) != make.names(levels(seurat_obj_sender@meta.data[,sample_id])))
-      stop("The levels of the factor seurat_obj_sender@meta.data[,sample_id] should be a syntactically valid R names - see make.names")
+    }
   }
   
+  if(is.factor(seurat_obj_sender@meta.data[,group_id])){
+    is_make_names = levels(seurat_obj_sender@meta.data[,group_id]) == make.names(levels(seurat_obj_sender@meta.data[,group_id]))
+    if(sum(is_make_names) != length(levels(seurat_obj_sender@meta.data[,group_id]))){
+      stop("The levels of the factor seurat_obj_sender@meta.data[,group_id] should be a syntactically valid R names - see make.names")
+    }
+  }
+  
+  if(is.factor(seurat_obj_sender@meta.data[,sample_id])){
+    is_make_names = levels(seurat_obj_sender@meta.data[,sample_id]) == make.names(levels(seurat_obj_sender@meta.data[,sample_id]))
+    if(sum(is_make_names) != length(levels(seurat_obj_sender@meta.data[,sample_id]))){
+      stop("The levels of the factor seurat_obj_sender@meta.data[,sample_id] should be a syntactically valid R names - see make.names")
+    }
+  }
+  
+  if(is.factor(seurat_obj_receiver@meta.data[,celltype_id_receiver])){
+    is_make_names = levels(seurat_obj_receiver@meta.data[,celltype_id_receiver]) == make.names(levels(seurat_obj_receiver@meta.data[,celltype_id_receiver]))
+    if(sum(is_make_names) != length(levels(seurat_obj_receiver@meta.data[,celltype_id_receiver]))){
+      stop("The levels of the factor seurat_obj_receiver@meta.data[,celltype_id_receiver] should be a syntactically valid R names - see make.names")
+    }
+  }
+  
+  if(is.factor(seurat_obj_receiver@meta.data[,group_id])){
+    is_make_names = levels(seurat_obj_receiver@meta.data[,group_id]) == make.names(levels(seurat_obj_receiver@meta.data[,group_id]))
+    if(sum(is_make_names) != length(levels(seurat_obj_receiver@meta.data[,group_id]))){
+      stop("The levels of the factor seurat_obj_receiver@meta.data[,group_id] should be a syntactically valid R names - see make.names")
+    }
+  }
+  
+  if(is.factor(seurat_obj_receiver@meta.data[,sample_id])){
+    is_make_names = levels(seurat_obj_receiver@meta.data[,sample_id]) == make.names(levels(seurat_obj_receiver@meta.data[,sample_id]))
+    if(sum(is_make_names) != length(levels(seurat_obj_receiver@meta.data[,sample_id]))){
+      stop("The levels of the factor seurat_obj_receiver@meta.data[,sample_id] should be a syntactically valid R names - see make.names")
+    }
+  }
+  
+ 
   if(!is.character(contrasts_oi)){
     stop("contrasts_oi should be a character vector")
   }
@@ -297,15 +316,17 @@ ms_mg_nichenet_analysis_separate = function(seurat_obj_receiver,
   }
   # conditions of interest in the contrast should be present in the in the group column of the metadata
   groups_oi = seurat_obj_receiver@meta.data[,group_id] %>% unique()
+
   conditions_oi = stringr::str_split(contrasts_oi, "'") %>% unlist() %>% unique() %>%
-    stringr::str_split("[:digit:]") %>% unlist() %>% unique() %>%
+    # stringr::str_split("[:digit:]") %>% unlist() %>% unique() %>%
     stringr::str_split("\\)") %>% unlist() %>% unique() %>%
     stringr::str_split("\\(") %>% unlist() %>% unique() %>%
     stringr::str_split("-") %>% unlist() %>% unique() %>%
     stringr::str_split("\\+") %>% unlist() %>% unique() %>%
     stringr::str_split("\\*") %>% unlist() %>% unique() %>%
-    stringr::str_split("\\/") %>% unlist() %>% unique() %>% generics::setdiff(c("",",")) %>% unlist() %>% unique()
-
+    stringr::str_split("\\/") %>% unlist() %>% unique() %>% generics::setdiff(c("",","," ,", ", ")) %>% unlist() %>% unique()
+  conditions_oi = conditions_oi[is.na(suppressWarnings(as.numeric(conditions_oi)))]
+  
   if(length(contrasts_oi) != 1 | !is.character(contrasts_oi)){
     stop("contrasts_oi should be a character vector of length 1. See the documentation of the function for having an idea of the right format of setting your contrasts.")
   }
@@ -470,7 +491,13 @@ ms_mg_nichenet_analysis_separate = function(seurat_obj_receiver,
   if(verbose == TRUE){
     print("Extract expression information from receiver")
   }
-
+  if(!is.double(n.cores)){
+    stop("n.cores should be numeric")
+  } else {
+    if(n.cores <= 0 ) {
+      warning("n.cores is now 0 or smaller. We recommend having a positive, non-zero value for this parameter.")
+    }
+  }
   receiver_info = suppressMessages(get_avg_frac_exprs_abund(
     seurat_obj = seurat_obj_receiver,
     sample_id = sample_id,
@@ -495,9 +522,12 @@ ms_mg_nichenet_analysis_separate = function(seurat_obj_receiver,
     ic_type = "sender",
     lr_network = lr_network))
 
-  senders_oi = Idents(seurat_obj_sender) %>% unique()
-  receivers_oi = Idents(seurat_obj_receiver) %>% unique()
+  # senders_oi = Idents(seurat_obj_sender) %>% unique()
+  # receivers_oi = Idents(seurat_obj_receiver) %>% unique()
 
+  senders_oi = seurat_obj_sender@meta.data[,celltype_id_sender] %>% unique()
+  receivers_oi = seurat_obj_receiver@meta.data[,celltype_id_receiver] %>% unique()
+  
   sender_receiver_info = suppressMessages(combine_sender_receiver_info_ic(
     sender_info = sender_info_ic,
     receiver_info = receiver_info_ic,
@@ -566,7 +596,8 @@ ms_mg_nichenet_analysis_separate = function(seurat_obj_receiver,
     frac_cutoff = frac_cutoff,
     p_val_adj = p_val_adj,
     top_n_target = top_n_target,
-    verbose = verbose
+    verbose = verbose,
+    n.cores = n.cores
   )))
 
   rm(receiver_info_ic)
@@ -642,7 +673,7 @@ ms_mg_nichenet_analysis_separate = function(seurat_obj_receiver,
 #' prioritizing_weights = c("scaled_lfc_ligand" = 1, "scaled_p_val_ligand" = 1, "scaled_lfc_receptor" = 1, "scaled_p_val_receptor" = 1, "scaled_activity_scaled" = 1.5,
 #' "scaled_activity" = 0.5,"scaled_avg_exprs_ligand" = 1,"scaled_avg_frq_ligand" = 1,"scaled_avg_exprs_receptor" = 1, "scaled_avg_frq_receptor" = 1,
 #' "fraction_expressing_ligand_receptor" = 1,"scaled_abundance_sender" = 0, "scaled_abundance_receiver" = 0),
-#' assay_oi_sce = "RNA",assay_oi_pb ="counts",fun_oi_pb = "sum",de_method_oi = "edgeR",min_cells = 10,logFC_threshold = 0.25,p_val_threshold = 0.05,frac_cutoff = 0.05,p_val_adj = FALSE,top_n_target = 250, verbose = FALSE)
+#' assay_oi_sce = "RNA",assay_oi_pb ="counts",fun_oi_pb = "sum",de_method_oi = "edgeR",min_cells = 10,logFC_threshold = 0.25,p_val_threshold = 0.05,frac_cutoff = 0.05,p_val_adj = FALSE,top_n_target = 250, verbose = FALSE, n.cores = 1)
 #'
 #' @param seurat_obj Seurat object of the scRNAseq data of interest. Contains both sender and receiver cell types.
 #' @param celltype_id Name of the column in the meta data of seurat_obj that indicates the cell type of a cell.
@@ -724,7 +755,7 @@ ms_mg_nichenet_analysis_combined = function(seurat_obj,
                                             p_val_threshold = 0.05,
                                             frac_cutoff = 0.05,
                                             p_val_adj = FALSE,
-                                            top_n_target = 250, verbose = FALSE){
+                                            top_n_target = 250, verbose = FALSE, n.cores = 1){
 
 
   requireNamespace("Seurat")
@@ -766,16 +797,24 @@ ms_mg_nichenet_analysis_combined = function(seurat_obj,
 
   # if some of these are factors, and not all levels have syntactically valid names - prompt to change this
   if(is.factor(seurat_obj@meta.data[,celltype_id])){
-    if(levels(seurat_obj@meta.data[,celltype_id]) != make.names(levels(seurat_obj@meta.data[,celltype_id])))
-    stop("The levels of the factor seurat_obj@meta.data[,celltype_id] should be a syntactically valid R names - see make.names")
+    is_make_names = levels(seurat_obj@meta.data[,celltype_id]) == make.names(levels(seurat_obj@meta.data[,celltype_id]))
+    if(sum(is_make_names) != length(levels(seurat_obj@meta.data[,celltype_id]))){
+      stop("The levels of the factor seurat_obj@meta.data[,celltype_id] should be a syntactically valid R names - see make.names")
+    }
   }
+  
   if(is.factor(seurat_obj@meta.data[,group_id])){
-    if(levels(seurat_obj@meta.data[,group_id]) != make.names(levels(seurat_obj@meta.data[,group_id])))
+    is_make_names = levels(seurat_obj@meta.data[,group_id]) == make.names(levels(seurat_obj@meta.data[,group_id]))
+    if(sum(is_make_names) != length(levels(seurat_obj@meta.data[,group_id]))){
       stop("The levels of the factor seurat_obj@meta.data[,group_id] should be a syntactically valid R names - see make.names")
+    }
   }
+  
   if(is.factor(seurat_obj@meta.data[,sample_id])){
-    if(levels(seurat_obj@meta.data[,sample_id]) != make.names(levels(seurat_obj@meta.data[,sample_id])))
+    is_make_names = levels(seurat_obj@meta.data[,sample_id]) == make.names(levels(seurat_obj@meta.data[,sample_id]))
+    if(sum(is_make_names) != length(levels(seurat_obj@meta.data[,sample_id]))){
       stop("The levels of the factor seurat_obj@meta.data[,sample_id] should be a syntactically valid R names - see make.names")
+    }
   }
   
   
@@ -788,13 +827,14 @@ ms_mg_nichenet_analysis_combined = function(seurat_obj,
   # conditions of interest in the contrast should be present in the in the group column of the metadata
   groups_oi = seurat_obj@meta.data[,group_id] %>% unique()
   conditions_oi = stringr::str_split(contrasts_oi, "'") %>% unlist() %>% unique() %>%
-    stringr::str_split("[:digit:]") %>% unlist() %>% unique() %>%
+    # stringr::str_split("[:digit:]") %>% unlist() %>% unique() %>%
     stringr::str_split("\\)") %>% unlist() %>% unique() %>%
     stringr::str_split("\\(") %>% unlist() %>% unique() %>%
     stringr::str_split("-") %>% unlist() %>% unique() %>%
     stringr::str_split("\\+") %>% unlist() %>% unique() %>%
     stringr::str_split("\\*") %>% unlist() %>% unique() %>%
-    stringr::str_split("\\/") %>% unlist() %>% unique() %>% generics::setdiff(c("",",")) %>% unlist() %>% unique()
+    stringr::str_split("\\/") %>% unlist() %>% unique() %>% generics::setdiff(c("",","," ,", ", ")) %>% unlist() %>% unique()
+  conditions_oi = conditions_oi[is.na(suppressWarnings(as.numeric(conditions_oi)))]
 
   if(length(contrasts_oi) != 1 | !is.character(contrasts_oi)){
     stop("contrasts_oi should be a character vector of length 1. See the documentation of the function for having an idea of the right format of setting your contrasts.")
@@ -955,11 +995,17 @@ ms_mg_nichenet_analysis_combined = function(seurat_obj,
     stop("verbose should be TRUE or FALSE")
   }
 
-
   if(verbose == TRUE){
     print("Extract expression information from all cell types")
   }
-
+  if(!is.double(n.cores)){
+    stop("n.cores should be numeric")
+  } else {
+    if(n.cores <= 0 ) {
+      warning("n.cores is now 0 or smaller. We recommend having a positive, non-zero value for this parameter.")
+    }
+  }
+  
   celltype_info = suppressMessages(get_avg_frac_exprs_abund(
     seurat_obj = seurat_obj,
     sample_id = sample_id,
@@ -976,9 +1022,13 @@ ms_mg_nichenet_analysis_combined = function(seurat_obj,
     ic_type = "sender",
     lr_network = lr_network))
 
-  senders_oi = Idents(seurat_obj) %>% unique()
-  receivers_oi = Idents(seurat_obj) %>% unique()
+  # senders_oi = Idents(seurat_obj) %>% unique()
+  # receivers_oi = Idents(seurat_obj) %>% unique()
 
+  senders_oi = seurat_obj@meta.data[,celltype_id] %>% unique()
+  receivers_oi = seurat_obj@meta.data[,celltype_id] %>% unique()
+  
+  
   sender_receiver_info = suppressMessages(combine_sender_receiver_info_ic(
     sender_info = sender_info_ic,
     receiver_info = receiver_info_ic,
@@ -1030,7 +1080,8 @@ ms_mg_nichenet_analysis_combined = function(seurat_obj,
     frac_cutoff = frac_cutoff,
     p_val_adj = p_val_adj,
     top_n_target = top_n_target,
-    verbose = verbose
+    verbose = verbose, 
+    n.cores = n.cores
   )))
 
   rm(receiver_info_ic)

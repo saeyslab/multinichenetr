@@ -39,7 +39,8 @@ Imports:
     scater,
     nichenetr,
     RColorBrewer,
-    ggpubr
+    ggpubr,
+    parallel
 Suggests: 
     knitr,
     testthat,

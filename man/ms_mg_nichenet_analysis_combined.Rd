@@ -9,7 +9,7 @@ seurat_obj, celltype_id, sample_id,group_id, covariates, lr_network,ligand_targe
 prioritizing_weights = c("scaled_lfc_ligand" = 1, "scaled_p_val_ligand" = 1, "scaled_lfc_receptor" = 1, "scaled_p_val_receptor" = 1, "scaled_activity_scaled" = 1.5,
 "scaled_activity" = 0.5,"scaled_avg_exprs_ligand" = 1,"scaled_avg_frq_ligand" = 1,"scaled_avg_exprs_receptor" = 1, "scaled_avg_frq_receptor" = 1,
 "fraction_expressing_ligand_receptor" = 1,"scaled_abundance_sender" = 0, "scaled_abundance_receiver" = 0),
-assay_oi_sce = "RNA",assay_oi_pb ="counts",fun_oi_pb = "sum",de_method_oi = "edgeR",min_cells = 10,logFC_threshold = 0.25,p_val_threshold = 0.05,frac_cutoff = 0.05,p_val_adj = FALSE,top_n_target = 250, verbose = FALSE)
+assay_oi_sce = "RNA",assay_oi_pb ="counts",fun_oi_pb = "sum",de_method_oi = "edgeR",min_cells = 10,logFC_threshold = 0.25,p_val_threshold = 0.05,frac_cutoff = 0.05,p_val_adj = FALSE,top_n_target = 250, verbose = FALSE, n.cores = 1)
 }
 \arguments{
 \item{seurat_obj}{Seurat object of the scRNAseq data of interest. Contains both sender and receiver cell types.}
@@ -80,6 +80,8 @@ scaled_abundance_receiver: importance of relative cell type abundance of the rec
 \item{top_n_target}{For defining NicheNet ligand-target links: which top N predicted target genes. See `nichenetr::get_weighted_ligand_target_links()`.}
 
 \item{verbose}{Indicate which different steps of the pipeline are running or not. Default: FALSE.}
+
+\item{n.cores}{The number of cores used for parallel computation of the ligand activities per receiver cell type. Default: 1 - no parallel computation.}
 }
 \value{
 List containing information and output of the MultiNicheNet analysis.
