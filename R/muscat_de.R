@@ -106,7 +106,7 @@ perform_muscat_de_analysis = function(seurat_obj, sample_id, celltype_id, group_
 
   # conditions of interest in the contrast should be present in the in the group column of the metadata
   groups_oi = seurat_obj@meta.data[,group_id] %>% unique()
-  conditions_oi = stringr::str_split(contrasts_oi, "'") %>% unlist() %>% unique() %>%
+  conditions_oi = stringr::str_split(contrasts, "'") %>% unlist() %>% unique() %>%
     # stringr::str_split("[:digit:]") %>% unlist() %>% unique() %>%
     stringr::str_split("\\)") %>% unlist() %>% unique() %>%
     stringr::str_split("\\(") %>% unlist() %>% unique() %>%
