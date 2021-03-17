@@ -126,6 +126,8 @@ ms_mg_nichenet_analysis = function(sender_receiver_separate = TRUE, ...){
 #' prioritization_tables: contains the tables with the final prioritization scores
 #' lr_prod_mat: matrix of the ligand-receptor expression product of the expressed senderLigand-receiverReceptor pairs,
 #' grouping_tbl: data frame showing the group per sample 
+#' hist_pvals_receiver: histogram of p-values from the DE analysis on the receiver cell types.
+#' hist_pvals_sender: histogram of p-values from the DE analysis on the sender cell types.
 #'
 #' @import Seurat
 #' @import dplyr
@@ -575,7 +577,18 @@ ms_mg_nichenet_analysis_separate = function(seurat_obj_receiver,
     de_method_oi = de_method_oi,
     min_cells = min_cells)
 
+  de_output_tidy_receiver = muscat::resDS(receiver_de$sce, receiver_de$de_output, bind = "row", cpm = FALSE, frq = FALSE) %>% tibble::as_tibble()
+  hist_pvals_receiver = de_output_tidy_receiver %>% inner_join(de_output_tidy_receiver %>% group_by(contrast,cluster_id) %>% count()) %>% 
+    mutate(cluster_id = paste0(cluster_id, "\nnr of genes: ", n)) %>% 
+    ggplot(aes(x = p_val)) + 
+    geom_histogram() + facet_grid(contrast~cluster_id) + ggtitle("P-value histograms Receiver") + theme_bw() 
 
+  de_output_tidy_sender = muscat::resDS(sender_de$sce, sender_de$de_output, bind = "row", cpm = FALSE, frq = FALSE) %>% tibble::as_tibble()
+  hist_pvals_sender = de_output_tidy_sender %>% inner_join(de_output_tidy_sender %>% group_by(contrast,cluster_id) %>% count()) %>% 
+    mutate(cluster_id = paste0(cluster_id, "\nnr of genes: ", n)) %>% 
+    ggplot(aes(x = p_val)) + 
+    geom_histogram() + facet_grid(contrast~cluster_id) + ggtitle("P-value histograms Sender") + theme_bw() 
+  
   sender_receiver_de = suppressMessages(combine_sender_receiver_de(
     sender_de = sender_de,
     receiver_de = receiver_de,
@@ -664,7 +677,9 @@ ms_mg_nichenet_analysis_separate = function(seurat_obj_receiver,
       ligand_activities_targets_DEgenes = ligand_activities_targets_DEgenes,
       prioritization_tables = prioritization_tables,
       lr_prod_mat = lr_prod_mat,
-      grouping_tbl = grouping_tbl
+      grouping_tbl = grouping_tbl,
+      hist_pvals_receiver = hist_pvals_receiver,
+      hist_pvals_sender = hist_pvals_sender
     )
   )
 }
@@ -692,6 +707,7 @@ ms_mg_nichenet_analysis_separate = function(seurat_obj_receiver,
 #' prioritization_tables: contains the tables with the final prioritization scores
 #' lr_prod_mat: matrix of the ligand-receptor expression product of the expressed senderLigand-receiverReceptor pairs,
 #' grouping_tbl: data frame showing the group per sample 
+#' hist_pvals: histogram of p-values from the DE analysis on all cell types.
 #'
 #' @import Seurat
 #' @import dplyr
@@ -1062,6 +1078,12 @@ ms_mg_nichenet_analysis_combined = function(seurat_obj,
     de_method_oi = de_method_oi,
     min_cells = min_cells)
 
+  de_output_tidy = muscat::resDS(celltype_de$sce, celltype_de$de_output, bind = "row", cpm = FALSE, frq = FALSE) %>% tibble::as_tibble()
+  hist_pvals = de_output_tidy %>% inner_join(de_output_tidy %>% group_by(contrast,cluster_id) %>% count()) %>% 
+    mutate(cluster_id = paste0(cluster_id, "\nnr of genes: ", n)) %>% 
+    ggplot(aes(x = p_val)) + 
+    geom_histogram() + facet_grid(contrast~cluster_id) + ggtitle("P-value histograms") + theme_bw() 
+  
   sender_receiver_de = suppressMessages(combine_sender_receiver_de(
     sender_de = celltype_de,
     receiver_de = celltype_de,
@@ -1148,7 +1170,8 @@ ms_mg_nichenet_analysis_combined = function(seurat_obj,
       ligand_activities_targets_DEgenes = ligand_activities_targets_DEgenes,
       prioritization_tables = prioritization_tables,
       lr_prod_mat = lr_prod_mat,
-      grouping_tbl = grouping_tbl
+      grouping_tbl = grouping_tbl,
+      hist_pvals = hist_pvals
     )
   )
 }
