@@ -40,7 +40,8 @@ Imports:
     nichenetr,
     RColorBrewer,
     ggpubr,
-    parallel
+    parallel,
+    locfdr
 Suggests: 
     knitr,
     testthat,

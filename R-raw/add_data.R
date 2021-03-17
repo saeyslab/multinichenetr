@@ -45,4 +45,5 @@ usethis::use_package("testthat", type = "Suggests")
 usethis::use_package("covr", type = "Suggests")
 usethis::use_package("rmarkdown", type = "Suggests")
 usethis::use_package("tidyverse", type = "Suggests")
+usethis::use_package("locfdr")
 

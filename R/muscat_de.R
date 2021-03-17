@@ -47,7 +47,8 @@
 #' @export
 #'
 perform_muscat_de_analysis = function(seurat_obj, sample_id, celltype_id, group_id, covariates, contrasts, assay_oi_sce = "RNA", assay_oi_pb = "counts", fun_oi_pb = "sum", de_method_oi = "edgeR", min_cells = 10){
-
+  requireNamespace("dplyr")
+  
   if (class(seurat_obj) != "Seurat") {
     stop("seurat_obj should be a Seurat object")
   }
@@ -238,7 +239,189 @@ perform_muscat_de_analysis = function(seurat_obj, sample_id, celltype_id, group_
   }
 
   # run DS analysis
-  res = muscat::pbDS(pb, method = de_method_oi , design = design, contrast = contrast, min_cells = min_cells, verbose = FALSE, filter = "none")
+  res = muscat::pbDS(pb, method = de_method_oi , design = design, contrast = contrast, min_cells = min_cells, verbose = FALSE, filter = "both")
 
   return(list(sce = sce, de_output = res))
 }
+#' @title Get empirical p-values and adjusted p-values.
+#'
+#' @description \code{p.adjust_empirical} Get emperical p-values and adjusted p-values. Credits to Jeroen Gillis (cf satuRn package)
+#' @usage p.adjust_empirical(pvalues, tvalues, plot = FALSE, celltype = NULL, contrast = NULL)
+#'
+#' @param pvalues Vector of original p-values
+#' @param tvalues Vector of original t-values: in case of DE analysis: log fold changes
+#' @param plot TRUE or FALSE (default): should we plot the z-score distribution?
+#' @param celltype NULL, or name of the cell type of interest - this will be added to the plot title if plot = TRUE
+#' @param contrast NULL, or name of the contrast of interest - thhis will be added to the plot title if plot = TRUE
+#' @return List with empirical p-values and adjusted p-values.
+#'
+#' @importFrom stats p.adjust dnorm glm median pnorm poisson poly qnorm quantile
+#' @importFrom graphics hist lines
+#' @import locfdr
+#'
+#' @examples
+#' \dontrun{
+#' library(Seurat)
+#' library(dplyr)
+#' lr_network = readRDS(url("https://zenodo.org/record/3260758/files/lr_network.rds"))
+#' lr_network = lr_network %>% dplyr::rename(ligand = from, receptor = to) %>% dplyr::distinct(ligand, receptor)
+#' sample_id = "tumor"
+#' group_id = "pEMT"
+#' celltype_id = "celltype"
+#' covariates = NA
+#' contrasts_oi = c("'High-Low','Low-High'")
+#' senders_oi = Idents(seurat_obj) %>% unique()
+#' receivers_oi = Idents(seurat_obj) %>% unique()
+#' celltype_de = perform_muscat_de_analysis(
+#'    seurat_obj = seurat_obj,
+#'    sample_id = sample_id,
+#'    celltype_id = celltype_id,
+#'    group_id = group_id,
+#'    covariates = covariates,
+#'    contrasts = contrasts_oi)
+#' de_output_tidy = muscat::resDS(celltype_de$sce, celltype_de$de_output, bind = "row", cpm = FALSE, frq = FALSE) %>% tibble::as_tibble()
+#' emp_res = p.adjust_empirical(de_output_tidy %>% pull(p_val), de_output_tidy  %>% pull(p_val), plot = T)
+#'}
+#'
+#' @export
+#'
+p.adjust_empirical <- function (pvalues, tvalues, plot = FALSE, celltype = NULL, contrast = NULL) 
+{
+  zvalues <- qnorm(pvalues/2) * sign(tvalues) # sign(t) for you will be sign(LFC)
+  
+  zvalues_mid <- zvalues[abs(zvalues) < 10] 
+  zvalues_mid <- zvalues_mid[!is.na(zvalues_mid)]
+  # avoid numeric issues by removing extreme z-scores for estimating the empirical null
+  # the good thing is that these are only removed for estimating the null;
+  # you will still have results for them in the end
+  
+  # compute empricial null distribution -> from locfdr
+  #### start
+  N <- length(zvalues_mid)
+  b <- 4.3 * exp(-0.26 * log(N, 10))
+  med <- median(zvalues_mid)
+  sc <- diff(quantile(zvalues_mid)[c(2, 4)])/(2 * qnorm(0.75))
+  mlests <- locfdr:::locmle(zvalues_mid, xlim = c(med, b * 
+                                                    sc))
+  lo <- min(zvalues_mid)
+  up <- max(zvalues_mid)
+  bre <- 120
+  breaks <- seq(lo, up, length = bre)
+  zzz <- pmax(pmin(zvalues_mid, up), lo)
+  zh <- hist(zzz, breaks = breaks, plot = FALSE)
+  x <- (breaks[-1] + breaks[-length(breaks)])/2
+  sw <- 0
+  X <- cbind(1, poly(x, df = 7))
+  zh <- hist(zzz, breaks = breaks, plot = FALSE)
+  y <- zh$counts
+  f <- glm(y ~ poly(x, df = 7), poisson)$fit
+  Cov.in <- list(x = x, X = X, f = f, sw = sw)
+  ml.out <- locfdr:::locmle(zvalues_mid, xlim = c(mlests[1], 
+                                                  b * mlests[2]), d = mlests[1], s = mlests[2], Cov.in = Cov.in)
+  mlests <- ml.out$mle # MLEs for the empirical null; same interpretation as
+  # the MLE I discussed in the locfdr plot
+  #### end
+  
+  # "Correct" the z-scores; based on the empirical null MLE, we force the bulk
+  # of the test statistics to follow a z-distribution. This is done by taking
+  # the original z-scores, substractin with the MLE for delta and dividing by
+  # sigma
+  zval_empirical <- (zvalues - mlests[1])/mlests[2]
+  
+  # based on the new z-scores, compute new p-values
+  pval_empirical <- 2 * pnorm(-abs(zval_empirical), mean = 0, 
+                              sd = 1)
+  
+  # make a plot similar to the one you saw above from locfdr
+  if (plot) {
+    zval_empirical <- zval_empirical[!is.na(zval_empirical)]
+    lo <- min(zval_empirical)
+    up <- max(zval_empirical)
+    lo <- min(lo, -1 * up)
+    up <- max(up, -1 * lo)
+    bre <- 120
+    breaks <- seq(lo, up, length = bre)
+    zzz <- pmax(pmin(zval_empirical, up), lo)
+    zh <- hist(zzz, breaks = breaks, plot = FALSE)
+    yall <- zh$counts
+    K <- length(yall)
+    hist(zzz, breaks = breaks, xlab = "z-scores", main = paste0("Empirical distribution of z-scores\n",celltype, " : ", contrast), 
+         freq = FALSE)
+    xfit <- seq(min(zzz), max(zzz), length = 4000)
+    yfit <- dnorm(xfit/mlests[3], mean = 0, sd = 1)
+    lines(xfit, yfit, col = "darkgreen", lwd = 2)
+  }
+  
+  # return FDR values; these are normal FDR, not local FDR!
+  FDR <- p.adjust(pval_empirical, method = "BH")
+  newList <- list(pval = pval_empirical, FDR = FDR)
+  return(newList)
+}
+#' @title Add empirical p-values and adjusted p-values to a subset of the DE output table.
+#' @description \code{get_FDR_empirical}  Add empirical p-values and adjusted p-values to a subset of the DE output table. This is the function that works under  the hood of `add_empirical_pval_fdr`. Credits to Jeroen Gillis (cf satuRn package)
+#' @usage get_FDR_empirical(de_output_tidy, cluster_id_oi, contrast_oi)
+#'
+#' @param de_output_tidy Data frame of DE results, containing at least the following columns: cluster_id, contrast, p_val, logFC.
+#' @param cluster_id_oi Indicate which celltype DE results should be filtered for.
+#' @param contrast_oi Indicate which contrast DE results should be filtered for.
+#' @return de_output_tidy dataframe (for the celltype and contrast of interest) with two columns added: p_emp and p_adj_emp.
+#'
+#' @export
+#'
+get_FDR_empirical = function(de_output_tidy, cluster_id_oi, contrast_oi){
+  de_oi = de_output_tidy %>% filter(cluster_id == cluster_id_oi & contrast == contrast_oi)
+  emp_res = p.adjust_empirical(de_oi %>% pull(p_val), de_oi %>% pull(logFC), plot = T, celltype = cluster_id_oi, contrast = contrast_oi)
+  de_oi = de_oi %>% mutate(p_emp = emp_res$pval, p_adj_emp = emp_res$FDR)
+}
+
+#' @title Add empirical p-values and adjusted p-values to the DE output table.
+#'
+#' @description \code{add_empirical_pval_fdr} Add empirical p-values and adjusted p-values to the DE output of Muscat. Credits to Jeroen Gillis (cf satuRn package)
+#' @usage add_empirical_pval_fdr(de_output_tidy)
+#'
+#' @param de_output_tidy Data frame of DE results, containing at least the following columns: cluster_id, contrast, p_val, logFC.
+#' @return de_output_tidy dataframe with two columns added: p_emp and p_adj_emp.
+#'
+#' @import dplyr
+#'
+#' @examples
+#' \dontrun{
+#' library(Seurat)
+#' library(dplyr)
+#' lr_network = readRDS(url("https://zenodo.org/record/3260758/files/lr_network.rds"))
+#' lr_network = lr_network %>% dplyr::rename(ligand = from, receptor = to) %>% dplyr::distinct(ligand, receptor)
+#' sample_id = "tumor"
+#' group_id = "pEMT"
+#' celltype_id = "celltype"
+#' covariates = NA
+#' contrasts_oi = c("'High-Low','Low-High'")
+#' senders_oi = Idents(seurat_obj) %>% unique()
+#' receivers_oi = Idents(seurat_obj) %>% unique()
+#' celltype_de = perform_muscat_de_analysis(
+#'    seurat_obj = seurat_obj,
+#'    sample_id = sample_id,
+#'    celltype_id = celltype_id,
+#'    group_id = group_id,
+#'    covariates = covariates,
+#'    contrasts = contrasts_oi)
+#' de_output_tidy = muscat::resDS(celltype_de$sce, celltype_de$de_output, bind = "row", cpm = FALSE, frq = FALSE) %>% tibble::as_tibble()
+#' de_output_tidy = add_empirical_pval_fdr(de_output_tidy)
+#'}
+#'
+#' @export
+#'
+add_empirical_pval_fdr = function(de_output_tidy){
+  requireNamespace("dplyr")
+  
+  all_celltypes = de_output_tidy$cluster_id %>% unique()
+  all_contrasts = de_output_tidy$contrast %>% unique()
+    
+  de_output_tidy_new = all_celltypes %>% lapply(function(cluster_id_oi, de_output_tidy){
+    all_contrasts %>% lapply(function(contrast_oi, de_output_tidy) {
+      de_output_subset = get_FDR_empirical(de_output_tidy, cluster_id_oi,  contrast_oi)
+    },de_output_tidy) %>% bind_rows()
+  },de_output_tidy) %>% bind_rows()
+  return(de_output_tidy_new)
+}
+
+

@@ -56,7 +56,7 @@ get_muscat_exprs_frac = function(seurat_obj, sample_id, celltype_id, group_id, a
     
     celltype_genes = rownames(frq_celltype)
     if(sum(celltype_genes == all_genes) != length(all_genes) ){
-      warning(paste0("For Celltype ",celltype_oi, " gene names got lost while calculating the fraction of expressing of each gene with muscat::calcExprFreqs (due to a bug in this function). We temporality fixed this by."))
+      warning(paste0("For Celltype ",celltype_oi, " gene names got lost while calculating the fraction of expression of each gene with muscat::calcExprFreqs (due to a bug in this function). We temporality fixed this ourselves for the moment."))
       rownames(frq_celltype) = all_genes
     }
     

@@ -1,7 +1,7 @@
 #' @title get_ligand_activities_targets_DEgenes
 #'
 #' @description \code{get_ligand_activities_targets_DEgenes}  Predict NicheNet ligand activities and ligand-target links for the receiver cell types. Uses `nichenetr::predict_ligand_activities()` and `nichenetr::get_weighted_ligand_target_links()` under the hood.
-#' @usage get_ligand_activities_targets_DEgenes(receiver_de, receivers_oi, receiver_frq_df_group, ligand_target_matrix, logFC_threshold = 0.25, p_val_threshold = 0.05, frac_cutoff = 0.05, p_val_adj = FALSE, top_n_target = 250, verbose = FALSE, n.cores = 1)
+#' @usage get_ligand_activities_targets_DEgenes(receiver_de, receivers_oi, receiver_frq_df_group, ligand_target_matrix, logFC_threshold = 0.25, p_val_threshold = 0.05, frac_cutoff = 0.05, p_val_adj = FALSE, empirical_pval = TRUE, top_n_target = 250, verbose = FALSE, n.cores = 1)
 #'
 #' @inheritParams ms_mg_nichenet_analysis_separate
 #' @inheritParams combine_sender_receiver_info_ic
@@ -48,16 +48,22 @@
 #'
 #' @export
 #'
-get_ligand_activities_targets_DEgenes = function(receiver_de, receivers_oi, receiver_frq_df_group, ligand_target_matrix, logFC_threshold = 0.25, p_val_threshold = 0.05, frac_cutoff = 0.05, p_val_adj = FALSE, top_n_target = 250, verbose = FALSE, n.cores = 1){
+get_ligand_activities_targets_DEgenes = function(receiver_de, receivers_oi, receiver_frq_df_group, ligand_target_matrix, logFC_threshold = 0.25, p_val_threshold = 0.05, frac_cutoff = 0.05, p_val_adj = FALSE, empirical_pval = TRUE, top_n_target = 250, verbose = FALSE, n.cores = 1){
   
   requireNamespace("dplyr")
+  
+  if(verbose == TRUE){
+    if(empirical_pval == TRUE){
+      print("p-values and adjusted p-values will be determined via the empirical null methods")
+    }
+  }
   
   n.cores_oi = min(n.cores, length(receivers_oi))
   
   if(n.cores_oi > 1){
     if( Sys.info()[['sysname']] == "Windows"){
       clust = parallel::makeCluster(n.cores_oi)
-      parallel::clusterExport(clust, c("receivers_oi","receiver_de","ligand_target_matrix","receiver_frq_df_group","frac_cutoff","verbose","logFC_threshold","p_val_threshold","frac_cutoff","p_val_adj","top_n_target"), envir = environment())
+      parallel::clusterExport(clust, c("receivers_oi","receiver_de","ligand_target_matrix","receiver_frq_df_group","frac_cutoff","verbose","logFC_threshold","p_val_threshold","frac_cutoff","p_val_adj","empirical_pval","top_n_target", "add_empirical_pval_fdr", "get_FDR_empirical", "p.adjust_empirical"), envir = environment())
       parallel::clusterEvalQ(clust, library(dplyr))
       parallel::clusterEvalQ(clust, library(nichenetr))
       parallel::clusterEvalQ(clust, library(muscat))
@@ -68,7 +74,7 @@ get_ligand_activities_targets_DEgenes = function(receiver_de, receivers_oi, rece
       clust = parallel::makeCluster(n.cores_oi, type="FORK") 
     }
     
-    ligand_activities_targets_geneset_ALL =  parallel::parLapply(clust, receivers_oi,function(receiver_oi, receiver_de, receiver_frq_df_group, frac_cutoff, verbose, ligand_target_matrix, logFC_threshold, p_val_threshold, p_val_adj, top_n_target){
+    ligand_activities_targets_geneset_ALL =  parallel::parLapply(clust, receivers_oi,function(receiver_oi, receiver_de, receiver_frq_df_group, frac_cutoff, verbose, ligand_target_matrix, logFC_threshold, p_val_threshold, p_val_adj,empirical_pval, top_n_target){
       
       requireNamespace("dplyr")
       
@@ -78,7 +84,10 @@ get_ligand_activities_targets_DEgenes = function(receiver_de, receivers_oi, rece
       }
       
       de_output_tidy = muscat::resDS(receiver_de$sce, receiver_de$de_output, bind = "row", cpm = FALSE, frq = FALSE) %>% tibble::as_tibble()
-      de_output_tidy = de_output_tidy %>% dplyr::filter(cluster_id == receiver_oi) %>% dplyr::select(gene, cluster_id, logFC, p_val, p_adj.loc, contrast)
+      de_output_tidy = de_output_tidy %>% dplyr::filter(cluster_id == receiver_oi) %>% dplyr::select(gene, cluster_id, logFC, p_val, p_adj.glb, contrast)
+      if(empirical_pval == TRUE){
+        de_output_tidy = add_empirical_pval_fdr(de_output_tidy)
+      }
       
       background_expressed_genes = de_output_tidy$gene %>% unique() %>% dplyr::intersect(rownames(ligand_target_matrix))
       ligand_target_matrix = ligand_target_matrix[rownames(ligand_target_matrix) %in% background_expressed_genes, ]
@@ -88,14 +97,27 @@ get_ligand_activities_targets_DEgenes = function(receiver_de, receivers_oi, rece
       
       ligand_activities_targets_geneset = de_output_tidy$contrast %>% unique() %>%
         lapply(function(contrast_oi,de_output_tidy){
-          
-          if(p_val_adj == TRUE){
-            de_tbl_geneset = de_output_tidy %>% dplyr::inner_join(frq_tbl) %>% dplyr::filter(contrast == contrast_oi) %>% dplyr::filter(logFC > logFC_threshold & p_adj.loc < p_val_threshold & present)
-            geneset_oi = de_tbl_geneset %>% dplyr::pull(gene) %>% unique() %>% dplyr::intersect(rownames(ligand_target_matrix))
+          if(empirical_pval == TRUE){
+            
+            de_output_tidy = de_output_tidy %>% select(-p_adj.glb, -p_val) %>% rename(p_adj.glb = p_adj_emp, p_val = p_emp)
+            
+            if(p_val_adj == TRUE){
+              de_tbl_geneset = de_output_tidy %>% dplyr::inner_join(frq_tbl) %>% dplyr::filter(contrast == contrast_oi) %>% dplyr::filter(logFC > logFC_threshold & p_adj.glb < p_val_threshold & present)
+              geneset_oi = de_tbl_geneset %>% dplyr::pull(gene) %>% unique() %>% dplyr::intersect(rownames(ligand_target_matrix))
+            } else {
+              de_tbl_geneset = de_output_tidy %>% dplyr::inner_join(frq_tbl) %>% dplyr::filter(contrast == contrast_oi) %>% dplyr::filter(logFC > logFC_threshold & p_val < p_val_threshold & present)
+              geneset_oi = de_tbl_geneset %>% dplyr::pull(gene) %>% unique() %>% dplyr::intersect(rownames(ligand_target_matrix))
+            }
           } else {
-            de_tbl_geneset = de_output_tidy %>% dplyr::inner_join(frq_tbl) %>% dplyr::filter(contrast == contrast_oi) %>% dplyr::filter(logFC > logFC_threshold & p_val < p_val_threshold & present)
-            geneset_oi = de_tbl_geneset %>% dplyr::pull(gene) %>% unique() %>% dplyr::intersect(rownames(ligand_target_matrix))
+            if(p_val_adj == TRUE){
+              de_tbl_geneset = de_output_tidy %>% dplyr::inner_join(frq_tbl) %>% dplyr::filter(contrast == contrast_oi) %>% dplyr::filter(logFC > logFC_threshold & p_adj.glb < p_val_threshold & present)
+              geneset_oi = de_tbl_geneset %>% dplyr::pull(gene) %>% unique() %>% dplyr::intersect(rownames(ligand_target_matrix))
+            } else {
+              de_tbl_geneset = de_output_tidy %>% dplyr::inner_join(frq_tbl) %>% dplyr::filter(contrast == contrast_oi) %>% dplyr::filter(logFC > logFC_threshold & p_val < p_val_threshold & present)
+              geneset_oi = de_tbl_geneset %>% dplyr::pull(gene) %>% unique() %>% dplyr::intersect(rownames(ligand_target_matrix))
+            }
           }
+
           
           if(verbose == TRUE){
             print("contrast_oi:")
@@ -126,12 +148,12 @@ get_ligand_activities_targets_DEgenes = function(receiver_de, receivers_oi, rece
       return(list(ligand_activities = ligand_activities, de_genes_df = de_genes_df))
       
     },
-    receiver_de, receiver_frq_df_group, frac_cutoff, verbose, ligand_target_matrix,  logFC_threshold, p_val_threshold, p_val_adj, top_n_target)
+    receiver_de, receiver_frq_df_group, frac_cutoff, verbose, ligand_target_matrix,  logFC_threshold, p_val_threshold, p_val_adj, empirical_pval, top_n_target)
     
     parallel::stopCluster(clust)
     
   } else {
-    ligand_activities_targets_geneset_ALL = lapply(receivers_oi,function(receiver_oi, receiver_de, receiver_frq_df_group, frac_cutoff, verbose, ligand_target_matrix, logFC_threshold, p_val_threshold, p_val_adj, top_n_target){
+    ligand_activities_targets_geneset_ALL = lapply(receivers_oi,function(receiver_oi, receiver_de, receiver_frq_df_group, frac_cutoff, verbose, ligand_target_matrix, logFC_threshold, p_val_threshold, p_val_adj, empirical_pval, top_n_target){
       
       requireNamespace("dplyr")
       
@@ -141,8 +163,10 @@ get_ligand_activities_targets_DEgenes = function(receiver_de, receivers_oi, rece
       }
       
       de_output_tidy = muscat::resDS(receiver_de$sce, receiver_de$de_output, bind = "row", cpm = FALSE, frq = FALSE) %>% tibble::as_tibble()
-      de_output_tidy = de_output_tidy %>% dplyr::filter(cluster_id == receiver_oi) %>% dplyr::select(gene, cluster_id, logFC, p_val, p_adj.loc, contrast)
-      
+      de_output_tidy = de_output_tidy %>% dplyr::filter(cluster_id == receiver_oi) %>% dplyr::select(gene, cluster_id, logFC, p_val, p_adj.glb, contrast)
+      if(empirical_pval == TRUE){
+        de_output_tidy = add_empirical_pval_fdr(de_output_tidy)
+      }
       background_expressed_genes = de_output_tidy$gene %>% unique() %>% dplyr::intersect(rownames(ligand_target_matrix))
       ligand_target_matrix = ligand_target_matrix[rownames(ligand_target_matrix) %in% background_expressed_genes, ]
       ligands = colnames(ligand_target_matrix)
@@ -152,12 +176,25 @@ get_ligand_activities_targets_DEgenes = function(receiver_de, receivers_oi, rece
       ligand_activities_targets_geneset = de_output_tidy$contrast %>% unique() %>%
         lapply(function(contrast_oi,de_output_tidy){
           
-          if(p_val_adj == TRUE){
-            de_tbl_geneset = de_output_tidy %>% dplyr::inner_join(frq_tbl) %>% dplyr::filter(contrast == contrast_oi) %>% dplyr::filter(logFC > logFC_threshold & p_adj.loc < p_val_threshold & present)
-            geneset_oi = de_tbl_geneset %>% dplyr::pull(gene) %>% unique() %>% dplyr::intersect(rownames(ligand_target_matrix))
+          if(empirical_pval == TRUE){
+            
+            de_output_tidy = de_output_tidy %>% select(-p_adj.glb, -p_val) %>% rename(p_adj.glb = p_adj_emp, p_val = p_emp)
+            
+            if(p_val_adj == TRUE){
+              de_tbl_geneset = de_output_tidy %>% dplyr::inner_join(frq_tbl) %>% dplyr::filter(contrast == contrast_oi) %>% dplyr::filter(logFC > logFC_threshold & p_adj.glb < p_val_threshold & present)
+              geneset_oi = de_tbl_geneset %>% dplyr::pull(gene) %>% unique() %>% dplyr::intersect(rownames(ligand_target_matrix))
+            } else {
+              de_tbl_geneset = de_output_tidy %>% dplyr::inner_join(frq_tbl) %>% dplyr::filter(contrast == contrast_oi) %>% dplyr::filter(logFC > logFC_threshold & p_val < p_val_threshold & present)
+              geneset_oi = de_tbl_geneset %>% dplyr::pull(gene) %>% unique() %>% dplyr::intersect(rownames(ligand_target_matrix))
+            }
           } else {
-            de_tbl_geneset = de_output_tidy %>% dplyr::inner_join(frq_tbl) %>% dplyr::filter(contrast == contrast_oi) %>% dplyr::filter(logFC > logFC_threshold & p_val < p_val_threshold & present)
-            geneset_oi = de_tbl_geneset %>% dplyr::pull(gene) %>% unique() %>% dplyr::intersect(rownames(ligand_target_matrix))
+            if(p_val_adj == TRUE){
+              de_tbl_geneset = de_output_tidy %>% dplyr::inner_join(frq_tbl) %>% dplyr::filter(contrast == contrast_oi) %>% dplyr::filter(logFC > logFC_threshold & p_adj.glb < p_val_threshold & present)
+              geneset_oi = de_tbl_geneset %>% dplyr::pull(gene) %>% unique() %>% dplyr::intersect(rownames(ligand_target_matrix))
+            } else {
+              de_tbl_geneset = de_output_tidy %>% dplyr::inner_join(frq_tbl) %>% dplyr::filter(contrast == contrast_oi) %>% dplyr::filter(logFC > logFC_threshold & p_val < p_val_threshold & present)
+              geneset_oi = de_tbl_geneset %>% dplyr::pull(gene) %>% unique() %>% dplyr::intersect(rownames(ligand_target_matrix))
+            }
           }
           
           if(verbose == TRUE){
@@ -188,7 +225,7 @@ get_ligand_activities_targets_DEgenes = function(receiver_de, receivers_oi, rece
       
       return(list(ligand_activities = ligand_activities, de_genes_df = de_genes_df))
       
-    },receiver_de, receiver_frq_df_group, frac_cutoff, verbose, ligand_target_matrix,  logFC_threshold, p_val_threshold, p_val_adj, top_n_target)
+    },receiver_de, receiver_frq_df_group, frac_cutoff, verbose, ligand_target_matrix,  logFC_threshold, p_val_threshold, p_val_adj, empirical_pval, top_n_target)
   }
   
   
@@ -214,7 +251,7 @@ get_ligand_activities_targets_DEgenes = function(receiver_de, receivers_oi, rece
 #       }
 #       
 #       de_output_tidy = muscat::resDS(receiver_de$sce, receiver_de$de_output, bind = "row", cpm = FALSE, frq = FALSE) %>% tibble::as_tibble()
-#       de_output_tidy = de_output_tidy %>% dplyr::filter(cluster_id == receiver_oi) %>% dplyr::select(gene, cluster_id, logFC, p_val, p_adj.loc, contrast)
+#       de_output_tidy = de_output_tidy %>% dplyr::filter(cluster_id == receiver_oi) %>% dplyr::select(gene, cluster_id, logFC, p_val, p_adj.glb, contrast)
 # 
 #       background_expressed_genes = de_output_tidy$gene %>% unique() %>% dplyr::intersect(rownames(ligand_target_matrix))
 #       ligand_target_matrix = ligand_target_matrix[rownames(ligand_target_matrix) %in% background_expressed_genes, ]
@@ -229,7 +266,7 @@ get_ligand_activities_targets_DEgenes = function(receiver_de, receivers_oi, rece
 #             print(contrast_oi)
 #           }
 #           if(p_val_adj == TRUE){
-#             de_tbl_geneset = de_output_tidy %>% dplyr::inner_join(frq_tbl) %>% dplyr::filter(contrast == contrast_oi) %>% dplyr::filter(logFC > logFC_threshold & p_adj.loc < p_val_threshold & present)
+#             de_tbl_geneset = de_output_tidy %>% dplyr::inner_join(frq_tbl) %>% dplyr::filter(contrast == contrast_oi) %>% dplyr::filter(logFC > logFC_threshold & p_adj.glb < p_val_threshold & present)
 #             geneset_oi = de_tbl_geneset %>% dplyr::pull(gene) %>% unique() %>% dplyr::intersect(rownames(ligand_target_matrix))
 #           } else {
 #             de_tbl_geneset = de_output_tidy %>% dplyr::inner_join(frq_tbl) %>% dplyr::filter(contrast == contrast_oi) %>% dplyr::filter(logFC > logFC_threshold & p_val < p_val_threshold & present)
