@@ -182,7 +182,7 @@ make_sample_lr_prod_activity_plots = function(prioritization_tables, prioritized
     p = patchwork::wrap_plots(
       p1,p2,p3,
       nrow = 1,guides = "collect",
-      widths = c(filtered_data$sample %>% unique() %>% length(), plot_data$receiver %>% unique() %>% length(), plot_data$receiver %>% unique() %>% length())
+      widths = c(sample_data$sample %>% unique() %>% length(), sample_data$receiver %>% unique() %>% length(), sample_data$receiver %>% unique() %>% length())
     )
   }
 
@@ -190,6 +190,175 @@ make_sample_lr_prod_activity_plots = function(prioritization_tables, prioritized
   return(p)
 
 
+}
+
+
+#' @title make_sample_lr_prod_activity_covariate_plots
+#'
+#' @description \code{make_sample_lr_prod_activity_covariate_plots}  XXXX EXPERIMENTAL FEATURE!!!!!!!!!!!!!!!!!!!!NOT WORKINGN RIGHT NOW
+#' @usage make_sample_lr_prod_activity_covariate_plots(prioritization_tables, prioritized_tbl_oi, grouping_tbl, covariate_oi, widths = NULL, heights = NULL)
+#'
+#' @param prioritization_tables XXX
+#' @param prioritized_tbl_oi XXX
+#' @param widths XXX
+#'
+#' @return XXXX
+#'
+#' @import ggplot2
+#' @import dplyr
+#' @importFrom RColorBrewer brewer.pal
+#' @importFrom patchwork wrap_plots
+#'
+#' @examples
+#' \dontrun{
+#' print("XXXX")
+#' }
+#'
+#' @export
+#'
+make_sample_lr_prod_activity_covariate_plots = function(prioritization_tables, prioritized_tbl_oi, grouping_tbl, covariate_oi, widths = NULL, heights = NULL){
+  requireNamespace("dplyr")
+  requireNamespace("ggplot2")
+  sample_data = prioritization_tables$sample_prioritization_tbl %>% dplyr::filter(id %in% prioritized_tbl_oi$id) %>% dplyr::mutate(sender_receiver = paste(sender, receiver, sep = " to ")) %>%  dplyr::arrange(sender) %>% dplyr::group_by(sender) %>%  dplyr::arrange(receiver)
+  
+  group_data = prioritization_tables$group_prioritization_tbl %>% dplyr::mutate(sender_receiver = paste(sender, receiver, sep = " to ")) %>% dplyr::distinct(id, sender, receiver, sender_receiver, lr_interaction, group, ligand_receptor_lfc_avg, activity, activity_scaled, fraction_ligand_group, prioritization_score, scaled_avg_exprs_ligand) %>% dplyr::filter(id %in% sample_data$id)
+  
+  p1 = sample_data %>%
+    ggplot(aes(sample, lr_interaction, color = scaled_LR_prod, size = scaled_LR_frac)) +
+    geom_point() +
+    facet_grid(sender_receiver~group, scales = "free", space = "free", switch = "y") +
+    scale_x_discrete(position = "top") +
+    # xlab("Ligand-Receptor expression in samples\n\n") +
+    theme_light() +
+    theme(
+      axis.ticks = element_blank(),
+      axis.title = element_blank(),
+      # axis.title.x = element_text(face = "bold", size = 11),       axis.title.y = element_blank(),
+      axis.text.y = element_text(face = "bold.italic", size = 9),
+      axis.text.x = element_text(size = 9,  angle = 90,hjust = 0),
+      panel.grid.major = element_blank(),
+      panel.grid.minor = element_blank(),
+      panel.spacing.x = unit(0.40, "lines"),
+      panel.spacing.y = unit(0.25, "lines"),
+      strip.text.x.top = element_text(size = 10, color = "black", face = "bold", angle = 0),
+      strip.text.y.left = element_text(size = 9, color = "black", face = "bold", angle = 0),
+      strip.background = element_rect(color="darkgrey", fill="whitesmoke", size=1.5, linetype="solid")
+    ) + labs(color = "Scaled L-R\navg expression product", size= "Scaled L-R\navg exprs fraction product")
+  max_lfc = abs(sample_data$scaled_LR_prod) %>% max()
+  custom_scale_fill = scale_color_gradientn(colours = RColorBrewer::brewer.pal(n = 7, name = "RdBu") %>% rev(),values = c(0, 0.350, 0.4850, 0.5, 0.5150, 0.65, 1),  limits = c(-1*max_lfc, max_lfc))
+  
+  p1 = p1 + custom_scale_fill
+  
+  
+  p2 = group_data %>%
+    # ggplot(aes(receiver, lr_interaction, color = activity_scaled, size = activity)) +
+    # geom_point() +
+    ggplot(aes(receiver, lr_interaction, fill = activity_scaled)) +
+    geom_tile(color = "whitesmoke") +
+    facet_grid(sender_receiver~group, scales = "free", space = "free") +
+    scale_x_discrete(position = "top") +
+    # xlab("Ligand activities in receiver cell types\n\n") +
+    theme_light() +
+    theme(
+      axis.ticks = element_blank(),
+      axis.title = element_blank(),
+      # axis.title.x = element_text(face = "bold", size = 11),       axis.title.y = element_blank(),
+      # axis.text.y = element_blank(),
+      axis.text.y = element_text(face = "bold.italic", size = 9),
+      axis.text.x = element_text(size = 9,  angle = 90,hjust = 0),
+      strip.text.x.top = element_text(angle = 0),
+      panel.grid.major = element_blank(),
+      panel.grid.minor = element_blank(),
+      panel.spacing.x = unit(0.20, "lines"),
+      panel.spacing.y = unit(0.25, "lines"),
+      strip.text.x = element_text(size = 10, color = "black", face = "bold"),
+      strip.text.y = element_blank(),
+      strip.background = element_rect(color="darkgrey", fill="whitesmoke", size=1.5, linetype="solid")
+    ) + labs(fill = "Scaled Ligand\nActivity in Receiver")
+  max_activity = abs(group_data$activity_scaled) %>% max()
+  custom_scale_fill = scale_fill_gradientn(colours = c("white", RColorBrewer::brewer.pal(n = 7, name = "PuRd") %>% .[-7]),values = c(0, 0.40, 0.50, 0.60, 0.70, 0.825, 1),  limits = c(-1*max_activity, max_activity))
+  
+  p2 = p2 + custom_scale_fill
+  
+  p3 = group_data %>%
+    ggplot(aes(receiver, lr_interaction, fill = activity)) +
+    geom_tile(color = "whitesmoke") +
+    facet_grid(sender_receiver~group, scales = "free", space = "free") +
+    scale_x_discrete(position = "top") +
+    # xlab("Ligand activities in receiver cell types\n\n") +
+    theme_light() +
+    theme(
+      axis.ticks = element_blank(),
+      # axis.title.x = element_text(face = "bold", size = 11),
+      axis.title = element_blank(),
+      axis.title.y = element_blank(),
+      axis.text.y = element_blank(),
+      axis.text.x = element_text(size = 9,  angle = 90,hjust = 0),
+      strip.text.x.top = element_text(angle = 0),
+      panel.grid.major = element_blank(),
+      panel.grid.minor = element_blank(),
+      panel.spacing.x = unit(0.20, "lines"),
+      panel.spacing.y = unit(0.25, "lines"),
+      strip.text.x = element_text(size = 10, color = "black", face = "bold"),
+      strip.text.y = element_blank(),
+      strip.background = element_rect(color="darkgrey", fill="whitesmoke", size=1.5, linetype="solid")
+    ) + labs(fill = "Ligand\nActivity in Receiver")
+  max_activity = (group_data$activity) %>% max()
+  min_activity = (group_data$activity) %>% min()
+  custom_scale_fill = scale_fill_gradientn(colours = c("white", RColorBrewer::brewer.pal(n = 7, name = "Oranges") %>% .[-7]),values = c(0, 0.250, 0.5550, 0.675, 0.80, 0.925, 1),  limits = c(min_activity-0.01, max_activity))
+  
+  p3 = p3 + custom_scale_fill
+  
+  grouping_tbl_plot = grouping_tbl %>% mutate(covariate_ = paste0(" ",covariate_oi," "), mock = "", covariate = grouping_tbl[[covariate_oi]])
+  p_covariate = grouping_tbl_plot %>% 
+    ggplot(aes(sample, mock, fill = covariate)) +
+    geom_tile(color = "black") +
+    facet_grid(covariate_~group, scales = "free", space = "free", switch = "y") +
+    scale_x_discrete(position = "top") +
+    theme_light() +
+    theme(
+      axis.ticks = element_blank(),
+      axis.title.x = element_text(size = 0),
+      axis.title.y = element_text(size = 0),
+      axis.text.y = element_text(face = "bold", size = 9),
+      axis.text.x = element_text(size = 9,  angle = 90,hjust = 0),
+      strip.text.x.top = element_text(angle = 0),
+      panel.grid.major = element_blank(),
+      panel.grid.minor = element_blank(),
+      panel.spacing.x = unit(2.5, "lines"),
+      panel.spacing.y = unit(0.25, "lines"),
+      strip.text.x = element_text(size = 11, color = "black", face = "bold"),
+      strip.text.y.left = element_text(size = 9, color = "black", face = "bold", angle = 0),
+      strip.background = element_rect(color="darkgrey", fill="whitesmoke", size=1.5, linetype="solid")
+    ) + scale_fill_brewer(palette = "Set2")
+  
+  if(!is.null(widths)){
+    design <- "D##
+               ABC"
+    p = patchwork::wrap_plots(
+      A = p1, B = p2, C= p3, D = p_covariate,
+      guides = "collect", design = design,
+      widths = widths,
+      heights = heights
+    ) + patchwork::plot_layout(design = design)
+  } else {
+    design <- "D##
+               ABC"
+    p = patchwork::wrap_plots(
+      A = p1, B = p2, C= p3, D = p_covariate,
+      guides = "collect", design = design,
+      widths = c(sample_data$sample %>% unique() %>% length(), sample_data$receiver %>% unique() %>% length(), sample_data$receiver %>% unique() %>% length()),
+      heights = c(1, group_data$lr_interaction %>% unique() %>% length(), )
+    ) + patchwork::plot_layout(design = design)
+  }
+  
+  
+  # p = cowplot::plot_grid(p_covariate, NULL, NULL, p1, p2, p3, align = "vh", rel_widths = widths, rel_heights =  heights, axis = "tblr")
+  
+  
+  return(p)
+  
+  
 }
 
 #' @title make_ligand_activity_plots
@@ -292,7 +461,7 @@ make_ligand_activity_plots = function(prioritization_tables, ligands_oi, contras
     p = patchwork::wrap_plots(
       p1,p2,
       nrow = 1,guides = "collect",
-      widths = c(plot_data$receiver %>% unique() %>% length(), plot_data$receiver %>% unique() %>% length())
+      widths = c(group_data$receiver %>% unique() %>% length(), group_data$receiver %>% unique() %>% length())
     )
   }
 
@@ -919,7 +1088,7 @@ make_nebulosa = function(seurat_subset_oi, seurat_subset_bg, title_umap, gene_oi
 #'
 #' @export
 #'
-make_featureplot = function(seurat_subset_oi, title_umap, gene_oi, group_oi, background_groups, group_id){
+make_featureplot = function(seurat_subset_oi, seurat_subset_bg, title_umap, gene_oi, group_oi, background_groups, group_id){
   requireNamespace("dplyr")
   requireNamespace("ggplot2")
   requireNamespace("Seurat")
@@ -927,11 +1096,24 @@ make_featureplot = function(seurat_subset_oi, title_umap, gene_oi, group_oi, bac
   p_dim = DimPlot(seurat_subset_oi, label = T, repel = TRUE) + ggtitle(title_umap) + theme(title = element_text(face = "bold"))
 
 
+  # wrapped_plots = patchwork::wrap_plots(p_dim,
+  #                            FeaturePlot(seurat_subset_oi, gene_oi,split.by = eval(group_id)),
+  #                            nrow = 1,
+  #                            guides = "collect",
+  #                            widths = c(1,3))
+  
+  
+  p_oi = FeaturePlot(seurat_subset_oi, gene_oi)
+  p_bg = FeaturePlot(seurat_subset_bg, gene_oi)
+
+  p_oi = p_oi + ggtitle(paste(gene_oi, group_oi, sep = " in ")) + theme(title = element_text(face = "bold"))
+  p_bg = p_bg + ggtitle(paste(gene_oi, background_groups %>% paste0(collapse = " & "), sep = " in ")) + theme(title = element_text(face = "bold"))
+  
   wrapped_plots = patchwork::wrap_plots(p_dim,
-                             FeaturePlot(seurat_subset_oi, gene_oi,split.by = eval(group_id)),
-                             nrow = 1,
-                             guides = "collect",
-                             widths = c(1,3))
+                                        p_oi,
+                                        p_bg,
+                                        ncol = 3,guides = "collect")
+  
 
 
 }
@@ -977,8 +1159,9 @@ make_ligand_receptor_nebulosa_feature_plot = function(seurat_obj_sender, seurat_
   # senders_prioritized = prioritized_tbl_oi %>% dplyr::filter(ligand == ligand_oi & group == group_oi) %>% dplyr::pull(sender) %>% unique()
   # receptors_prioritized = prioritized_tbl_oi %>% dplyr::filter(receptor == receptor_oi & group == group_oi) %>% dplyr::pull(receiver) %>% unique()
 
-  background_groups = prioritized_tbl_oi$group %>% unique() %>% generics::setdiff(group_oi)
-
+  # background_groups = prioritized_tbl_oi$group %>% unique() %>% generics::setdiff(group_oi)
+  background_groups = seurat_obj_sender@meta.data[[group_id]] %>% unique() %>% generics::setdiff(group_oi)
+  
   # subset Sender - Nebulosa
   seurat_subset_oi = seurat_obj_sender[, seurat_obj_sender@meta.data[[group_id]] %in% group_oi]
   seurat_subset_bg = seurat_obj_sender[, seurat_obj_sender@meta.data[[group_id]] %in% background_groups]
@@ -989,11 +1172,12 @@ make_ligand_receptor_nebulosa_feature_plot = function(seurat_obj_sender, seurat_
   sender_plots = make_nebulosa(seurat_subset_oi, seurat_subset_bg, "Sender UMAP", ligand_oi, group_oi, background_groups)
 
   # subset Sender - Feature
-  seurat_subset_oi = seurat_obj_sender[, seurat_obj_sender@meta.data[[group_id]] %in% c(group_oi,background_groups)]
-  seurat_subset_oi = seurat_subset_oi[, seurat_subset_oi@meta.data[[celltype_id_sender]] %in% senders_oi]
-
-  sender_plots_feature = make_featureplot(seurat_subset_oi, "Sender UMAP", ligand_oi, group_oi, background_groups, group_id)
-
+  # seurat_subset_oi = seurat_obj_sender[, seurat_obj_sender@meta.data[[group_id]] %in% c(group_oi,background_groups)]
+  # seurat_subset_oi = seurat_subset_oi[, seurat_subset_oi@meta.data[[celltype_id_sender]] %in% senders_oi]
+  # 
+  # sender_plots_feature = make_featureplot(seurat_subset_oi, "Sender UMAP", ligand_oi, group_oi, background_groups, group_id)
+  sender_plots_feature = make_featureplot(seurat_subset_oi,seurat_subset_bg, "Sender UMAP", ligand_oi, group_oi, background_groups, group_id)
+  
   # subset Receiver - Nebulosa
   seurat_subset_oi = seurat_obj_receiver[, seurat_obj_receiver@meta.data[[group_id]] %in% group_oi]
   seurat_subset_bg = seurat_obj_receiver[, seurat_obj_receiver@meta.data[[group_id]] %in% background_groups]
@@ -1004,11 +1188,12 @@ make_ligand_receptor_nebulosa_feature_plot = function(seurat_obj_sender, seurat_
   receiver_plots = make_nebulosa(seurat_subset_oi, seurat_subset_bg, "Receiver UMAP", receptor_oi, group_oi, background_groups)
 
   # subset Receiver - Feature
-  seurat_subset_oi = seurat_obj_receiver[, seurat_obj_receiver@meta.data[[group_id]] %in% c(group_oi,background_groups)]
-  seurat_subset_oi = seurat_subset_oi[, seurat_subset_oi@meta.data[[celltype_id_receiver]] %in% receivers_oi]
-
-  receiver_plots_feature = make_featureplot(seurat_subset_oi, "Receiver UMAP", receptor_oi, group_oi, background_groups, group_id)
-
+  # seurat_subset_oi = seurat_obj_receiver[, seurat_obj_receiver@meta.data[[group_id]] %in% c(group_oi,background_groups)]
+  # seurat_subset_oi = seurat_subset_oi[, seurat_subset_oi@meta.data[[celltype_id_receiver]] %in% receivers_oi]
+  # 
+  # receiver_plots_feature = make_featureplot(seurat_subset_oi, "Receiver UMAP", receptor_oi, group_oi, background_groups, group_id)
+  receiver_plots_feature = make_featureplot(seurat_subset_oi, seurat_subset_bg, "Receiver UMAP", receptor_oi, group_oi, background_groups, group_id)
+  
   p = patchwork::wrap_plots(sender_plots, receiver_plots, nrow = 2)
   p_feature = patchwork::wrap_plots(sender_plots_feature, receiver_plots_feature, nrow = 2)
 
@@ -1058,8 +1243,9 @@ make_ligand_receptor_violin_plot = function(seurat_obj_sender, seurat_obj_receiv
   requireNamespace("ggplot2")
   requireNamespace("Seurat")
   
-  background_groups = prioritized_tbl_oi$group %>% unique() %>% generics::setdiff(group_oi)
-
+  # background_groups = prioritized_tbl_oi$group %>% unique() %>% generics::setdiff(group_oi)
+  background_groups = seurat_obj_sender@meta.data[[group_id]] %>% unique() %>% generics::setdiff(group_oi)
+  
   seurat_subset =  seurat_obj_sender[, seurat_obj_sender@meta.data[[celltype_id_sender]] %in% sender_oi]
   seurat_subset =  seurat_subset[, seurat_subset@meta.data[[group_id]] %in% c(group_oi,background_groups)]
 
@@ -1148,8 +1334,9 @@ make_target_violin_plot = function(seurat_obj_receiver, target_oi, receiver_oi, 
   requireNamespace("ggplot2")
   requireNamespace("Seurat")
   
-  background_groups = prioritized_tbl_oi$group %>% unique() %>% generics::setdiff(group_oi)
-
+  # background_groups = prioritized_tbl_oi$group %>% unique() %>% generics::setdiff(group_oi)
+  background_groups = seurat_obj_receiver@meta.data[[group_id]]%>% unique() %>% generics::setdiff(group_oi)
+  
   seurat_subset =  seurat_obj_receiver[, seurat_obj_receiver@meta.data[[celltype_id_receiver]] %in% receiver_oi]
   seurat_subset =  seurat_subset[, seurat_subset@meta.data[[group_id]] %in% c(group_oi,background_groups)]
 
@@ -1215,8 +1402,9 @@ make_target_nebulosa_feature_plot = function(seurat_obj_receiver, target_oi, gro
   # senders_prioritized = prioritized_tbl_oi %>% dplyr::filter(ligand == ligand_oi & group == group_oi) %>% dplyr::pull(sender) %>% unique()
   # receptors_prioritized = prioritized_tbl_oi %>% dplyr::filter(receptor == receptor_oi & group == group_oi) %>% dplyr::pull(receiver) %>% unique()
 
-  background_groups = prioritized_tbl_oi$group %>% unique() %>% generics::setdiff(group_oi)
-
+  # background_groups = prioritized_tbl_oi$group %>% unique() %>% generics::setdiff(group_oi)
+  background_groups =  seurat_obj_receiver@meta.data[[group_id]]  %>% unique() %>% generics::setdiff(group_oi)
+  
   # subset Receiver - Nebulosa
   seurat_subset_oi = seurat_obj_receiver[, seurat_obj_receiver@meta.data[[group_id]] %in% group_oi]
   seurat_subset_bg = seurat_obj_receiver[, seurat_obj_receiver@meta.data[[group_id]] %in% background_groups]
@@ -1227,10 +1415,11 @@ make_target_nebulosa_feature_plot = function(seurat_obj_receiver, target_oi, gro
   receiver_plots = make_nebulosa(seurat_subset_oi, seurat_subset_bg, "Receiver UMAP", target_oi, group_oi, background_groups)
 
   # subset Receiver - Feature
-  seurat_subset_oi = seurat_obj_receiver[, seurat_obj_receiver@meta.data[[group_id]] %in% c(group_oi,background_groups)]
-  seurat_subset_oi = seurat_subset_oi[, seurat_subset_oi@meta.data[[celltype_id_receiver]] %in% receivers_oi]
-
-  receiver_plots_feature = make_featureplot(seurat_subset_oi, "Receiver UMAP", target_oi, group_oi, background_groups, group_id)
+  # seurat_subset_oi = seurat_obj_receiver[, seurat_obj_receiver@meta.data[[group_id]] %in% c(group_oi,background_groups)]
+  # seurat_subset_oi = seurat_subset_oi[, seurat_subset_oi@meta.data[[celltype_id_receiver]] %in% receivers_oi]
+  # receiver_plots_feature = make_featureplot(seurat_subset_oi, "Receiver UMAP", target_oi, group_oi, background_groups, group_id)
+  
+  receiver_plots_feature = make_featureplot(seurat_subset_oi, seurat_subset_bg, "Receiver UMAP", target_oi, group_oi, background_groups, group_id)
 
   p =receiver_plots
   p_feature = receiver_plots_feature

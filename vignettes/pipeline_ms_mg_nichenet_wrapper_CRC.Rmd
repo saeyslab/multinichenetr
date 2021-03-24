@@ -1,5 +1,5 @@
 ---
-title: 'Multi-Group Multi-Sample Cell-Cell Communication Analysis via NicheNet: HNSCC
+title: 'Multi-Group Multi-Sample Cell-Cell Communication Analysis via NicheNet: CRC
   application'
 author: "Robin Browaeys"
 date: "5-2-2021"

@@ -589,6 +589,18 @@ ms_mg_nichenet_analysis_separate = function(seurat_obj_receiver,
     ggplot(aes(x = p_val)) + 
     geom_histogram() + facet_grid(contrast~cluster_id) + ggtitle("P-value histograms Sender") + theme_bw() 
   
+  de_output_tidy_emp_receiver = add_empirical_pval_fdr(de_output_tidy_receiver)
+  hist_pvals_emp_receiver = de_output_tidy_emp_receiver %>% inner_join(de_output_tidy_emp_receiver %>% group_by(contrast,cluster_id) %>% count()) %>% 
+    mutate(cluster_id = paste0(cluster_id, "\nnr of genes: ", n)) %>% 
+    ggplot(aes(x = p_emp)) + 
+    geom_histogram() + facet_grid(contrast~cluster_id) + ggtitle("Empirical P-value histograms Receiver") + theme_bw() 
+  de_output_tidy_emp_sender = add_empirical_pval_fdr(de_output_tidy_sender)
+  hist_pvals_emp_sender = de_output_tidy_emp_sender %>% inner_join(de_output_tidy_emp_sender %>% group_by(contrast,cluster_id) %>% count()) %>% 
+    mutate(cluster_id = paste0(cluster_id, "\nnr of genes: ", n)) %>% 
+    ggplot(aes(x = p_emp)) + 
+    geom_histogram() + facet_grid(contrast~cluster_id) + ggtitle("Empirical P-value histograms Sender") + theme_bw() 
+  
+  
   sender_receiver_de = suppressMessages(combine_sender_receiver_de(
     sender_de = sender_de,
     receiver_de = receiver_de,
@@ -679,7 +691,9 @@ ms_mg_nichenet_analysis_separate = function(seurat_obj_receiver,
       lr_prod_mat = lr_prod_mat,
       grouping_tbl = grouping_tbl,
       hist_pvals_receiver = hist_pvals_receiver,
-      hist_pvals_sender = hist_pvals_sender
+      hist_pvals_sender = hist_pvals_sender,
+      hist_pvals_emp_receiver = hist_pvals_emp_receiver,
+      hist_pvals_emp_sender = hist_pvals_emp_sender
     )
   )
 }
@@ -1084,6 +1098,12 @@ ms_mg_nichenet_analysis_combined = function(seurat_obj,
     ggplot(aes(x = p_val)) + 
     geom_histogram() + facet_grid(contrast~cluster_id) + ggtitle("P-value histograms") + theme_bw() 
   
+  de_output_tidy_emp = add_empirical_pval_fdr(de_output_tidy)
+  hist_pvals_emp = de_output_tidy_emp %>% inner_join(de_output_tidy_emp %>% group_by(contrast,cluster_id) %>% count()) %>% 
+    mutate(cluster_id = paste0(cluster_id, "\nnr of genes: ", n)) %>% 
+    ggplot(aes(x = p_emp)) + 
+    geom_histogram() + facet_grid(contrast~cluster_id) + ggtitle("Empirical P-value histograms") + theme_bw() 
+  
   sender_receiver_de = suppressMessages(combine_sender_receiver_de(
     sender_de = celltype_de,
     receiver_de = celltype_de,
@@ -1171,7 +1191,8 @@ ms_mg_nichenet_analysis_combined = function(seurat_obj,
       prioritization_tables = prioritization_tables,
       lr_prod_mat = lr_prod_mat,
       grouping_tbl = grouping_tbl,
-      hist_pvals = hist_pvals
+      hist_pvals = hist_pvals,
+      hist_pvals_emp = hist_pvals_emp
     )
   )
 }
