@@ -88,6 +88,8 @@ scaled_abundance_receiver: importance of relative cell type abundance of the rec
 \item{verbose}{Indicate which different steps of the pipeline are running or not. Default: FALSE.}
 
 \item{n.cores}{The number of cores used for parallel computation of the ligand activities per receiver cell type. Default: 1 - no parallel computation.}
+
+\item{return_lr_prod_matrix}{Indicate whether to calculate a senderLigand-receiverReceptor matrix, which could be used for unsupervised analysis of the cell-cell communication. Default FALSE. Setting to FALSE might be beneficial to avoid memory issues.}
 }
 \value{
 List containing information and output of the MultiNicheNet analysis.
@@ -98,7 +100,9 @@ sender_receiver_de: links the differential information of the ligand in the send
 ligand_activities_targets_DEgenes: contains the output of the NicheNet ligand activity analysis, and the NicheNet ligand-target inference
 prioritization_tables: contains the tables with the final prioritization scores
 lr_prod_mat: matrix of the ligand-receptor expression product of the expressed senderLigand-receiverReceptor pairs,
-grouping_tbl: data frame showing the group per sample
+grouping_tbl: data frame showing the group per sample 
+hist_pvals_receiver: histogram of p-values from the DE analysis on the receiver cell types.
+hist_pvals_sender: histogram of p-values from the DE analysis on the sender cell types.
 }
 \description{
 \code{ms_mg_nichenet_analysis_separate}  Perform a MultiNicheNet analysis between sender cell types and receiver cell types of interest.

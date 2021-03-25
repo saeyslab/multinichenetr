@@ -4,7 +4,7 @@
 \alias{get_FDR_empirical}
 \title{Add empirical p-values and adjusted p-values to a subset of the DE output table.}
 \usage{
-get_FDR_empirical(de_output_tidy, cluster_id_oi, contrast_oi)
+get_FDR_empirical(de_output_tidy, cluster_id_oi, contrast_oi, plot = FALSE)
 }
 \arguments{
 \item{de_output_tidy}{Data frame of DE results, containing at least the following columns: cluster_id, contrast, p_val, logFC.}
@@ -12,6 +12,8 @@ get_FDR_empirical(de_output_tidy, cluster_id_oi, contrast_oi)
 \item{cluster_id_oi}{Indicate which celltype DE results should be filtered for.}
 
 \item{contrast_oi}{Indicate which contrast DE results should be filtered for.}
+
+\item{plot}{TRUE or FALSE (default): should we plot the z-score distribution?}
 }
 \value{
 de_output_tidy dataframe (for the celltype and contrast of interest) with two columns added: p_emp and p_adj_emp.

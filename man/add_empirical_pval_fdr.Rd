@@ -4,10 +4,12 @@
 \alias{add_empirical_pval_fdr}
 \title{Add empirical p-values and adjusted p-values to the DE output table.}
 \usage{
-add_empirical_pval_fdr(de_output_tidy)
+add_empirical_pval_fdr(de_output_tidy, plot = FALSE)
 }
 \arguments{
 \item{de_output_tidy}{Data frame of DE results, containing at least the following columns: cluster_id, contrast, p_val, logFC.}
+
+\item{plot}{TRUE or FALSE (default): should we plot the z-score distribution?}
 }
 \value{
 de_output_tidy dataframe with two columns added: p_emp and p_adj_emp.
