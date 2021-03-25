@@ -3,7 +3,7 @@
 #' @description \code{get_muscat_exprs_frac} Calculate sample- and group-average of fraction of cells in a cell type expressing a gene.
 #' @usage get_muscat_exprs_frac(seurat_obj, sample_id, celltype_id, group_id, assay_oi_sce = "RNA")
 #'
-#' @inheritParams ms_mg_nichenet_analysis_combined
+#' @inheritParams multi_nichenet_analysis_combined
 #'
 #' @return List with two dataframes: one with fraction of cells in a cell type expressing a gene, averaged per sample; and one averaged per group.
 #'
@@ -82,7 +82,7 @@ get_muscat_exprs_frac = function(seurat_obj, sample_id, celltype_id, group_id, a
 #' @description \code{get_muscat_exprs_avg}  Calculate sample- and group-average of gene expression per cell type.
 #' @usage get_muscat_exprs_avg(seurat_obj, sample_id, celltype_id, group_id, assay_oi_sce = "RNA")
 #'
-#' @inheritParams ms_mg_nichenet_analysis_combined
+#' @inheritParams multi_nichenet_analysis_combined
 #'
 #' @return Data frame with average gene expression per sample and per group.
 #'
@@ -145,7 +145,7 @@ get_muscat_exprs_avg = function(seurat_obj, sample_id, celltype_id, group_id, as
 #' @description \code{fix_frq_df}  Fix muscat-bug in fraction calculation in case that expression fraction would be NA / NaN. Change NA to 0.
 #' @usage fix_frq_df(seurat_obj, frq_celltype_samples)
 #'
-#' @inheritParams ms_mg_nichenet_analysis_combined
+#' @inheritParams multi_nichenet_analysis_combined
 #' @param frq_celltype_samples Sample-average data frame output of `get_muscat_exprs_frac`
 #'
 #' @return Fixed data frame with fraction of cells expressing a gene.
@@ -196,7 +196,7 @@ fix_frq_df = function(seurat_obj, frq_celltype_samples){
 #' @description \code{get_avg_frac_exprs_abund}  Calculate the average and fraction of expression of each gene per sample and per group. Calculate relative abundances of cell types as well.
 #' @usage get_avg_frac_exprs_abund(seurat_obj, sample_id, celltype_id, group_id, assay_oi = "RNA")
 #'
-#' @inheritParams ms_mg_nichenet_analysis_combined
+#' @inheritParams multi_nichenet_analysis_combined
 #' @param assay_oi Indicates which assay of the Seurat object should be used. Default: "RNA". See: `Seurat::as.SingleCellExperiment`.
 #' 
 #' @return List containing data frames with average and fraction of expression per sample and per group, and relative cell type abundances as well.
@@ -341,7 +341,7 @@ get_avg_frac_exprs_abund = function(seurat_obj, sample_id, celltype_id, group_id
 #' @description \code{process_info_to_ic}  Process cell type expression information into intercellular communication focused information. Only keep information of ligands for the sender cell type setting, and information of receptors for the receiver cell type.
 #' @usage process_info_to_ic(info_object, ic_type = "sender", lr_network)
 #'
-#' @inheritParams ms_mg_nichenet_analysis_combined
+#' @inheritParams multi_nichenet_analysis_combined
 #' @param info_object Output of `get_avg_frac_exprs_abund`
 #' @param ic_type "sender" or "receiver": indicates whether we should keep ligands or receptors respectively.
 #'
@@ -399,7 +399,7 @@ process_info_to_ic = function(info_object, ic_type = "sender", lr_network){
 #' @description \code{combine_sender_receiver_info_ic}  Link the ligand-expression information of the Sender cell type to the receptor-expression information of the Receiver cell type. Linking via prior knowledge ligand-receptor network.
 #' @usage combine_sender_receiver_info_ic(sender_info, receiver_info, senders_oi, receivers_oi, lr_network)
 #'
-#' @inheritParams ms_mg_nichenet_analysis_combined
+#' @inheritParams multi_nichenet_analysis_combined
 #' @param sender_info Output of `process_info_to_ic` with `ic_type = "sender"`
 #' @param receiver_info Output of `process_info_to_ic` with `ic_type = "receiver"`
 #' @param senders_oi Character vector indicating the names of the sender cell types of interest
@@ -478,7 +478,7 @@ combine_sender_receiver_info_ic = function(sender_info, receiver_info, senders_o
 #' @description \code{combine_sender_receiver_de}  Combine Muscat differential expression output for senders and receivers by linkgin ligands to receptors based on the prior knowledge ligand-receptor network.
 #' @usage combine_sender_receiver_de(sender_de, receiver_de, senders_oi, receivers_oi, lr_network)
 #'
-#' @inheritParams ms_mg_nichenet_analysis_combined
+#' @inheritParams multi_nichenet_analysis_combined
 #' @inheritParams combine_sender_receiver_info_ic
 #' @param sender_de Differential expression analysis output for the sender cell types. Output of `perform_muscat_de_analysis`.
 #' @param receiver_de Differential expression analysis output for the receiver cell types. Output of `perform_muscat_de_analysis`.

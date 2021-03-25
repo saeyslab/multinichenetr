@@ -1,14 +1,14 @@
-#' @title ms_mg_nichenet_analysis
+#' @title multi_nichenet_analysis
 #'
-#' @description \code{ms_mg_nichenet_analysis}  Perform a MultiNicheNet analysis. See `ms_mg_nichenet_analysis_separate` and `sender_receiver_separate` for more information.
-#' @usage ms_mg_nichenet_analysis(sender_receiver_separate = TRUE, ...)
+#' @description \code{multi_nichenet_analysis}  Perform a MultiNicheNet analysis. See `multi_nichenet_analysis_separate` and `sender_receiver_separate` for more information.
+#' @usage multi_nichenet_analysis(sender_receiver_separate = TRUE, ...)
 #'
 #' @param sender_receiver_separate Indicates whether the user gives as input one separate seurat object with sender cell types and one with receiver cell types (TRUE) or whether only one seurat object with both sender and receiver cell types of interest (FALSE).
-#' TRUE calls the function `ms_mg_nichenet_analysis_separate`, FALSE calls the function `ms_mg_nichenet_analysis_combined`. Default: TRUE.
-#' @param ... Arguments to `ms_mg_nichenet_analysis_separate` or `ms_mg_nichenet_analysis_combined`. 
+#' TRUE calls the function `multi_nichenet_analysis_separate`, FALSE calls the function `multi_nichenet_analysis_combined`. Default: TRUE.
+#' @param ... Arguments to `multi_nichenet_analysis_separate` or `multi_nichenet_analysis_combined`. 
 #'
 #' @return  List containing different types of information and output of the MultiNicheNet analysis. 
-#' See `ms_mg_nichenet_analysis_separate` and `ms_mg_nichenet_analysis_combined` for more information.
+#' See `multi_nichenet_analysis_separate` and `multi_nichenet_analysis_combined` for more information.
 #'
 #'
 #' @examples
@@ -24,7 +24,7 @@
 #' covariates = NA
 #' contrasts_oi = c("'High-Low','Low-High'")
 #' contrast_tbl = tibble(contrast = c("High-Low","Low-High"), group = c("High","Low"))
-#' output = ms_mg_nichenet_analysis(
+#' output = multi_nichenet_analysis(
 #'      seurat_obj = seurat_obj, 
 #'      celltype_id = celltype_id, 
 #'      sample_id = sample_id, 
@@ -40,29 +40,29 @@
 #'
 #' @export
 #'
-ms_mg_nichenet_analysis = function(sender_receiver_separate = TRUE, ...){
+multi_nichenet_analysis = function(sender_receiver_separate = TRUE, ...){
 
   if(!is.logical(sender_receiver_separate)) {
     stop("The sender_receiver_separate argument should be TRUE or FALSE")
   }
 
   if(sender_receiver_separate == TRUE){
-    output = ms_mg_nichenet_analysis_separate(...)
+    output = multi_nichenet_analysis_separate(...)
   } else {
-    output = ms_mg_nichenet_analysis_combined(...)
+    output = multi_nichenet_analysis_combined(...)
   }
   return(output)
 }
 
-#' @title ms_mg_nichenet_analysis_separate
+#' @title multi_nichenet_analysis_separate
 #'
-#' @description \code{ms_mg_nichenet_analysis_separate}  Perform a MultiNicheNet analysis between sender cell types and receiver cell types of interest.
-#' @usage ms_mg_nichenet_analysis_separate(
+#' @description \code{multi_nichenet_analysis_separate}  Perform a MultiNicheNet analysis between sender cell types and receiver cell types of interest.
+#' @usage multi_nichenet_analysis_separate(
 #' seurat_obj_receiver,seurat_obj_sender,celltype_id_receiver,celltype_id_sender,sample_id,group_id, covariates, lr_network,ligand_target_matrix,contrasts_oi,contrast_tbl,
 #' prioritizing_weights = c("scaled_lfc_ligand" = 1, "scaled_p_val_ligand" = 1, "scaled_lfc_receptor" = 1, "scaled_p_val_receptor" = 1, "scaled_activity_scaled" = 1.5,
 #' "scaled_activity" = 0.5,"scaled_avg_exprs_ligand" = 1,"scaled_avg_frq_ligand" = 1,"scaled_avg_exprs_receptor" = 1, "scaled_avg_frq_receptor" = 1,
 #' "fraction_expressing_ligand_receptor" = 1,"scaled_abundance_sender" = 0, "scaled_abundance_receiver" = 0),
-#' assay_oi_sce = "RNA",assay_oi_pb ="counts",fun_oi_pb = "sum",de_method_oi = "edgeR",min_cells = 10,logFC_threshold = 0.25,p_val_threshold = 0.05,frac_cutoff = 0.05,p_val_adj = FALSE, empirical_pval = TRUE, top_n_target = 250, verbose = FALSE, n.cores = 1)
+#' assay_oi_sce = "RNA",assay_oi_pb ="counts",fun_oi_pb = "sum",de_method_oi = "edgeR",min_cells = 10,logFC_threshold = 0.25,p_val_threshold = 0.05,frac_cutoff = 0.05,p_val_adj = FALSE, empirical_pval = TRUE, top_n_target = 250, verbose = FALSE, n.cores = 1, return_lr_prod_matrix = FALSE)
 #'
 #' @param seurat_obj_receiver Seurat object containing the receiver cell types of interest
 #' @param seurat_obj_sender Seurat object containing the sender cell types of interest
@@ -153,7 +153,7 @@ ms_mg_nichenet_analysis = function(sender_receiver_separate = TRUE, ...){
 #' covariates = NA
 #' contrasts_oi = c("'High-Low','Low-High'")
 #' contrast_tbl = tibble(contrast = c("High-Low","Low-High"), group = c("High","Low"))
-#' output = ms_mg_nichenet_analysis_separate(
+#' output = multi_nichenet_analysis_separate(
 #'      seurat_obj_receiver = seurat_obj_receiver, 
 #'      seurat_obj_sender = seurat_obj_sender,
 #'      celltype_id_receiver = celltype_id_receiver, 
@@ -170,7 +170,7 @@ ms_mg_nichenet_analysis = function(sender_receiver_separate = TRUE, ...){
 #'
 #' @export
 #'
-ms_mg_nichenet_analysis_separate = function(seurat_obj_receiver,
+multi_nichenet_analysis_separate = function(seurat_obj_receiver,
                                             seurat_obj_sender,
                                             celltype_id_receiver,
                                             celltype_id_sender,
@@ -723,19 +723,19 @@ ms_mg_nichenet_analysis_separate = function(seurat_obj_receiver,
     )
   )
 }
-#' @title ms_mg_nichenet_analysis_combined
+#' @title multi_nichenet_analysis_combined
 #'
-#' @description \code{ms_mg_nichenet_analysis_combined}  Perform a MultiNicheNet analysis in an all-vs-all setting: all cell types in the data will be considered both as sender and receiver.
-#' @usage ms_mg_nichenet_analysis_combined(
+#' @description \code{multi_nichenet_analysis_combined}  Perform a MultiNicheNet analysis in an all-vs-all setting: all cell types in the data will be considered both as sender and receiver.
+#' @usage multi_nichenet_analysis_combined(
 #' seurat_obj, celltype_id, sample_id,group_id, covariates, lr_network,ligand_target_matrix,contrasts_oi,contrast_tbl,
 #' prioritizing_weights = c("scaled_lfc_ligand" = 1, "scaled_p_val_ligand" = 1, "scaled_lfc_receptor" = 1, "scaled_p_val_receptor" = 1, "scaled_activity_scaled" = 1.5,
 #' "scaled_activity" = 0.5,"scaled_avg_exprs_ligand" = 1,"scaled_avg_frq_ligand" = 1,"scaled_avg_exprs_receptor" = 1, "scaled_avg_frq_receptor" = 1,
 #' "fraction_expressing_ligand_receptor" = 1,"scaled_abundance_sender" = 0, "scaled_abundance_receiver" = 0),
-#' assay_oi_sce = "RNA",assay_oi_pb ="counts",fun_oi_pb = "sum",de_method_oi = "edgeR",min_cells = 10,logFC_threshold = 0.25,p_val_threshold = 0.05,frac_cutoff = 0.05,p_val_adj = FALSE, empirical_pval = TRUE, top_n_target = 250, verbose = FALSE, n.cores = 1)
+#' assay_oi_sce = "RNA",assay_oi_pb ="counts",fun_oi_pb = "sum",de_method_oi = "edgeR",min_cells = 10,logFC_threshold = 0.25,p_val_threshold = 0.05,frac_cutoff = 0.05,p_val_adj = FALSE, empirical_pval = TRUE, top_n_target = 250, verbose = FALSE, n.cores = 1, return_lr_prod_matrix = FALSE)
 #'
 #' @param seurat_obj Seurat object of the scRNAseq data of interest. Contains both sender and receiver cell types.
 #' @param celltype_id Name of the column in the meta data of seurat_obj that indicates the cell type of a cell.
-#' @inheritParams ms_mg_nichenet_analysis_separate
+#' @inheritParams multi_nichenet_analysis_separate
 #'
 #'
 #' @return List containing information and output of the MultiNicheNet analysis.
@@ -769,7 +769,7 @@ ms_mg_nichenet_analysis_separate = function(seurat_obj_receiver,
 #' covariates = NA
 #' contrasts_oi = c("'High-Low','Low-High'")
 #' contrast_tbl = tibble(contrast = c("High-Low","Low-High"), group = c("High","Low"))
-#' output = ms_mg_nichenet_analysis_combined(
+#' output = multi_nichenet_analysis_combined(
 #'      seurat_obj = seurat_obj, 
 #'      celltype_id = celltype_id, 
 #'      sample_id = sample_id, 
@@ -783,7 +783,7 @@ ms_mg_nichenet_analysis_separate = function(seurat_obj_receiver,
 #'
 #' @export
 #'
-ms_mg_nichenet_analysis_combined = function(seurat_obj,
+multi_nichenet_analysis_combined = function(seurat_obj,
                                             celltype_id,
                                             sample_id,
                                             group_id,

@@ -147,11 +147,11 @@ prioritizing_weights = c("scaled_lfc_ligand" = 1,
 
 # Step 3: Perform the cell-cell communication analysis
 
-Now we will run the MultiNicheNet wrapper. In the function `ms_mg_nichenet_analysis`, we need to specify that we use one Seurat object of which all cell types should be considered as both receptor and sender (`sender_receiver_separate = FALSE`).
+Now we will run the MultiNicheNet wrapper. In the function `multi_nichenet_analysis`, we need to specify that we use one Seurat object of which all cell types should be considered as both receptor and sender (`sender_receiver_separate = FALSE`).
 To keep track of the different steps, we will here set `verbose = TRUE`
 
 ```{r}
-output = ms_mg_nichenet_analysis(seurat_obj = seurat_obj, celltype_id = celltype_id, sample_id = sample_id, group_id = group_id, 
+output = multi_nichenet_analysis(seurat_obj = seurat_obj, celltype_id = celltype_id, sample_id = sample_id, group_id = group_id, 
                                 lr_network = lr_network, ligand_target_matrix = ligand_target_matrix, contrasts_oi = contrasts_oi, contrast_tbl = contrast_tbl, covariates = covariates,
                                 prioritizing_weights = prioritizing_weights, min_cells = min_cells, logFC_threshold = logFC_threshold, p_val_threshold = p_val_threshold,  
                                 frac_cutoff = frac_cutoff, p_val_adj = p_val_adj, empirical_pval = empirical_pval, top_n_target = top_n_target, sender_receiver_separate = FALSE, verbose = TRUE)
@@ -262,7 +262,7 @@ circos_list = make_circos_group_comparison(prioritized_tbl_oi, colors_sender, co
 
 ```{r}
 group_oi = "High"
-receiver_oi = "Myeloid"
+receiver_oi = "Malignant"
 prioritized_tbl_oi = output$prioritization_tables$group_prioritization_tbl %>% 
   filter(fraction_ligand_group > frac_cutoff & fraction_receptor_group > frac_cutoff) %>% 
   distinct(id, sender, receiver, ligand, receptor, group, prioritization_score, ligand_receptor_lfc_avg, fraction_expressing_ligand_receptor, activity_scaled) %>% 
@@ -288,7 +288,7 @@ In combination with ligand-receptor expression per sample
 group_oi = "High"
 ```
 
-```{r, fig.width=20, fig.height=22}
+```{r, fig.width=12, fig.height=15}
 
 prioritized_tbl_oi = output$prioritization_tables$group_prioritization_tbl %>% 
   filter(fraction_ligand_group > frac_cutoff & fraction_receptor_group > frac_cutoff) %>% 

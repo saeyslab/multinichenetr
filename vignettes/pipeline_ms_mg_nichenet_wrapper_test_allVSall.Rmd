@@ -119,7 +119,7 @@ prioritizing_weights = c("scaled_lfc_ligand" = 1,
 sender_receiver_separate = FALSE: to demonstrate that our senders and receivers are in the same object
 
 ```{r}
-output = ms_mg_nichenet_analysis(seurat_obj = seurat_obj, celltype_id = celltype_id, sample_id = sample_id, group_id = group_id, 
+output = multi_nichenet_analysis(seurat_obj = seurat_obj, celltype_id = celltype_id, sample_id = sample_id, group_id = group_id, 
                                 lr_network = lr_network, ligand_target_matrix = ligand_target_matrix, contrasts_oi = contrasts_oi, contrast_tbl = contrast_tbl, 
                                 prioritizing_weights = prioritizing_weights, min_cells = min_cells, logFC_threshold = logFC_threshold, p_val_threshold = p_val_threshold,  
                                 frac_cutoff = frac_cutoff, p_val_adj = p_val_adj, top_n_target = top_n_target, sender_receiver_separate = FALSE)

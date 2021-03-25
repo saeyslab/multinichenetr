@@ -200,7 +200,10 @@ make_sample_lr_prod_activity_plots = function(prioritization_tables, prioritized
 #'
 #' @param prioritization_tables XXX
 #' @param prioritized_tbl_oi XXX
+#' @param grouping_tbl XXX
+#' @param covariate_oi XXX
 #' @param widths XXX
+#' @param heights XXX
 #'
 #' @return XXXX
 #'
@@ -1064,9 +1067,10 @@ make_nebulosa = function(seurat_subset_oi, seurat_subset_bg, title_umap, gene_oi
 #' @title make_featureplot
 #'
 #' @description \code{make_featureplot}  XXXX
-#' @usage make_featureplot(seurat_subset_oi, title_umap, gene_oi, group_oi, background_groups, group_id)
+#' @usage make_featureplot(seurat_subset_oi, seurat_subset_bg, title_umap, gene_oi, group_oi, background_groups, group_id)
 #'
 #' @param seurat_subset_oi XXX
+#' @param seurat_subset_bg XXX
 #' @param title_umap XXX
 #' @param gene_oi XXX
 #' @param group_oi XXX

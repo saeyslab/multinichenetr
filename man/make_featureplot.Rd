@@ -4,10 +4,12 @@
 \alias{make_featureplot}
 \title{make_featureplot}
 \usage{
-make_featureplot(seurat_subset_oi, title_umap, gene_oi, group_oi, background_groups, group_id)
+make_featureplot(seurat_subset_oi, seurat_subset_bg, title_umap, gene_oi, group_oi, background_groups, group_id)
 }
 \arguments{
 \item{seurat_subset_oi}{XXX}
+
+\item{seurat_subset_bg}{XXX}
 
 \item{title_umap}{XXX}
 

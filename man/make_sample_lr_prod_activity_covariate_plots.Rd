@@ -11,7 +11,13 @@ make_sample_lr_prod_activity_covariate_plots(prioritization_tables, prioritized_
 
 \item{prioritized_tbl_oi}{XXX}
 
+\item{grouping_tbl}{XXX}
+
+\item{covariate_oi}{XXX}
+
 \item{widths}{XXX}
+
+\item{heights}{XXX}
 }
 \value{
 XXXX

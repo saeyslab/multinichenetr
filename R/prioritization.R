@@ -9,7 +9,7 @@ scale_quantile_adapted = function(x){
 #' User can choose the importance attached to each of the following prioritization criteria: differential expression of ligand and receptor, cell-type-condition-specificity of expression of ligand and receptor, NicheNet ligand activity, fraction of samples in a group that express a senderLigand-receiverReceptor pair, relative cell type abundance of sender/receiver.
 #' @usage generate_prioritization_tables(sender_receiver_info, sender_receiver_de, ligand_activities_targets_DEgenes, contrast_tbl, sender_receiver_tbl, grouping_tbl, prioritizing_weights, fraction_cutoff)
 #'
-#' @inheritParams ms_mg_nichenet_analysis_combined
+#' @inheritParams multi_nichenet_analysis_combined
 #' @inheritParams combine_sender_receiver_info_ic
 #' @param sender_receiver_info Output of `combine_sender_receiver_info_ic`
 #' @param sender_receiver_de Output of `combine_sender_receiver_de`

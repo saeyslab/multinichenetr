@@ -142,7 +142,7 @@ prioritizing_weights = c("scaled_lfc_ligand" = 1,
 # Step 3: Perform the cell-cell communication analysis
 
 ```{r}
-output = ms_mg_nichenet_analysis(seurat_obj_receiver = seurat_obj_receiver, seurat_obj_sender = seurat_obj_sender, 
+output = multi_nichenet_analysis(seurat_obj_receiver = seurat_obj_receiver, seurat_obj_sender = seurat_obj_sender, 
                                 celltype_id_receiver = celltype_id_receiver, celltype_id_sender = celltype_id_sender,sample_id = sample_id, group_id = group_id, 
                                 lr_network = lr_network, ligand_target_matrix = ligand_target_matrix, contrasts_oi = contrasts_oi, contrast_tbl = contrast_tbl, 
                                 prioritizing_weights = prioritizing_weights, min_cells = min_cells, logFC_threshold = logFC_threshold, p_val_threshold = p_val_threshold,  
@@ -151,7 +151,7 @@ output = ms_mg_nichenet_analysis(seurat_obj_receiver = seurat_obj_receiver, seur
 ```
 
 ```{r}
-saveRDS(output, "output/ms_mg_nichenet_output_hnscc_test")
+saveRDS(output, "output/multi_nichenet_output_hnscc_test")
 ```
 
 # Step 4: Visualize the results of the cell-cell communication analysis
@@ -395,7 +395,7 @@ contrast_tbl = tibble(contrast =
 ## Define the contrasts and covariates of interest for the DE analysis, and the minimal number of cells of a cell type that each sample should have.
 
 ```{r}
-output = ms_mg_nichenet_analysis(seurat_obj_receiver = seurat_obj_receiver, seurat_obj_sender = seurat_obj_sender, 
+output = multi_nichenet_analysis(seurat_obj_receiver = seurat_obj_receiver, seurat_obj_sender = seurat_obj_sender, 
                                 celltype_id_receiver = celltype_id_receiver, celltype_id_sender = celltype_id_sender,sample_id = sample_id, group_id = group_id, 
                                 lr_network = lr_network, ligand_target_matrix = ligand_target_matrix, contrasts_oi = contrasts_oi, contrast_tbl = contrast_tbl, 
                                 prioritizing_weights = prioritizing_weights, min_cells = min_cells, logFC_threshold = logFC_threshold, p_val_threshold = p_val_threshold,  
@@ -440,7 +440,7 @@ contrast_tbl = tibble(contrast =
 ## Define the contrasts and covariates of interest for the DE analysis, and the minimal number of cells of a cell type that each sample should have.
 
 ```{r}
-output = ms_mg_nichenet_analysis(seurat_obj_receiver = seurat_obj_receiver, seurat_obj_sender = seurat_obj_sender, 
+output = multi_nichenet_analysis(seurat_obj_receiver = seurat_obj_receiver, seurat_obj_sender = seurat_obj_sender, 
                                 celltype_id_receiver = celltype_id_receiver, celltype_id_sender = celltype_id_sender,sample_id = sample_id, group_id = group_id, 
                                 lr_network = lr_network, ligand_target_matrix = ligand_target_matrix, contrasts_oi = contrasts_oi, contrast_tbl = contrast_tbl, 
                                 prioritizing_weights = prioritizing_weights, min_cells = min_cells, logFC_threshold = logFC_threshold, p_val_threshold = p_val_threshold,  
@@ -473,7 +473,7 @@ contrast_tbl = tibble(contrast =
 ## Define the contrasts and covariates of interest for the DE analysis, and the minimal number of cells of a cell type that each sample should have.
 
 ```{r}
-output = ms_mg_nichenet_analysis(seurat_obj_receiver = seurat_obj_receiver, seurat_obj_sender = seurat_obj_sender, 
+output = multi_nichenet_analysis(seurat_obj_receiver = seurat_obj_receiver, seurat_obj_sender = seurat_obj_sender, 
                                 celltype_id_receiver = celltype_id_receiver, celltype_id_sender = celltype_id_sender,sample_id = sample_id, group_id = group_id, 
                                 lr_network = lr_network, ligand_target_matrix = ligand_target_matrix, contrasts_oi = contrasts_oi, contrast_tbl = contrast_tbl, 
                                 prioritizing_weights = prioritizing_weights, min_cells = min_cells, logFC_threshold = logFC_threshold, p_val_threshold = p_val_threshold,  
