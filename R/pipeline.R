@@ -116,6 +116,7 @@ ms_mg_nichenet_analysis = function(sender_receiver_separate = TRUE, ...){
 #' @param top_n_target For defining NicheNet ligand-target links: which top N predicted target genes. See `nichenetr::get_weighted_ligand_target_links()`.
 #' @param verbose Indicate which different steps of the pipeline are running or not. Default: FALSE.
 #' @param n.cores The number of cores used for parallel computation of the ligand activities per receiver cell type. Default: 1 - no parallel computation.
+#' @param return_lr_prod_matrix Indicate whether to calculate a senderLigand-receiverReceptor matrix, which could be used for unsupervised analysis of the cell-cell communication. Default FALSE. Setting to FALSE might be beneficial to avoid memory issues.
 #' 
 #' @return List containing information and output of the MultiNicheNet analysis.
 #' celltype_info: contains average expression value and fraction of each cell type - sample combination,
@@ -203,7 +204,7 @@ ms_mg_nichenet_analysis_separate = function(seurat_obj_receiver,
                                             frac_cutoff = 0.05,
                                             p_val_adj = FALSE,
                                             empirical_pval = TRUE,
-                                            top_n_target = 250, verbose = FALSE, n.cores = 1){
+                                            top_n_target = 250, verbose = FALSE, n.cores = 1, return_lr_prod_matrix = FALSE){
 
 
   requireNamespace("Seurat")
@@ -491,7 +492,13 @@ ms_mg_nichenet_analysis_separate = function(seurat_obj_receiver,
   if(!is.logical(verbose)){
     stop("verbose should be TRUE or FALSE")
   }
-
+  if(!is.logical(empirical_pval)){
+    stop("empirical_pval should be TRUE or FALSE")
+  }
+  if(!is.logical(return_lr_prod_matrix)){
+    stop("return_lr_prod_matrix should be TRUE or FALSE")
+  }
+  
   if(verbose == TRUE){
     print("Extract expression information from receiver")
   }
@@ -578,27 +585,36 @@ ms_mg_nichenet_analysis_separate = function(seurat_obj_receiver,
     min_cells = min_cells)
 
   de_output_tidy_receiver = muscat::resDS(receiver_de$sce, receiver_de$de_output, bind = "row", cpm = FALSE, frq = FALSE) %>% tibble::as_tibble()
-  hist_pvals_receiver = de_output_tidy_receiver %>% inner_join(de_output_tidy_receiver %>% group_by(contrast,cluster_id) %>% count()) %>% 
+  hist_pvals_receiver = de_output_tidy_receiver %>% inner_join(de_output_tidy_receiver %>% group_by(contrast,cluster_id) %>% count(), by = c("cluster_id","contrast")) %>% 
     mutate(cluster_id = paste0(cluster_id, "\nnr of genes: ", n)) %>% 
     ggplot(aes(x = p_val)) + 
     geom_histogram() + facet_grid(contrast~cluster_id) + ggtitle("P-value histograms Receiver") + theme_bw() 
 
   de_output_tidy_sender = muscat::resDS(sender_de$sce, sender_de$de_output, bind = "row", cpm = FALSE, frq = FALSE) %>% tibble::as_tibble()
-  hist_pvals_sender = de_output_tidy_sender %>% inner_join(de_output_tidy_sender %>% group_by(contrast,cluster_id) %>% count()) %>% 
+  hist_pvals_sender = de_output_tidy_sender %>% inner_join(de_output_tidy_sender %>% group_by(contrast,cluster_id) %>% count(), by = c("cluster_id","contrast")) %>% 
     mutate(cluster_id = paste0(cluster_id, "\nnr of genes: ", n)) %>% 
     ggplot(aes(x = p_val)) + 
     geom_histogram() + facet_grid(contrast~cluster_id) + ggtitle("P-value histograms Sender") + theme_bw() 
   
-  de_output_tidy_emp_receiver = add_empirical_pval_fdr(de_output_tidy_receiver)
-  hist_pvals_emp_receiver = de_output_tidy_emp_receiver %>% inner_join(de_output_tidy_emp_receiver %>% group_by(contrast,cluster_id) %>% count()) %>% 
-    mutate(cluster_id = paste0(cluster_id, "\nnr of genes: ", n)) %>% 
-    ggplot(aes(x = p_emp)) + 
-    geom_histogram() + facet_grid(contrast~cluster_id) + ggtitle("Empirical P-value histograms Receiver") + theme_bw() 
-  de_output_tidy_emp_sender = add_empirical_pval_fdr(de_output_tidy_sender)
-  hist_pvals_emp_sender = de_output_tidy_emp_sender %>% inner_join(de_output_tidy_emp_sender %>% group_by(contrast,cluster_id) %>% count()) %>% 
-    mutate(cluster_id = paste0(cluster_id, "\nnr of genes: ", n)) %>% 
-    ggplot(aes(x = p_emp)) + 
-    geom_histogram() + facet_grid(contrast~cluster_id) + ggtitle("Empirical P-value histograms Sender") + theme_bw() 
+  if(empirical_pval == TRUE){
+    de_output_tidy_emp_receiver = add_empirical_pval_fdr(de_output_tidy_receiver, plot = TRUE)
+    hist_pvals_emp_receiver = de_output_tidy_emp_receiver %>% inner_join(de_output_tidy_emp_receiver %>% group_by(contrast,cluster_id) %>% count(), by = c("cluster_id","contrast")) %>% 
+      mutate(cluster_id = paste0(cluster_id, "\nnr of genes: ", n)) %>% 
+      ggplot(aes(x = p_emp)) + 
+      geom_histogram() + facet_grid(contrast~cluster_id) + ggtitle("Empirical P-value histograms Receiver") + theme_bw() 
+    de_output_tidy_emp_sender = add_empirical_pval_fdr(de_output_tidy_sender, plot = TRUE)
+    hist_pvals_emp_sender = de_output_tidy_emp_sender %>% inner_join(de_output_tidy_emp_sender %>% group_by(contrast,cluster_id) %>% count(), by = c("cluster_id","contrast")) %>% 
+      mutate(cluster_id = paste0(cluster_id, "\nnr of genes: ", n)) %>% 
+      ggplot(aes(x = p_emp)) + 
+      geom_histogram() + facet_grid(contrast~cluster_id) + ggtitle("Empirical P-value histograms Sender") + theme_bw() 
+    
+  } else {
+    de_output_tidy_emp_receiver = NULL
+    hist_pvals_emp_receiver = NULL
+    de_output_tidy_emp_sender = NULL
+    hist_pvals_emp_sender = NULL
+  }
+  
   
   
   sender_receiver_de = suppressMessages(combine_sender_receiver_de(
@@ -663,27 +679,37 @@ ms_mg_nichenet_analysis_separate = function(seurat_obj_receiver,
   ))
 
   # Prepare Unsupervised analysis of samples! ------------------------------------------------------------------------------------------------------------
-  if(verbose == TRUE){
-    print("Prepare the ligand-receptor expression product matrix to be used for unsupervised analyses")
+  
+  if(return_lr_prod_matrix == TRUE){
+    if(verbose == TRUE){
+      print("Prepare the ligand-receptor expression product matrix to be used for unsupervised analyses")
+    }
+    ids_oi = prioritization_tables$group_prioritization_tbl %>% dplyr::filter(fraction_expressing_ligand_receptor > 0)  %>% dplyr::pull(id) %>% unique()
+    
+    lr_prod_df = sender_receiver_info$avg_df %>% dplyr::inner_join(grouping_tbl, by = "sample") %>% dplyr::mutate(lr_interaction = paste(ligand, receptor, sep = "_")) %>% dplyr::mutate(id = paste(lr_interaction, sender, receiver, sep = "_")) %>% dplyr::select(sample, id, ligand_receptor_prod) %>% dplyr::filter(id %in% ids_oi) %>% dplyr::distinct() %>% tidyr::spread(id, ligand_receptor_prod)
+    lr_prod_mat = lr_prod_df %>% dplyr::select(-sample) %>% data.frame() %>% as.matrix()
+    rownames(lr_prod_mat) = lr_prod_df$sample
+    
+    col_remove = lr_prod_mat %>% apply(2,function(x)sum(x != 0)) %>% .[. == 0] %>% names()
+    row_remove = lr_prod_mat %>% apply(1,function(x)sum(x != 0)) %>% .[. == 0] %>% names()
+    
+    lr_prod_mat = lr_prod_mat %>% .[rownames(.) %>% generics::setdiff(col_remove),colnames(.) %>% generics::setdiff(col_remove)]
+    
+  } else {
+    lr_prod_mat = NULL
   }
-  ids_oi = prioritization_tables$group_prioritization_tbl %>% dplyr::filter(fraction_expressing_ligand_receptor > 0)  %>% dplyr::pull(id) %>% unique()
-
-  lr_prod_df = sender_receiver_info$avg_df %>% dplyr::inner_join(grouping_tbl, by = "sample") %>% dplyr::mutate(lr_interaction = paste(ligand, receptor, sep = "_")) %>% dplyr::mutate(id = paste(lr_interaction, sender, receiver, sep = "_")) %>% dplyr::select(sample, id, ligand_receptor_prod) %>% dplyr::filter(id %in% ids_oi) %>% dplyr::distinct() %>% tidyr::spread(id, ligand_receptor_prod)
-  lr_prod_mat = lr_prod_df %>% dplyr::select(-sample) %>% data.frame() %>% as.matrix()
-  rownames(lr_prod_mat) = lr_prod_df$sample
-
-  col_remove = lr_prod_mat %>% apply(2,function(x)sum(x != 0)) %>% .[. == 0] %>% names()
-  row_remove = lr_prod_mat %>% apply(1,function(x)sum(x != 0)) %>% .[. == 0] %>% names()
-
-  lr_prod_mat = lr_prod_mat %>% .[rownames(.) %>% generics::setdiff(col_remove),colnames(.) %>% generics::setdiff(col_remove)]
-
-
+  
+  if(empirical_pval == TRUE){
+    de_output_tidy_sender = de_output_tidy_emp_sender
+    de_output_tidy_receiver = de_output_tidy_emp_receiver
+  }
+  
   return(
     list(
       sender_info = sender_info,
       receiver_info = receiver_info,
-      sender_de = sender_de,
-      receiver_de = receiver_de,
+      sender_de = de_output_tidy_sender,
+      receiver_de = de_output_tidy_receiver,
       sender_receiver_info = sender_receiver_info,
       sender_receiver_de =  sender_receiver_de,
       ligand_activities_targets_DEgenes = ligand_activities_targets_DEgenes,
@@ -789,7 +815,7 @@ ms_mg_nichenet_analysis_combined = function(seurat_obj,
                                             frac_cutoff = 0.05,
                                             p_val_adj = FALSE,
                                             empirical_pval = TRUE,
-                                            top_n_target = 250, verbose = FALSE, n.cores = 1){
+                                            top_n_target = 250, verbose = FALSE, n.cores = 1, return_lr_prod_matrix = FALSE){
 
 
   requireNamespace("Seurat")
@@ -1028,10 +1054,19 @@ ms_mg_nichenet_analysis_combined = function(seurat_obj,
   if(!is.logical(verbose)){
     stop("verbose should be TRUE or FALSE")
   }
-
+  if(!is.logical(empirical_pval)){
+    stop("empirical_pval should be TRUE or FALSE")
+  }
+  if(!is.logical(return_lr_prod_matrix)){
+    stop("return_lr_prod_matrix should be TRUE or FALSE")
+  }
+  
   if(verbose == TRUE){
     print("Extract expression information from all cell types")
   }
+  
+  
+  
   if(!is.double(n.cores)){
     stop("n.cores should be numeric")
   } else {
@@ -1093,17 +1128,22 @@ ms_mg_nichenet_analysis_combined = function(seurat_obj,
     min_cells = min_cells)
 
   de_output_tidy = muscat::resDS(celltype_de$sce, celltype_de$de_output, bind = "row", cpm = FALSE, frq = FALSE) %>% tibble::as_tibble()
-  hist_pvals = de_output_tidy %>% inner_join(de_output_tidy %>% group_by(contrast,cluster_id) %>% count()) %>% 
+  hist_pvals = de_output_tidy %>% inner_join(de_output_tidy %>% group_by(contrast,cluster_id) %>% count(), by = c("cluster_id","contrast")) %>% 
     mutate(cluster_id = paste0(cluster_id, "\nnr of genes: ", n)) %>% 
     ggplot(aes(x = p_val)) + 
     geom_histogram() + facet_grid(contrast~cluster_id) + ggtitle("P-value histograms") + theme_bw() 
   
-  de_output_tidy_emp = add_empirical_pval_fdr(de_output_tidy)
-  hist_pvals_emp = de_output_tidy_emp %>% inner_join(de_output_tidy_emp %>% group_by(contrast,cluster_id) %>% count()) %>% 
-    mutate(cluster_id = paste0(cluster_id, "\nnr of genes: ", n)) %>% 
-    ggplot(aes(x = p_emp)) + 
-    geom_histogram() + facet_grid(contrast~cluster_id) + ggtitle("Empirical P-value histograms") + theme_bw() 
-  
+  if(empirical_pval == TRUE){
+    de_output_tidy_emp = add_empirical_pval_fdr(de_output_tidy, plot = TRUE)
+    hist_pvals_emp = de_output_tidy_emp %>% inner_join(de_output_tidy_emp %>% group_by(contrast,cluster_id) %>% count(), by = c("cluster_id","contrast")) %>% 
+      mutate(cluster_id = paste0(cluster_id, "\nnr of genes: ", n)) %>% 
+      ggplot(aes(x = p_emp)) + 
+      geom_histogram() + facet_grid(contrast~cluster_id) + ggtitle("Empirical P-value histograms") + theme_bw() 
+  } else {
+    de_output_tidy_emp = NULL
+    hist_pvals_emp = NULL
+  }
+
   sender_receiver_de = suppressMessages(combine_sender_receiver_de(
     sender_de = celltype_de,
     receiver_de = celltype_de,
@@ -1166,25 +1206,34 @@ ms_mg_nichenet_analysis_combined = function(seurat_obj,
   ))
 
   # Prepare Unsupervised analysis of samples! ------------------------------------------------------------------------------------------------------------
-  if(verbose == TRUE){
-    print("Prepare the ligand-receptor expression product matrix to be used for unsupervised analyses")
+  
+  if(return_lr_prod_matrix == TRUE){
+    if(verbose == TRUE){
+      print("Prepare the ligand-receptor expression product matrix to be used for unsupervised analyses")
+    }
+    ids_oi = prioritization_tables$group_prioritization_tbl %>% dplyr::filter(fraction_expressing_ligand_receptor > 0)  %>% dplyr::pull(id) %>% unique()
+    
+    lr_prod_df = sender_receiver_info$avg_df %>% dplyr::inner_join(grouping_tbl, by = "sample") %>% dplyr::mutate(lr_interaction = paste(ligand, receptor, sep = "_")) %>% dplyr::mutate(id = paste(lr_interaction, sender, receiver, sep = "_")) %>% dplyr::select(sample, id, ligand_receptor_prod) %>% dplyr::filter(id %in% ids_oi) %>% dplyr::distinct() %>% tidyr::spread(id, ligand_receptor_prod)
+    lr_prod_mat = lr_prod_df %>% dplyr::select(-sample) %>% data.frame() %>% as.matrix()
+    rownames(lr_prod_mat) = lr_prod_df$sample
+    
+    col_remove = lr_prod_mat %>% apply(2,function(x)sum(x != 0)) %>% .[. == 0] %>% names()
+    row_remove = lr_prod_mat %>% apply(1,function(x)sum(x != 0)) %>% .[. == 0] %>% names()
+    
+    lr_prod_mat = lr_prod_mat %>% .[rownames(.) %>% generics::setdiff(col_remove),colnames(.) %>% generics::setdiff(col_remove)]
+  } else {
+    lr_prod_mat = NULL
   }
-  ids_oi = prioritization_tables$group_prioritization_tbl %>% dplyr::filter(fraction_expressing_ligand_receptor > 0)  %>% dplyr::pull(id) %>% unique()
-
-  lr_prod_df = sender_receiver_info$avg_df %>% dplyr::inner_join(grouping_tbl, by = "sample") %>% dplyr::mutate(lr_interaction = paste(ligand, receptor, sep = "_")) %>% dplyr::mutate(id = paste(lr_interaction, sender, receiver, sep = "_")) %>% dplyr::select(sample, id, ligand_receptor_prod) %>% dplyr::filter(id %in% ids_oi) %>% dplyr::distinct() %>% tidyr::spread(id, ligand_receptor_prod)
-  lr_prod_mat = lr_prod_df %>% dplyr::select(-sample) %>% data.frame() %>% as.matrix()
-  rownames(lr_prod_mat) = lr_prod_df$sample
-
-  col_remove = lr_prod_mat %>% apply(2,function(x)sum(x != 0)) %>% .[. == 0] %>% names()
-  row_remove = lr_prod_mat %>% apply(1,function(x)sum(x != 0)) %>% .[. == 0] %>% names()
-
-  lr_prod_mat = lr_prod_mat %>% .[rownames(.) %>% generics::setdiff(col_remove),colnames(.) %>% generics::setdiff(col_remove)]
 
 
+  if(empirical_pval == TRUE){
+    de_output_tidy = de_output_tidy_emp
+  }
+  
   return(
     list(
       celltype_info = celltype_info,
-      celltype_de = celltype_de,
+      celltype_de = de_output_tidy,
       sender_receiver_info = sender_receiver_info,
       sender_receiver_de =  sender_receiver_de,
       ligand_activities_targets_DEgenes = ligand_activities_targets_DEgenes,

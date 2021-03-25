@@ -359,27 +359,28 @@ p.adjust_empirical <- function (pvalues, tvalues, plot = FALSE, celltype = NULL,
 }
 #' @title Add empirical p-values and adjusted p-values to a subset of the DE output table.
 #' @description \code{get_FDR_empirical}  Add empirical p-values and adjusted p-values to a subset of the DE output table. This is the function that works under  the hood of `add_empirical_pval_fdr`. Credits to Jeroen Gillis (cf satuRn package)
-#' @usage get_FDR_empirical(de_output_tidy, cluster_id_oi, contrast_oi)
+#' @usage get_FDR_empirical(de_output_tidy, cluster_id_oi, contrast_oi, plot = FALSE)
 #'
 #' @param de_output_tidy Data frame of DE results, containing at least the following columns: cluster_id, contrast, p_val, logFC.
 #' @param cluster_id_oi Indicate which celltype DE results should be filtered for.
 #' @param contrast_oi Indicate which contrast DE results should be filtered for.
+#' @param plot TRUE or FALSE (default): should we plot the z-score distribution?
 #' @return de_output_tidy dataframe (for the celltype and contrast of interest) with two columns added: p_emp and p_adj_emp.
 #'
 #' @export
 #'
-get_FDR_empirical = function(de_output_tidy, cluster_id_oi, contrast_oi){
+get_FDR_empirical = function(de_output_tidy, cluster_id_oi, contrast_oi, plot = FALSE){
   de_oi = de_output_tidy %>% filter(cluster_id == cluster_id_oi & contrast == contrast_oi)
-  emp_res = p.adjust_empirical(de_oi %>% pull(p_val), de_oi %>% pull(logFC), plot = T, celltype = cluster_id_oi, contrast = contrast_oi)
+  emp_res = p.adjust_empirical(de_oi %>% pull(p_val), de_oi %>% pull(logFC), plot = plot, celltype = cluster_id_oi, contrast = contrast_oi)
   de_oi = de_oi %>% mutate(p_emp = emp_res$pval, p_adj_emp = emp_res$FDR)
 }
 
 #' @title Add empirical p-values and adjusted p-values to the DE output table.
 #'
 #' @description \code{add_empirical_pval_fdr} Add empirical p-values and adjusted p-values to the DE output of Muscat. Credits to Jeroen Gillis (cf satuRn package)
-#' @usage add_empirical_pval_fdr(de_output_tidy)
+#' @usage add_empirical_pval_fdr(de_output_tidy, plot = FALSE)
 #'
-#' @param de_output_tidy Data frame of DE results, containing at least the following columns: cluster_id, contrast, p_val, logFC.
+#' @inheritParams get_FDR_empirical
 #' @return de_output_tidy dataframe with two columns added: p_emp and p_adj_emp.
 #'
 #' @import dplyr
@@ -410,7 +411,7 @@ get_FDR_empirical = function(de_output_tidy, cluster_id_oi, contrast_oi){
 #'
 #' @export
 #'
-add_empirical_pval_fdr = function(de_output_tidy){
+add_empirical_pval_fdr = function(de_output_tidy, plot = FALSE){
   requireNamespace("dplyr")
   
   all_celltypes = de_output_tidy$cluster_id %>% unique()
@@ -418,7 +419,7 @@ add_empirical_pval_fdr = function(de_output_tidy){
     
   de_output_tidy_new = all_celltypes %>% lapply(function(cluster_id_oi, de_output_tidy){
     all_contrasts %>% lapply(function(contrast_oi, de_output_tidy) {
-      de_output_subset = get_FDR_empirical(de_output_tidy, cluster_id_oi,  contrast_oi)
+      de_output_subset = get_FDR_empirical(de_output_tidy, cluster_id_oi,  contrast_oi, plot = plot)
     },de_output_tidy) %>% bind_rows()
   },de_output_tidy) %>% bind_rows()
   return(de_output_tidy_new)
