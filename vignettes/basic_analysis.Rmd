@@ -23,14 +23,21 @@ knitr::opts_chunk$set(
 ```
 
 In this vignette, you can learn how to perform an all-vs-all MultiNicheNet analysis. In this vignette, we start from one single Seurat object containing cells from both sender and receiver cell types and from different patients.
+
 As example expression data of interacting cells, we will use data from Puram et al. to explore intercellular communication in the tumor microenvironment in head and neck squamous cell carcinoma (HNSCC) [See @puram_single-cell_2017]. More specifically, we will look at differential cell-cell communication patterns between tumors scoring high for a partial epithelial-mesenschymal transition (p-EMT) program vs low-scoring tumors.
 
 In this vignette, we will prepare the data and analysis parameters, and then perform the MultiNicheNet analysis. 
+
 The different steps of the MultiNicheNet analysis are the following:
+
 * 1. Extract expression information from receiver and sender cell types: average expression for each gene per sample, and per group (normalized expression value and fraction of expressing cells with non-zero counts). 
+
 * 2. Linking this expression information for ligands of the sender cell types to the corresponding receptors of the receiver cell types.
+
 * 3. Perform genome-wide differential expression analysis of receiver and sender cell types to define DE genes between the conditions of interest. Based on this analysis, we can define the logFC/p-value of ligands in senders and receptors in receivers, and define the set of affected target genes in the receiver.
+
 * 4. Predict NicheNet ligand activities and NicheNet ligand-target links based on these differential expression results
+
 * 5. Use the information collected above to prioritize all sender-ligand --> receiver-receptor pairs.
 
 In this vignette, we will demonstrate the use of a wrapper function to perform all these steps in one line of code. If you want to explore the different steps of MultiNicheNet one by one in more detail, you could check this other vignette: XXX.
@@ -112,7 +119,7 @@ For the NicheNet ligand-target inference, we also need to select which top n of 
 ```{r}
 logFC_threshold = 1
 p_val_threshold = 0.05
-frac_cutoff = 0.05
+fraction_cutoff = 0.05
 p_val_adj = FALSE 
 empirical_pval = TRUE
 top_n_target = 250
@@ -154,7 +161,7 @@ To keep track of the different steps, we will here set `verbose = TRUE`
 output = multi_nichenet_analysis(seurat_obj = seurat_obj, celltype_id = celltype_id, sample_id = sample_id, group_id = group_id, 
                                 lr_network = lr_network, ligand_target_matrix = ligand_target_matrix, contrasts_oi = contrasts_oi, contrast_tbl = contrast_tbl, covariates = covariates,
                                 prioritizing_weights = prioritizing_weights, min_cells = min_cells, logFC_threshold = logFC_threshold, p_val_threshold = p_val_threshold,  
-                                frac_cutoff = frac_cutoff, p_val_adj = p_val_adj, empirical_pval = empirical_pval, top_n_target = top_n_target, sender_receiver_separate = FALSE, verbose = TRUE)
+                                fraction_cutoff = fraction_cutoff, p_val_adj = p_val_adj, empirical_pval = empirical_pval, top_n_target = top_n_target, sender_receiver_separate = FALSE, verbose = TRUE)
 
 
 output$hist_pvals
@@ -164,7 +171,7 @@ output$hist_pvals_emp
 # Step 4: Visualize the results of the cell-cell communication analysis
 
 In a first instance, we will look at the broad overview of prioritized interactions via condition-specific Circos plots.
-We will filter on the prioritization score after removing interactions that are not upregulated in the condition of interest, and that are in no patient expressed in more than 5% of cells of a cell type (cf `frac_cutoff`).
+We will filter on the prioritization score after removing interactions that are not upregulated in the condition of interest, and that are in no patient expressed in more than 5% of cells of a cell type (cf `fraction_cutoff`).
 
 We will look here at the top100 predictions across all contrasts (high vs low; and low vs high), senders, and receivers of interest.
 
@@ -172,7 +179,7 @@ We will look here at the top100 predictions across all contrasts (high vs low; a
 
 ```{r, fig.width=15, fig.height=12}
 prioritized_tbl_oi = output$prioritization_tables$group_prioritization_tbl %>% 
-  filter(fraction_ligand_group > frac_cutoff & fraction_receptor_group > frac_cutoff) %>% 
+  filter(fraction_ligand_group > fraction_cutoff & fraction_receptor_group > fraction_cutoff) %>% 
   distinct(id, sender, receiver, ligand, receptor, group, prioritization_score, ligand_receptor_lfc_avg, fraction_expressing_ligand_receptor) %>% 
   filter(ligand_receptor_lfc_avg > 0 & fraction_expressing_ligand_receptor > 0) %>% top_n(100, prioritization_score) 
 
@@ -222,7 +229,7 @@ group_oi = "High"
 ```{r, fig.width=15, fig.height=12}
 
 prioritized_tbl_oi = output$prioritization_tables$group_prioritization_tbl %>% 
-  filter(fraction_ligand_group > frac_cutoff & fraction_receptor_group > frac_cutoff) %>% 
+  filter(fraction_ligand_group > fraction_cutoff & fraction_receptor_group > fraction_cutoff) %>% 
   distinct(id, sender, receiver, lr_interaction, group, ligand_receptor_lfc_avg, activity_scaled, fraction_ligand_group, fraction_expressing_ligand_receptor, scaled_avg_exprs_ligand, prioritization_score) %>% 
   filter(ligand_receptor_lfc_avg > 0 & fraction_expressing_ligand_receptor > 0) %>% 
   filter(group == group_oi & receiver == receiver_oi) %>% top_n(75, prioritization_score) 
@@ -237,7 +244,7 @@ plot_oi
 
 ```{r, fig.width=15, fig.height=12}
 prioritized_tbl_oi = output$prioritization_tables$group_prioritization_tbl %>% 
-  filter(fraction_ligand_group > frac_cutoff & fraction_receptor_group > frac_cutoff) %>% 
+  filter(fraction_ligand_group > fraction_cutoff & fraction_receptor_group > fraction_cutoff) %>% 
   distinct(id, sender, receiver, ligand, receptor, group, prioritization_score, ligand_receptor_lfc_avg, fraction_expressing_ligand_receptor) %>% 
   filter(ligand_receptor_lfc_avg > 0 & fraction_expressing_ligand_receptor > 0) %>% top_n(100, prioritization_score) 
 
@@ -264,7 +271,7 @@ circos_list = make_circos_group_comparison(prioritized_tbl_oi, colors_sender, co
 group_oi = "High"
 receiver_oi = "Malignant"
 prioritized_tbl_oi = output$prioritization_tables$group_prioritization_tbl %>% 
-  filter(fraction_ligand_group > frac_cutoff & fraction_receptor_group > frac_cutoff) %>% 
+  filter(fraction_ligand_group > fraction_cutoff & fraction_receptor_group > fraction_cutoff) %>% 
   distinct(id, sender, receiver, ligand, receptor, group, prioritization_score, ligand_receptor_lfc_avg, fraction_expressing_ligand_receptor, activity_scaled) %>% 
   filter(ligand_receptor_lfc_avg > 0 & fraction_expressing_ligand_receptor > 0) %>% 
   filter(group == group_oi & receiver == receiver_oi) %>% 
@@ -291,7 +298,7 @@ group_oi = "High"
 ```{r, fig.width=12, fig.height=15}
 
 prioritized_tbl_oi = output$prioritization_tables$group_prioritization_tbl %>% 
-  filter(fraction_ligand_group > frac_cutoff & fraction_receptor_group > frac_cutoff) %>% 
+  filter(fraction_ligand_group > fraction_cutoff & fraction_receptor_group > fraction_cutoff) %>% 
   distinct(id, sender, receiver, lr_interaction, group, ligand_receptor_lfc_avg, activity_scaled, fraction_ligand_group, fraction_expressing_ligand_receptor, scaled_avg_exprs_ligand, prioritization_score) %>% 
   filter(ligand_receptor_lfc_avg > 0 & fraction_expressing_ligand_receptor > 0) %>% 
   filter(group == group_oi)  %>% top_n(250, prioritization_score) %>% group_by(receiver) %>% top_n(10)

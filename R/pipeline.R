@@ -58,11 +58,11 @@ multi_nichenet_analysis = function(sender_receiver_separate = TRUE, ...){
 #'
 #' @description \code{multi_nichenet_analysis_separate}  Perform a MultiNicheNet analysis between sender cell types and receiver cell types of interest.
 #' @usage multi_nichenet_analysis_separate(
-#' seurat_obj_receiver,seurat_obj_sender,celltype_id_receiver,celltype_id_sender,sample_id,group_id, covariates, lr_network,ligand_target_matrix,contrasts_oi,contrast_tbl,
+#' seurat_obj_receiver,seurat_obj_sender,celltype_id_receiver,celltype_id_sender,sample_id,group_id, covariates, lr_network,ligand_target_matrix,contrasts_oi,contrast_tbl, fraction_cutoff = 0.05,
 #' prioritizing_weights = c("scaled_lfc_ligand" = 1, "scaled_p_val_ligand" = 1, "scaled_lfc_receptor" = 1, "scaled_p_val_receptor" = 1, "scaled_activity_scaled" = 1.5,
 #' "scaled_activity" = 0.5,"scaled_avg_exprs_ligand" = 1,"scaled_avg_frq_ligand" = 1,"scaled_avg_exprs_receptor" = 1, "scaled_avg_frq_receptor" = 1,
 #' "fraction_expressing_ligand_receptor" = 1,"scaled_abundance_sender" = 0, "scaled_abundance_receiver" = 0),
-#' assay_oi_sce = "RNA",assay_oi_pb ="counts",fun_oi_pb = "sum",de_method_oi = "edgeR",min_cells = 10,logFC_threshold = 0.25,p_val_threshold = 0.05,frac_cutoff = 0.05,p_val_adj = FALSE, empirical_pval = TRUE, top_n_target = 250, verbose = FALSE, n.cores = 1, return_lr_prod_matrix = FALSE)
+#' assay_oi_sce = "RNA",assay_oi_pb ="counts",fun_oi_pb = "sum",de_method_oi = "edgeR",min_cells = 10,logFC_threshold = 0.25,p_val_threshold = 0.05, p_val_adj = FALSE, empirical_pval = TRUE, top_n_target = 250, verbose = FALSE, n.cores = 1, return_lr_prod_matrix = FALSE)
 #'
 #' @param seurat_obj_receiver Seurat object containing the receiver cell types of interest
 #' @param seurat_obj_sender Seurat object containing the sender cell types of interest
@@ -85,6 +85,7 @@ multi_nichenet_analysis = function(sender_receiver_separate = TRUE, ...){
 #' @param contrast_tbl Data frame providing names for each of the contrasts in contrasts_oi in the 'contrast' column, and the corresponding group of interest in the 'group' column. Entries in the 'group' column should thus be present in the group_id column in the metadata. 
 #' Example for `contrasts_oi = c("'A-(B+C+D)/3', 'B-(A+C+D)/3'")`:
 #' `contrast_tbl = tibble(contrast = c("A-(B+C+D)/3","B-(A+C+D)/3"), group = c("A","B"))`
+#' @param fraction_cutoff Cutoff indicating the minimum fraction of cells of a cell type in a specific sample that are necessary to consider the gene as expressed. 
 #' @param prioritizing_weights Named vector indicating the relative weights of each prioritization criterion included in MultiNicheNet.
 #' Default: c("scaled_lfc_ligand" = 1,"scaled_p_val_ligand" = 1,"scaled_lfc_receptor" = 1,"scaled_p_val_receptor" = 1,
 #' "scaled_activity_scaled" = 1.5,"scaled_activity" = 0.5,"scaled_avg_exprs_ligand" = 1,"scaled_avg_frq_ligand" = 1,
@@ -110,7 +111,6 @@ multi_nichenet_analysis = function(sender_receiver_separate = TRUE, ...){
 #' @param min_cells Indicates the minimal number of cells that a sample should have to be considered in the DE analysis. Default: 10. See `muscat::pbDS`.
 #' @param logFC_threshold For defining the gene set of interest for NicheNet ligand activity: what is the minimum logFC a gene should have to belong to this gene set? Default: 0.25/
 #' @param p_val_threshold For defining the gene set of interest for NicheNet ligand activity: what is the maximam p-value a gene should have to belong to this gene set? Default: 0.05.
-#' @param frac_cutoff Cutoff indicating the minimum fraction of cells of a cell type in a specific sample that are necessary to consider the gene as expressed. Default: 0.05.
 #' @param p_val_adj For defining the gene set of interest for NicheNet ligand activity: should we look at the p-value corrected for multiple testing? Default: FALSE.
 #' @param empirical_pval For defining the gene set of interest for NicheNet ligand activity - and for ranking DE ligands and receptors: should we use the normal p-values, or the p-values that are corrected by the empirical null procedure. The latter could be beneficial if p-value distribution histograms indicate potential problems in the model definition (eg not all relevant covariates are selected, etc). Default: TRUE.
 #' @param top_n_target For defining NicheNet ligand-target links: which top N predicted target genes. See `nichenetr::get_weighted_ligand_target_links()`.
@@ -181,6 +181,7 @@ multi_nichenet_analysis_separate = function(seurat_obj_receiver,
                                             ligand_target_matrix,
                                             contrasts_oi,
                                             contrast_tbl,
+                                            fraction_cutoff = 0.05,
                                             prioritizing_weights = c("scaled_lfc_ligand" = 1,
                                                                      "scaled_p_val_ligand" = 1,
                                                                      "scaled_lfc_receptor" = 1,
@@ -201,7 +202,6 @@ multi_nichenet_analysis_separate = function(seurat_obj_receiver,
                                             min_cells = 10,
                                             logFC_threshold = 0.25,
                                             p_val_threshold = 0.05,
-                                            frac_cutoff = 0.05,
                                             p_val_adj = FALSE,
                                             empirical_pval = TRUE,
                                             top_n_target = 250, verbose = FALSE, n.cores = 1, return_lr_prod_matrix = FALSE){
@@ -472,11 +472,11 @@ multi_nichenet_analysis_separate = function(seurat_obj_receiver,
       warning("p_val_threshold is now 0 or smaller; or higher than 1. We recommend setting this parameter between 0 and 1 - preferably between 0 and 0.10, 0 excluded.")
     }
   }
-  if(!is.double(frac_cutoff)){
-    stop("frac_cutoff should be numeric")
+  if(!is.double(fraction_cutoff)){
+    stop("fraction_cutoff should be numeric")
   } else {
-    if(frac_cutoff <= 0 | frac_cutoff > 1) {
-      warning("frac_cutoff is now 0 or smaller; or higher than 1. We recommend setting this parameter between 0 and 1 - preferably between 0 and 0.25, 0 excluded.")
+    if(fraction_cutoff <= 0 | fraction_cutoff > 1) {
+      stop("fraction_cutoff is now 0 or smaller; or higher than 1. We recommend setting this parameter between 0 and 1 - preferably between 0 and 0.25, 0 excluded.")
     }
   }
   if(!is.double(top_n_target)){
@@ -632,11 +632,9 @@ multi_nichenet_analysis_separate = function(seurat_obj_receiver,
   ligand_activities_targets_DEgenes = suppressMessages(suppressWarnings(get_ligand_activities_targets_DEgenes(
     receiver_de = receiver_de,
     receivers_oi = receivers_oi,
-    receiver_frq_df_group = receiver_info$frq_df_group,
     ligand_target_matrix = ligand_target_matrix,
     logFC_threshold = logFC_threshold,
     p_val_threshold = p_val_threshold,
-    frac_cutoff = frac_cutoff,
     p_val_adj = p_val_adj,
     empirical_pval = empirical_pval,
     top_n_target = top_n_target,
@@ -675,7 +673,7 @@ multi_nichenet_analysis_separate = function(seurat_obj_receiver,
     sender_receiver_tbl = sender_receiver_tbl,
     grouping_tbl = grouping_tbl,
     prioritizing_weights = prioritizing_weights,
-    fraction_cutoff = frac_cutoff
+    fraction_cutoff = fraction_cutoff
   ))
 
   # Prepare Unsupervised analysis of samples! ------------------------------------------------------------------------------------------------------------
@@ -727,11 +725,11 @@ multi_nichenet_analysis_separate = function(seurat_obj_receiver,
 #'
 #' @description \code{multi_nichenet_analysis_combined}  Perform a MultiNicheNet analysis in an all-vs-all setting: all cell types in the data will be considered both as sender and receiver.
 #' @usage multi_nichenet_analysis_combined(
-#' seurat_obj, celltype_id, sample_id,group_id, covariates, lr_network,ligand_target_matrix,contrasts_oi,contrast_tbl,
+#' seurat_obj, celltype_id, sample_id,group_id, covariates, lr_network,ligand_target_matrix,contrasts_oi,contrast_tbl,  fraction_cutoff = 0.05,
 #' prioritizing_weights = c("scaled_lfc_ligand" = 1, "scaled_p_val_ligand" = 1, "scaled_lfc_receptor" = 1, "scaled_p_val_receptor" = 1, "scaled_activity_scaled" = 1.5,
 #' "scaled_activity" = 0.5,"scaled_avg_exprs_ligand" = 1,"scaled_avg_frq_ligand" = 1,"scaled_avg_exprs_receptor" = 1, "scaled_avg_frq_receptor" = 1,
 #' "fraction_expressing_ligand_receptor" = 1,"scaled_abundance_sender" = 0, "scaled_abundance_receiver" = 0),
-#' assay_oi_sce = "RNA",assay_oi_pb ="counts",fun_oi_pb = "sum",de_method_oi = "edgeR",min_cells = 10,logFC_threshold = 0.25,p_val_threshold = 0.05,frac_cutoff = 0.05,p_val_adj = FALSE, empirical_pval = TRUE, top_n_target = 250, verbose = FALSE, n.cores = 1, return_lr_prod_matrix = FALSE)
+#' assay_oi_sce = "RNA",assay_oi_pb ="counts",fun_oi_pb = "sum",de_method_oi = "edgeR",min_cells = 10,logFC_threshold = 0.25,p_val_threshold = 0.05,p_val_adj = FALSE, empirical_pval = TRUE, top_n_target = 250, verbose = FALSE, n.cores = 1, return_lr_prod_matrix = FALSE)
 #'
 #' @param seurat_obj Seurat object of the scRNAseq data of interest. Contains both sender and receiver cell types.
 #' @param celltype_id Name of the column in the meta data of seurat_obj that indicates the cell type of a cell.
@@ -792,6 +790,7 @@ multi_nichenet_analysis_combined = function(seurat_obj,
                                             ligand_target_matrix,
                                             contrasts_oi,
                                             contrast_tbl,
+                                            fraction_cutoff = 0.05,
                                             prioritizing_weights = c("scaled_lfc_ligand" = 1,
                                                                      "scaled_p_val_ligand" = 1,
                                                                      "scaled_lfc_receptor" = 1,
@@ -812,7 +811,6 @@ multi_nichenet_analysis_combined = function(seurat_obj,
                                             min_cells = 10,
                                             logFC_threshold = 0.25,
                                             p_val_threshold = 0.05,
-                                            frac_cutoff = 0.05,
                                             p_val_adj = FALSE,
                                             empirical_pval = TRUE,
                                             top_n_target = 250, verbose = FALSE, n.cores = 1, return_lr_prod_matrix = FALSE){
@@ -1034,11 +1032,11 @@ multi_nichenet_analysis_combined = function(seurat_obj,
       warning("p_val_threshold is now 0 or smaller; or higher than 1. We recommend setting this parameter between 0 and 1 - preferably between 0 and 0.10, 0 excluded.")
     }
   }
-  if(!is.double(frac_cutoff)){
-    stop("frac_cutoff should be numeric")
+  if(!is.double(fraction_cutoff)){
+    stop("fraction_cutoff should be numeric")
   } else {
-    if(frac_cutoff <= 0 | frac_cutoff > 1) {
-      warning("frac_cutoff is now 0 or smaller; or higher than 1. We recommend setting this parameter between 0 and 1 - preferably between 0 and 0.25, 0 excluded.")
+    if(fraction_cutoff <= 0 | fraction_cutoff > 1) {
+      stop("fraction_cutoff is now 0 or smaller; or higher than 1. We recommend setting this parameter between 0 and 1 - preferably between 0 and 0.25, 0 excluded.")
     }
   }
   if(!is.double(top_n_target)){
@@ -1159,11 +1157,9 @@ multi_nichenet_analysis_combined = function(seurat_obj,
   ligand_activities_targets_DEgenes = suppressMessages(suppressWarnings(get_ligand_activities_targets_DEgenes(
     receiver_de = celltype_de,
     receivers_oi = receivers_oi,
-    receiver_frq_df_group = celltype_info$frq_df_group,
     ligand_target_matrix = ligand_target_matrix,
     logFC_threshold = logFC_threshold,
     p_val_threshold = p_val_threshold,
-    frac_cutoff = frac_cutoff,
     p_val_adj = p_val_adj,
     empirical_pval = empirical_pval,
     top_n_target = top_n_target,
@@ -1202,7 +1198,7 @@ multi_nichenet_analysis_combined = function(seurat_obj,
     sender_receiver_tbl = sender_receiver_tbl,
     grouping_tbl = grouping_tbl,
     prioritizing_weights = prioritizing_weights,
-    fraction_cutoff = frac_cutoff
+    fraction_cutoff = fraction_cutoff
   ))
 
   # Prepare Unsupervised analysis of samples! ------------------------------------------------------------------------------------------------------------

@@ -4,22 +4,18 @@
 \alias{get_ligand_activities_targets_DEgenes}
 \title{get_ligand_activities_targets_DEgenes}
 \usage{
-get_ligand_activities_targets_DEgenes(receiver_de, receivers_oi, receiver_frq_df_group, ligand_target_matrix, logFC_threshold = 0.25, p_val_threshold = 0.05, frac_cutoff = 0.05, p_val_adj = FALSE, empirical_pval = TRUE, top_n_target = 250, verbose = FALSE, n.cores = 1)
+get_ligand_activities_targets_DEgenes(receiver_de, receivers_oi,  ligand_target_matrix, logFC_threshold = 0.25, p_val_threshold = 0.05, p_val_adj = FALSE, empirical_pval = TRUE, top_n_target = 250, verbose = FALSE, n.cores = 1)
 }
 \arguments{
 \item{receiver_de}{Differential expression analysis output for the receiver cell types. Output of `perform_muscat_de_analysis`.}
 
 \item{receivers_oi}{Character vector indicating the names of the receiver cell types of interest}
 
-\item{receiver_frq_df_group}{frq_df_group output data frame from output of `get_avg_frac_exprs_abund`.}
-
 \item{ligand_target_matrix}{Prior knowledge model of ligand-target regulatory potential (matrix with ligands in columns and targets in rows). See https://github.com/saeyslab/nichenetr.}
 
 \item{logFC_threshold}{For defining the gene set of interest for NicheNet ligand activity: what is the minimum logFC a gene should have to belong to this gene set? Default: 0.25/}
 
 \item{p_val_threshold}{For defining the gene set of interest for NicheNet ligand activity: what is the maximam p-value a gene should have to belong to this gene set? Default: 0.05.}
-
-\item{frac_cutoff}{Cutoff indicating the minimum fraction of cells of a cell type in a specific sample that are necessary to consider the gene as expressed. Default: 0.05.}
 
 \item{p_val_adj}{For defining the gene set of interest for NicheNet ligand activity: should we look at the p-value corrected for multiple testing? Default: FALSE.}
 
@@ -61,7 +57,6 @@ celltype_de = perform_muscat_de_analysis(
 ligand_activities_targets_DEgenes = get_ligand_activities_targets_DEgenes(
    receiver_de = celltype_de,
    receivers_oi = receivers_oi,
-   receiver_frq_df_group = celltype_info$frq_df_group,
    ligand_target_matrix = ligand_target_matrix)
 }
 

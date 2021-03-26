@@ -46,6 +46,7 @@
 #'
 #' @export
 #'
+#'
 perform_muscat_de_analysis = function(seurat_obj, sample_id, celltype_id, group_id, covariates, contrasts, assay_oi_sce = "RNA", assay_oi_pb = "counts", fun_oi_pb = "sum", de_method_oi = "edgeR", min_cells = 10){
   requireNamespace("dplyr")
   
@@ -424,5 +425,3 @@ add_empirical_pval_fdr = function(de_output_tidy, plot = FALSE){
   },de_output_tidy) %>% bind_rows()
   return(de_output_tidy_new)
 }
-
-

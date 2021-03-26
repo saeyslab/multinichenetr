@@ -110,7 +110,7 @@ min_cells = 1
 ```{r}
 logFC_threshold = 1
 p_val_threshold = 0.05
-frac_cutoff = 0.05
+fraction_cutofff = 0.05
 p_val_adj = FALSE 
 top_n_target = 250
 ```
@@ -142,7 +142,7 @@ output = multi_nichenet_analysis(seurat_obj_receiver = seurat_obj_receiver, seur
                                 celltype_id_receiver = celltype_id_receiver, celltype_id_sender = celltype_id_sender,sample_id = sample_id, group_id = group_id, 
                                 lr_network = lr_network, ligand_target_matrix = ligand_target_matrix, contrasts_oi = contrasts_oi, contrast_tbl = contrast_tbl, 
                                 prioritizing_weights = prioritizing_weights, min_cells = min_cells, logFC_threshold = logFC_threshold, p_val_threshold = p_val_threshold,  
-                                frac_cutoff = frac_cutoff, p_val_adj = p_val_adj, top_n_target = top_n_target)
+                                fraction_cutofff = fraction_cutofff, p_val_adj = p_val_adj, top_n_target = top_n_target)
 
 ```
 
@@ -178,7 +178,7 @@ group_oi = "High"
 ```{r, fig.width=9, fig.height=7}
 
 prioritized_tbl_oi = output$prioritization_tables$group_prioritization_tbl %>% 
-  filter(fraction_ligand_group > frac_cutoff & fraction_receptor_group > frac_cutoff) %>% 
+  filter(fraction_ligand_group > fraction_cutofff & fraction_receptor_group > fraction_cutofff) %>% 
   distinct(id, sender, receiver, lr_interaction, group, ligand_receptor_lfc_avg, activity_scaled, fraction_ligand_group, fraction_expressing_ligand_receptor, scaled_avg_exprs_ligand, prioritization_score) %>% 
   filter(ligand_receptor_lfc_avg > 0 & fraction_expressing_ligand_receptor > 0) %>% 
   filter(group == group_oi & receiver == receiver_oi) %>% top_n(50, prioritization_score) 
@@ -192,7 +192,7 @@ plot_oi
 
 ```{r, fig.width=13, fig.height=11}
 prioritized_tbl_oi = output$prioritization_tables$group_prioritization_tbl %>% 
-  filter(fraction_ligand_group > frac_cutoff & fraction_receptor_group > frac_cutoff) %>% 
+  filter(fraction_ligand_group > fraction_cutofff & fraction_receptor_group > fraction_cutofff) %>% 
   distinct(id, sender, receiver, ligand, receptor, group, prioritization_score, ligand_receptor_lfc_avg, fraction_expressing_ligand_receptor) %>% 
   filter(ligand_receptor_lfc_avg > 0 & fraction_expressing_ligand_receptor > 0) %>% top_n(50, prioritization_score) 
 
@@ -217,7 +217,7 @@ circos_list = make_circos_group_comparison(prioritized_tbl_oi, colors_sender, co
 
 ```{r}
 prioritized_tbl_oi = output$prioritization_tables$group_prioritization_tbl %>% 
-  filter(fraction_ligand_group > frac_cutoff & fraction_receptor_group > frac_cutoff) %>% 
+  filter(fraction_ligand_group > fraction_cutofff & fraction_receptor_group > fraction_cutofff) %>% 
   distinct(id, sender, receiver, ligand, receptor, group, prioritization_score) %>% 
   group_by(group, receiver) %>% top_n(5, prioritization_score) 
 prioritized_tbl_oi
@@ -249,7 +249,7 @@ plot_list2$violin_sample
 group_oi = "High"
 receiver_oi = "Malignant"
 prioritized_tbl_oi = output$prioritization_tables$group_prioritization_tbl %>% 
-  filter(fraction_ligand_group > frac_cutoff & fraction_receptor_group > frac_cutoff) %>% 
+  filter(fraction_ligand_group > fraction_cutofff & fraction_receptor_group > fraction_cutofff) %>% 
   distinct(id, sender, receiver, ligand, receptor, group, prioritization_score, ligand_receptor_lfc_avg, fraction_expressing_ligand_receptor, activity_scaled) %>% 
   filter(ligand_receptor_lfc_avg > 0 & fraction_expressing_ligand_receptor > 0) %>% 
   filter(group == group_oi & receiver == receiver_oi) %>% 

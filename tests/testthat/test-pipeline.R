@@ -335,7 +335,7 @@ test_that("Pipeline for all-vs-all analysis works", {
   #   ligand_target_matrix = ligand_target_matrix,
   #   contrasts_oi = contrasts_oi,
   #   contrast_tbl = contrast_tbl,
-  #   frac_cutoff = 2
+  #   fraction_cutoff = 2
   # ))
   expect_error(multi_nichenet_analysis_combined(
     seurat_obj = seurat_obj,
@@ -809,7 +809,7 @@ test_that("Pipeline for separate analysis works", {
     ligand_target_matrix = ligand_target_matrix,
     contrasts_oi = contrasts_oi,
     contrast_tbl = contrast_tbl,
-    frac_cutoff = 2
+    fraction_cutoff = 2
   ))
   expect_error(multi_nichenet_analysis_separate(
     seurat_obj_receiver = seurat_obj_receiver,
