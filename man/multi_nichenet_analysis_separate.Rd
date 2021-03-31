@@ -103,6 +103,12 @@ lr_prod_mat: matrix of the ligand-receptor expression product of the expressed s
 grouping_tbl: data frame showing the group per sample 
 hist_pvals_receiver: histogram of p-values from the DE analysis on the receiver cell types.
 hist_pvals_sender: histogram of p-values from the DE analysis on the sender cell types.
+hist_pvals_emp_receiver: histogram of empirical p-values from the DE analysis on the receiver cell types.
+hist_pvals_emp_sender: histogram of empirical p-values from the DE analysis on the sender cell types.
+abund_plot_sample_sender: barplot showing cell number per sample-celltype combination for the sender cell types.
+abund_plot_group_sender: boxplot showing cell number per sample-celltype combination for the sender cell types across the different conditions.
+abund_plot_sample_receiver: barplot showing cell number per sample-celltype combination for the receiver cell types.
+abund_plot_group_receiver: boxplot showing cell number per sample-celltype combination for the receiver cell types across the different conditions.
 }
 \description{
 \code{multi_nichenet_analysis_separate}  Perform a MultiNicheNet analysis between sender cell types and receiver cell types of interest.

@@ -129,9 +129,15 @@ multi_nichenet_analysis = function(sender_receiver_separate = TRUE, ...){
 #' grouping_tbl: data frame showing the group per sample 
 #' hist_pvals_receiver: histogram of p-values from the DE analysis on the receiver cell types.
 #' hist_pvals_sender: histogram of p-values from the DE analysis on the sender cell types.
-#'
+#' hist_pvals_emp_receiver: histogram of empirical p-values from the DE analysis on the receiver cell types.
+#' hist_pvals_emp_sender: histogram of empirical p-values from the DE analysis on the sender cell types.
+#' abund_plot_sample_sender: barplot showing cell number per sample-celltype combination for the sender cell types.
+#' abund_plot_group_sender: boxplot showing cell number per sample-celltype combination for the sender cell types across the different conditions.
+#' abund_plot_sample_receiver: barplot showing cell number per sample-celltype combination for the receiver cell types.
+#' abund_plot_group_receiver: boxplot showing cell number per sample-celltype combination for the receiver cell types across the different conditions.
 #' @import Seurat
 #' @import dplyr
+#' @import ggplot2
 #' @importFrom generics setdiff intersect union
 #' @importFrom stringr str_split
 #' @importFrom tibble as_tibble
@@ -209,6 +215,7 @@ multi_nichenet_analysis_separate = function(seurat_obj_receiver,
 
   requireNamespace("Seurat")
   requireNamespace("dplyr")
+  requireNamespace("ggplot2")
   
   # input checks
 
@@ -499,15 +506,81 @@ multi_nichenet_analysis_separate = function(seurat_obj_receiver,
     stop("return_lr_prod_matrix should be TRUE or FALSE")
   }
   
-  if(verbose == TRUE){
-    print("Extract expression information from receiver")
-  }
   if(!is.double(n.cores)){
     stop("n.cores should be numeric")
   } else {
     if(n.cores <= 0 ) {
       warning("n.cores is now 0 or smaller. We recommend having a positive, non-zero value for this parameter.")
     }
+  }
+  
+  if(verbose == TRUE){
+    print("Make diagnostic cell type abundance plots")
+  }
+  
+  ### Sender abundance plots
+  metadata_sender = seurat_obj_sender@meta.data[,c(sample_id, group_id, celltype_id_sender)]
+  colnames(metadata_sender) =c("sample_id", "group_id", "celltype_id_sender")
+  
+  # point plot
+  abundance_data_sender = metadata_sender %>% tibble::as_tibble() %>% dplyr::group_by(sample_id , celltype_id_sender) %>% dplyr::count() %>% dplyr::inner_join(metadata_sender %>% dplyr::distinct(sample_id , group_id ))
+  abundance_data_sender = abundance_data_sender %>% dplyr::mutate(keep = n >= min_cells) %>% dplyr::mutate(keep = factor(keep, levels = c(TRUE,FALSE)))
+  
+  abund_plot_sender = abundance_data_sender %>% ggplot(aes(sample_id, n, fill = keep)) + geom_bar(stat="identity") + scale_fill_manual(values = c("royalblue", "lightcoral")) + facet_grid(celltype_id_sender ~ group_id, scales = "free", space = "free_x") +
+    scale_x_discrete(position = "top") +
+    theme_light() +
+    theme(
+      axis.ticks = element_blank(),
+      axis.title.x = element_text(size = 0),
+      axis.text.y = element_text(size = 9),
+      axis.text.x = element_text(size = 9,  angle = 90,hjust = 0),
+      strip.text.x.top = element_text(angle = 0),
+      panel.spacing.x = unit(0.5, "lines"),
+      panel.spacing.y = unit(0.5, "lines"),
+      strip.text.x = element_text(size = 11, color = "black", face = "bold"),
+      strip.text.y = element_text(size = 9, color = "black", face = "bold", angle = 0),
+      strip.background = element_rect(color="darkgrey", fill="whitesmoke", size=1.5, linetype="solid")
+    ) + geom_hline(yintercept = min_cells, color = "red", linetype  = "longdash") + ggtitle("Sender cell type abundances per sample") + ylab("# cells per sample-celltype combination")
+  
+  abund_plot_boxplot_sender = abundance_data_sender %>% ggplot(aes(group_id, n, group = group_id, color = group_id)) + 
+    geom_boxplot(outlier.shape = NA) + geom_jitter(aes(alpha = keep), width = 0.15, height = 0.05) + scale_alpha_manual(values = c(1,0.30)) + facet_wrap( ~ celltype_id_sender, scales = "free") + theme_bw() + 
+    scale_color_discrete("tomato","steelblue2") + geom_hline(yintercept = min_cells, color = "red", linetype  = "longdash") + ggtitle("Sender cell type abundances per group") + ylab("# cells per sample-celltype combination") + xlab("Group")
+  
+  ### Receiver abundance plots
+  
+  metadata_receiver = seurat_obj_receiver@meta.data[,c(sample_id, group_id, celltype_id_receiver)]
+  colnames(metadata_receiver) =c("sample_id", "group_id", "celltype_id_receiver")
+  
+  abundance_data_receiver = metadata_receiver %>% tibble::as_tibble() %>% dplyr::group_by(sample_id , celltype_id_receiver) %>% dplyr::count() %>% dplyr::inner_join(metadata_receiver %>% dplyr::distinct(sample_id , group_id ))
+  abundance_data_receiver = abundance_data_receiver %>% dplyr::mutate(keep = n >= min_cells) %>% dplyr::mutate(keep = factor(keep, levels = c(TRUE,FALSE)))
+  
+  abund_plot_receiver = abundance_data_receiver %>% ggplot(aes(sample_id, n, fill = keep)) + geom_bar(stat="identity") + scale_fill_manual(values = c("royalblue", "lightcoral")) + facet_grid(celltype_id_receiver ~ group_id, scales = "free", space = "free_x") +
+    scale_x_discrete(position = "top") +
+    theme_light() +
+    theme(
+      axis.ticks = element_blank(),
+      axis.title.x = element_text(size = 0),
+      axis.text.y = element_text(size = 9),
+      axis.text.x = element_text(size = 9,  angle = 90,hjust = 0),
+      strip.text.x.top = element_text(angle = 0),
+      panel.spacing.x = unit(0.5, "lines"),
+      panel.spacing.y = unit(0.5, "lines"),
+      strip.text.x = element_text(size = 11, color = "black", face = "bold"),
+      strip.text.y = element_text(size = 9, color = "black", face = "bold", angle = 0),
+      strip.background = element_rect(color="darkgrey", fill="whitesmoke", size=1.5, linetype="solid")
+    ) + geom_hline(yintercept = min_cells, color = "red", linetype  = "longdash")  + ggtitle("Receiver cell type abundances per sample") + ylab("# cells per sample-celltype combination")
+  
+  
+  abund_plot_boxplot_receiver = abundance_data_receiver %>% ggplot(aes(group_id, n, group = group_id, color = group_id)) + 
+    geom_boxplot(outlier.shape = NA) + geom_jitter(aes(alpha = keep), width = 0.15, height = 0.05) + scale_alpha_manual(values = c(1,0.30)) + facet_wrap( ~ celltype_id_receiver, scales = "free") + theme_bw() + 
+    scale_color_discrete("tomato","steelblue2") + geom_hline(yintercept = min_cells, color = "red", linetype  = "longdash") + ggtitle("Receiver cell type abundances per group") + ylab("# cells per sample-celltype combination") + xlab("Group")
+  
+  abundance_data_receiver = abundance_data_receiver %>% process_abund_info("receiver")
+  abundance_data_sender = abundance_data_sender %>% process_abund_info("sender")
+  
+  ## 
+  if(verbose == TRUE){
+    print("Extract expression information from receiver")
   }
   receiver_info = suppressMessages(get_avg_frac_exprs_abund(
     seurat_obj = seurat_obj_receiver,
@@ -673,7 +746,9 @@ multi_nichenet_analysis_separate = function(seurat_obj_receiver,
     sender_receiver_tbl = sender_receiver_tbl,
     grouping_tbl = grouping_tbl,
     prioritizing_weights = prioritizing_weights,
-    fraction_cutoff = fraction_cutoff
+    fraction_cutoff = fraction_cutoff, 
+    abundance_data_receiver = abundance_data_receiver,
+    abundance_data_sender = abundance_data_sender
   ))
 
   # Prepare Unsupervised analysis of samples! ------------------------------------------------------------------------------------------------------------
@@ -714,6 +789,10 @@ multi_nichenet_analysis_separate = function(seurat_obj_receiver,
       prioritization_tables = prioritization_tables,
       lr_prod_mat = lr_prod_mat,
       grouping_tbl = grouping_tbl,
+      abund_plot_sample_sender = abund_plot_sender,
+      abund_plot_group_sender = abund_plot_boxplot_sender,
+      abund_plot_sample_receiver = abund_plot_receiver,
+      abund_plot_group_receiver = abund_plot_boxplot_receiver,
       hist_pvals_receiver = hist_pvals_receiver,
       hist_pvals_sender = hist_pvals_sender,
       hist_pvals_emp_receiver = hist_pvals_emp_receiver,
@@ -746,9 +825,12 @@ multi_nichenet_analysis_separate = function(seurat_obj_receiver,
 #' lr_prod_mat: matrix of the ligand-receptor expression product of the expressed senderLigand-receiverReceptor pairs,
 #' grouping_tbl: data frame showing the group per sample 
 #' hist_pvals: histogram of p-values from the DE analysis on all cell types.
-#'
+#' hist_pvals_emp: histogram of empirical p-values from the DE analysis on all cell types.
+#' abund_plot_sample: barplot showing cell number per sample-celltype combination for all cell types.
+#' abund_plot_group: boxplot showing cell number per sample-celltype combination for all cell types across the different conditions.
 #' @import Seurat
 #' @import dplyr
+#' @import ggplot2
 #' @importFrom generics setdiff intersect union
 #' @importFrom stringr str_split
 #' @importFrom tibble as_tibble
@@ -818,6 +900,7 @@ multi_nichenet_analysis_combined = function(seurat_obj,
 
   requireNamespace("Seurat")
   requireNamespace("dplyr")
+  requireNamespace("ggplot2")
   
   # input checks
 
@@ -1059,10 +1142,7 @@ multi_nichenet_analysis_combined = function(seurat_obj,
     stop("return_lr_prod_matrix should be TRUE or FALSE")
   }
   
-  if(verbose == TRUE){
-    print("Extract expression information from all cell types")
-  }
-  
+
   
   
   if(!is.double(n.cores)){
@@ -1071,6 +1151,47 @@ multi_nichenet_analysis_combined = function(seurat_obj,
     if(n.cores <= 0 ) {
       warning("n.cores is now 0 or smaller. We recommend having a positive, non-zero value for this parameter.")
     }
+  }
+  
+  if(verbose == TRUE){
+    print("Make diagnostic abundance plots")
+  }
+  
+  ### Receiver abundance plots
+  
+  metadata_abundance = seurat_obj@meta.data[,c(sample_id, group_id, celltype_id)]
+  colnames(metadata_abundance) =c("sample_id", "group_id", "celltype_id")
+  
+  abundance_data = metadata_abundance %>% tibble::as_tibble() %>% dplyr::group_by(sample_id , celltype_id) %>% dplyr::count() %>% dplyr::inner_join(metadata_abundance %>% dplyr::distinct(sample_id , group_id ))
+  abundance_data = abundance_data %>% dplyr::mutate(keep = n >= min_cells) %>% dplyr::mutate(keep = factor(keep, levels = c(TRUE,FALSE)))
+  
+  abund_plot = abundance_data %>% ggplot(aes(sample_id, n, fill = keep)) + geom_bar(stat="identity") + scale_fill_manual(values = c("royalblue", "lightcoral")) + facet_grid(celltype_id ~ group_id, scales = "free", space = "free_x") +
+    scale_x_discrete(position = "top") +
+    theme_light() +
+    theme(
+      axis.ticks = element_blank(),
+      axis.title.x = element_text(size = 0),
+      axis.text.y = element_text(size = 9),
+      axis.text.x = element_text(size = 9,  angle = 90,hjust = 0),
+      strip.text.x.top = element_text(angle = 0),
+      panel.spacing.x = unit(0.5, "lines"),
+      panel.spacing.y = unit(0.5, "lines"),
+      strip.text.x = element_text(size = 11, color = "black", face = "bold"),
+      strip.text.y = element_text(size = 9, color = "black", face = "bold", angle = 0),
+      strip.background = element_rect(color="darkgrey", fill="whitesmoke", size=1.5, linetype="solid")
+    ) + geom_hline(yintercept = min_cells, color = "red", linetype  = "longdash")  + ggtitle("Cell type abundances per sample") + ylab("# cells per sample-celltype combination")
+  
+  
+  abund_plot_boxplot = abundance_data %>% ggplot(aes(group_id, n, group = group_id, color = group_id)) + 
+    geom_boxplot(outlier.shape = NA) + geom_jitter(aes(alpha = keep), width = 0.15, height = 0.05) + scale_alpha_manual(values = c(1,0.30)) + facet_wrap( ~ celltype_id, scales = "free") + theme_bw() + 
+    scale_color_discrete("tomato","steelblue2") + geom_hline(yintercept = min_cells, color = "red", linetype  = "longdash") + ggtitle("Cell type abundances per group") + ylab("# cells per sample-celltype combination") + xlab("Group")
+  
+  abundance_data_receiver = abundance_data %>% process_abund_info("receiver")
+  abundance_data_sender = abundance_data %>% process_abund_info("sender")
+  
+  
+  if(verbose == TRUE){
+    print("Extract expression information from all cell types")
   }
   
   celltype_info = suppressMessages(get_avg_frac_exprs_abund(
@@ -1198,7 +1319,9 @@ multi_nichenet_analysis_combined = function(seurat_obj,
     sender_receiver_tbl = sender_receiver_tbl,
     grouping_tbl = grouping_tbl,
     prioritizing_weights = prioritizing_weights,
-    fraction_cutoff = fraction_cutoff
+    fraction_cutoff = fraction_cutoff, 
+    abundance_data_receiver = abundance_data_receiver,
+    abundance_data_sender = abundance_data_sender
   ))
 
   # Prepare Unsupervised analysis of samples! ------------------------------------------------------------------------------------------------------------
@@ -1236,6 +1359,8 @@ multi_nichenet_analysis_combined = function(seurat_obj,
       prioritization_tables = prioritization_tables,
       lr_prod_mat = lr_prod_mat,
       grouping_tbl = grouping_tbl,
+      abund_plot_sample = abund_plot,
+      abund_plot_group = abund_plot_boxplot,
       hist_pvals = hist_pvals,
       hist_pvals_emp = hist_pvals_emp
     )

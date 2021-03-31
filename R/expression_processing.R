@@ -394,6 +394,65 @@ process_info_to_ic = function(info_object, ic_type = "sender", lr_network){
   return(list(avg_df = avg_df, frq_df = frq_df, avg_df_group = avg_df_group, frq_df_group = frq_df_group, rel_abundance_df = rel_abundance_df))
 }
 
+
+#' @title process_abund_info
+#'
+#' @description \code{process_abund_info}  Process cell type abundance information into intercellular communication focused information. 
+#' @usage process_abund_info(abund_data, ic_type = "sender")
+#'
+#' @param abund_data Data frame with number of cells per cell type - sample combination
+#' @param ic_type "sender" or "receiver": indicates whether we should rename celltype to sender or receiver.
+#'
+#' @return Data frame with number of cells per cell type - sample combination; but now adapted to sender/receiver nomenclature
+#'
+#' @import dplyr
+#'
+#' @examples
+#' \dontrun{
+#' library(Seurat)
+#' library(dplyr)
+#' sample_id = "tumor"
+#' group_id = "pEMT"
+#' celltype_id = "celltype"
+#' metadata_abundance = seurat_obj@meta.data[,c(sample_id, group_id, celltype_id)]
+#' colnames(metadata_abundance) =c("sample_id", "group_id", "celltype_id")
+#' abundance_data = metadata_abundance %>% tibble::as_tibble() %>% dplyr::group_by(sample_id , celltype_id) %>% dplyr::count() %>% dplyr::inner_join(metadata_abundance %>% dplyr::distinct(sample_id , group_id ))
+#' abundance_data = abundance_data %>% dplyr::mutate(keep = n >= min_cells) %>% dplyr::mutate(keep = factor(keep, levels = c(TRUE,FALSE)))
+#' receiver_abundance_data = process_info_to_ic(abund_data = abundance_data, ic_type = "receiver")
+#' sender_abundance_data = process_info_to_ic(abund_data = abundance_data, ic_type = "sender")
+#' }
+#'
+#' @export
+#'
+process_abund_info = function(abund_data, ic_type = "sender"){
+  
+  requireNamespace("dplyr")
+  
+  abund_data = abund_data %>% rename(sample = sample_id, group = group_id)
+  
+  if(ic_type == "sender"){
+    
+    if("celltype_id_sender" %in% colnames(abund_data)){
+      abund_data = abund_data %>% rename(sender = celltype_id_sender)
+    } else {
+      abund_data = abund_data %>% rename(sender = celltype_id)
+    }
+    
+    abund_data = abund_data %>% rename(keep_sender = keep, n_cells_sender = n) %>% mutate(keep_sender = as.double(as.logical(keep_sender)))
+  }
+  if(ic_type == "receiver"){
+    if("celltype_id_receiver" %in% colnames(abund_data)){
+      abund_data = abund_data %>% rename(receiver = celltype_id_receiver)
+    } else {
+      abund_data = abund_data %>% rename(receiver = celltype_id)
+    }
+    
+    abund_data = abund_data %>% rename(keep_receiver = keep, n_cells_receiver = n) %>% mutate(keep_receiver = as.double(as.logical(keep_receiver)))
+  }
+  
+  return(abund_data)
+}
+
 #' @title combine_sender_receiver_info_ic
 #'
 #' @description \code{combine_sender_receiver_info_ic}  Link the ligand-expression information of the Sender cell type to the receptor-expression information of the Receiver cell type. Linking via prior knowledge ligand-receptor network.

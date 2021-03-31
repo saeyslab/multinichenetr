@@ -7,7 +7,7 @@ scale_quantile_adapted = function(x){
 #'
 #' @description \code{generate_prioritization_tables}  Perform the MultiNicheNet prioritization of cell-cell interactions. 
 #' User can choose the importance attached to each of the following prioritization criteria: differential expression of ligand and receptor, cell-type-condition-specificity of expression of ligand and receptor, NicheNet ligand activity, fraction of samples in a group that express a senderLigand-receiverReceptor pair, relative cell type abundance of sender/receiver.
-#' @usage generate_prioritization_tables(sender_receiver_info, sender_receiver_de, ligand_activities_targets_DEgenes, contrast_tbl, sender_receiver_tbl, grouping_tbl, prioritizing_weights, fraction_cutoff)
+#' @usage generate_prioritization_tables(sender_receiver_info, sender_receiver_de, ligand_activities_targets_DEgenes, contrast_tbl, sender_receiver_tbl, grouping_tbl, prioritizing_weights, fraction_cutoff, abundance_data_receiver, abundance_data_sender)
 #'
 #' @inheritParams multi_nichenet_analysis_combined
 #' @inheritParams combine_sender_receiver_info_ic
@@ -16,6 +16,8 @@ scale_quantile_adapted = function(x){
 #' @param ligand_activities_targets_DEgenes Output of `get_ligand_activities_targets_DEgenes`
 #' @param sender_receiver_tbl Data frame with all sender-receiver cell type combinations (columns: sender and receiver)
 #' @param grouping_tbl Data frame showing the groups of each sample (and covariates per sample if applicable) (columns: sample and group; and if applicable all covariates of interest)
+#' @param abundance_data_receiver Data frame with number of cells per cell type - sample combination;  output of `process_info_to_ic`
+#' @param abundance_data_sender Data frame with number of cells per cell type - sample combination; output of `process_info_to_ic`
 #' 
 #' @return List containing multiple data frames prioritized senderLigand-receiverReceptor interactions (with sample- and group-based expression information), ligand activities and ligand-target links.
 #'
@@ -35,6 +37,14 @@ scale_quantile_adapted = function(x){
 #' covariates = NA
 #' contrasts_oi = c("'High-Low','Low-High'")
 #' contrast_tbl = tibble(contrast = c("High-Low","Low-High"), group = c("High","Low"))
+#' 
+#' metadata_abundance = seurat_obj@meta.data[,c(sample_id, group_id, celltype_id)]
+#' colnames(metadata_abundance) =c("sample_id", "group_id", "celltype_id")
+#' abundance_data = metadata_abundance %>% tibble::as_tibble() %>% dplyr::group_by(sample_id , celltype_id) %>% dplyr::count() %>% dplyr::inner_join(metadata_abundance %>% dplyr::distinct(sample_id , group_id ))
+#' abundance_data = abundance_data %>% dplyr::mutate(keep = n >= min_cells) %>% dplyr::mutate(keep = factor(keep, levels = c(TRUE,FALSE)))
+#' abundance_data_receiver = process_info_to_ic(abund_data = abundance_data, ic_type = "receiver")
+#' abundance_data_sender = process_info_to_ic(abund_data = abundance_data, ic_type = "sender")
+#' 
 #' celltype_info = get_avg_frac_exprs_abund(seurat_obj = seurat_obj, sample_id = sample_id, celltype_id =  celltype_id, group_id = group_id)
 #' 
 #' receiver_info_ic = process_info_to_ic(info_object = celltype_info, ic_type = "receiver", lr_network = lr_network)
@@ -80,12 +90,15 @@ scale_quantile_adapted = function(x){
 #'     sender_receiver_tbl = sender_receiver_tbl,
 #'     grouping_tbl = grouping_tbl,
 #'     prioritizing_weights = prioritizing_weights,
-#'     fraction_cutoff = frac_cutoff)
+#'     fraction_cutoff = frac_cutoff, abundance_data_receiver, abundance_data_sender)
 #' }
 #'
 #' @export
 #'
-generate_prioritization_tables = function(sender_receiver_info, sender_receiver_de, ligand_activities_targets_DEgenes, contrast_tbl, sender_receiver_tbl, grouping_tbl, prioritizing_weights, fraction_cutoff){
+#'
+#'
+#'
+generate_prioritization_tables = function(sender_receiver_info, sender_receiver_de, ligand_activities_targets_DEgenes, contrast_tbl, sender_receiver_tbl, grouping_tbl, prioritizing_weights, fraction_cutoff, abundance_data_receiver, abundance_data_sender){
 
   requireNamespace("dplyr")
   
@@ -167,6 +180,8 @@ generate_prioritization_tables = function(sender_receiver_info, sender_receiver_
   sample_prioritization_tbl = sample_prioritization_tbl %>% dplyr::mutate(lr_interaction = paste(ligand, receptor, sep = "_")) %>% dplyr::mutate(id = paste(lr_interaction, sender, receiver, sep = "_"))
   sample_prioritization_tbl = sample_prioritization_tbl %>% dplyr::group_by(id) %>% dplyr::mutate(scaled_LR_prod = nichenetr::scaling_zscore(ligand_receptor_prod), scaled_LR_frac = nichenetr::scaling_zscore(ligand_receptor_fraction_prod)) %>% dplyr::ungroup()
 
+  sample_prioritization_tbl = sample_prioritization_tbl %>% inner_join(abundance_data_receiver) %>% inner_join(abundance_data_sender) %>% mutate(keep_sender_receiver = keep_receiver + keep_sender)
+  
   # ligand-target information  -----------------------------------------------
   ligand_activities_target_de_tbl = ligand_activities_targets_DEgenes$ligand_activities %>% dplyr::inner_join(ligand_activities_targets_DEgenes$de_genes_df %>% dplyr::rename(target = gene, p_val_adj = p_adj.glb)) %>% dplyr::select(contrast, receiver, ligand, activity, activity_scaled, target, ligand_target_weight, logFC, p_val, p_val_adj) %>% dplyr::distinct()
 

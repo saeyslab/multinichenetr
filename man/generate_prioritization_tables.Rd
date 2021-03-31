@@ -4,7 +4,7 @@
 \alias{generate_prioritization_tables}
 \title{generate_prioritization_tables}
 \usage{
-generate_prioritization_tables(sender_receiver_info, sender_receiver_de, ligand_activities_targets_DEgenes, contrast_tbl, sender_receiver_tbl, grouping_tbl, prioritizing_weights, fraction_cutoff)
+generate_prioritization_tables(sender_receiver_info, sender_receiver_de, ligand_activities_targets_DEgenes, contrast_tbl, sender_receiver_tbl, grouping_tbl, prioritizing_weights, fraction_cutoff, abundance_data_receiver, abundance_data_sender)
 }
 \arguments{
 \item{sender_receiver_info}{Output of `combine_sender_receiver_info_ic`}
@@ -41,6 +41,10 @@ scaled_abundance_sender: importance of relative cell type abundance of the sende
 scaled_abundance_receiver: importance of relative cell type abundance of the receiver cell type.}
 
 \item{fraction_cutoff}{Cutoff indicating the minimum fraction of cells of a cell type in a specific sample that are necessary to consider the gene as expressed.}
+
+\item{abundance_data_receiver}{Data frame with number of cells per cell type - sample combination;  output of `process_info_to_ic`}
+
+\item{abundance_data_sender}{Data frame with number of cells per cell type - sample combination; output of `process_info_to_ic`}
 }
 \value{
 List containing multiple data frames prioritized senderLigand-receiverReceptor interactions (with sample- and group-based expression information), ligand activities and ligand-target links.
@@ -62,6 +66,14 @@ celltype_id = "celltype"
 covariates = NA
 contrasts_oi = c("'High-Low','Low-High'")
 contrast_tbl = tibble(contrast = c("High-Low","Low-High"), group = c("High","Low"))
+
+metadata_abundance = seurat_obj@meta.data[,c(sample_id, group_id, celltype_id)]
+colnames(metadata_abundance) =c("sample_id", "group_id", "celltype_id")
+abundance_data = metadata_abundance \%>\% tibble::as_tibble() \%>\% dplyr::group_by(sample_id , celltype_id) \%>\% dplyr::count() \%>\% dplyr::inner_join(metadata_abundance \%>\% dplyr::distinct(sample_id , group_id ))
+abundance_data = abundance_data \%>\% dplyr::mutate(keep = n >= min_cells) \%>\% dplyr::mutate(keep = factor(keep, levels = c(TRUE,FALSE)))
+abundance_data_receiver = process_info_to_ic(abund_data = abundance_data, ic_type = "receiver")
+abundance_data_sender = process_info_to_ic(abund_data = abundance_data, ic_type = "sender")
+
 celltype_info = get_avg_frac_exprs_abund(seurat_obj = seurat_obj, sample_id = sample_id, celltype_id =  celltype_id, group_id = group_id)
 
 receiver_info_ic = process_info_to_ic(info_object = celltype_info, ic_type = "receiver", lr_network = lr_network)
@@ -107,7 +119,7 @@ prioritization_tables = generate_prioritization_tables(
     sender_receiver_tbl = sender_receiver_tbl,
     grouping_tbl = grouping_tbl,
     prioritizing_weights = prioritizing_weights,
-    fraction_cutoff = frac_cutoff)
+    fraction_cutoff = frac_cutoff, abundance_data_receiver, abundance_data_sender)
 }
 
 }
