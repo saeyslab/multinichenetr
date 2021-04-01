@@ -523,7 +523,7 @@ multi_nichenet_analysis_separate = function(seurat_obj_receiver,
   colnames(metadata_sender) =c("sample_id", "group_id", "celltype_id_sender")
   
   # point plot
-  abundance_data_sender = metadata_sender %>% tibble::as_tibble() %>% dplyr::group_by(sample_id , celltype_id_sender) %>% dplyr::count() %>% dplyr::inner_join(metadata_sender %>% dplyr::distinct(sample_id , group_id ))
+  abundance_data_sender = metadata_sender %>% tibble::as_tibble() %>% dplyr::group_by(sample_id , celltype_id_sender) %>% dplyr::count() %>% dplyr::inner_join(metadata_sender %>% dplyr::distinct(sample_id , group_id ), by = "sample_id")
   abundance_data_sender = abundance_data_sender %>% dplyr::mutate(keep = n >= min_cells) %>% dplyr::mutate(keep = factor(keep, levels = c(TRUE,FALSE)))
   
   abund_plot_sender = abundance_data_sender %>% ggplot(aes(sample_id, n, fill = keep)) + geom_bar(stat="identity") + scale_fill_manual(values = c("royalblue", "lightcoral")) + facet_grid(celltype_id_sender ~ group_id, scales = "free", space = "free_x") +
@@ -551,7 +551,7 @@ multi_nichenet_analysis_separate = function(seurat_obj_receiver,
   metadata_receiver = seurat_obj_receiver@meta.data[,c(sample_id, group_id, celltype_id_receiver)]
   colnames(metadata_receiver) =c("sample_id", "group_id", "celltype_id_receiver")
   
-  abundance_data_receiver = metadata_receiver %>% tibble::as_tibble() %>% dplyr::group_by(sample_id , celltype_id_receiver) %>% dplyr::count() %>% dplyr::inner_join(metadata_receiver %>% dplyr::distinct(sample_id , group_id ))
+  abundance_data_receiver = metadata_receiver %>% tibble::as_tibble() %>% dplyr::group_by(sample_id , celltype_id_receiver) %>% dplyr::count() %>% dplyr::inner_join(metadata_receiver %>% dplyr::distinct(sample_id , group_id ), by = "sample_id")
   abundance_data_receiver = abundance_data_receiver %>% dplyr::mutate(keep = n >= min_cells) %>% dplyr::mutate(keep = factor(keep, levels = c(TRUE,FALSE)))
   
   abund_plot_receiver = abundance_data_receiver %>% ggplot(aes(sample_id, n, fill = keep)) + geom_bar(stat="identity") + scale_fill_manual(values = c("royalblue", "lightcoral")) + facet_grid(celltype_id_receiver ~ group_id, scales = "free", space = "free_x") +
@@ -1162,7 +1162,7 @@ multi_nichenet_analysis_combined = function(seurat_obj,
   metadata_abundance = seurat_obj@meta.data[,c(sample_id, group_id, celltype_id)]
   colnames(metadata_abundance) =c("sample_id", "group_id", "celltype_id")
   
-  abundance_data = metadata_abundance %>% tibble::as_tibble() %>% dplyr::group_by(sample_id , celltype_id) %>% dplyr::count() %>% dplyr::inner_join(metadata_abundance %>% dplyr::distinct(sample_id , group_id ))
+  abundance_data = metadata_abundance %>% tibble::as_tibble() %>% dplyr::group_by(sample_id , celltype_id) %>% dplyr::count() %>% dplyr::inner_join(metadata_abundance %>% dplyr::distinct(sample_id , group_id ), by = "sample_id")
   abundance_data = abundance_data %>% dplyr::mutate(keep = n >= min_cells) %>% dplyr::mutate(keep = factor(keep, levels = c(TRUE,FALSE)))
   
   abund_plot = abundance_data %>% ggplot(aes(sample_id, n, fill = keep)) + geom_bar(stat="identity") + scale_fill_manual(values = c("royalblue", "lightcoral")) + facet_grid(celltype_id ~ group_id, scales = "free", space = "free_x") +
