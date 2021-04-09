@@ -219,14 +219,18 @@ Check of the underlying observed distirbutions of the test statistics: The green
 
 (if plotting does not work, it might be necessary to run these plot commands in the console)
 
-```{r, fig.width=10, fig.height=10}
+```{r, fig.width=7, fig.height=7}
 output$z_distr_plots_emp_pval$`CAF.High-Low` %>% print()
-output$z_distr_plots_emp_pval$`CAF.Low-High` %>% print()
-output$z_distr_plots_emp_pval$`Malignant.High-Low` %>% print()
-output$z_distr_plots_emp_pval$`Malignant.Low-High` %>% print()
-output$z_distr_plots_emp_pval$`myofibroblast.High-Low` %>% print()
-output$z_distr_plots_emp_pval$`myofibroblast.Low-High` %>% print()
 ```
+
+```{r, fig.width=7, fig.height=7}
+output$z_distr_plots_emp_pval$`Malignant.High-Low` %>% print()
+```
+
+```{r, fig.width=7, fig.height=7}
+output$z_distr_plots_emp_pval$`myofibroblast.High-Low` %>% print()
+```
+
 
 This looks fine, except for the Malignant cells. As discussed in the previous plots: there might be an issue here. One possible explanation might be that there is additional substructure in the data - which would make sense because the pEMT high group consists both of pEMT very-high and pEMT high samples according to the finer subdivision `pEMT_fine`. Another reason for the possible substructure: malignant cells of each tumor are very different because of genetic aberrations.
 

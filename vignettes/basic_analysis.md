@@ -412,11 +412,11 @@ output$z_distr_plots_emp_pval$`CAF.High-Low` %>% print()
 ![](basic_analysis_files/figure-gfm/unnamed-chunk-15-1.png)<!-- -->
 
 ``` r
-output$z_distr_plots_emp_pval$`CAF.Low-High` %>% print()
 output$z_distr_plots_emp_pval$`Malignant.High-Low` %>% print()
-output$z_distr_plots_emp_pval$`Malignant.Low-High` %>% print()
+```
+
+``` r
 output$z_distr_plots_emp_pval$`myofibroblast.High-Low` %>% print()
-output$z_distr_plots_emp_pval$`myofibroblast.Low-High` %>% print()
 ```
 
 This looks fine, except for the Malignant cells. As discussed in the
@@ -690,7 +690,7 @@ colors_receiver = c("red", "orange", "royalblue")
 circos_list = make_circos_group_comparison(prioritized_tbl_oi, colors_sender, colors_receiver)
 ```
 
-![](basic_analysis_files/figure-gfm/unnamed-chunk-24-1.png)<!-- -->![](basic_analysis_files/figure-gfm/unnamed-chunk-24-2.png)<!-- -->![](basic_analysis_files/figure-gfm/unnamed-chunk-24-3.png)<!-- -->
+![](basic_analysis_files/figure-gfm/unnamed-chunk-26-1.png)<!-- -->![](basic_analysis_files/figure-gfm/unnamed-chunk-26-2.png)<!-- -->![](basic_analysis_files/figure-gfm/unnamed-chunk-26-3.png)<!-- -->
 
 ## Visualization of scaled\_LR\_prod per sample
 
@@ -717,7 +717,7 @@ plot_oi = make_sample_lr_prod_plots(output$prioritization_tables, prioritized_tb
 plot_oi
 ```
 
-![](basic_analysis_files/figure-gfm/unnamed-chunk-26-1.png)<!-- -->
+![](basic_analysis_files/figure-gfm/unnamed-chunk-28-1.png)<!-- -->
 
 Next to these LR expression products, we can also plot the NicheNet
 ligand activities of the ligand in the receiver.
@@ -732,7 +732,7 @@ plot_oi = make_sample_lr_prod_activity_plots(output$prioritization_tables, prior
 plot_oi
 ```
 
-![](basic_analysis_files/figure-gfm/unnamed-chunk-27-1.png)<!-- -->
+![](basic_analysis_files/figure-gfm/unnamed-chunk-29-1.png)<!-- -->
 
 ## Visualization of expression-logFC per group and ligand activity
 
@@ -756,7 +756,7 @@ plot_oi = make_group_lfc_exprs_activity_plot(output$prioritization_tables, prior
 plot_oi
 ```
 
-![](basic_analysis_files/figure-gfm/unnamed-chunk-29-1.png)<!-- -->
+![](basic_analysis_files/figure-gfm/unnamed-chunk-31-1.png)<!-- -->
 
 ## Visualization of ligand-activity, ligand-target links, and target gene expression
 
@@ -783,12 +783,12 @@ combined_plot
 ## $combined_plot
 ```
 
-![](basic_analysis_files/figure-gfm/unnamed-chunk-31-1.png)<!-- -->
+![](basic_analysis_files/figure-gfm/unnamed-chunk-33-1.png)<!-- -->
 
     ## 
     ## $legends
 
-![](basic_analysis_files/figure-gfm/unnamed-chunk-31-2.png)<!-- -->
+![](basic_analysis_files/figure-gfm/unnamed-chunk-33-2.png)<!-- -->
 
 Now: show this for a selection of ligands with high general
 prioritization scores, not necessarily high ligand activities.
@@ -810,12 +810,12 @@ combined_plot
 ## $combined_plot
 ```
 
-![](basic_analysis_files/figure-gfm/unnamed-chunk-33-1.png)<!-- -->
+![](basic_analysis_files/figure-gfm/unnamed-chunk-35-1.png)<!-- -->
 
     ## 
     ## $legends
 
-![](basic_analysis_files/figure-gfm/unnamed-chunk-33-2.png)<!-- -->
+![](basic_analysis_files/figure-gfm/unnamed-chunk-35-2.png)<!-- -->
 
 Of course you can look at other receivers as well:
 
@@ -836,12 +836,12 @@ combined_plot
 ## $combined_plot
 ```
 
-![](basic_analysis_files/figure-gfm/unnamed-chunk-35-1.png)<!-- -->
+![](basic_analysis_files/figure-gfm/unnamed-chunk-37-1.png)<!-- -->
 
     ## 
     ## $legends
 
-![](basic_analysis_files/figure-gfm/unnamed-chunk-35-2.png)<!-- -->
+![](basic_analysis_files/figure-gfm/unnamed-chunk-37-2.png)<!-- -->
 
 ## Show ligand activities for each receiver-group combination
 
@@ -860,7 +860,7 @@ plot_oi = make_ligand_activity_plots(output$prioritization_tables, ligands_oi, c
 plot_oi
 ```
 
-![](basic_analysis_files/figure-gfm/unnamed-chunk-36-1.png)<!-- -->
+![](basic_analysis_files/figure-gfm/unnamed-chunk-38-1.png)<!-- -->
 
 Or we can do this plot for ligands, while considering the general
 priorization score (which considers expression information etc)
@@ -876,7 +876,7 @@ plot_oi = make_ligand_activity_plots(output$prioritization_tables, ligands_oi, c
 plot_oi
 ```
 
-![](basic_analysis_files/figure-gfm/unnamed-chunk-37-1.png)<!-- -->
+![](basic_analysis_files/figure-gfm/unnamed-chunk-39-1.png)<!-- -->
 
 ## Zoom in on specific ligand-receptor interactions: show their expression in the single-cell data!
 
@@ -930,13 +930,13 @@ plot_list = make_ligand_receptor_nebulosa_feature_plot(seurat_obj_sender = seura
 plot_list$nebulosa # not recommended for Smart-seq data
 ```
 
-![](basic_analysis_files/figure-gfm/unnamed-chunk-40-1.png)<!-- -->
+![](basic_analysis_files/figure-gfm/unnamed-chunk-42-1.png)<!-- -->
 
 ``` r
 plot_list$feature
 ```
 
-![](basic_analysis_files/figure-gfm/unnamed-chunk-40-2.png)<!-- -->
+![](basic_analysis_files/figure-gfm/unnamed-chunk-42-2.png)<!-- -->
 Pooled single-cell and sample-specific single-cell violin plots of
 ligand and receptor expression in respectively sender and receiver.
 
@@ -945,13 +945,13 @@ plot_list2 = make_ligand_receptor_violin_plot(seurat_obj_sender = seurat_obj, se
 plot_list2$violin_group
 ```
 
-![](basic_analysis_files/figure-gfm/unnamed-chunk-41-1.png)<!-- -->
+![](basic_analysis_files/figure-gfm/unnamed-chunk-43-1.png)<!-- -->
 
 ``` r
 plot_list2$violin_sample
 ```
 
-![](basic_analysis_files/figure-gfm/unnamed-chunk-41-2.png)<!-- -->
+![](basic_analysis_files/figure-gfm/unnamed-chunk-43-2.png)<!-- -->
 
 ## Zoom in on specific ligand-target interactions: show their expression in the single-cell data!
 
@@ -988,24 +988,24 @@ make_target_violin_plot(seurat_obj_receiver = seurat_obj, target_oi = target_oi,
 ## $violin_group
 ```
 
-![](basic_analysis_files/figure-gfm/unnamed-chunk-43-1.png)<!-- -->
+![](basic_analysis_files/figure-gfm/unnamed-chunk-45-1.png)<!-- -->
 
     ## 
     ## $violin_sample
 
-![](basic_analysis_files/figure-gfm/unnamed-chunk-43-2.png)<!-- -->
+![](basic_analysis_files/figure-gfm/unnamed-chunk-45-2.png)<!-- -->
 
 ``` r
 make_target_nebulosa_feature_plot(seurat_obj_receiver = seurat_obj, target_oi = target_oi, group_oi = group_oi, group_id = group_id, celltype_id_receiver = celltype_id, receivers_oi = c("Malignant","myofibroblast","CAF"), output$prioritization_tables$group_prioritization_tbl) 
 ## $nebulosa
 ```
 
-![](basic_analysis_files/figure-gfm/unnamed-chunk-43-3.png)<!-- -->
+![](basic_analysis_files/figure-gfm/unnamed-chunk-45-3.png)<!-- -->
 
     ## 
     ## $feature
 
-![](basic_analysis_files/figure-gfm/unnamed-chunk-43-4.png)<!-- -->
+![](basic_analysis_files/figure-gfm/unnamed-chunk-45-4.png)<!-- -->
 
 ## Make Dotplot for all DE genes/targets
 
@@ -1025,6 +1025,6 @@ p_target = make_sample_target_plots(receiver_info = output$celltype_info, target
 p_target + ggtitle(paste0("DE genes in ",group_oi, " in celltype ",receiver_oi))
 ```
 
-![](basic_analysis_files/figure-gfm/unnamed-chunk-45-1.png)<!-- -->
+![](basic_analysis_files/figure-gfm/unnamed-chunk-47-1.png)<!-- -->
 
 ## References
