@@ -659,33 +659,44 @@ multi_nichenet_analysis_separate = function(seurat_obj_receiver,
 
   de_output_tidy_receiver = muscat::resDS(receiver_de$sce, receiver_de$de_output, bind = "row", cpm = FALSE, frq = FALSE) %>% tibble::as_tibble()
   hist_pvals_receiver = de_output_tidy_receiver %>% inner_join(de_output_tidy_receiver %>% group_by(contrast,cluster_id) %>% count(), by = c("cluster_id","contrast")) %>% 
-    mutate(cluster_id = paste0(cluster_id, "\nnr of genes: ", n)) %>% 
-    ggplot(aes(x = p_val)) + 
-    geom_histogram() + facet_grid(contrast~cluster_id) + ggtitle("P-value histograms Receiver") + theme_bw() 
+    mutate(cluster_id = paste0(cluster_id, "\nnr of genes: ", n)) %>% mutate(`p-value <= 0.05` = p_val <= 0.05) %>% 
+    ggplot(aes(x = p_val, fill = `p-value <= 0.05`)) + 
+    geom_histogram(binwidth = 0.05,boundary=0, color = "grey35") + scale_fill_manual(values = c("grey90", "lightsteelblue1")) + 
+    facet_grid(contrast~cluster_id) + ggtitle("P-value histograms Receiver") + theme_bw() 
 
   de_output_tidy_sender = muscat::resDS(sender_de$sce, sender_de$de_output, bind = "row", cpm = FALSE, frq = FALSE) %>% tibble::as_tibble()
   hist_pvals_sender = de_output_tidy_sender %>% inner_join(de_output_tidy_sender %>% group_by(contrast,cluster_id) %>% count(), by = c("cluster_id","contrast")) %>% 
-    mutate(cluster_id = paste0(cluster_id, "\nnr of genes: ", n)) %>% 
-    ggplot(aes(x = p_val)) + 
-    geom_histogram() + facet_grid(contrast~cluster_id) + ggtitle("P-value histograms Sender") + theme_bw() 
+    mutate(cluster_id = paste0(cluster_id, "\nnr of genes: ", n)) %>% mutate(`p-value <= 0.05` = p_val <= 0.05) %>% 
+    ggplot(aes(x = p_val, fill = `p-value <= 0.05`)) + 
+    geom_histogram(binwidth = 0.05,boundary=0, color = "grey35") + scale_fill_manual(values = c("grey90", "lightsteelblue1")) + 
+    facet_grid(contrast~cluster_id) + ggtitle("P-value histograms Sender") + theme_bw() 
   
   if(empirical_pval == TRUE){
-    de_output_tidy_emp_receiver = add_empirical_pval_fdr(de_output_tidy_receiver, plot = TRUE)
+    de_output_tidy_emp_receiver = add_empirical_pval_fdr(de_output_tidy_receiver, plot = FALSE)
+    z_distr_plots_emp_pval_receiver = get_FDR_empirical_plots_all(de_output_tidy_receiver)
+    
     hist_pvals_emp_receiver = de_output_tidy_emp_receiver %>% inner_join(de_output_tidy_emp_receiver %>% group_by(contrast,cluster_id) %>% count(), by = c("cluster_id","contrast")) %>% 
-      mutate(cluster_id = paste0(cluster_id, "\nnr of genes: ", n)) %>% 
-      ggplot(aes(x = p_emp)) + 
-      geom_histogram() + facet_grid(contrast~cluster_id) + ggtitle("Empirical P-value histograms Receiver") + theme_bw() 
-    de_output_tidy_emp_sender = add_empirical_pval_fdr(de_output_tidy_sender, plot = TRUE)
+      mutate(cluster_id = paste0(cluster_id, "\nnr of genes: ", n)) %>% mutate(`p-value <= 0.05` = p_emp <= 0.05) %>% 
+      ggplot(aes(x = p_emp, fill = `p-value <= 0.05`)) + 
+      geom_histogram(binwidth = 0.05,boundary=0, color = "grey35") + scale_fill_manual(values = c("grey90", "lightsteelblue1")) + 
+      facet_grid(contrast~cluster_id) + ggtitle("Empirical P-value histograms Receiver") + theme_bw() 
+    
+    de_output_tidy_emp_sender = add_empirical_pval_fdr(de_output_tidy_sender, plot = FALSE)
+    z_distr_plots_emp_pval_sender = get_FDR_empirical_plots_all(de_output_tidy_sender)
+    
     hist_pvals_emp_sender = de_output_tidy_emp_sender %>% inner_join(de_output_tidy_emp_sender %>% group_by(contrast,cluster_id) %>% count(), by = c("cluster_id","contrast")) %>% 
-      mutate(cluster_id = paste0(cluster_id, "\nnr of genes: ", n)) %>% 
-      ggplot(aes(x = p_emp)) + 
-      geom_histogram() + facet_grid(contrast~cluster_id) + ggtitle("Empirical P-value histograms Sender") + theme_bw() 
+      mutate(cluster_id = paste0(cluster_id, "\nnr of genes: ", n)) %>% mutate(`p-value <= 0.05` = p_emp <= 0.05) %>% 
+      ggplot(aes(x = p_emp, fill = `p-value <= 0.05`)) + 
+      geom_histogram(binwidth = 0.05,boundary=0, color = "grey35") + scale_fill_manual(values = c("grey90", "lightsteelblue1")) + 
+      facet_grid(contrast~cluster_id) + ggtitle("Empirical P-value histograms Sender") + theme_bw() 
     
   } else {
     de_output_tidy_emp_receiver = NULL
     hist_pvals_emp_receiver = NULL
     de_output_tidy_emp_sender = NULL
     hist_pvals_emp_sender = NULL
+    z_distr_plots_emp_pval_receiver = NULL
+    z_distr_plots_emp_pval_sender = NULL
   }
   
   
@@ -796,7 +807,9 @@ multi_nichenet_analysis_separate = function(seurat_obj_receiver,
       hist_pvals_receiver = hist_pvals_receiver,
       hist_pvals_sender = hist_pvals_sender,
       hist_pvals_emp_receiver = hist_pvals_emp_receiver,
-      hist_pvals_emp_sender = hist_pvals_emp_sender
+      hist_pvals_emp_sender = hist_pvals_emp_sender,
+      z_distr_plots_emp_pval_receiver = z_distr_plots_emp_pval_receiver,
+      z_distr_plots_emp_pval_sender = z_distr_plots_emp_pval_sender
     )
   )
 }
@@ -1248,19 +1261,24 @@ multi_nichenet_analysis_combined = function(seurat_obj,
 
   de_output_tidy = muscat::resDS(celltype_de$sce, celltype_de$de_output, bind = "row", cpm = FALSE, frq = FALSE) %>% tibble::as_tibble()
   hist_pvals = de_output_tidy %>% inner_join(de_output_tidy %>% group_by(contrast,cluster_id) %>% count(), by = c("cluster_id","contrast")) %>% 
-    mutate(cluster_id = paste0(cluster_id, "\nnr of genes: ", n)) %>% 
-    ggplot(aes(x = p_val)) + 
-    geom_histogram() + facet_grid(contrast~cluster_id) + ggtitle("P-value histograms") + theme_bw() 
+    mutate(cluster_id = paste0(cluster_id, "\nnr of genes: ", n))%>% mutate(`p-value <= 0.05` = p_val <= 0.05) %>% 
+    ggplot(aes(x = p_val, fill = `p-value <= 0.05`)) + 
+    geom_histogram(binwidth = 0.05,boundary=0, color = "grey35") + scale_fill_manual(values = c("grey90", "lightsteelblue1")) + 
+    facet_grid(contrast~cluster_id) + ggtitle("P-value histograms") + theme_bw() 
   
   if(empirical_pval == TRUE){
-    de_output_tidy_emp = add_empirical_pval_fdr(de_output_tidy, plot = TRUE)
+    de_output_tidy_emp = add_empirical_pval_fdr(de_output_tidy, plot = FALSE)
+    z_distr_plots_emp_pval = get_FDR_empirical_plots_all(de_output_tidy)
+    
     hist_pvals_emp = de_output_tidy_emp %>% inner_join(de_output_tidy_emp %>% group_by(contrast,cluster_id) %>% count(), by = c("cluster_id","contrast")) %>% 
-      mutate(cluster_id = paste0(cluster_id, "\nnr of genes: ", n)) %>% 
-      ggplot(aes(x = p_emp)) + 
-      geom_histogram() + facet_grid(contrast~cluster_id) + ggtitle("Empirical P-value histograms") + theme_bw() 
+      mutate(cluster_id = paste0(cluster_id, "\nnr of genes: ", n)) %>% mutate(`p-value <= 0.05` = p_emp <= 0.05) %>% 
+      ggplot(aes(x = p_emp, fill = `p-value <= 0.05`)) + 
+      geom_histogram(binwidth = 0.05,boundary=0, color = "grey35") + scale_fill_manual(values = c("grey90", "lightsteelblue1")) + 
+      facet_grid(contrast~cluster_id) + ggtitle("Empirical P-value histograms") + theme_bw() 
   } else {
     de_output_tidy_emp = NULL
     hist_pvals_emp = NULL
+    z_distr_plots_emp_pval = NULL
   }
 
   sender_receiver_de = suppressMessages(combine_sender_receiver_de(
@@ -1362,7 +1380,9 @@ multi_nichenet_analysis_combined = function(seurat_obj,
       abund_plot_sample = abund_plot,
       abund_plot_group = abund_plot_boxplot,
       hist_pvals = hist_pvals,
-      hist_pvals_emp = hist_pvals_emp
+      hist_pvals_emp = hist_pvals_emp,
+      z_distr_plots_emp_pval = z_distr_plots_emp_pval
     )
   )
 }
+

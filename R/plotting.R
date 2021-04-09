@@ -26,7 +26,7 @@ make_sample_lr_prod_plots = function(prioritization_tables, prioritized_tbl_oi){
   
   filtered_data = prioritization_tables$sample_prioritization_tbl %>% dplyr::filter(id %in% prioritized_tbl_oi$id) %>% dplyr::mutate(sender_receiver = paste(sender, receiver, sep = " to ")) %>%  dplyr::arrange(sender) %>% dplyr::group_by(sender) %>%  dplyr::arrange(receiver)
   
-  keep_sender_receiver_values = c(0.25, 1.25, 4)
+  keep_sender_receiver_values = c(0.25, 1.25, 1.25, 4)
   names(keep_sender_receiver_values) = levels(filtered_data$keep_sender_receiver)
   
   
@@ -91,7 +91,7 @@ make_sample_lr_prod_activity_plots = function(prioritization_tables, prioritized
 
   group_data = prioritization_tables$group_prioritization_tbl %>% dplyr::mutate(sender_receiver = paste(sender, receiver, sep = " to ")) %>% dplyr::distinct(id, sender, receiver, sender_receiver, lr_interaction, group, ligand_receptor_lfc_avg, activity, activity_scaled, fraction_ligand_group, prioritization_score, scaled_avg_exprs_ligand) %>% dplyr::filter(id %in% sample_data$id)
 
-  keep_sender_receiver_values = c(0.25, 1.25, 4)
+  keep_sender_receiver_values = c(0.25, 1.25, 1.25, 4)
   names(keep_sender_receiver_values) = levels(sample_data$keep_sender_receiver)
   
   

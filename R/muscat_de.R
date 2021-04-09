@@ -335,6 +335,9 @@ p.adjust_empirical <- function (pvalues, tvalues, plot = FALSE, celltype = NULL,
   
   # make a plot similar to the one you saw above from locfdr
   if (plot) {
+    
+    # pdf(NULL)
+    # dev.control(displaylist="enable")
     zval_empirical <- zval_empirical[!is.na(zval_empirical)]
     lo <- min(zval_empirical)
     up <- max(zval_empirical)
@@ -351,11 +354,17 @@ p.adjust_empirical <- function (pvalues, tvalues, plot = FALSE, celltype = NULL,
     xfit <- seq(min(zzz), max(zzz), length = 4000)
     yfit <- dnorm(xfit/mlests[3], mean = 0, sd = 1)
     lines(xfit, yfit, col = "darkgreen", lwd = 2)
+    plot_output <- recordPlot()
+    # plot.new() 
+    
+    invisible(dev.off())
+  } else{
+    plot_output <- NULL
   }
   
   # return FDR values; these are normal FDR, not local FDR!
   FDR <- p.adjust(pval_empirical, method = "BH")
-  newList <- list(pval = pval_empirical, FDR = FDR)
+  newList <- list(pval = pval_empirical, FDR = FDR, plot_output = plot_output)
   return(newList)
 }
 #' @title Add empirical p-values and adjusted p-values to a subset of the DE output table.
@@ -425,3 +434,50 @@ add_empirical_pval_fdr = function(de_output_tidy, plot = FALSE){
   },de_output_tidy) %>% bind_rows()
   return(de_output_tidy_new)
 }
+#' @title Get diagnostic plots of the empirical null.
+#' @description \code{get_FDR_empirical_plots}  Get diagnostic plots of the empirical null.. This is the function that works under  the hood of `get_FDR_empirical_plots_all`. Credits to Jeroen Gillis (cf satuRn package)
+#' @usage get_FDR_empirical_plots(de_output_tidy, cluster_id_oi, contrast_oi)
+#'
+#' @param de_output_tidy Data frame of DE results, containing at least the following columns: cluster_id, contrast, p_val, logFC.
+#' @param cluster_id_oi Indicate which celltype DE results should be filtered for.
+#' @param contrast_oi Indicate which contrast DE results should be filtered for.
+#' @return plot object
+#'
+#' @export
+#'
+get_FDR_empirical_plots = function(de_output_tidy, cluster_id_oi, contrast_oi){
+  de_oi = de_output_tidy %>% filter(cluster_id == cluster_id_oi & contrast == contrast_oi)
+  emp_res = p.adjust_empirical(de_oi %>% pull(p_val), de_oi %>% pull(logFC), plot = TRUE, celltype = cluster_id_oi, contrast = contrast_oi)
+  emp_res$plot_output
+}
+#' @title Get diagnostic plots of the empirical null.
+#' @description \code{get_FDR_empirical_plots_all}  Get diagnostic plots of the empirical null. Credits to Jeroen Gillis (cf satuRn package)
+#' @usage get_FDR_empirical_plots_all(de_output_tidy)
+#'
+#' @param de_output_tidy Data frame of DE results, containing at least the following columns: cluster_id, contrast, p_val, logFC.
+#' @return list of plots
+#'
+#' @importFrom magrittr set_names
+#' @export
+#'
+get_FDR_empirical_plots_all = function(de_output_tidy){
+  requireNamespace("dplyr")
+  
+  all_celltypes = de_output_tidy$cluster_id %>% unique()
+  all_contrasts = de_output_tidy$contrast %>% unique()
+  
+  all_plots = all_celltypes %>% lapply(function(cluster_id_oi, de_output_tidy){
+    all_contrasts %>% lapply(function(contrast_oi, de_output_tidy) {
+      de_output_subset = get_FDR_empirical_plots(de_output_tidy, cluster_id_oi,  contrast_oi)
+    },de_output_tidy) %>% magrittr::set_names(all_contrasts)
+  },de_output_tidy) %>% magrittr::set_names(all_celltypes)
+  return(all_plots %>% unlist(recursive = F))
+  # plots = get_FDR_empirical_plots_all(output$receiver_de)
+  # for(plot_oi in plots) {
+  #   #dev.control("enable")
+  #   replayPlot(plot_oi)
+  #   dev.control("inhibit")
+  # }
+  
+}
+

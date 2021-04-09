@@ -164,8 +164,27 @@ output = multi_nichenet_analysis(seurat_obj = seurat_obj, celltype_id = celltype
                                 fraction_cutoff = fraction_cutoff, p_val_adj = p_val_adj, empirical_pval = empirical_pval, top_n_target = top_n_target, sender_receiver_separate = FALSE, verbose = TRUE)
 
 
+
+```
+
+
+```{r, fig.width=15, fig.height=12}
+output$abund_plot_sample
+output$abund_plot_group
+```
+
+```{r, fig.width=15, fig.height=12}
 output$hist_pvals
 output$hist_pvals_emp
+```
+
+```{r, fig.width=15, fig.height=12}
+output$z_distr_plots_emp_pval$`CAF.High-Low` %>% print()
+output$z_distr_plots_emp_pval$`CAF.Low-High` %>% print()
+output$z_distr_plots_emp_pval$`Malignant.High-Low` %>% print()
+output$z_distr_plots_emp_pval$`Malignant.Low-High` %>% print()
+output$z_distr_plots_emp_pval$`myofibroblast.High-Low` %>% print()
+output$z_distr_plots_emp_pval$`myofibroblast.Low-High` %>% print()
 ```
 
 # Step 4: Visualize the results of the cell-cell communication analysis

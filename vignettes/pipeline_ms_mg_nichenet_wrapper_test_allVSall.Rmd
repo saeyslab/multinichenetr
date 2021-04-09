@@ -26,17 +26,8 @@ In this analysis we will analyze differential cell-cell communication between di
 
 ```{r}
 library(Seurat)
-library(BiocStyle)
-library(Nebulosa)
-library(cowplot)
 library(tidyverse)
-library(limma)
-library(muscat)
-library(ExperimentHub)
-library(scater)
-library(circlize)
-library(RColorBrewer)
-source("scripts/functions_muscat_de.R")
+library(multinichenetr)
 ```
 
 ```{r}
