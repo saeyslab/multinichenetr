@@ -69,6 +69,10 @@ Performing an analysis with predefined sender and receiver cell types in differe
 
 * [Multi-sample Multi-condition Cell-Cell Communication Analysis via NicheNet: HNSCC application; Separate](vignettes/basic_analysis_separate.md): `vignette("basic_analysis_separate", package="multinichenetr")`
 
+These vignette demonstrate the use of the entire analysis in one go. While this might be easier to learn how MultiNicheNet, we recommend performing the analyses step by step, and checking intermediary results as demonstrated in the following two vignettes:
+
+*[In Progress]
+*[In Progress]
 
 ## References
 

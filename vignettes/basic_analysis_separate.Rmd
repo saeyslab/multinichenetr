@@ -1,16 +1,16 @@
 ---
-title: "Multi-Sample Multi-condition Cell-Cell Communication Analysis via NicheNet: HNSCC application; All-vs-All"
+title: "Multi-Sample Multi-condition Cell-Cell Communication Analysis via NicheNet: HNSCC application; Separate"
 author: "Robin Browaeys"
 date: "2021-04-09"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{Multi-Sample Multi-condition Cell-Cell Communication Analysis via NicheNet: HNSCC application; All-vs-All}
+  %\VignetteIndexEntry{Multi-Sample Multi-condition Cell-Cell Communication Analysis via NicheNet: HNSCC application; Separate}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
 
 <!-- github markdown built using 
-rmarkdown::render("vignettes/basic_analysis.Rmd", output_format = "github_document")
+rmarkdown::render("vignettes/basic_analysis_separate.Rmd", output_format = "github_document")
 -->
 
 ```{r setup, include = FALSE}
@@ -22,9 +22,9 @@ knitr::opts_chunk$set(
 )
 ```
 
-In this vignette, you can learn how to perform an all-vs-all MultiNicheNet analysis. In this vignette, we start from one single Seurat object containing cells from both sender and receiver cell types and from different patients.
+In this vignette, you can learn how to perform an all-vs-all MultiNicheNet analysis. In this vignette, we start from two Seurat objects: one seurat object containing the sender cell types, and one seurat object with receiver cell types. (for demonstration purposes, we start from the same object, that we then split based on sender/receiver cell type)
 
-As example expression data of interacting cells, we will use data from Puram et al. to explore intercellular communication in the tumor microenvironment in head and neck squamous cell carcinoma (HNSCC) [See @puram_single-cell_2017] [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.4675430.svg)](https://doi.org/10.5281/zenodo.4675430).  More specifically, we will look at differential cell-cell communication patterns between tumors scoring high for a partial epithelial-mesenschymal transition (p-EMT) program vs low-scoring tumors.
+As example expression data of interacting cells, we will use data from Puram et al. to explore intercellular communication in the tumor microenvironment in head and neck squamous cell carcinoma (HNSCC) [See @puram_single-cell_2017]  [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.4675430.svg)](https://doi.org/10.5281/zenodo.4675430). More specifically, we will look at differential cell-cell communication patterns between tumors scoring high for a partial epithelial-mesenschymal transition (p-EMT) program vs low-scoring tumors.
 
 In this vignette, we will prepare the data and analysis parameters, and then perform the MultiNicheNet analysis. 
 
@@ -66,25 +66,62 @@ ligand_target_matrix = readRDS(url("https://zenodo.org/record/3260758/files/liga
 
 # Step 1: Prepare Seurat Objects for Sender and Receiver cells
 
-In this vignette, sender and receiver cell types are in the same Seurat object, which we will load here.
+This vignette demonstrates a multinichenet analysis with predefined sender and receiver cell types of interest.
 
 In this case study, we want to study differences in cell-cell communication patterns between pEMT-high and pEMT-low tumors. The meta data columns that indicate the pEMT status of tumors are 'pEMT' and 'pEMT_fine', cell type is indicated in the 'celltype' column, and the sample is indicated by the 'tumor' column. 
 
+Malignant cells as receiver
+
 ```{r}
-seurat_obj = readRDS(url("https://zenodo.org/record/4675430/files/seurat_obj_hnscc.rds"))
-DimPlot(seurat_obj, group.by = "celltype")
-DimPlot(seurat_obj, group.by = "tumor")
-DimPlot(seurat_obj, group.by = "pEMT")
-DimPlot(seurat_obj, group.by = "pEMT_fine")
+getwd()
+seurat_obj_receiver = readRDS(url("https://zenodo.org/record/4675430/files/seurat_obj_hnscc.rds")) %>% subset(subset = celltype == "Malignant")
+seurat_obj_receiver@meta.data$pEMT_fine = factor(seurat_obj_receiver@meta.data$pEMT_fine, levels = c("High","Medium","Low")) 
+DimPlot(seurat_obj_receiver, group.by = "celltype")
+DimPlot(seurat_obj_receiver, group.by = "tumor")
+DimPlot(seurat_obj_receiver, group.by = "pEMT")
+DimPlot(seurat_obj_receiver, group.by = "pEMT_fine")
 ```
+
+Non-Malignant cells as sender
+
+```{r}
+getwd()
+seurat_obj_sender =readRDS(url("https://zenodo.org/record/4675430/files/seurat_obj_hnscc.rds")) %>% subset(subset = celltype != "Malignant")
+seurat_obj_sender@meta.data$pEMT_fine = factor(seurat_obj_sender@meta.data$pEMT_fine, levels = c("High","Medium","Low")) 
+DimPlot(seurat_obj_sender, group.by = "celltype")
+DimPlot(seurat_obj_sender, group.by = "tumor")
+DimPlot(seurat_obj_sender, group.by = "pEMT")
+DimPlot(seurat_obj_sender, group.by = "pEMT_fine")
+```
+
+# Step 2: Prepare the cell-cell communication analysis
+
+## Define senders and receivers of interest
+
+```{r}
+senders_oi = seurat_obj_sender %>% Idents() %>% unique()
+receivers_oi = seurat_obj_receiver %>% Idents() %>% unique()
+
+seurat_obj_sender = seurat_obj_sender %>% subset(idents = senders_oi)
+seurat_obj_receiver = seurat_obj_receiver %>% subset(idents = receivers_oi)
+```
+
 
 We will now also check the number of cells per cell type condition combination, and the number of patients per condition.
 
+
 ```{r}
-table(seurat_obj@meta.data$celltype, seurat_obj@meta.data$tumor) # cell types vs samples
-table(seurat_obj@meta.data$celltype, seurat_obj@meta.data$pEMT) # cell types vs conditions
-table(seurat_obj@meta.data$tumor, seurat_obj@meta.data$pEMT) # samples vs conditions
+table(seurat_obj_receiver@meta.data$celltype, seurat_obj_receiver@meta.data$tumor) # cell types vs samples
+table(seurat_obj_receiver@meta.data$celltype, seurat_obj_receiver@meta.data$pEMT_fine) # cell types vs conditions
+table(seurat_obj_receiver@meta.data$tumor, seurat_obj_receiver@meta.data$pEMT_fine) # samples vs conditions
 ```
+
+```{r}
+table(seurat_obj_sender@meta.data$celltype, seurat_obj_sender@meta.data$tumor) # cell types vs samples
+table(seurat_obj_sender@meta.data$celltype, seurat_obj_sender@meta.data$pEMT_fine) # cell types vs conditions
+table(seurat_obj_sender@meta.data$tumor, seurat_obj_sender@meta.data$pEMT_fine) # samples vs conditions
+```
+
 
 As you can see, some Celltype-Sample combinations have 0 cells. It is possible that during DE analysis, some cell types will be removed from the analysis if there is not enough information to do a DE analysis.
 
@@ -92,26 +129,27 @@ As you can see, some Celltype-Sample combinations have 0 cells. It is possible t
 
 ## Define in which metadata columns we can find the **group**, **sample** and **cell type** IDs
 
-For the group_id, we now choose for the 'pEMT' column instead of 'pEMT_fine', which we will select in a subsequent analysis.
+For the group_id, we now choose for the 'pEMT_fine' column because we now want to compare the p-EMT-high vs the p-EMT-mid and p-EMT-low group
 
 ```{r}
 sample_id = "tumor"
-group_id = "pEMT"
-celltype_id = "celltype"
+group_id = "pEMT_fine"
+celltype_id_receiver = "celltype"
+celltype_id_sender = "celltype"
 ```
 
 ## Define the contrasts and covariates of interest for the DE analysis, and the minimal number of cells of a cell type that each sample should have to be considered for DE analysis of that cell type.
 
-Here, we want to compare the p-EMT-high vs the p-EMT-low group and find cell-cell communication events that are higher in high than low pEMT. We don't have other covariates to correct for in this dataset.
+Here, we want to compare the p-EMT-high vs the p-EMT-mid and p-EMT-low group and find cell-cell communication events that are higher in high than mid and low pEMT. We don't have other covariates to correct for in this dataset.
 
 Note the format to indicate the contrasts!
 
 ```{r}
 covariates = NA
-contrasts_oi = c("'High-Low','Low-High'")
+contrasts_oi = c("'High-(Medium+Low)/2','Medium-(High+Low)/2','Low-(Medium+High)/2'") # no spaces between the different contrasts!
 contrast_tbl = tibble(contrast = 
-                        c("High-Low","Low-High"), 
-                      group = c("High","Low"))
+                        c("High-(Medium+Low)/2", "Medium-(High+Low)/2","Low-(Medium+High)/2"),  # division by 2 necessary because 2 groups to compare against !!
+                      group = c("High","Medium","Low")) # division by 2 necessary because 2 groups to compare against !!
 min_cells = 5 # here 5 for demonstration purposes - but recommended default is 10.
 
 ```
@@ -164,15 +202,16 @@ prioritizing_weights = c("scaled_lfc_ligand" = 1,
 
 # Step 3: Perform the cell-cell communication analysis
 
-Now we will run the MultiNicheNet wrapper. In the function `multi_nichenet_analysis`, we need to specify that we use one Seurat object of which all cell types should be considered as both receiver and sender by setting `sender_receiver_separate = FALSE`. This setting will call the underlying `multi_nichenet_analysis_combined` pipeline function.
+Now we will run the MultiNicheNet wrapper. In the function `multi_nichenet_analysis`, we need to specify that we use two Seurat objects (one with senders and one with receivers) by setting `sender_receiver_separate = TRUE`. This setting will call the underlying `multi_nichenet_analysis_separate` pipeline function.
 
 To keep track of the different steps, we will here set `verbose = TRUE`
 
 ```{r}
-output = multi_nichenet_analysis(seurat_obj = seurat_obj, celltype_id = celltype_id, sample_id = sample_id, group_id = group_id, 
+output = multi_nichenet_analysis(seurat_obj_receiver = seurat_obj_receiver, seurat_obj_sender = seurat_obj_sender, 
+                                celltype_id_receiver = celltype_id_receiver, celltype_id_sender = celltype_id_sender, sample_id = sample_id, group_id = group_id, 
                                 lr_network = lr_network, ligand_target_matrix = ligand_target_matrix, contrasts_oi = contrasts_oi, contrast_tbl = contrast_tbl, covariates = covariates,
                                 prioritizing_weights = prioritizing_weights, min_cells = min_cells, logFC_threshold = logFC_threshold, p_val_threshold = p_val_threshold,  
-                                fraction_cutoff = fraction_cutoff, p_val_adj = p_val_adj, empirical_pval = empirical_pval, top_n_target = top_n_target, sender_receiver_separate = FALSE, verbose = TRUE)
+                                fraction_cutoff = fraction_cutoff, p_val_adj = p_val_adj, empirical_pval = empirical_pval, top_n_target = top_n_target, sender_receiver_separate = TRUE, verbose = TRUE)
 ```
 
 The output of the MultiNicheNet analysis contains much information. We will now go over this step-by-step
@@ -183,8 +222,12 @@ The output of the MultiNicheNet analysis contains much information. We will now 
 
 The first plot visualizes the number of cells per celltype-sample combination, and indicates which combinations are removed during the DE analysis because there are less than `min_cells` in the celltype-sample combination. 
 
+```{r, fig.width=8, fig.height=8}
+output$abund_plot_sample_receiver
+```
+
 ```{r, fig.width=15, fig.height=12}
-output$abund_plot_sample
+output$abund_plot_sample_sender
 ```
 
 As we can see: Endothelial, Myeloid, and T cells: we don't have two or more samples that have enough cells of those cell types. Therefore, those cell types were removed before the DE analysis (see verbose output of the multinichenet analysis function).
@@ -192,7 +235,11 @@ As we can see: Endothelial, Myeloid, and T cells: we don't have two or more samp
 We will now look at differential abundance between the conditions. This because the pseudobulking approach behind Muscat could potentially suffer from some biases if there would be huge differences in abundances of a cell type between different groups. Downstream results of these cell types should be considered with some caution.
 
 ```{r, fig.width=7, fig.height=7}
-output$abund_plot_group
+output$abund_plot_group_receiver
+```
+
+```{r, fig.width=7, fig.height=7}
+output$abund_plot_group_sender
 ```
 Differential abundance looks quite OK for the cell types kept for the DE analysis (i.e. CAF, Malignant and myofibroblast)
 
@@ -201,18 +248,25 @@ Differential abundance looks quite OK for the cell types kept for the DE analysi
 First check the normal p-value distributions
 
 ```{r, fig.width=11, fig.height=8}
-output$hist_pvals
+output$hist_pvals_receiver
 ```
-(Note: this p-value histograms are the same for High-Low and Low-High because we only have two groups and compare them to each other - a statical DE gene in one comparison will then also be DE in the other comparison, with just a reversed sign of the logFC)
 
-In order to trust the p-values, the p-value distributions should be uniform distributions, with a peak allowed between 0 and 0.05 if there would be a clear biological effect in the data. This clear effect (=clear DE) seems to be present here in the Malignant cell type populations, although the histogram is not very uniformly distributed for p-values between 0.05 and 0.25. This might point to issues in the DE model definition (eg we did not add all important covariates, substructure present,...)
+```{r, fig.width=11, fig.height=8}
+output$hist_pvals_sender
+```
 
-Because there might be some issues, and we anticipate this to be present in most datasets, we decided to use the empiricall null procedure. This is a procedure that will define empirical p-values based on the observed distribution of the test statistic (here: logFC) and not based on the theoretical distribution. 
+In order to trust the p-values, the p-value distributions should be uniform distributions, with a peak allowed between 0 and 0.05 if there would be a clear biological effect in the data. This clear effect (=clear DE) seems to be present here in the Malignant and CAF cell types.
+
+In this analysis (see above), we decided to use the empiricall null procedure. This is a procedure that will define empirical p-values based on the observed distribution of the test statistic (here: logFC) and not based on the theoretical distribution. This might be more suited in cases some assumptions behind the model are violated.
 
 The following plot shows those corrected, empirical p-values
 
 ```{r, fig.width=11, fig.height=8}
-output$hist_pvals_emp
+output$hist_pvals_emp_receiver
+```
+
+```{r, fig.width=11, fig.height=8}
+output$hist_pvals_emp_sender
 ```
 
 Check of the underlying observed distirbutions of the test statistics: The green fitted curve should fit well with the histogram. If not, this might point to some issues in the DE model definition.
@@ -220,22 +274,11 @@ Check of the underlying observed distirbutions of the test statistics: The green
 (if plotting does not work, it might be necessary to run these plot commands in the console)
 
 ```{r, fig.width=7, fig.height=7}
-output$z_distr_plots_emp_pval$`Malignant.High-Low` %>% print()
+output$z_distr_plots_emp_pval_receiver$`Malignant.High-(Medium+Low)/2` %>% print()
 ```
 
-```{r, fig.width=7, fig.height=7}
-output$z_distr_plots_emp_pval$`CAF.High-Low` %>% print()
-```
-
-
-```{r, fig.width=7, fig.height=7}
-output$z_distr_plots_emp_pval$`myofibroblast.High-Low` %>% print()
-```
-
-
-This looks fine, except for the Malignant cells. As discussed in the previous plots: there might be an issue here. One possible explanation might be that there is additional substructure in the data - which would make sense because the pEMT high group consists both of pEMT very-high and pEMT high samples according to the finer subdivision `pEMT_fine`. Another reason for the possible substructure: malignant cells of each tumor are very different because of genetic aberrations.
-
-By the empirical null procedure, we lost some DE genes in malignant cells, but these left over DE genes might be the most bona fide ones. 
+By the empirical null procedure, we lost some DE genes in malignant cells and CAFs, but these left over DE genes might be the most bona fide ones. 
+(but this only relevant for defining the geneset of interesti in the receiver cell type before performing ligand activities)
 
 ### Conclusion of the diagnostic plots
 
@@ -246,18 +289,29 @@ If possible it might be a good idea to include more covariates in the model, or 
 ### Average expression value and fraction of each cell type - sample combination
 
 ```{r}
-output$celltype_info$avg_df %>% head()
-output$celltype_info$frq_df %>% head()
-output$celltype_info$avg_df_group %>% head()
-output$celltype_info$frq_df_group %>% head()
-output$celltype_info$rel_abundance_df %>% head()
+output$receiver_info$avg_df %>% head()
+output$receiver_info$frq_df %>% head()
+output$receiver_info$avg_df_group %>% head()
+output$receiver_info$frq_df_group %>% head()
+output$receiver_info$rel_abundance_df %>% head()
+```
+
+```{r}
+output$sender_info$avg_df %>% head()
+output$sender_info$frq_df %>% head()
+output$sender_info$avg_df_group %>% head()
+output$sender_info$frq_df_group %>% head()
+output$sender_info$rel_abundance_df %>% head()
 ```
 
 ### DE information for each cell type - contrast combination
 
+```{r}
+output$receiver_de %>% head()
+```
 
 ```{r}
-output$celltype_de %>% head()
+output$sender_de %>% head()
 ```
 
 
@@ -325,8 +379,8 @@ n_senders = prioritized_tbl_oi$sender %>% unique() %>% length()
 n_receivers = prioritized_tbl_oi$receiver %>% unique() %>% length()
 
   
-colors_sender = c("red", "orange", "royalblue")
-colors_receiver = c("red", "orange", "royalblue")
+colors_sender = c("red", "royalblue")
+colors_receiver = c("orange")
 
 circos_list = make_circos_group_comparison(prioritized_tbl_oi, colors_sender, colors_receiver)
 
@@ -343,6 +397,9 @@ group_oi = "High"
 ```
 
 ```{r, fig.height=18, fig.width=12}
+
+output$prioritization_tables$sample_prioritization_tbl$group = factor(output$prioritization_tables$sample_prioritization_tbl$group, levels = c("High","Medium","Low"))
+
 prioritized_tbl_oi = output$prioritization_tables$group_prioritization_tbl %>% 
   distinct(id, sender, receiver, lr_interaction, group, ligand_receptor_lfc_avg, activity_scaled, fraction_expressing_ligand_receptor,  prioritization_score) %>% 
   filter(ligand_receptor_lfc_avg > 0 & fraction_expressing_ligand_receptor > 0) %>% 
@@ -405,7 +462,7 @@ prioritized_tbl_oi = output$prioritization_tables$group_prioritization_tbl %>%
 ```
 
 ```{r, fig.width=18, fig.height=10}
-combined_plot = make_ligand_activity_target_plot(group_oi, receiver_oi, prioritized_tbl_oi, output$ligand_activities_targets_DEgenes, contrast_tbl, output$grouping_tbl, output$celltype_info, plot_legend = FALSE)
+combined_plot = make_ligand_activity_target_plot(group_oi, receiver_oi, prioritized_tbl_oi, output$ligand_activities_targets_DEgenes, contrast_tbl, output$grouping_tbl, output$receiver_info, plot_legend = FALSE)
 combined_plot
 ```
 
@@ -423,25 +480,7 @@ prioritized_tbl_oi = output$prioritization_tables$group_prioritization_tbl %>%
 ```
 
 ```{r, fig.width=18, fig.height=10}
-combined_plot = make_ligand_activity_target_plot(group_oi, receiver_oi, prioritized_tbl_oi, output$ligand_activities_targets_DEgenes, contrast_tbl, output$grouping_tbl, output$celltype_info, plot_legend = FALSE)
-combined_plot
-```
-
-Of course you can look at other receivers as well:
-
-```{r}
-group_oi = "High"
-receiver_oi = "myofibroblast"
-prioritized_tbl_oi = output$prioritization_tables$group_prioritization_tbl %>% 
-  filter(fraction_ligand_group > fraction_cutoff & fraction_receptor_group > fraction_cutoff) %>% 
-  distinct(id, sender, receiver, ligand, receptor, group, prioritization_score, ligand_receptor_lfc_avg, fraction_expressing_ligand_receptor, activity_scaled) %>% 
-  filter(ligand_receptor_lfc_avg > 0 & fraction_expressing_ligand_receptor > 0) %>% 
-  filter(group == group_oi & receiver == receiver_oi) %>% 
-  group_by(group) %>% top_n(25, prioritization_score) %>% arrange(-activity_scaled)
-```
-
-```{r, fig.width=18, fig.height=10}
-combined_plot = make_ligand_activity_target_plot(group_oi, receiver_oi, prioritized_tbl_oi, output$ligand_activities_targets_DEgenes, contrast_tbl, output$grouping_tbl, output$celltype_info, plot_legend = FALSE)
+combined_plot = make_ligand_activity_target_plot(group_oi, receiver_oi, prioritized_tbl_oi, output$ligand_activities_targets_DEgenes, contrast_tbl, output$grouping_tbl, output$receiver_info, plot_legend = FALSE)
 combined_plot
 ```
 
@@ -492,17 +531,17 @@ prioritized_tbl_oi
 ```
 
 ```{r}
-ligand_oi = "DLL1"
-receptor_oi = "NOTCH3"
+ligand_oi = "IL24"
+receptor_oi = "IL20RB"
 group_oi = "High"
-sender_oi = "Malignant"
-receiver_oi = "myofibroblast"
+sender_oi = "CAF"
+receiver_oi = "Malignant"
 ```
 
 Nebulosa and Feature plot of the ligand in the sender cell type and the receptor in the receiver cell type (split per condition)
 
 ```{r, fig.width=15, fig.height=15}
-plot_list = make_ligand_receptor_nebulosa_feature_plot(seurat_obj_sender = seurat_obj, seurat_obj_receiver = seurat_obj, ligand_oi = ligand_oi, receptor_oi = receptor_oi, group_oi = group_oi, group_id = group_id, celltype_id_sender = celltype_id, celltype_id_receiver = celltype_id, senders_oi = c("Malignant","myofibroblast","CAF"), receivers_oi = c("Malignant","myofibroblast","CAF"), prioritized_tbl_oi = prioritized_tbl_oi)
+plot_list = make_ligand_receptor_nebulosa_feature_plot(seurat_obj_sender = seurat_obj_sender, seurat_obj_receiver = seurat_obj_receiver, ligand_oi = ligand_oi, receptor_oi = receptor_oi, group_oi = group_oi, group_id = group_id, celltype_id_sender = celltype_id_sender, celltype_id_receiver = celltype_id_receiver, senders_oi = c("myofibroblast","CAF"), receivers_oi = c("Malignant"), prioritized_tbl_oi = prioritized_tbl_oi)
 plot_list$nebulosa # not recommended for Smart-seq data
 plot_list$feature
 ```
@@ -510,7 +549,7 @@ Pooled single-cell and sample-specific single-cell violin plots of ligand and re
 
 
 ```{r, fig.width=13, fig.height=8}
-plot_list2 = make_ligand_receptor_violin_plot(seurat_obj_sender = seurat_obj, seurat_obj_receiver = seurat_obj, ligand_oi = ligand_oi, receptor_oi = receptor_oi, group_oi = group_oi, group_id = group_id, sender_oi = sender_oi, receiver_oi = receiver_oi, sample_id = sample_id, celltype_id_sender = celltype_id, celltype_id_receiver = celltype_id, prioritized_tbl_oi = prioritized_tbl_oi)
+plot_list2 = make_ligand_receptor_violin_plot(seurat_obj_sender = seurat_obj_sender, seurat_obj_receiver = seurat_obj_receiver, ligand_oi = ligand_oi, receptor_oi = receptor_oi, group_oi = group_oi, group_id = group_id, sender_oi = sender_oi, receiver_oi = receiver_oi, sample_id = sample_id, celltype_id_sender = celltype_id_sender, celltype_id_receiver = celltype_id_receiver, prioritized_tbl_oi = prioritized_tbl_oi)
 plot_list2$violin_group
 plot_list2$violin_sample
 ```
@@ -529,10 +568,10 @@ output$ligand_activities_targets_DEgenes$de_genes_df %>% inner_join(contrast_tbl
 RAB31: interesting gene  
 
 ```{r, fig.width=18, fig.height=8}
-target_oi = "RAB31"
+target_oi = "INHBA"
 
-make_target_violin_plot(seurat_obj_receiver = seurat_obj, target_oi = target_oi, receiver_oi = receiver_oi, group_oi = group_oi, group_id = group_id, sample_id, celltype_id_receiver = celltype_id, output$prioritization_tables$group_prioritization_tbl)
-make_target_nebulosa_feature_plot(seurat_obj_receiver = seurat_obj, target_oi = target_oi, group_oi = group_oi, group_id = group_id, celltype_id_receiver = celltype_id, receivers_oi = c("Malignant","myofibroblast","CAF"), output$prioritization_tables$group_prioritization_tbl) 
+make_target_violin_plot(seurat_obj_receiver = seurat_obj_receiver, target_oi = target_oi, receiver_oi = receiver_oi, group_oi = group_oi, group_id = group_id, sample_id, celltype_id_receiver = celltype_id_receiver, output$prioritization_tables$group_prioritization_tbl)
+make_target_nebulosa_feature_plot(seurat_obj_receiver = seurat_obj_receiver, target_oi = target_oi, group_oi = group_oi, group_id = group_id, celltype_id_receiver = celltype_id_receiver, receivers_oi = c("Malignant"), output$prioritization_tables$group_prioritization_tbl) 
 
 ```
 
@@ -544,12 +583,12 @@ Note: DE here determined based on the parameters used for the MultiNicheNet anal
 receiver_oi = "Malignant"
 group_oi = "High"
 
-targets_oi = output$ligand_activities_targets_DEgenes$de_genes_df %>% inner_join(contrast_tbl) %>% filter(group == group_oi) %>% arrange(p_val) %>% filter(receiver == receiver_oi) %>% pull(gene) %>% unique()
+targets_oi = output$ligand_activities_targets_DEgenes$de_genes_df %>% inner_join(contrast_tbl) %>% filter(group == group_oi) %>% arrange(p_val)  %>% filter(receiver == receiver_oi) %>% top_n(200, logFC) %>% pull(gene) %>% unique() 
 
 ```
 
 ```{r, fig.width=8, fig.height=30}
-p_target = make_sample_target_plots(receiver_info = output$celltype_info, targets_oi, receiver_oi, output$grouping_tbl)
+p_target = make_sample_target_plots(receiver_info = output$receiver_info, targets_oi, receiver_oi, output$grouping_tbl)
 p_target + ggtitle(paste0("DE genes in ",group_oi, " in celltype ",receiver_oi))
 ```
 

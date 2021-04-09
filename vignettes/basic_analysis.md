@@ -16,10 +16,12 @@ and from different patients.
 As example expression data of interacting cells, we will use data from
 Puram et al. to explore intercellular communication in the tumor
 microenvironment in head and neck squamous cell carcinoma (HNSCC) \[See
-@puram\_single-cell\_2017\]. More specifically, we will look at
-differential cell-cell communication patterns between tumors scoring
-high for a partial epithelial-mesenschymal transition (p-EMT) program vs
-low-scoring tumors.
+@puram\_single-cell\_2017\]
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.4675430.svg)](https://doi.org/10.5281/zenodo.4675430).
+More specifically, we will look at differential cell-cell communication
+patterns between tumors scoring high for a partial
+epithelial-mesenschymal transition (p-EMT) program vs low-scoring
+tumors.
 
 In this vignette, we will prepare the data and analysis parameters, and
 then perform the MultiNicheNet analysis.
@@ -87,7 +89,7 @@ data columns that indicate the pEMT status of tumors are ‘pEMT’ and
 sample is indicated by the ‘tumor’ column.
 
 ``` r
-seurat_obj = readRDS("C:/Users/rbrowaey/work/Research/NicheNet/current_projects/CRC_NicheNet/data/seurat_obj_hnscc.rds") 
+seurat_obj = readRDS(url("https://zenodo.org/record/4675430/files/seurat_obj_hnscc.rds"))
 DimPlot(seurat_obj, group.by = "celltype")
 ```
 
@@ -265,7 +267,7 @@ prioritizing_weights = c("scaled_lfc_ligand" = 1,
 
 Now we will run the MultiNicheNet wrapper. In the function
 `multi_nichenet_analysis`, we need to specify that we use one Seurat
-object of which all cell types should be considered as both receptor and
+object of which all cell types should be considered as both receiver and
 sender by setting `sender_receiver_separate = FALSE`. This setting will
 call the underlying `multi_nichenet_analysis_combined` pipeline
 function.
@@ -406,14 +408,14 @@ might point to some issues in the DE model definition.
 commands in the console)
 
 ``` r
+output$z_distr_plots_emp_pval$`Malignant.High-Low` %>% print()
+```
+
+``` r
 output$z_distr_plots_emp_pval$`CAF.High-Low` %>% print()
 ```
 
-![](basic_analysis_files/figure-gfm/unnamed-chunk-15-1.png)<!-- -->
-
-``` r
-output$z_distr_plots_emp_pval$`Malignant.High-Low` %>% print()
-```
+![](basic_analysis_files/figure-gfm/unnamed-chunk-16-1.png)<!-- -->
 
 ``` r
 output$z_distr_plots_emp_pval$`myofibroblast.High-Low` %>% print()
