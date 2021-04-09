@@ -17,7 +17,7 @@ List containing different types of information and output of the MultiNicheNet a
 See `multi_nichenet_analysis_separate` and `multi_nichenet_analysis_combined` for more information.
 }
 \description{
-\code{multi_nichenet_analysis}  Perform a MultiNicheNet analysis. See `multi_nichenet_analysis_separate` and `sender_receiver_separate` for more information.
+\code{multi_nichenet_analysis}  Perform a MultiNicheNet analysis. See `multi_nichenet_analysis_separate` and `multi_nichenet_analysis_combined` for more information.
 }
 \examples{
 \dontrun{

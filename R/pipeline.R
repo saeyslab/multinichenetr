@@ -1,6 +1,6 @@
 #' @title multi_nichenet_analysis
 #'
-#' @description \code{multi_nichenet_analysis}  Perform a MultiNicheNet analysis. See `multi_nichenet_analysis_separate` and `sender_receiver_separate` for more information.
+#' @description \code{multi_nichenet_analysis}  Perform a MultiNicheNet analysis. See `multi_nichenet_analysis_separate` and `multi_nichenet_analysis_combined` for more information.
 #' @usage multi_nichenet_analysis(sender_receiver_separate = TRUE, ...)
 #'
 #' @param sender_receiver_separate Indicates whether the user gives as input one separate seurat object with sender cell types and one with receiver cell types (TRUE) or whether only one seurat object with both sender and receiver cell types of interest (FALSE).

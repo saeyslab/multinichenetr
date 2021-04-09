@@ -55,11 +55,12 @@ is only based on the ligand activity score.
 Users can customize the weights of these different factors to prioritize
 some of these criteria stronger, or neglect them altogether. If wanted,
 the user can also take into account relative abundance of the sender and
-receiver cell type in the condition of interest. At the basis of
-MultiNicheNet for defining differentially expressed ligands, receptors
-and target genes, is the the differential state analysis as discussed by
-muscat, which provides a framework for cell-level mixed models or
-methods based on aggregated “pseudobulk” data
+receiver cell type in the condition of interest.
+
+At the basis of MultiNicheNet for defining differentially expressed
+ligands, receptors and target genes, is the the differential state
+analysis as discussed by muscat, which provides a framework for
+cell-level mixed models or methods based on aggregated “pseudobulk” data
 (<https://doi.org/10.1038/s41467-020-19894-4>,
 <https://bioconductor.org/packages/release/bioc/html/muscat.html>). We
 use this muscat framework to make inferences on the sample-level (as
@@ -68,7 +69,7 @@ cell-level differential expression analysis of Seurat
 (Seurat::FindMarkers), because muscat allows us to overcome some of the
 limitations of cell-level analyses for differential state analyses. Some
 of these limitations include: a bias towards samples with more cells of
-cell type, a lack of flexibility to work with complex study designs and
+cell type, a lack of flexibility to work with complex study designs, and
 a too optimistic estimation of the statistical power since the analysis
 is done at the cell-level and not at the sample level.
 
@@ -103,8 +104,8 @@ with:
     devtools::install_github("saeyslab/nichenetr")
     devtools::install_github("browaeysrobin/multinichenetr")
 
-multinichenetr was tested on both Windows and Linux (most recently
-tested R version: R 4.0.3)
+multinichenetr is tested via Github Actions version control on Windows,
+Linux (Ubuntu) and Mac (most recently tested R version: R 4.0.4).
 
 ## Learning to use multinichenetr
 
