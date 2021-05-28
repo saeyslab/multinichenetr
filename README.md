@@ -128,6 +128,13 @@ different Seurat objects:
     Separate](vignettes/basic_analysis_separate.md):
     `vignette("basic_analysis_separate", package="multinichenetr")`
 
+These vignette demonstrate the use of the entire analysis in one go.
+While this might be easier to learn how MultiNicheNet, we recommend
+performing the analyses step by step, and checking intermediary results
+as demonstrated in the following two vignettes:
+
+*\[In Progress\] *\[In Progress\]
+
 ## References
 
 Browaeys, R., Saelens, W. & Saeys, Y. NicheNet: modeling intercellular

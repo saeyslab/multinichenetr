@@ -782,10 +782,8 @@ make_circos_group_comparison = function(prioritized_tbl_oi, colors_sender, color
   
   # Link each cell type to a color
   grid_col_ligand = colors_sender
-  names(grid_col_ligand) = prioritized_tbl_oi$sender %>% unique() %>% sort()
 
   grid_col_receptor = colors_receiver
-  names(grid_col_receptor) = prioritized_tbl_oi$receiver %>% unique() %>% sort()
 
   grid_col_tbl_ligand = tibble::tibble(sender = grid_col_ligand %>% names(), color_ligand_type = grid_col_ligand)
   grid_col_tbl_receptor = tibble::tibble(receiver = grid_col_receptor %>% names(), color_receptor_type = grid_col_receptor)
@@ -831,7 +829,7 @@ make_circos_group_comparison = function(prioritized_tbl_oi, colors_sender, color
 
     # print(intersecting_ligands_receptors)
 
-    if(length(intersecting_ligands_receptors) > 0){
+    while(length(intersecting_ligands_receptors) > 0){
       df_unique = df %>% dplyr::filter(!receptor %in% intersecting_ligands_receptors)
       df_duplicated = df %>% dplyr::filter(receptor %in% intersecting_ligands_receptors)
       df_duplicated = df_duplicated %>% dplyr::mutate(receptor = paste(receptor, " ", sep = ""))
@@ -862,78 +860,6 @@ make_circos_group_comparison = function(prioritized_tbl_oi, colors_sender, color
     }) %>% unlist()
 
     order = c(ligand_order,receptor_order)
-    # print(length(order))
-    # print(length(ligand_order))
-    # print(length(receptor_order))
-    # print(length(ligand_order  %>% unique()))
-    # print(length(receptor_order %>% unique()))
-
-
-    ###### second de-duplication - sometimes necessary
-    df = circos_links
-
-    ligand.uni = unique(df$ligand)
-    for (i in 1:length(ligand.uni)) {
-      df.i = df[df$ligand == ligand.uni[i], ]
-      sender.uni = unique(df.i$sender)
-      for (j in 1:length(sender.uni)) {
-        df.i.j = df.i[df.i$sender == sender.uni[j], ]
-        df.i.j$ligand = paste0(df.i.j$ligand, paste(rep(' ',j-1),collapse = ''))
-        df$ligand[df$id %in% df.i.j$id] = df.i.j$ligand
-      }
-    }
-    receptor.uni = unique(df$receptor)
-    for (i in 1:length(receptor.uni)) {
-      df.i = df[df$receptor == receptor.uni[i], ]
-      receiver.uni = unique(df.i$receiver)
-      for (j in 1:length(receiver.uni)) {
-        df.i.j = df.i[df.i$receiver == receiver.uni[j], ]
-        df.i.j$receptor = paste0(df.i.j$receptor, paste(rep(' ',j-1),collapse = ''))
-        df$receptor[df$id %in% df.i.j$id] = df.i.j$receptor
-      }
-    }
-
-    intersecting_ligands_receptors = generics::intersect(unique(df$ligand),unique(df$receptor))
-
-    # print(intersecting_ligands_receptors)
-
-    if(length(intersecting_ligands_receptors) > 0){
-      df_unique = df %>% dplyr::filter(!receptor %in% intersecting_ligands_receptors)
-      df_duplicated = df %>% dplyr::filter(receptor %in% intersecting_ligands_receptors)
-      df_duplicated = df_duplicated %>% dplyr::mutate(receptor = paste(receptor, " ", sep = ""))
-      df = dplyr::bind_rows(df_unique, df_duplicated)
-    }
-
-    circos_links = df
-
-    # Link ligands/Receptors to the colors of senders/receivers
-    circos_links = circos_links %>% dplyr::inner_join(grid_col_tbl_ligand) %>% dplyr::inner_join(grid_col_tbl_receptor)
-    links_circle = circos_links %>% dplyr::distinct(ligand,receptor, weight)
-    ligand_color = circos_links %>% dplyr::distinct(ligand,color_ligand_type)
-    grid_ligand_color = ligand_color$color_ligand_type %>% magrittr::set_names(ligand_color$ligand)
-    receptor_color = circos_links %>% dplyr::distinct(receptor,color_receptor_type)
-    grid_receptor_color = receptor_color$color_receptor_type %>% magrittr::set_names(receptor_color$receptor)
-    grid_col =c(grid_ligand_color,grid_receptor_color)
-
-    # give the option that links in the circos plot will be transparant ~ ligand-receptor potential score
-    transparency = circos_links %>% dplyr::mutate(weight =(weight-min(weight))/(max(weight)-min(weight))) %>% dplyr::mutate(transparency = 1-weight) %>% .$transparency
-
-    # Define order of the ligands and receptors and the gaps
-    ligand_order = prioritized_tbl_oi$sender %>% unique() %>% sort() %>% lapply(function(sender_oi){
-      ligands = circos_links %>% dplyr::filter(sender == sender_oi) %>%  dplyr::arrange(ligand) %>% dplyr::distinct(ligand)
-    }) %>% unlist()
-
-    receptor_order = prioritized_tbl_oi$receiver %>% unique() %>% sort() %>% lapply(function(receiver_oi){
-      receptors = circos_links %>% dplyr::filter(receiver == receiver_oi) %>%  dplyr::arrange(receptor) %>% dplyr::distinct(receptor)
-    }) %>% unlist()
-
-    order = c(ligand_order,receptor_order)
-
-    # print(length(order))
-    # print(length(ligand_order))
-    # print(length(receptor_order))
-    # print(length(ligand_order  %>% unique()))
-    # print(length(receptor_order %>% unique()))
 
     width_same_cell_same_ligand_type = 0.275
     width_different_cell = 3
@@ -969,16 +895,17 @@ make_circos_group_comparison = function(prioritized_tbl_oi, colors_sender, color
     chordDiagram(links_circle,
                  directional = 1,
                  order=order,
-                 link.sort = FALSE,
+                 link.sort = TRUE,
                  link.decreasing = TRUE,
                  grid.col = grid_col,
                  transparency = transparency,
-                 diffHeight = 0.005,
+                 diffHeight = 0.0075,
                  direction.type = c("diffHeight", "arrows"),
                  link.arr.type = "big.arrow",
                  link.visible = links_circle$weight > 0.01,
                  annotationTrack = "grid",
-                 preAllocateTracks = list(track.height = 0.075),
+                 preAllocateTracks = list(track.height = 0.15),
+                 grid.border = "gray35", link.arr.length = 0.05, link.arr.type = "big.arrow",  link.lwd = 1.25, link.lty = 1, link.border="gray35",
                  reduce = 0,
                  scale = TRUE)
     circos.track(track.index = 1, panel.fun = function(x, y) {
