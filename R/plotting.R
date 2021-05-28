@@ -834,6 +834,7 @@ make_circos_group_comparison = function(prioritized_tbl_oi, colors_sender, color
       df_duplicated = df %>% dplyr::filter(receptor %in% intersecting_ligands_receptors)
       df_duplicated = df_duplicated %>% dplyr::mutate(receptor = paste(receptor, " ", sep = ""))
       df = dplyr::bind_rows(df_unique, df_duplicated)
+      intersecting_ligands_receptors = generics::intersect(unique(df$ligand),unique(df$receptor))
     }
 
     circos_links = df
@@ -901,16 +902,15 @@ make_circos_group_comparison = function(prioritized_tbl_oi, colors_sender, color
                  transparency = transparency,
                  diffHeight = 0.0075,
                  direction.type = c("diffHeight", "arrows"),
-                 link.arr.type = "big.arrow",
                  link.visible = links_circle$weight > 0.01,
                  annotationTrack = "grid",
-                 preAllocateTracks = list(track.height = 0.15),
+                 preAllocateTracks = list(track.height = 0.175),
                  grid.border = "gray35", link.arr.length = 0.05, link.arr.type = "big.arrow",  link.lwd = 1.25, link.lty = 1, link.border="gray35",
                  reduce = 0,
                  scale = TRUE)
     circos.track(track.index = 1, panel.fun = function(x, y) {
       circos.text(CELL_META$xcenter, CELL_META$ylim[1], CELL_META$sector.index,
-                  facing = "clockwise", niceFacing = TRUE, adj = c(0, 0.5), cex = 1.15)
+                  facing = "clockwise", niceFacing = TRUE, adj = c(0, 0.5), cex = 1)
     }, bg.border = NA) #
 
     title(title)
