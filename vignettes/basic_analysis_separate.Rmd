@@ -72,6 +72,7 @@ In this case study, we want to study differences in cell-cell communication patt
 
 Malignant cells as receiver
 
+__User adaptation required__
 ```{r}
 getwd()
 seurat_obj_receiver = readRDS(url("https://zenodo.org/record/4675430/files/seurat_obj_hnscc.rds")) %>% subset(subset = celltype == "Malignant")
@@ -84,6 +85,7 @@ DimPlot(seurat_obj_receiver, group.by = "pEMT_fine")
 
 Non-Malignant cells as sender
 
+__User adaptation required__
 ```{r}
 getwd()
 seurat_obj_sender =readRDS(url("https://zenodo.org/record/4675430/files/seurat_obj_hnscc.rds")) %>% subset(subset = celltype != "Malignant")
@@ -109,13 +111,13 @@ seurat_obj_receiver = seurat_obj_receiver %>% subset(idents = receivers_oi)
 
 We will now also check the number of cells per cell type condition combination, and the number of patients per condition.
 
-
+__User adaptation required__
 ```{r}
 table(seurat_obj_receiver@meta.data$celltype, seurat_obj_receiver@meta.data$tumor) # cell types vs samples
 table(seurat_obj_receiver@meta.data$celltype, seurat_obj_receiver@meta.data$pEMT_fine) # cell types vs conditions
 table(seurat_obj_receiver@meta.data$tumor, seurat_obj_receiver@meta.data$pEMT_fine) # samples vs conditions
 ```
-
+__User adaptation required__
 ```{r}
 table(seurat_obj_sender@meta.data$celltype, seurat_obj_sender@meta.data$tumor) # cell types vs samples
 table(seurat_obj_sender@meta.data$celltype, seurat_obj_sender@meta.data$pEMT_fine) # cell types vs conditions
@@ -131,6 +133,7 @@ As you can see, some Celltype-Sample combinations have 0 cells. It is possible t
 
 For the group_id, we now choose for the 'pEMT_fine' column because we now want to compare the p-EMT-high vs the p-EMT-mid and p-EMT-low group
 
+__User adaptation required__
 ```{r}
 sample_id = "tumor"
 group_id = "pEMT_fine"
@@ -144,6 +147,7 @@ Here, we want to compare the p-EMT-high vs the p-EMT-mid and p-EMT-low group and
 
 Note the format to indicate the contrasts!
 
+__User adaptation required__
 ```{r}
 covariates = NA
 contrasts_oi = c("'High-(Medium+Low)/2','Medium-(High+Low)/2','Low-(Medium+High)/2'") # no spaces between the different contrasts!
@@ -158,12 +162,13 @@ min_cells = 5 # here 5 for demonstration purposes - but recommended default is 1
 
 Here, we need to define the thresholds that will be used to consider genes as differentially expressed or not (logFC, p-value, decision whether to use adjusted or normal p-value, minimum fraction of cells that should express a gene in at least one sample in a group, whether to use the normal p-values or empirical null p-values). 
 
-NicheNet ligand activity will then be calculated as the enrichment of predicted target genes of ligands in this set of DE genes compared to the genomic background. Here we choose for a minimum logFC of 1, maximum p-value of 0.05 (normal, not adjusted one, because of lack of statistical power due to pseudobulking and the fact that this dataset has only a few samples per group), and minimum fraction of expression of 0.05. 
+NicheNet ligand activity will then be calculated as the enrichment of predicted target genes of ligands in this set of DE genes compared to the genomic background. Here we choose for a minimum logFC of 0.50, maximum p-value of 0.05 (normal, not adjusted one, because of lack of statistical power due to pseudobulking and the fact that this dataset has only a few samples per group), and minimum fraction of expression of 0.05. 
 For the NicheNet ligand-target inference, we also need to select which top n of the predicted target genes will be considered (here: top 250 targets per ligand).
 We will also use the empirical p-values ([ADD REFERENCE]). This has mainly advantages when there would be some violations to the assumptions that should be fulfilled for having accurate theoretical p-values. In case all assumptions are fulfilled, using empirical p-values would not harm either.
 
+__User adaptation recommended__
 ```{r}
-logFC_threshold = 1
+logFC_threshold = 0.50
 p_val_threshold = 0.05
 fraction_cutoff = 0.05
 p_val_adj = FALSE 
@@ -184,21 +189,35 @@ MultiNicheNet allows the user to define the weights of the following criteria to
 
 We will set our preference for this dataset as follows:
 
+__User adaptation recommended__
 ```{r}
-prioritizing_weights = c("scaled_lfc_ligand" = 1,
-                         "scaled_p_val_ligand" = 1,
-                         "scaled_lfc_receptor" = 1,
-                         "scaled_p_val_receptor" = 1,
-                         "scaled_activity_scaled" = 1.5,
-                         "scaled_activity" = 0.5,
-                         "scaled_avg_exprs_ligand" = 0.75,
-                         "scaled_avg_frq_ligand" = 0.75,
-                         "scaled_avg_exprs_receptor" = 0.75,
-                         "scaled_avg_frq_receptor" = 0.75,
-                         "fraction_expressing_ligand_receptor" = 1,
-                         "scaled_abundance_sender" = 0,
+prioritizing_weights_DE = c("scaled_lfc_ligand" = 1.5,
+                         "scaled_p_val_ligand" = 1.5,
+                         "scaled_lfc_receptor" = 1.5,
+                         "scaled_p_val_receptor" = 1.5)
+prioritizing_weights_activity = c("scaled_activity_scaled" = 2,
+                                  "scaled_activity" = 2)
+
+prioritizing_weights_expression_specificity = c("scaled_avg_exprs_ligand" = 1,
+                         "scaled_avg_frq_ligand" = 1,
+                         "scaled_avg_exprs_receptor" = 1,
+                         "scaled_avg_frq_receptor" = 1)
+
+prioritizing_weights_expression_sufficiency = c("fraction_expressing_ligand_receptor" = 2)
+
+prioritizing_weights_relative_abundance = c( "scaled_abundance_sender" = 0,
                          "scaled_abundance_receiver" = 0)
+
 ```
+
+```{r}
+prioritizing_weights = c(prioritizing_weights_DE, 
+                         prioritizing_weights_activity, 
+                         prioritizing_weights_expression_specificity,
+                         prioritizing_weights_expression_sufficiency, 
+                         prioritizing_weights_relative_abundance)
+```
+
 
 # Step 3: Perform the cell-cell communication analysis
 
@@ -215,74 +234,6 @@ output = multi_nichenet_analysis(seurat_obj_receiver = seurat_obj_receiver, seur
 ```
 
 The output of the MultiNicheNet analysis contains much information. We will now go over this step-by-step
-
-## Quality checks of the MultiNicheNet analysis
-
-### Check the abundance of each cell type per sample and per group
-
-The first plot visualizes the number of cells per celltype-sample combination, and indicates which combinations are removed during the DE analysis because there are less than `min_cells` in the celltype-sample combination. 
-
-```{r, fig.width=8, fig.height=8}
-output$abund_plot_sample_receiver
-```
-
-```{r, fig.width=15, fig.height=12}
-output$abund_plot_sample_sender
-```
-
-As we can see: Endothelial, Myeloid, and T cells: we don't have two or more samples that have enough cells of those cell types. Therefore, those cell types were removed before the DE analysis (see verbose output of the multinichenet analysis function).
-
-We will now look at differential abundance between the conditions. This because the pseudobulking approach behind Muscat could potentially suffer from some biases if there would be huge differences in abundances of a cell type between different groups. Downstream results of these cell types should be considered with some caution.
-
-```{r, fig.width=7, fig.height=7}
-output$abund_plot_group_receiver
-```
-
-```{r, fig.width=7, fig.height=7}
-output$abund_plot_group_sender
-```
-Differential abundance looks quite OK for the cell types kept for the DE analysis (i.e. CAF, Malignant and myofibroblast)
-
-### Check whether the DE analysis was done in a statistically sound way
-
-First check the normal p-value distributions
-
-```{r, fig.width=11, fig.height=8}
-output$hist_pvals_receiver
-```
-
-```{r, fig.width=11, fig.height=8}
-output$hist_pvals_sender
-```
-
-In order to trust the p-values, the p-value distributions should be uniform distributions, with a peak allowed between 0 and 0.05 if there would be a clear biological effect in the data. This clear effect (=clear DE) seems to be present here in the Malignant and CAF cell types.
-
-In this analysis (see above), we decided to use the empiricall null procedure. This is a procedure that will define empirical p-values based on the observed distribution of the test statistic (here: logFC) and not based on the theoretical distribution. This might be more suited in cases some assumptions behind the model are violated.
-
-The following plot shows those corrected, empirical p-values
-
-```{r, fig.width=11, fig.height=8}
-output$hist_pvals_emp_receiver
-```
-
-```{r, fig.width=11, fig.height=8}
-output$hist_pvals_emp_sender
-```
-
-Check of the underlying observed distirbutions of the test statistics: The green fitted curve should fit well with the histogram. If not, this might point to some issues in the DE model definition.
-
-(if plotting does not work, it might be necessary to run these plot commands in the console)
-
-```{r, fig.width=7, fig.height=7}
-output$z_distr_plots_emp_pval_receiver$`Malignant.High-(Medium+Low)/2` %>% print()
-```
-
-By the empirical null procedure, we lost some DE genes in malignant cells and CAFs, but these left over DE genes might be the most bona fide ones. 
-(but this only relevant for defining the geneset of interesti in the receiver cell type before performing ligand activities)
-
-### Conclusion of the diagnostic plots
-
-If possible it might be a good idea to include more covariates in the model, or use the `pEMT_fine` group definition instead. 
 
 ## Check the returned tables in the output
 
@@ -379,8 +330,8 @@ n_senders = prioritized_tbl_oi$sender %>% unique() %>% length()
 n_receivers = prioritized_tbl_oi$receiver %>% unique() %>% length()
 
   
-colors_sender = c("red", "royalblue")
-colors_receiver = c("orange")
+colors_sender = c("red", "royalblue") %>% magrittr::set_names(prioritized_tbl_oi$sender %>% unique())
+colors_receiver = c("orange") %>% magrittr::set_names(prioritized_tbl_oi$receiver %>% unique())
 
 circos_list = make_circos_group_comparison(prioritized_tbl_oi, colors_sender, colors_receiver)
 
@@ -413,6 +364,8 @@ plot_oi
 Next to these LR expression products, we can also plot the NicheNet ligand activities of the ligand in the receiver.
 
 ```{r, fig.height=18, fig.width=18}
+output$prioritization_tables$group_prioritization_tbl$group = factor(output$prioritization_tables$group_prioritization_tbl$group, levels = c("High","Medium","Low"))
+
 prioritized_tbl_oi = output$prioritization_tables$group_prioritization_tbl %>% 
   distinct(id, sender, receiver, lr_interaction, group, ligand_receptor_lfc_avg, activity_scaled, fraction_expressing_ligand_receptor,  prioritization_score) %>% 
   filter(ligand_receptor_lfc_avg > 0 & fraction_expressing_ligand_receptor > 0) %>% 
@@ -568,7 +521,7 @@ output$ligand_activities_targets_DEgenes$de_genes_df %>% inner_join(contrast_tbl
 RAB31: interesting gene  
 
 ```{r, fig.width=18, fig.height=8}
-target_oi = "INHBA"
+target_oi = "NEFM"
 
 make_target_violin_plot(seurat_obj_receiver = seurat_obj_receiver, target_oi = target_oi, receiver_oi = receiver_oi, group_oi = group_oi, group_id = group_id, sample_id, celltype_id_receiver = celltype_id_receiver, output$prioritization_tables$group_prioritization_tbl)
 make_target_nebulosa_feature_plot(seurat_obj_receiver = seurat_obj_receiver, target_oi = target_oi, group_oi = group_oi, group_id = group_id, celltype_id_receiver = celltype_id_receiver, receivers_oi = c("Malignant"), output$prioritization_tables$group_prioritization_tbl) 

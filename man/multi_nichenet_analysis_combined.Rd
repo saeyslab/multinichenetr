@@ -96,11 +96,7 @@ sender_receiver_de: links the differential information of the ligand in the send
 ligand_activities_targets_DEgenes: contains the output of the NicheNet ligand activity analysis, and the NicheNet ligand-target inference
 prioritization_tables: contains the tables with the final prioritization scores
 lr_prod_mat: matrix of the ligand-receptor expression product of the expressed senderLigand-receiverReceptor pairs,
-grouping_tbl: data frame showing the group per sample 
-hist_pvals: histogram of p-values from the DE analysis on all cell types.
-hist_pvals_emp: histogram of empirical p-values from the DE analysis on all cell types.
-abund_plot_sample: barplot showing cell number per sample-celltype combination for all cell types.
-abund_plot_group: boxplot showing cell number per sample-celltype combination for all cell types across the different conditions.
+grouping_tbl: data frame showing the group per sample
 }
 \description{
 \code{multi_nichenet_analysis_combined}  Perform a MultiNicheNet analysis in an all-vs-all setting: all cell types in the data will be considered both as sender and receiver.

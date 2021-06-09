@@ -7,9 +7,9 @@
 combine_sender_receiver_de(sender_de, receiver_de, senders_oi, receivers_oi, lr_network)
 }
 \arguments{
-\item{sender_de}{Differential expression analysis output for the sender cell types. Output of `perform_muscat_de_analysis`.}
+\item{sender_de}{Differential expression analysis output for the sender cell types. `de_output_tidy` slot of the output of `perform_muscat_de_analysis`.}
 
-\item{receiver_de}{Differential expression analysis output for the receiver cell types. Output of `perform_muscat_de_analysis`.}
+\item{receiver_de}{Differential expression analysis output for the receiver cell types. `de_output_tidy` slot of the output of `perform_muscat_de_analysis`.}
 
 \item{senders_oi}{Character vector indicating the names of the sender cell types of interest}
 
@@ -43,10 +43,9 @@ celltype_de = perform_muscat_de_analysis(
    group_id = group_id,
    covariates = covariates,
    contrasts = contrasts_oi)
-
 sender_receiver_de = combine_sender_receiver_de(
- sender_de = celltype_de,
- receiver_de = celltype_de,
+ sender_de = celltype_de$de_output_tidy,
+ receiver_de = celltype_de$de_output_tidy,
  senders_oi = senders_oi,
  receivers_oi = receivers_oi,
  lr_network = lr_network)

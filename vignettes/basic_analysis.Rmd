@@ -70,6 +70,7 @@ In this vignette, sender and receiver cell types are in the same Seurat object, 
 
 In this case study, we want to study differences in cell-cell communication patterns between pEMT-high and pEMT-low tumors. The meta data columns that indicate the pEMT status of tumors are 'pEMT' and 'pEMT_fine', cell type is indicated in the 'celltype' column, and the sample is indicated by the 'tumor' column. 
 
+__User adaptation required__
 ```{r}
 seurat_obj = readRDS(url("https://zenodo.org/record/4675430/files/seurat_obj_hnscc.rds"))
 DimPlot(seurat_obj, group.by = "celltype")
@@ -80,6 +81,7 @@ DimPlot(seurat_obj, group.by = "pEMT_fine")
 
 We will now also check the number of cells per cell type condition combination, and the number of patients per condition.
 
+__User adaptation required__
 ```{r}
 table(seurat_obj@meta.data$celltype, seurat_obj@meta.data$tumor) # cell types vs samples
 table(seurat_obj@meta.data$celltype, seurat_obj@meta.data$pEMT) # cell types vs conditions
@@ -94,6 +96,7 @@ As you can see, some Celltype-Sample combinations have 0 cells. It is possible t
 
 For the group_id, we now choose for the 'pEMT' column instead of 'pEMT_fine', which we will select in a subsequent analysis.
 
+__User adaptation required__
 ```{r}
 sample_id = "tumor"
 group_id = "pEMT"
@@ -106,6 +109,7 @@ Here, we want to compare the p-EMT-high vs the p-EMT-low group and find cell-cel
 
 Note the format to indicate the contrasts!
 
+__User adaptation required__
 ```{r}
 covariates = NA
 contrasts_oi = c("'High-Low','Low-High'")
@@ -124,8 +128,9 @@ NicheNet ligand activity will then be calculated as the enrichment of predicted 
 For the NicheNet ligand-target inference, we also need to select which top n of the predicted target genes will be considered (here: top 250 targets per ligand).
 We will also use the empirical p-values ([ADD REFERENCE]). This has mainly advantages when there would be some violations to the assumptions that should be fulfilled for having accurate theoretical p-values. In case all assumptions are fulfilled, using empirical p-values would not harm either.
 
+__User adaptation recommended__
 ```{r}
-logFC_threshold = 1
+logFC_threshold = 0.50
 p_val_threshold = 0.05
 fraction_cutoff = 0.05
 p_val_adj = FALSE 
@@ -146,21 +151,35 @@ MultiNicheNet allows the user to define the weights of the following criteria to
 
 We will set our preference for this dataset as follows:
 
+__User adaptation recommended__
 ```{r}
-prioritizing_weights = c("scaled_lfc_ligand" = 1,
-                         "scaled_p_val_ligand" = 1,
-                         "scaled_lfc_receptor" = 1,
-                         "scaled_p_val_receptor" = 1,
-                         "scaled_activity_scaled" = 1.5,
-                         "scaled_activity" = 0.5,
-                         "scaled_avg_exprs_ligand" = 0.75,
-                         "scaled_avg_frq_ligand" = 0.75,
-                         "scaled_avg_exprs_receptor" = 0.75,
-                         "scaled_avg_frq_receptor" = 0.75,
-                         "fraction_expressing_ligand_receptor" = 1,
-                         "scaled_abundance_sender" = 0,
+prioritizing_weights_DE = c("scaled_lfc_ligand" = 1.5,
+                         "scaled_p_val_ligand" = 1.5,
+                         "scaled_lfc_receptor" = 1.5,
+                         "scaled_p_val_receptor" = 1.5)
+prioritizing_weights_activity = c("scaled_activity_scaled" = 2,
+                                  "scaled_activity" = 2)
+
+prioritizing_weights_expression_specificity = c("scaled_avg_exprs_ligand" = 1,
+                         "scaled_avg_frq_ligand" = 1,
+                         "scaled_avg_exprs_receptor" = 1,
+                         "scaled_avg_frq_receptor" = 1)
+
+prioritizing_weights_expression_sufficiency = c("fraction_expressing_ligand_receptor" = 2)
+
+prioritizing_weights_relative_abundance = c( "scaled_abundance_sender" = 0,
                          "scaled_abundance_receiver" = 0)
+
 ```
+
+```{r}
+prioritizing_weights = c(prioritizing_weights_DE, 
+                         prioritizing_weights_activity, 
+                         prioritizing_weights_expression_specificity,
+                         prioritizing_weights_expression_sufficiency, 
+                         prioritizing_weights_relative_abundance)
+```
+
 
 # Step 3: Perform the cell-cell communication analysis
 
@@ -177,70 +196,6 @@ output = multi_nichenet_analysis(seurat_obj = seurat_obj, celltype_id = celltype
 
 The output of the MultiNicheNet analysis contains much information. We will now go over this step-by-step
 
-## Quality checks of the MultiNicheNet analysis
-
-### Check the abundance of each cell type per sample and per group
-
-The first plot visualizes the number of cells per celltype-sample combination, and indicates which combinations are removed during the DE analysis because there are less than `min_cells` in the celltype-sample combination. 
-
-```{r, fig.width=15, fig.height=12}
-output$abund_plot_sample
-```
-
-As we can see: Endothelial, Myeloid, and T cells: we don't have two or more samples that have enough cells of those cell types. Therefore, those cell types were removed before the DE analysis (see verbose output of the multinichenet analysis function).
-
-We will now look at differential abundance between the conditions. This because the pseudobulking approach behind Muscat could potentially suffer from some biases if there would be huge differences in abundances of a cell type between different groups. Downstream results of these cell types should be considered with some caution.
-
-```{r, fig.width=7, fig.height=7}
-output$abund_plot_group
-```
-Differential abundance looks quite OK for the cell types kept for the DE analysis (i.e. CAF, Malignant and myofibroblast)
-
-### Check whether the DE analysis was done in a statistically sound way
-
-First check the normal p-value distributions
-
-```{r, fig.width=11, fig.height=8}
-output$hist_pvals
-```
-(Note: this p-value histograms are the same for High-Low and Low-High because we only have two groups and compare them to each other - a statical DE gene in one comparison will then also be DE in the other comparison, with just a reversed sign of the logFC)
-
-In order to trust the p-values, the p-value distributions should be uniform distributions, with a peak allowed between 0 and 0.05 if there would be a clear biological effect in the data. This clear effect (=clear DE) seems to be present here in the Malignant cell type populations, although the histogram is not very uniformly distributed for p-values between 0.05 and 0.25. This might point to issues in the DE model definition (eg we did not add all important covariates, substructure present,...)
-
-Because there might be some issues, and we anticipate this to be present in most datasets, we decided to use the empiricall null procedure. This is a procedure that will define empirical p-values based on the observed distribution of the test statistic (here: logFC) and not based on the theoretical distribution. 
-
-The following plot shows those corrected, empirical p-values
-
-```{r, fig.width=11, fig.height=8}
-output$hist_pvals_emp
-```
-
-Check of the underlying observed distirbutions of the test statistics: The green fitted curve should fit well with the histogram. If not, this might point to some issues in the DE model definition.
-
-(if plotting does not work, it might be necessary to run these plot commands in the console)
-
-```{r, fig.width=7, fig.height=7}
-output$z_distr_plots_emp_pval$`Malignant.High-Low` %>% print()
-```
-
-```{r, fig.width=7, fig.height=7}
-output$z_distr_plots_emp_pval$`CAF.High-Low` %>% print()
-```
-
-
-```{r, fig.width=7, fig.height=7}
-output$z_distr_plots_emp_pval$`myofibroblast.High-Low` %>% print()
-```
-
-
-This looks fine, except for the Malignant cells. As discussed in the previous plots: there might be an issue here. One possible explanation might be that there is additional substructure in the data - which would make sense because the pEMT high group consists both of pEMT very-high and pEMT high samples according to the finer subdivision `pEMT_fine`. Another reason for the possible substructure: malignant cells of each tumor are very different because of genetic aberrations.
-
-By the empirical null procedure, we lost some DE genes in malignant cells, but these left over DE genes might be the most bona fide ones. 
-
-### Conclusion of the diagnostic plots
-
-If possible it might be a good idea to include more covariates in the model, or use the `pEMT_fine` group definition instead. 
-
 ## Check the returned tables in the output
 
 ### Average expression value and fraction of each cell type - sample combination
@@ -254,7 +209,6 @@ output$celltype_info$rel_abundance_df %>% head()
 ```
 
 ### DE information for each cell type - contrast combination
-
 
 ```{r}
 output$celltype_de %>% head()
@@ -305,13 +259,11 @@ We will look here at the top100 predictions across all contrasts (high vs low; a
 
 ## Circos plot of top-prioritized links
 
-(remark: there are still some bugs in the automatic circos plot function)
-
 ```{r, fig.width=15, fig.height=12}
 prioritized_tbl_oi = output$prioritization_tables$group_prioritization_tbl %>% 
   filter(fraction_ligand_group > fraction_cutoff & fraction_receptor_group > fraction_cutoff) %>% 
   distinct(id, sender, receiver, ligand, receptor, group, prioritization_score, ligand_receptor_lfc_avg, fraction_expressing_ligand_receptor) %>% 
-  filter(ligand_receptor_lfc_avg > 0 & fraction_expressing_ligand_receptor > 0) %>% top_n(100, prioritization_score) 
+  filter(fraction_expressing_ligand_receptor > 0) %>% top_n(100, prioritization_score) 
 
 prioritized_tbl_oi %>% group_by(group) %>% count()
 
@@ -324,9 +276,8 @@ prioritized_tbl_oi$prioritization_score[is.na(prioritized_tbl_oi$prioritization_
 n_senders = prioritized_tbl_oi$sender %>% unique() %>% length()
 n_receivers = prioritized_tbl_oi$receiver %>% unique() %>% length()
 
-  
-colors_sender = c("red", "orange", "royalblue")
-colors_receiver = c("red", "orange", "royalblue")
+colors_sender = c("red", "orange", "royalblue") %>% magrittr::set_names(prioritized_tbl_oi$sender %>% unique())
+colors_receiver = c("red", "orange", "royalblue") %>% magrittr::set_names(prioritized_tbl_oi$receiver %>% unique())
 
 circos_list = make_circos_group_comparison(prioritized_tbl_oi, colors_sender, colors_receiver)
 
@@ -345,7 +296,7 @@ group_oi = "High"
 ```{r, fig.height=18, fig.width=12}
 prioritized_tbl_oi = output$prioritization_tables$group_prioritization_tbl %>% 
   distinct(id, sender, receiver, lr_interaction, group, ligand_receptor_lfc_avg, activity_scaled, fraction_expressing_ligand_receptor,  prioritization_score) %>% 
-  filter(ligand_receptor_lfc_avg > 0 & fraction_expressing_ligand_receptor > 0) %>% 
+  filter(fraction_expressing_ligand_receptor > 0) %>% 
   filter(group == group_oi) %>% group_by(group) %>% top_n(75, prioritization_score) 
 
 plot_oi = make_sample_lr_prod_plots(output$prioritization_tables, prioritized_tbl_oi)
@@ -358,7 +309,7 @@ Next to these LR expression products, we can also plot the NicheNet ligand activ
 ```{r, fig.height=18, fig.width=18}
 prioritized_tbl_oi = output$prioritization_tables$group_prioritization_tbl %>% 
   distinct(id, sender, receiver, lr_interaction, group, ligand_receptor_lfc_avg, activity_scaled, fraction_expressing_ligand_receptor,  prioritization_score) %>% 
-  filter(ligand_receptor_lfc_avg > 0 & fraction_expressing_ligand_receptor > 0) %>% 
+  filter(fraction_expressing_ligand_receptor > 0) %>% 
   filter(group == group_oi) %>% group_by(group) %>% top_n(75, prioritization_score) 
 
 plot_oi = make_sample_lr_prod_activity_plots(output$prioritization_tables, prioritized_tbl_oi, widths = c(5,1,1))
@@ -379,7 +330,7 @@ group_oi = "High"
 prioritized_tbl_oi = output$prioritization_tables$group_prioritization_tbl %>% 
   filter(fraction_ligand_group > fraction_cutoff & fraction_receptor_group > fraction_cutoff) %>% 
   distinct(id, sender, receiver, lr_interaction, group, ligand_receptor_lfc_avg, activity_scaled, fraction_ligand_group, fraction_expressing_ligand_receptor, scaled_avg_exprs_ligand, prioritization_score) %>% 
-  filter(ligand_receptor_lfc_avg > 0 & fraction_expressing_ligand_receptor > 0) %>% 
+  filter(fraction_expressing_ligand_receptor > 0) %>% 
   filter(group == group_oi & receiver == receiver_oi) %>% top_n(75, prioritization_score) 
 
 plot_oi = make_group_lfc_exprs_activity_plot(output$prioritization_tables, prioritized_tbl_oi, receiver_oi, heights = c(5,1,1))
@@ -399,7 +350,7 @@ receiver_oi = "Malignant"
 prioritized_tbl_oi = output$prioritization_tables$group_prioritization_tbl %>% 
   filter(fraction_ligand_group > fraction_cutoff & fraction_receptor_group > fraction_cutoff) %>% 
   distinct(id, sender, receiver, ligand, receptor, group, prioritization_score, ligand_receptor_lfc_avg, fraction_expressing_ligand_receptor, activity_scaled) %>% 
-  filter(ligand_receptor_lfc_avg > 0 & fraction_expressing_ligand_receptor > 0) %>% 
+  filter(fraction_expressing_ligand_receptor > 0) %>% 
   filter(group == group_oi & receiver == receiver_oi) %>% 
   group_by(group) %>% top_n(50, prioritization_score) %>% top_n(25, activity_scaled) %>% arrange(-activity_scaled)
 ```
@@ -417,7 +368,7 @@ receiver_oi = "Malignant"
 prioritized_tbl_oi = output$prioritization_tables$group_prioritization_tbl %>% 
   filter(fraction_ligand_group > fraction_cutoff & fraction_receptor_group > fraction_cutoff) %>% 
   distinct(id, sender, receiver, ligand, receptor, group, prioritization_score, ligand_receptor_lfc_avg, fraction_expressing_ligand_receptor, activity_scaled) %>% 
-  filter(ligand_receptor_lfc_avg > 0 & fraction_expressing_ligand_receptor > 0) %>% 
+  filter(fraction_expressing_ligand_receptor > 0) %>% 
   filter(group == group_oi & receiver == receiver_oi) %>% 
   group_by(group) %>% top_n(25, prioritization_score) %>% arrange(-activity_scaled)
 ```
@@ -435,7 +386,7 @@ receiver_oi = "myofibroblast"
 prioritized_tbl_oi = output$prioritization_tables$group_prioritization_tbl %>% 
   filter(fraction_ligand_group > fraction_cutoff & fraction_receptor_group > fraction_cutoff) %>% 
   distinct(id, sender, receiver, ligand, receptor, group, prioritization_score, ligand_receptor_lfc_avg, fraction_expressing_ligand_receptor, activity_scaled) %>% 
-  filter(ligand_receptor_lfc_avg > 0 & fraction_expressing_ligand_receptor > 0) %>% 
+  filter(fraction_expressing_ligand_receptor > 0) %>% 
   filter(group == group_oi & receiver == receiver_oi) %>% 
   group_by(group) %>% top_n(25, prioritization_score) %>% arrange(-activity_scaled)
 ```
@@ -503,7 +454,7 @@ Nebulosa and Feature plot of the ligand in the sender cell type and the receptor
 
 ```{r, fig.width=15, fig.height=15}
 plot_list = make_ligand_receptor_nebulosa_feature_plot(seurat_obj_sender = seurat_obj, seurat_obj_receiver = seurat_obj, ligand_oi = ligand_oi, receptor_oi = receptor_oi, group_oi = group_oi, group_id = group_id, celltype_id_sender = celltype_id, celltype_id_receiver = celltype_id, senders_oi = c("Malignant","myofibroblast","CAF"), receivers_oi = c("Malignant","myofibroblast","CAF"), prioritized_tbl_oi = prioritized_tbl_oi)
-plot_list$nebulosa # not recommended for Smart-seq data
+# plot_list$nebulosa # not recommended for Smart-seq data
 plot_list$feature
 ```
 Pooled single-cell and sample-specific single-cell violin plots of ligand and receptor expression in respectively sender and receiver.

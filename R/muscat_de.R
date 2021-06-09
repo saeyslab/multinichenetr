@@ -13,7 +13,7 @@
 #' If wanting to compare group A vs B, C and D: `contrasts_oi = c("'A-(B+C+D)/3'")`
 #' If wanting to compare group A vs B, C and D & B vs A,C,D: `contrasts_oi = c("'A-(B+C+D)/3', 'B-(A+C+D)/3'")`
 #' Note that the groups A, B, ... should be present in the meta data column 'group_id'.
-#' @return List with a SingleCellExperiment object and the output of the differential expression analysis (`muscat::pbDS()`)
+#' @return List with output of the differential expression analysis in 1) default format(`muscat::pbDS()`), and 2) in a tidy table format (`muscat::resDS()`).
 #'
 #' @import Seurat
 #' @import dplyr
@@ -238,11 +238,16 @@ perform_muscat_de_analysis = function(seurat_obj, sample_id, celltype_id, group_
     print(excluded_celltypes)
     print("These celltypes are not considered in the analysis. After removing samples that contain less cells than the required minimal, some groups don't have 2 or more samples anymore. As a result the analysis cannot be run. To solve this: decrease the number of min_cells or change your group_id and pool all samples that belong to groups that are not of interest! ")
   }
-
+  if(length(excluded_celltypes) == length(celltypes)){
+    print("None of the cell types passed the check. This might be due to 2 reasons. 1) no cell type has enough cells in >=2 samples per group. 2) problem in covariate definition: not all levels of your covariate are in each group - Also for groups not included in your contrasts!")
+  }
   # run DS analysis
   res = muscat::pbDS(pb, method = de_method_oi , design = design, contrast = contrast, min_cells = min_cells, verbose = FALSE, filter = "both")
 
-  return(list(sce = sce, de_output = res))
+  de_output_tidy = muscat::resDS(sce, res, bind = "row", cpm = FALSE, frq = FALSE) %>% tibble::as_tibble() %>% dplyr::rename(p_adj = p_adj.glb)
+  
+  
+  return(list(de_output = res, de_output_tidy = de_output_tidy))
 }
 #' @title Get empirical p-values and adjusted p-values.
 #'

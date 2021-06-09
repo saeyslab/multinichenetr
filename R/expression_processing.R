@@ -539,8 +539,8 @@ combine_sender_receiver_info_ic = function(sender_info, receiver_info, senders_o
 #'
 #' @inheritParams multi_nichenet_analysis_combined
 #' @inheritParams combine_sender_receiver_info_ic
-#' @param sender_de Differential expression analysis output for the sender cell types. Output of `perform_muscat_de_analysis`.
-#' @param receiver_de Differential expression analysis output for the receiver cell types. Output of `perform_muscat_de_analysis`.
+#' @param sender_de Differential expression analysis output for the sender cell types. `de_output_tidy` slot of the output of `perform_muscat_de_analysis`.
+#' @param receiver_de Differential expression analysis output for the receiver cell types. `de_output_tidy` slot of the output of `perform_muscat_de_analysis`.
 #'
 #' @return Data frame combining Muscat DE output for sender and receiver linked to each other through joining by the ligand-receptor network.
 #'
@@ -567,10 +567,9 @@ combine_sender_receiver_info_ic = function(sender_info, receiver_info, senders_o
 #'    group_id = group_id,
 #'    covariates = covariates,
 #'    contrasts = contrasts_oi)
-#'
 #'sender_receiver_de = combine_sender_receiver_de(
-#'  sender_de = celltype_de,
-#'  receiver_de = celltype_de,
+#'  sender_de = celltype_de$de_output_tidy,
+#'  receiver_de = celltype_de$de_output_tidy,
 #'  senders_oi = senders_oi,
 #'  receivers_oi = receivers_oi,
 #'  lr_network = lr_network)
@@ -582,11 +581,11 @@ combine_sender_receiver_de = function(sender_de, receiver_de, senders_oi, receiv
 
   requireNamespace("dplyr")
   
-  de_output_tidy_sender = muscat::resDS(sender_de$sce, sender_de$de_output, bind = "row", cpm = FALSE, frq = FALSE) %>% tibble::as_tibble()
-  de_output_tidy_receiver = muscat::resDS(receiver_de$sce, receiver_de$de_output, bind = "row", cpm = FALSE, frq = FALSE) %>% tibble::as_tibble()
-
-  de_output_tidy_sender = de_output_tidy_sender %>% dplyr::select(gene, cluster_id, logFC, p_val, p_adj.loc, contrast) %>% dplyr::filter(cluster_id %in% senders_oi) %>% dplyr::rename(ligand = gene, lfc_ligand = logFC, p_val_ligand = p_val,  p_adj_ligand = p_adj.loc, sender = cluster_id)
-  de_output_tidy_receiver =  de_output_tidy_receiver %>% dplyr::select(gene, cluster_id, logFC, p_val, p_adj.loc, contrast) %>% dplyr::filter(cluster_id %in% receivers_oi) %>% dplyr::rename(receptor = gene, lfc_receptor = logFC, p_val_receptor = p_val,  p_adj_receptor = p_adj.loc, receiver = cluster_id)
+  de_output_tidy_sender = sender_de %>% filter(cluster_id %in% senders_oi)
+  de_output_tidy_receiver = receiver_de %>% filter(cluster_id %in% receivers_oi)
+  
+  de_output_tidy_sender = de_output_tidy_sender %>% dplyr::select(gene, cluster_id, logFC, p_val, p_adj, contrast) %>% dplyr::filter(cluster_id %in% senders_oi) %>% dplyr::rename(ligand = gene, lfc_ligand = logFC, p_val_ligand = p_val,  p_adj_ligand = p_adj, sender = cluster_id)
+  de_output_tidy_receiver =  de_output_tidy_receiver %>% dplyr::select(gene, cluster_id, logFC, p_val, p_adj, contrast) %>% dplyr::filter(cluster_id %in% receivers_oi) %>% dplyr::rename(receptor = gene, lfc_receptor = logFC, p_val_receptor = p_val,  p_adj_receptor = p_adj, receiver = cluster_id)
 
   de_tbl_sender_receiver = de_output_tidy_sender %>% dplyr::inner_join(lr_network, by = "ligand") %>% dplyr::inner_join(de_output_tidy_receiver, by = c("receptor","contrast"))
   de_tbl_sender_receiver = de_tbl_sender_receiver %>% dplyr::mutate(ligand_receptor_lfc_avg = (lfc_receptor + lfc_ligand)/2) %>% dplyr::arrange(-ligand_receptor_lfc_avg) %>% dplyr::select(contrast, sender, receiver, ligand, receptor, lfc_ligand, lfc_receptor, ligand_receptor_lfc_avg, p_val_ligand, p_adj_ligand, p_val_receptor, p_adj_receptor) %>% dplyr::distinct()

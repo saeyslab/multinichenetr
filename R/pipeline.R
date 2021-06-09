@@ -518,227 +518,95 @@ multi_nichenet_analysis_separate = function(seurat_obj_receiver,
     print("Make diagnostic cell type abundance plots")
   }
   
-  ### Sender abundance plots
-  metadata_sender = seurat_obj_sender@meta.data[,c(sample_id, group_id, celltype_id_sender)]
-  colnames(metadata_sender) =c("sample_id", "group_id", "celltype_id_sender")
-  
-  # point plot
-  abundance_data_sender = metadata_sender %>% tibble::as_tibble() %>% dplyr::group_by(sample_id , celltype_id_sender) %>% dplyr::count() %>% dplyr::inner_join(metadata_sender %>% dplyr::distinct(sample_id , group_id ), by = "sample_id")
-  abundance_data_sender = abundance_data_sender %>% dplyr::mutate(keep = n >= min_cells) %>% dplyr::mutate(keep = factor(keep, levels = c(TRUE,FALSE)))
-  
-  abund_plot_sender = abundance_data_sender %>% ggplot(aes(sample_id, n, fill = keep)) + geom_bar(stat="identity") + scale_fill_manual(values = c("royalblue", "lightcoral")) + facet_grid(celltype_id_sender ~ group_id, scales = "free", space = "free_x") +
-    scale_x_discrete(position = "top") +
-    theme_light() +
-    theme(
-      axis.ticks = element_blank(),
-      axis.title.x = element_text(size = 0),
-      axis.text.y = element_text(size = 9),
-      axis.text.x = element_text(size = 9,  angle = 90,hjust = 0),
-      strip.text.x.top = element_text(angle = 0),
-      panel.spacing.x = unit(0.5, "lines"),
-      panel.spacing.y = unit(0.5, "lines"),
-      strip.text.x = element_text(size = 11, color = "black", face = "bold"),
-      strip.text.y = element_text(size = 9, color = "black", face = "bold", angle = 0),
-      strip.background = element_rect(color="darkgrey", fill="whitesmoke", size=1.5, linetype="solid")
-    ) + geom_hline(yintercept = min_cells, color = "red", linetype  = "longdash") + ggtitle("Sender cell type abundances per sample") + ylab("# cells per sample-celltype combination")
-  
-  abund_plot_boxplot_sender = abundance_data_sender %>% ggplot(aes(group_id, n, group = group_id, color = group_id)) + 
-    geom_boxplot(outlier.shape = NA) + geom_jitter(aes(alpha = keep), width = 0.15, height = 0.05) + scale_alpha_manual(values = c(1,0.30)) + facet_wrap( ~ celltype_id_sender, scales = "free") + theme_bw() + 
-    scale_color_discrete("tomato","steelblue2") + geom_hline(yintercept = min_cells, color = "red", linetype  = "longdash") + ggtitle("Sender cell type abundances per group") + ylab("# cells per sample-celltype combination") + xlab("Group")
-  
-  ### Receiver abundance plots
-  
-  metadata_receiver = seurat_obj_receiver@meta.data[,c(sample_id, group_id, celltype_id_receiver)]
-  colnames(metadata_receiver) =c("sample_id", "group_id", "celltype_id_receiver")
-  
-  abundance_data_receiver = metadata_receiver %>% tibble::as_tibble() %>% dplyr::group_by(sample_id , celltype_id_receiver) %>% dplyr::count() %>% dplyr::inner_join(metadata_receiver %>% dplyr::distinct(sample_id , group_id ), by = "sample_id")
-  abundance_data_receiver = abundance_data_receiver %>% dplyr::mutate(keep = n >= min_cells) %>% dplyr::mutate(keep = factor(keep, levels = c(TRUE,FALSE)))
-  
-  abund_plot_receiver = abundance_data_receiver %>% ggplot(aes(sample_id, n, fill = keep)) + geom_bar(stat="identity") + scale_fill_manual(values = c("royalblue", "lightcoral")) + facet_grid(celltype_id_receiver ~ group_id, scales = "free", space = "free_x") +
-    scale_x_discrete(position = "top") +
-    theme_light() +
-    theme(
-      axis.ticks = element_blank(),
-      axis.title.x = element_text(size = 0),
-      axis.text.y = element_text(size = 9),
-      axis.text.x = element_text(size = 9,  angle = 90,hjust = 0),
-      strip.text.x.top = element_text(angle = 0),
-      panel.spacing.x = unit(0.5, "lines"),
-      panel.spacing.y = unit(0.5, "lines"),
-      strip.text.x = element_text(size = 11, color = "black", face = "bold"),
-      strip.text.y = element_text(size = 9, color = "black", face = "bold", angle = 0),
-      strip.background = element_rect(color="darkgrey", fill="whitesmoke", size=1.5, linetype="solid")
-    ) + geom_hline(yintercept = min_cells, color = "red", linetype  = "longdash")  + ggtitle("Receiver cell type abundances per sample") + ylab("# cells per sample-celltype combination")
-  
-  
-  abund_plot_boxplot_receiver = abundance_data_receiver %>% ggplot(aes(group_id, n, group = group_id, color = group_id)) + 
-    geom_boxplot(outlier.shape = NA) + geom_jitter(aes(alpha = keep), width = 0.15, height = 0.05) + scale_alpha_manual(values = c(1,0.30)) + facet_wrap( ~ celltype_id_receiver, scales = "free") + theme_bw() + 
-    scale_color_discrete("tomato","steelblue2") + geom_hline(yintercept = min_cells, color = "red", linetype  = "longdash") + ggtitle("Receiver cell type abundances per group") + ylab("# cells per sample-celltype combination") + xlab("Group")
-  
-  abundance_data_receiver = abundance_data_receiver %>% process_abund_info("receiver")
-  abundance_data_sender = abundance_data_sender %>% process_abund_info("sender")
-  
-  ## 
-  if(verbose == TRUE){
-    print("Extract expression information from receiver")
-  }
-  receiver_info = suppressMessages(get_avg_frac_exprs_abund(
-    seurat_obj = seurat_obj_receiver,
-    sample_id = sample_id,
-    celltype_id =  celltype_id_receiver,
-    group_id = group_id))
-  receiver_info_ic = suppressMessages(process_info_to_ic(
-    info_object = receiver_info,
-    ic_type = "receiver",
-    lr_network = lr_network))
-
-  if(verbose == TRUE){
-    print("Extract expression information from sender")
-  }
-
-  sender_info = suppressMessages(get_avg_frac_exprs_abund(
-    seurat_obj = seurat_obj_sender,
-    sample_id = sample_id,
-    celltype_id =  celltype_id_sender,
-    group_id = group_id))
-  sender_info_ic = suppressMessages(process_info_to_ic(
-    info_object = sender_info,
-    ic_type = "sender",
-    lr_network = lr_network))
-
-  # senders_oi = Idents(seurat_obj_sender) %>% unique()
-  # receivers_oi = Idents(seurat_obj_receiver) %>% unique()
-
+  ### Define Senders-Receivers
   senders_oi = seurat_obj_sender@meta.data[,celltype_id_sender] %>% unique()
   receivers_oi = seurat_obj_receiver@meta.data[,celltype_id_receiver] %>% unique()
   
-  sender_receiver_info = suppressMessages(combine_sender_receiver_info_ic(
-    sender_info = sender_info_ic,
-    receiver_info = receiver_info_ic,
-    senders_oi = senders_oi,
-    receivers_oi = receivers_oi,
-    lr_network = lr_network))
-
+  ### Receiver abundance plots + Calculate expression information
+  if(verbose == TRUE){
+    print("Make diagnostic abundance plots + Calculate expression information")
+  }
+  
+  abundance_expression_info = get_abundance_expression_info_separate(seurat_obj_receiver = seurat_obj_receiver, seurat_obj_sender = seurat_obj_sender, sample_id = sample_id, group_id = group_id, celltype_id_receiver = celltype_id_receiver, celltype_id_sender = celltype_id_sender, senders_oi = senders_oi, receivers_oi = receivers_oi, lr_network = lr_network, min_cells = min_cells)
+  
   ### Perform the DE analysis ----------------------------------------------------------------
-
-  # best: pool samples that do not belong to contrasts of interest in advance!
-  # necessary to have the same condition indications for both sender and receiver objects
-  # so: change your condition/group metadata column!
-
-  if(verbose == TRUE){
-    print("Calculate differential expression in receiver")
-  }
-  receiver_de = perform_muscat_de_analysis(
-    seurat_obj = seurat_obj_receiver,
-    sample_id = sample_id,
-    celltype_id = celltype_id_receiver,
-    group_id = group_id,
-    covariates = covariates,
-    contrasts = contrasts_oi,
-    assay_oi_sce = assay_oi_sce,
-    assay_oi_pb = assay_oi_pb,
-    fun_oi_pb = fun_oi_pb,
-    de_method_oi = de_method_oi,
-    min_cells = min_cells)
-
-  if(verbose == TRUE){
-    print("Calculate differential expression in sender")
-  }
-  sender_de = perform_muscat_de_analysis(
-    seurat_obj = seurat_obj_sender,
-    sample_id = sample_id,
-    celltype_id = celltype_id_sender,
-    group_id = group_id,
-    covariates = covariates,
-    contrasts = contrasts_oi,
-    assay_oi_sce = assay_oi_sce,
-    assay_oi_pb = assay_oi_pb,
-    fun_oi_pb = fun_oi_pb,
-    de_method_oi = de_method_oi,
-    min_cells = min_cells)
-
-  de_output_tidy_receiver = muscat::resDS(receiver_de$sce, receiver_de$de_output, bind = "row", cpm = FALSE, frq = FALSE) %>% tibble::as_tibble()
-  hist_pvals_receiver = de_output_tidy_receiver %>% inner_join(de_output_tidy_receiver %>% group_by(contrast,cluster_id) %>% count(), by = c("cluster_id","contrast")) %>% 
-    mutate(cluster_id = paste0(cluster_id, "\nnr of genes: ", n)) %>% mutate(`p-value <= 0.05` = p_val <= 0.05) %>% 
-    ggplot(aes(x = p_val, fill = `p-value <= 0.05`)) + 
-    geom_histogram(binwidth = 0.05,boundary=0, color = "grey35") + scale_fill_manual(values = c("grey90", "lightsteelblue1")) + 
-    facet_grid(contrast~cluster_id) + ggtitle("P-value histograms Receiver") + theme_bw() 
-
-  de_output_tidy_sender = muscat::resDS(sender_de$sce, sender_de$de_output, bind = "row", cpm = FALSE, frq = FALSE) %>% tibble::as_tibble()
-  hist_pvals_sender = de_output_tidy_sender %>% inner_join(de_output_tidy_sender %>% group_by(contrast,cluster_id) %>% count(), by = c("cluster_id","contrast")) %>% 
-    mutate(cluster_id = paste0(cluster_id, "\nnr of genes: ", n)) %>% mutate(`p-value <= 0.05` = p_val <= 0.05) %>% 
-    ggplot(aes(x = p_val, fill = `p-value <= 0.05`)) + 
-    geom_histogram(binwidth = 0.05,boundary=0, color = "grey35") + scale_fill_manual(values = c("grey90", "lightsteelblue1")) + 
-    facet_grid(contrast~cluster_id) + ggtitle("P-value histograms Sender") + theme_bw() 
   
-  if(empirical_pval == TRUE){
-    de_output_tidy_emp_receiver = add_empirical_pval_fdr(de_output_tidy_receiver, plot = FALSE)
-    z_distr_plots_emp_pval_receiver = get_FDR_empirical_plots_all(de_output_tidy_receiver)
+  if(verbose == TRUE){
+    print("Calculate differential expression for all cell types")
+  }
+  
+  DE_info_receiver = get_DE_info(seurat_obj = seurat_obj_receiver, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id_receiver, covariates = covariates, contrasts_oi = contrasts_oi, min_cells = min_cells, 
+                                 assay_oi_sce = assay_oi_sce,
+                                 assay_oi_pb = assay_oi_pb,
+                                 fun_oi_pb = fun_oi_pb,
+                                 de_method_oi = de_method_oi)
+  
+  DE_info_sender = get_DE_info(seurat_obj = seurat_obj_sender, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id_sender, covariates = covariates, contrasts_oi = contrasts_oi, min_cells = min_cells, 
+                               assay_oi_sce = assay_oi_sce,
+                               assay_oi_pb = assay_oi_pb,
+                               fun_oi_pb = fun_oi_pb,
+                               de_method_oi = de_method_oi)
+  
+  
+  empirical_pval_receiver = empirical_pval
+  empirical_pval_sender = empirical_pval
     
-    hist_pvals_emp_receiver = de_output_tidy_emp_receiver %>% inner_join(de_output_tidy_emp_receiver %>% group_by(contrast,cluster_id) %>% count(), by = c("cluster_id","contrast")) %>% 
-      mutate(cluster_id = paste0(cluster_id, "\nnr of genes: ", n)) %>% mutate(`p-value <= 0.05` = p_emp <= 0.05) %>% 
-      ggplot(aes(x = p_emp, fill = `p-value <= 0.05`)) + 
-      geom_histogram(binwidth = 0.05,boundary=0, color = "grey35") + scale_fill_manual(values = c("grey90", "lightsteelblue1")) + 
-      facet_grid(contrast~cluster_id) + ggtitle("Empirical P-value histograms Receiver") + theme_bw() 
-    
-    de_output_tidy_emp_sender = add_empirical_pval_fdr(de_output_tidy_sender, plot = FALSE)
-    z_distr_plots_emp_pval_sender = get_FDR_empirical_plots_all(de_output_tidy_sender)
-    
-    hist_pvals_emp_sender = de_output_tidy_emp_sender %>% inner_join(de_output_tidy_emp_sender %>% group_by(contrast,cluster_id) %>% count(), by = c("cluster_id","contrast")) %>% 
-      mutate(cluster_id = paste0(cluster_id, "\nnr of genes: ", n)) %>% mutate(`p-value <= 0.05` = p_emp <= 0.05) %>% 
-      ggplot(aes(x = p_emp, fill = `p-value <= 0.05`)) + 
-      geom_histogram(binwidth = 0.05,boundary=0, color = "grey35") + scale_fill_manual(values = c("grey90", "lightsteelblue1")) + 
-      facet_grid(contrast~cluster_id) + ggtitle("Empirical P-value histograms Sender") + theme_bw() 
-    
+  empirical_pval_receiver = TRUE
+  if(empirical_pval_receiver == TRUE){
+    DE_info_emp_receiver = get_empirical_pvals(DE_info_receiver$celltype_de$de_output_tidy)
+  } 
+  empirical_pval_sender = TRUE
+  if(empirical_pval_sender == TRUE){
+    DE_info_emp_sender = get_empirical_pvals(DE_info_sender$celltype_de$de_output_tidy)
+  } 
+  
+  empirical_pval_receiver = TRUE
+  if(empirical_pval_receiver == FALSE){
+    celltype_de_receiver = DE_info_receiver$celltype_de$de_output_tidy
   } else {
-    de_output_tidy_emp_receiver = NULL
-    hist_pvals_emp_receiver = NULL
-    de_output_tidy_emp_sender = NULL
-    hist_pvals_emp_sender = NULL
-    z_distr_plots_emp_pval_receiver = NULL
-    z_distr_plots_emp_pval_sender = NULL
+    celltype_de_receiver = DE_info_emp_receiver$de_output_tidy_emp %>% dplyr::select(-p_val, -p_adj) %>% dplyr::rename(p_val = p_emp, p_adj = p_adj_emp)
+  }
+  empirical_pval_sender = TRUE
+  if(empirical_pval_sender == FALSE){
+    celltype_de_sender = DE_info_sender$celltype_de$de_output_tidy
+  } else {
+    celltype_de_sender = DE_info_emp_sender$de_output_tidy_emp %>% dplyr::select(-p_val, -p_adj) %>% dplyr::rename(p_val = p_emp, p_adj = p_adj_emp)
   }
   
-  
-  
-  sender_receiver_de = suppressMessages(combine_sender_receiver_de(
-    sender_de = sender_de,
-    receiver_de = receiver_de,
+  sender_receiver_de = combine_sender_receiver_de(
+    sender_de = celltype_de_sender,
+    receiver_de = celltype_de_receiver,
     senders_oi = senders_oi,
     receivers_oi = receivers_oi,
     lr_network = lr_network
-  ))
-
+  )
+  
   ### Use the DE analysis for defining the DE genes in the receiver cell type and perform NicheNet ligand activity and ligand-target inference ----------------------------------------------------------------
   if(verbose == TRUE){
-    print("Calculate NicheNet ligand activities and ligand-target links for receiver")
+    print("Calculate NicheNet ligand activities and ligand-target links")
   }
   ligand_activities_targets_DEgenes = suppressMessages(suppressWarnings(get_ligand_activities_targets_DEgenes(
-    receiver_de = receiver_de,
+    receiver_de = celltype_de_receiver,
     receivers_oi = receivers_oi,
     ligand_target_matrix = ligand_target_matrix,
     logFC_threshold = logFC_threshold,
     p_val_threshold = p_val_threshold,
     p_val_adj = p_val_adj,
-    empirical_pval = empirical_pval,
     top_n_target = top_n_target,
-    verbose = verbose,
+    verbose = verbose, 
     n.cores = n.cores
   )))
-
-  rm(receiver_info_ic)
-  rm(sender_info_ic)
-
+  
   ### Combine the three types of information calculated above to prioritize ligand-receptor interactions ----------------------------------------------------------------
   if(verbose == TRUE){
     print("Combine all the information in prioritization tables")
   }
   ### Remove types of information that we don't need anymore:
-
+  
   sender_receiver_tbl = sender_receiver_de %>% dplyr::distinct(sender, receiver)
-
-  metadata_combined = seurat_obj_receiver@meta.data %>% dplyr::bind_rows(seurat_obj_sender@meta.data) %>% tibble::as_tibble()
-
+  
+  metadata_combined = seurat_obj_receiver@meta.data %>% tibble::as_tibble()
+  
   if(!is.na(covariates)){
     grouping_tbl = metadata_combined[,c(sample_id, group_id, covariates)] %>% tibble::as_tibble() %>% dplyr::distinct()
     colnames(grouping_tbl) = c("sample","group",covariates)
@@ -746,11 +614,11 @@ multi_nichenet_analysis_separate = function(seurat_obj_receiver,
     grouping_tbl = metadata_combined[,c(sample_id, group_id)] %>% tibble::as_tibble() %>% dplyr::distinct()
     colnames(grouping_tbl) = c("sample","group")
   }
-
+  
   # print(grouping_tbl)
-
+  
   prioritization_tables = suppressMessages(generate_prioritization_tables(
-    sender_receiver_info = sender_receiver_info,
+    sender_receiver_info = abundance_expression_info$sender_receiver_info,
     sender_receiver_de = sender_receiver_de,
     ligand_activities_targets_DEgenes = ligand_activities_targets_DEgenes,
     contrast_tbl = contrast_tbl,
@@ -758,19 +626,17 @@ multi_nichenet_analysis_separate = function(seurat_obj_receiver,
     grouping_tbl = grouping_tbl,
     prioritizing_weights = prioritizing_weights,
     fraction_cutoff = fraction_cutoff, 
-    abundance_data_receiver = abundance_data_receiver,
-    abundance_data_sender = abundance_data_sender
+    abundance_data_receiver = abundance_expression_info$abundance_data_receiver,
+    abundance_data_sender = abundance_expression_info$abundance_data_sender
   ))
-
+  
   # Prepare Unsupervised analysis of samples! ------------------------------------------------------------------------------------------------------------
   
   if(return_lr_prod_matrix == TRUE){
-    if(verbose == TRUE){
-      print("Prepare the ligand-receptor expression product matrix to be used for unsupervised analyses")
-    }
+    
     ids_oi = prioritization_tables$group_prioritization_tbl %>% dplyr::filter(fraction_expressing_ligand_receptor > 0)  %>% dplyr::pull(id) %>% unique()
     
-    lr_prod_df = sender_receiver_info$avg_df %>% dplyr::inner_join(grouping_tbl, by = "sample") %>% dplyr::mutate(lr_interaction = paste(ligand, receptor, sep = "_")) %>% dplyr::mutate(id = paste(lr_interaction, sender, receiver, sep = "_")) %>% dplyr::select(sample, id, ligand_receptor_prod) %>% dplyr::filter(id %in% ids_oi) %>% dplyr::distinct() %>% tidyr::spread(id, ligand_receptor_prod)
+    lr_prod_df = abundance_expression_info$sender_receiver_info$avg_df %>% dplyr::inner_join(grouping_tbl, by = "sample") %>% dplyr::mutate(lr_interaction = paste(ligand, receptor, sep = "_")) %>% dplyr::mutate(id = paste(lr_interaction, sender, receiver, sep = "_")) %>% dplyr::select(sample, id, ligand_receptor_prod) %>% dplyr::filter(id %in% ids_oi) %>% dplyr::distinct() %>% tidyr::spread(id, ligand_receptor_prod)
     lr_prod_mat = lr_prod_df %>% dplyr::select(-sample) %>% data.frame() %>% as.matrix()
     rownames(lr_prod_mat) = lr_prod_df$sample
     
@@ -778,40 +644,25 @@ multi_nichenet_analysis_separate = function(seurat_obj_receiver,
     row_remove = lr_prod_mat %>% apply(1,function(x)sum(x != 0)) %>% .[. == 0] %>% names()
     
     lr_prod_mat = lr_prod_mat %>% .[rownames(.) %>% generics::setdiff(col_remove),colnames(.) %>% generics::setdiff(col_remove)]
-    
   } else {
     lr_prod_mat = NULL
   }
   
-  if(empirical_pval == TRUE){
-    de_output_tidy_sender = de_output_tidy_emp_sender
-    de_output_tidy_receiver = de_output_tidy_emp_receiver
-  }
+  multinichenet_output = list(
+    receiver_info = abundance_expression_info$receiver_info,
+    receiver_de = celltype_de_receiver,
+    sender_info = abundance_expression_info$sender_info,
+    sender_de = celltype_de_sender,
+    sender_receiver_info = abundance_expression_info$sender_receiver_info,
+    sender_receiver_de =  sender_receiver_de,
+    ligand_activities_targets_DEgenes = ligand_activities_targets_DEgenes,
+    prioritization_tables = prioritization_tables,
+    lr_prod_mat = lr_prod_mat,
+    grouping_tbl = grouping_tbl
+  ) 
   
-  return(
-    list(
-      sender_info = sender_info,
-      receiver_info = receiver_info,
-      sender_de = de_output_tidy_sender,
-      receiver_de = de_output_tidy_receiver,
-      sender_receiver_info = sender_receiver_info,
-      sender_receiver_de =  sender_receiver_de,
-      ligand_activities_targets_DEgenes = ligand_activities_targets_DEgenes,
-      prioritization_tables = prioritization_tables,
-      lr_prod_mat = lr_prod_mat,
-      grouping_tbl = grouping_tbl,
-      abund_plot_sample_sender = abund_plot_sender,
-      abund_plot_group_sender = abund_plot_boxplot_sender,
-      abund_plot_sample_receiver = abund_plot_receiver,
-      abund_plot_group_receiver = abund_plot_boxplot_receiver,
-      hist_pvals_receiver = hist_pvals_receiver,
-      hist_pvals_sender = hist_pvals_sender,
-      hist_pvals_emp_receiver = hist_pvals_emp_receiver,
-      hist_pvals_emp_sender = hist_pvals_emp_sender,
-      z_distr_plots_emp_pval_receiver = z_distr_plots_emp_pval_receiver,
-      z_distr_plots_emp_pval_sender = z_distr_plots_emp_pval_sender
-    )
-  )
+  return(multinichenet_output)
+  
 }
 #' @title multi_nichenet_analysis_combined
 #'
@@ -837,10 +688,7 @@ multi_nichenet_analysis_separate = function(seurat_obj_receiver,
 #' prioritization_tables: contains the tables with the final prioritization scores
 #' lr_prod_mat: matrix of the ligand-receptor expression product of the expressed senderLigand-receiverReceptor pairs,
 #' grouping_tbl: data frame showing the group per sample 
-#' hist_pvals: histogram of p-values from the DE analysis on all cell types.
-#' hist_pvals_emp: histogram of empirical p-values from the DE analysis on all cell types.
-#' abund_plot_sample: barplot showing cell number per sample-celltype combination for all cell types.
-#' abund_plot_group: boxplot showing cell number per sample-celltype combination for all cell types across the different conditions.
+#' 
 #' @import Seurat
 #' @import dplyr
 #' @import ggplot2
@@ -1166,121 +1014,39 @@ multi_nichenet_analysis_combined = function(seurat_obj,
     }
   }
   
-  if(verbose == TRUE){
-    print("Make diagnostic abundance plots")
-  }
-  
-  ### Receiver abundance plots
-  
-  metadata_abundance = seurat_obj@meta.data[,c(sample_id, group_id, celltype_id)]
-  colnames(metadata_abundance) =c("sample_id", "group_id", "celltype_id")
-  
-  abundance_data = metadata_abundance %>% tibble::as_tibble() %>% dplyr::group_by(sample_id , celltype_id) %>% dplyr::count() %>% dplyr::inner_join(metadata_abundance %>% dplyr::distinct(sample_id , group_id ), by = "sample_id")
-  abundance_data = abundance_data %>% dplyr::mutate(keep = n >= min_cells) %>% dplyr::mutate(keep = factor(keep, levels = c(TRUE,FALSE)))
-  
-  abund_plot = abundance_data %>% ggplot(aes(sample_id, n, fill = keep)) + geom_bar(stat="identity") + scale_fill_manual(values = c("royalblue", "lightcoral")) + facet_grid(celltype_id ~ group_id, scales = "free", space = "free_x") +
-    scale_x_discrete(position = "top") +
-    theme_light() +
-    theme(
-      axis.ticks = element_blank(),
-      axis.title.x = element_text(size = 0),
-      axis.text.y = element_text(size = 9),
-      axis.text.x = element_text(size = 9,  angle = 90,hjust = 0),
-      strip.text.x.top = element_text(angle = 0),
-      panel.spacing.x = unit(0.5, "lines"),
-      panel.spacing.y = unit(0.5, "lines"),
-      strip.text.x = element_text(size = 11, color = "black", face = "bold"),
-      strip.text.y = element_text(size = 9, color = "black", face = "bold", angle = 0),
-      strip.background = element_rect(color="darkgrey", fill="whitesmoke", size=1.5, linetype="solid")
-    ) + geom_hline(yintercept = min_cells, color = "red", linetype  = "longdash")  + ggtitle("Cell type abundances per sample") + ylab("# cells per sample-celltype combination")
-  
-  
-  abund_plot_boxplot = abundance_data %>% ggplot(aes(group_id, n, group = group_id, color = group_id)) + 
-    geom_boxplot(outlier.shape = NA) + geom_jitter(aes(alpha = keep), width = 0.15, height = 0.05) + scale_alpha_manual(values = c(1,0.30)) + facet_wrap( ~ celltype_id, scales = "free") + theme_bw() + 
-    scale_color_discrete("tomato","steelblue2") + geom_hline(yintercept = min_cells, color = "red", linetype  = "longdash") + ggtitle("Cell type abundances per group") + ylab("# cells per sample-celltype combination") + xlab("Group")
-  
-  abundance_data_receiver = abundance_data %>% process_abund_info("receiver")
-  abundance_data_sender = abundance_data %>% process_abund_info("sender")
-  
-  
-  if(verbose == TRUE){
-    print("Extract expression information from all cell types")
-  }
-  
-  celltype_info = suppressMessages(get_avg_frac_exprs_abund(
-    seurat_obj = seurat_obj,
-    sample_id = sample_id,
-    celltype_id =  celltype_id,
-    group_id = group_id))
-
-  receiver_info_ic = suppressMessages(process_info_to_ic(
-    info_object = celltype_info,
-    ic_type = "receiver",
-    lr_network = lr_network))
-
-  sender_info_ic = suppressMessages(process_info_to_ic(
-    info_object = celltype_info,
-    ic_type = "sender",
-    lr_network = lr_network))
-
-  # senders_oi = Idents(seurat_obj) %>% unique()
-  # receivers_oi = Idents(seurat_obj) %>% unique()
-
+  ### Define Senders-Receivers
   senders_oi = seurat_obj@meta.data[,celltype_id] %>% unique()
   receivers_oi = seurat_obj@meta.data[,celltype_id] %>% unique()
   
+  ### Receiver abundance plots + Calculate expression information
+  if(verbose == TRUE){
+    print("Make diagnostic abundance plots + Calculate expression information")
+  }
   
-  sender_receiver_info = suppressMessages(combine_sender_receiver_info_ic(
-    sender_info = sender_info_ic,
-    receiver_info = receiver_info_ic,
-    senders_oi = senders_oi,
-    receivers_oi = receivers_oi,
-    lr_network = lr_network))
-
+  abundance_expression_info = get_abundance_expression_info(seurat_obj = seurat_obj, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id, min_cells = min_cells, assay_oi_sce = assay_oi_sce, senders_oi = senders_oi, receivers_oi = receivers_oi, lr_network = lr_network)
+  
   ### Perform the DE analysis ----------------------------------------------------------------
-
-  # best: pool samples that do not belong to contrasts of interest in advance!
-  # necessary to have the same condition indications for both sender and receiver objects
-  # so: change your condition/group metadata column!
 
   if(verbose == TRUE){
     print("Calculate differential expression for all cell types")
   }
-  celltype_de = perform_muscat_de_analysis(
-    seurat_obj = seurat_obj,
-    sample_id = sample_id,
-    celltype_id = celltype_id,
-    group_id = group_id,
-    covariates = covariates,
-    contrasts = contrasts_oi,
-    assay_oi_sce = assay_oi_sce,
-    assay_oi_pb = assay_oi_pb,
-    fun_oi_pb = fun_oi_pb,
-    de_method_oi = de_method_oi,
-    min_cells = min_cells)
-
-  de_output_tidy = muscat::resDS(celltype_de$sce, celltype_de$de_output, bind = "row", cpm = FALSE, frq = FALSE) %>% tibble::as_tibble()
-  hist_pvals = de_output_tidy %>% inner_join(de_output_tidy %>% group_by(contrast,cluster_id) %>% count(), by = c("cluster_id","contrast")) %>% 
-    mutate(cluster_id = paste0(cluster_id, "\nnr of genes: ", n))%>% mutate(`p-value <= 0.05` = p_val <= 0.05) %>% 
-    ggplot(aes(x = p_val, fill = `p-value <= 0.05`)) + 
-    geom_histogram(binwidth = 0.05,boundary=0, color = "grey35") + scale_fill_manual(values = c("grey90", "lightsteelblue1")) + 
-    facet_grid(contrast~cluster_id) + ggtitle("P-value histograms") + theme_bw() 
+  
+  DE_info = get_DE_info(seurat_obj = seurat_obj, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id, covariates = covariates, contrasts_oi = contrasts_oi, min_cells = min_cells,
+                        assay_oi_sce = assay_oi_sce,
+                        assay_oi_pb = assay_oi_pb,
+                        fun_oi_pb = fun_oi_pb,
+                        de_method_oi = de_method_oi)
   
   if(empirical_pval == TRUE){
-    de_output_tidy_emp = add_empirical_pval_fdr(de_output_tidy, plot = FALSE)
-    z_distr_plots_emp_pval = get_FDR_empirical_plots_all(de_output_tidy)
-    
-    hist_pvals_emp = de_output_tidy_emp %>% inner_join(de_output_tidy_emp %>% group_by(contrast,cluster_id) %>% count(), by = c("cluster_id","contrast")) %>% 
-      mutate(cluster_id = paste0(cluster_id, "\nnr of genes: ", n)) %>% mutate(`p-value <= 0.05` = p_emp <= 0.05) %>% 
-      ggplot(aes(x = p_emp, fill = `p-value <= 0.05`)) + 
-      geom_histogram(binwidth = 0.05,boundary=0, color = "grey35") + scale_fill_manual(values = c("grey90", "lightsteelblue1")) + 
-      facet_grid(contrast~cluster_id) + ggtitle("Empirical P-value histograms") + theme_bw() 
-  } else {
-    de_output_tidy_emp = NULL
-    hist_pvals_emp = NULL
-    z_distr_plots_emp_pval = NULL
-  }
+    DE_info_emp = get_empirical_pvals(DE_info$celltype_de$de_output_tidy)
+  } 
 
+  if(empirical_pval == FALSE){
+    celltype_de = DE_info$celltype_de$de_output_tidy
+  } else {
+    celltype_de = DE_info_emp$de_output_tidy_emp %>% dplyr::select(-p_val, -p_adj) %>% dplyr::rename(p_val = p_emp, p_adj = p_adj_emp)
+  }
+  
   sender_receiver_de = suppressMessages(combine_sender_receiver_de(
     sender_de = celltype_de,
     receiver_de = celltype_de,
@@ -1300,14 +1066,10 @@ multi_nichenet_analysis_combined = function(seurat_obj,
     logFC_threshold = logFC_threshold,
     p_val_threshold = p_val_threshold,
     p_val_adj = p_val_adj,
-    empirical_pval = empirical_pval,
     top_n_target = top_n_target,
     verbose = verbose, 
     n.cores = n.cores
   )))
-
-  rm(receiver_info_ic)
-  rm(sender_info_ic)
 
   ### Combine the three types of information calculated above to prioritize ligand-receptor interactions ----------------------------------------------------------------
   if(verbose == TRUE){
@@ -1316,9 +1078,9 @@ multi_nichenet_analysis_combined = function(seurat_obj,
   ### Remove types of information that we don't need anymore:
 
   sender_receiver_tbl = sender_receiver_de %>% dplyr::distinct(sender, receiver)
-
+  
   metadata_combined = seurat_obj@meta.data %>% tibble::as_tibble()
-
+  
   if(!is.na(covariates)){
     grouping_tbl = metadata_combined[,c(sample_id, group_id, covariates)] %>% tibble::as_tibble() %>% dplyr::distinct()
     colnames(grouping_tbl) = c("sample","group",covariates)
@@ -1330,7 +1092,7 @@ multi_nichenet_analysis_combined = function(seurat_obj,
   # print(grouping_tbl)
 
   prioritization_tables = suppressMessages(generate_prioritization_tables(
-    sender_receiver_info = sender_receiver_info,
+    sender_receiver_info = abundance_expression_info$sender_receiver_info,
     sender_receiver_de = sender_receiver_de,
     ligand_activities_targets_DEgenes = ligand_activities_targets_DEgenes,
     contrast_tbl = contrast_tbl,
@@ -1338,19 +1100,17 @@ multi_nichenet_analysis_combined = function(seurat_obj,
     grouping_tbl = grouping_tbl,
     prioritizing_weights = prioritizing_weights,
     fraction_cutoff = fraction_cutoff, 
-    abundance_data_receiver = abundance_data_receiver,
-    abundance_data_sender = abundance_data_sender
+    abundance_data_receiver = abundance_expression_info$abundance_data_receiver,
+    abundance_data_sender = abundance_expression_info$abundance_data_sender
   ))
 
   # Prepare Unsupervised analysis of samples! ------------------------------------------------------------------------------------------------------------
   
   if(return_lr_prod_matrix == TRUE){
-    if(verbose == TRUE){
-      print("Prepare the ligand-receptor expression product matrix to be used for unsupervised analyses")
-    }
+    
     ids_oi = prioritization_tables$group_prioritization_tbl %>% dplyr::filter(fraction_expressing_ligand_receptor > 0)  %>% dplyr::pull(id) %>% unique()
     
-    lr_prod_df = sender_receiver_info$avg_df %>% dplyr::inner_join(grouping_tbl, by = "sample") %>% dplyr::mutate(lr_interaction = paste(ligand, receptor, sep = "_")) %>% dplyr::mutate(id = paste(lr_interaction, sender, receiver, sep = "_")) %>% dplyr::select(sample, id, ligand_receptor_prod) %>% dplyr::filter(id %in% ids_oi) %>% dplyr::distinct() %>% tidyr::spread(id, ligand_receptor_prod)
+    lr_prod_df = abundance_expression_info$sender_receiver_info$avg_df %>% dplyr::inner_join(grouping_tbl, by = "sample") %>% dplyr::mutate(lr_interaction = paste(ligand, receptor, sep = "_")) %>% dplyr::mutate(id = paste(lr_interaction, sender, receiver, sep = "_")) %>% dplyr::select(sample, id, ligand_receptor_prod) %>% dplyr::filter(id %in% ids_oi) %>% dplyr::distinct() %>% tidyr::spread(id, ligand_receptor_prod)
     lr_prod_mat = lr_prod_df %>% dplyr::select(-sample) %>% data.frame() %>% as.matrix()
     rownames(lr_prod_mat) = lr_prod_df$sample
     
@@ -1362,27 +1122,18 @@ multi_nichenet_analysis_combined = function(seurat_obj,
     lr_prod_mat = NULL
   }
 
-
-  if(empirical_pval == TRUE){
-    de_output_tidy = de_output_tidy_emp
-  }
+  multinichenet_output = list(
+    celltype_info = abundance_expression_info$celltype_info,
+    celltype_de = celltype_de,
+    sender_receiver_info = abundance_expression_info$sender_receiver_info,
+    sender_receiver_de =  sender_receiver_de,
+    ligand_activities_targets_DEgenes = ligand_activities_targets_DEgenes,
+    prioritization_tables = prioritization_tables,
+    lr_prod_mat = lr_prod_mat,
+    grouping_tbl = grouping_tbl
+  ) 
   
-  return(
-    list(
-      celltype_info = celltype_info,
-      celltype_de = de_output_tidy,
-      sender_receiver_info = sender_receiver_info,
-      sender_receiver_de =  sender_receiver_de,
-      ligand_activities_targets_DEgenes = ligand_activities_targets_DEgenes,
-      prioritization_tables = prioritization_tables,
-      lr_prod_mat = lr_prod_mat,
-      grouping_tbl = grouping_tbl,
-      abund_plot_sample = abund_plot,
-      abund_plot_group = abund_plot_boxplot,
-      hist_pvals = hist_pvals,
-      hist_pvals_emp = hist_pvals_emp,
-      z_distr_plots_emp_pval = z_distr_plots_emp_pval
-    )
-  )
+  return(multinichenet_output)
+
 }
 
