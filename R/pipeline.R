@@ -1124,9 +1124,9 @@ multi_nichenet_analysis_combined = function(seurat_obj,
 
   multinichenet_output = list(
     celltype_info = abundance_expression_info$celltype_info,
-    celltype_de = celltype_de,
-    sender_receiver_info = abundance_expression_info$sender_receiver_info,
-    sender_receiver_de =  sender_receiver_de,
+    # celltype_de = celltype_de,
+    # sender_receiver_info = abundance_expression_info$sender_receiver_info,
+    # sender_receiver_de =  sender_receiver_de,
     ligand_activities_targets_DEgenes = ligand_activities_targets_DEgenes,
     prioritization_tables = prioritization_tables,
     lr_prod_mat = lr_prod_mat,
