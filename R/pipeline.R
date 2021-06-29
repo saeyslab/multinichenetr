@@ -650,9 +650,9 @@ multi_nichenet_analysis_separate = function(seurat_obj_receiver,
   
   multinichenet_output = list(
     receiver_info = abundance_expression_info$receiver_info,
-    # receiver_de = celltype_de_receiver,
-    # sender_info = abundance_expression_info$sender_info,
-    # sender_de = celltype_de_sender,
+    receiver_de = celltype_de_receiver,
+    sender_info = abundance_expression_info$sender_info,
+    sender_de = celltype_de_sender,
     # sender_receiver_info = abundance_expression_info$sender_receiver_info,
     # sender_receiver_de =  sender_receiver_de,
     ligand_activities_targets_DEgenes = ligand_activities_targets_DEgenes,
@@ -1124,7 +1124,7 @@ multi_nichenet_analysis_combined = function(seurat_obj,
 
   multinichenet_output = list(
     celltype_info = abundance_expression_info$celltype_info,
-    # celltype_de = celltype_de,
+    celltype_de = celltype_de,
     # sender_receiver_info = abundance_expression_info$sender_receiver_info,
     # sender_receiver_de =  sender_receiver_de,
     ligand_activities_targets_DEgenes = ligand_activities_targets_DEgenes,

@@ -89,10 +89,10 @@ get_ligand_activities_targets_DEgenes = function(receiver_de, receivers_oi,  lig
         lapply(function(contrast_oi,de_output_tidy){
           
           if(p_val_adj == TRUE){
-            de_tbl_geneset = de_output_tidy %>% dplyr::filter(contrast == contrast_oi) %>% dplyr::filter(logFC > logFC_threshold & p_adj < p_val_threshold)
+            de_tbl_geneset = de_output_tidy %>% dplyr::filter(contrast == contrast_oi) %>% dplyr::filter(logFC >= logFC_threshold & p_adj <= p_val_threshold)
             geneset_oi = de_tbl_geneset %>% dplyr::pull(gene) %>% unique() %>% dplyr::intersect(rownames(ligand_target_matrix))
           } else {
-            de_tbl_geneset = de_output_tidy  %>% dplyr::filter(contrast == contrast_oi) %>% dplyr::filter(logFC > logFC_threshold & p_val < p_val_threshold)
+            de_tbl_geneset = de_output_tidy  %>% dplyr::filter(contrast == contrast_oi) %>% dplyr::filter(logFC >= logFC_threshold & p_val <= p_val_threshold)
             geneset_oi = de_tbl_geneset %>% dplyr::pull(gene) %>% unique() %>% dplyr::intersect(rownames(ligand_target_matrix))
           }
           
@@ -150,10 +150,10 @@ get_ligand_activities_targets_DEgenes = function(receiver_de, receivers_oi,  lig
         lapply(function(contrast_oi,de_output_tidy){
           
           if(p_val_adj == TRUE){
-            de_tbl_geneset = de_output_tidy %>% dplyr::filter(contrast == contrast_oi) %>% dplyr::filter(logFC > logFC_threshold & p_adj < p_val_threshold)
+            de_tbl_geneset = de_output_tidy %>% dplyr::filter(contrast == contrast_oi) %>% dplyr::filter(logFC >= logFC_threshold & p_adj <= p_val_threshold)
             geneset_oi = de_tbl_geneset %>% dplyr::pull(gene) %>% unique() %>% dplyr::intersect(rownames(ligand_target_matrix))
           } else {
-            de_tbl_geneset = de_output_tidy %>% dplyr::filter(contrast == contrast_oi) %>% dplyr::filter(logFC > logFC_threshold & p_val < p_val_threshold)
+            de_tbl_geneset = de_output_tidy %>% dplyr::filter(contrast == contrast_oi) %>% dplyr::filter(logFC >= logFC_threshold & p_val <= p_val_threshold)
             geneset_oi = de_tbl_geneset %>% dplyr::pull(gene) %>% unique() %>% dplyr::intersect(rownames(ligand_target_matrix))
           }
           

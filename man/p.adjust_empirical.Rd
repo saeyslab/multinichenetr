@@ -18,7 +18,7 @@ p.adjust_empirical(pvalues, tvalues, plot = FALSE, celltype = NULL, contrast = N
 \item{contrast}{NULL, or name of the contrast of interest - thhis will be added to the plot title if plot = TRUE}
 }
 \value{
-List with empirical p-values and adjusted p-values.
+List with empirical p-values and adjusted p-values + ggplot output and estimated delta and sigma.
 }
 \description{
 \code{p.adjust_empirical} Get emperical p-values and adjusted p-values. Credits to Jeroen Gillis (cf satuRn package)

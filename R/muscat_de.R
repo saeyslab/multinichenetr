@@ -259,11 +259,12 @@ perform_muscat_de_analysis = function(seurat_obj, sample_id, celltype_id, group_
 #' @param plot TRUE or FALSE (default): should we plot the z-score distribution?
 #' @param celltype NULL, or name of the cell type of interest - this will be added to the plot title if plot = TRUE
 #' @param contrast NULL, or name of the contrast of interest - thhis will be added to the plot title if plot = TRUE
-#' @return List with empirical p-values and adjusted p-values.
+#' @return List with empirical p-values and adjusted p-values + ggplot output and estimated delta and sigma.
 #'
 #' @importFrom stats p.adjust dnorm glm median pnorm poisson poly qnorm quantile
 #' @importFrom graphics hist lines
 #' @import locfdr
+#' @import ggplot2
 #'
 #' @examples
 #' \dontrun{
@@ -293,6 +294,9 @@ perform_muscat_de_analysis = function(seurat_obj, sample_id, celltype_id, group_
 #'
 p.adjust_empirical <- function (pvalues, tvalues, plot = FALSE, celltype = NULL, contrast = NULL) 
 {
+  requireNamespace("dplyr")
+  requireNamespace("ggplot2")
+  
   zvalues <- qnorm(pvalues/2) * sign(tvalues) # sign(t) for you will be sign(LFC)
   
   zvalues_mid <- zvalues[abs(zvalues) < 10] 
@@ -340,36 +344,49 @@ p.adjust_empirical <- function (pvalues, tvalues, plot = FALSE, celltype = NULL,
   
   # make a plot similar to the one you saw above from locfdr
   if (plot) {
-    
-    # pdf(NULL)
-    # dev.control(displaylist="enable")
     zval_empirical <- zval_empirical[!is.na(zval_empirical)]
     lo <- min(zval_empirical)
     up <- max(zval_empirical)
     lo <- min(lo, -1 * up)
-    up <- max(up, -1 * lo)
+    up <- max(up, -1 * lo) # to make plot symmetrical
     bre <- 120
     breaks <- seq(lo, up, length = bre)
-    zzz <- pmax(pmin(zval_empirical, up), lo)
-    zh <- hist(zzz, breaks = breaks, plot = FALSE)
-    yall <- zh$counts
-    K <- length(yall)
-    hist(zzz, breaks = breaks, xlab = "z-scores", main = paste0("Empirical distribution of z-scores\n",celltype, " : ", contrast), 
-         freq = FALSE)
+    zzz <- pmax(pmin(zval_empirical, up), lo) # do not plot extreme zvals
+    
+    gg_data <- as.data.frame(zzz)
+    gg_plot <- ggplot(data = gg_data, aes(x=zzz)) +
+      geom_histogram(aes(y=..density..),
+                     breaks=breaks,
+                     color="black",
+                     fill="grey84") +
+      theme_bw() +
+      ggtitle("Empirical Z-scores") +
+      theme(plot.title = element_text(size = 14, face = "bold")) +
+      xlab("Empirical Z-scores")
+    
+    # add standard-normal density
     xfit <- seq(min(zzz), max(zzz), length = 4000)
     yfit <- dnorm(xfit/mlests[3], mean = 0, sd = 1)
-    lines(xfit, yfit, col = "darkgreen", lwd = 2)
-    plot_output <- recordPlot()
-    # plot.new() 
-    
-    invisible(dev.off())
+    dens_theor <- as.data.frame(yfit)
+    colnames(dens_theor) <- "standardNormal"
+    dens_theor$range <- xfit
+    gg_plot <- gg_plot +
+      geom_line(data = dens_theor, 
+                aes(x=range, y=standardNormal),
+                color="darkgreen",
+                lwd=1) + ggtitle(paste0("Empirical distribution of z-scores\n",celltype, " : ", contrast))
   } else{
-    plot_output <- NULL
+    gg_plot <- NA
   }
   
   # return FDR values; these are normal FDR, not local FDR!
   FDR <- p.adjust(pval_empirical, method = "BH")
-  newList <- list(pval = pval_empirical, FDR = FDR, plot_output = plot_output)
+  # newList <- list(pval = pval_empirical, FDR = FDR, plot_output = plot_output)
+  newList <- list(plot_output = gg_plot,
+                  delta = mlests[1], # add delta estimate to output
+                  sigma = mlests[2], # add sigma estimate to output
+                  pval = pval_empirical, 
+                  FDR = FDR)
   return(newList)
 }
 #' @title Add empirical p-values and adjusted p-values to a subset of the DE output table.

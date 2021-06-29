@@ -214,20 +214,6 @@ output$celltype_info$rel_abundance_df %>% head()
 output$celltype_de %>% head()
 ```
 
-
-### Linked expression and DE information of the ligand in the sender cell types and the receptor in the receiver cell types
-
-```{r}
-output$sender_receiver_info$avg_df %>% head()
-output$sender_receiver_info$frq_df %>% head()
-output$sender_receiver_info$avg_df_group %>% head()
-output$sender_receiver_info$frq_df_group %>% head()
-output$sender_receiver_info$rel_abundance_df %>% head()
-```
-
-```{r}
-output$sender_receiver_de %>% head()
-```
 ### Output of the NicheNet ligand activity analysis, and the NicheNet ligand-target inference
 
 ```{r}

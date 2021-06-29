@@ -324,12 +324,8 @@ The following plots show how well the correction worked. The green fitted curve 
 
 __User adaptation required__
 ```{r, fig.width=7, fig.height=7}
-DE_info_emp_sender$z_distr_plots_emp_pval$`CAF.High-(Medium+Low)/2`
-DE_info_emp_sender$z_distr_plots_emp_pval$`myofibroblast.High-(Medium+Low)/2`
-DE_info_emp_receiver$z_distr_plots_emp_pval$`Malignant.High-(Medium+Low)/2`
-# also recommended to check the other plots...
+DE_info_emp$z_distr_plots_emp_pval
 ```
-(Note: if plotting does not work, it might be necessary to run these plot commands in the console)
 
 In general, these plots looks fine.
 

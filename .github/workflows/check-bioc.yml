@@ -251,7 +251,10 @@ jobs:
         run: |
           covr::codecov()
         shell: Rscript {0}
-
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v1
+        with:
+          token: 04b6740f-c73f-42b1-af65-dc6dfb4a078a
       - name: Install package
         if: github.ref == 'refs/heads/master' && env.run_pkgdown == 'true' && runner.os == 'Linux'
         run: R CMD INSTALL .
