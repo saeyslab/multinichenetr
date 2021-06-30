@@ -10,7 +10,7 @@ rmarkdown::render("README.Rmd",output_format = "md_document")
 [![R build
 status](https://github.com/browaeysrobin/multinichenetr/workflows/R-CMD-check-bioc/badge.svg)](https://github.com/browaeysrobin/multinichenetr/actions)
 [![Coverage
-Status](https://codecov.io/gh/browaeysrobin/multinichenetr/branch/master/graph/badge.svg?token=NKZBMJJDYA)](https://codecov.io/gh/browaeysrobin/multinichenetr)
+Status](https://codecov.io/gh/browaeysrobin/multinichenetr/branch/master/graph/badge.svg?token=0X627I4TM7)](https://codecov.io/gh/browaeysrobin/multinichenetr)
 <!-- badges: end -->
 
 **multinichenetr: the R package containing multiple functionalities to

@@ -171,6 +171,7 @@ jobs:
           remotes::install_cran("tidyverse")
           BiocManager::install("Nebulosa", update = FALSE)
           remotes::install_github("saeyslab/nichenetr",build_vignettes = FALSE)
+          install.packages('TMB', type = 'source') #### remove this later? this to currently fix the Mac error
           remotes::install_local(dependencies = TRUE, repos = BiocManager::repositories(), build_vignettes = FALSE, upgrade = TRUE)
         continue-on-error: true
         shell: Rscript {0}
@@ -249,12 +250,9 @@ jobs:
       - name: Test coverage
         if: github.ref == 'refs/heads/master' && env.run_covr == 'true' && runner.os == 'Linux'
         run: |
-          covr::codecov()
+          covr::codecov(token = "${{ secrets.CODECOV_TOKEN }}")
         shell: Rscript {0}
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v1
-        with:
-          token: 04b6740f-c73f-42b1-af65-dc6dfb4a078a
+      
       - name: Install package
         if: github.ref == 'refs/heads/master' && env.run_pkgdown == 'true' && runner.os == 'Linux'
         run: R CMD INSTALL .
