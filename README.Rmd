@@ -63,16 +63,16 @@ In the following vignettes, you can find how to do a MultiNicheNet analysis:
 
 Performing an all-vs-all analysis with sender cell types and receiver cell types in the same Seurat object:
 
+* [Multi-sample Multi-condition Cell-Cell Communication Analysis via NicheNet: HNSCC application; All-vs-All: step-by-step (recommended)](vignettes/basic_analysis_steps.md): `vignette("basic_analysis_steps", package="multinichenetr")`
+
 * [Multi-sample Multi-condition Cell-Cell Communication Analysis via NicheNet: HNSCC application; All-vs-All](vignettes/basic_analysis.md): `vignette("basic_analysis", package="multinichenetr")`
 
 Performing an analysis with predefined sender and receiver cell types in different Seurat objects:
 
+* [Multi-sample Multi-condition Cell-Cell Communication Analysis via NicheNet: HNSCC application; Separate: step-by-step (recommended)](vignettes/basic_analysis_separate_steps.md): `vignette("basic_analysis_separate_steps", package="multinichenetr")`
+
 * [Multi-sample Multi-condition Cell-Cell Communication Analysis via NicheNet: HNSCC application; Separate](vignettes/basic_analysis_separate.md): `vignette("basic_analysis_separate", package="multinichenetr")`
 
-These vignette demonstrate the use of the entire analysis in one go. While this might be easier to learn how MultiNicheNet, we recommend performing the analyses step by step, and checking intermediary results as demonstrated in the following two vignettes:
-
-*[In Progress]
-*[In Progress]
 
 ## References
 

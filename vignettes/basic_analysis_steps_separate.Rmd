@@ -10,7 +10,7 @@ vignette: >
 ---
 
 <!-- github markdown built using 
-rmarkdown::render("vignettes/basic_analysis_steps.Rmd", output_format = "github_document")
+rmarkdown::render("vignettes/basic_analysis_steps_separate.Rmd", output_format = "github_document")
 -->
 
 ```{r setup, include = FALSE}

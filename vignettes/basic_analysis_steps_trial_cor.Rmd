@@ -809,5 +809,165 @@ p_target = make_sample_target_plots(receiver_info = multinichenet_output$celltyp
 p_target + ggtitle(paste0("DE genes in ",group_oi, " in celltype ",receiver_oi))
 ```
 
+# Ligand-Target inference based on correlation and prior information
 
+```{r}
+return_lr_prod_matrix = TRUE
+if(return_lr_prod_matrix == TRUE){
+
+  ids_oi = prioritization_tables$group_prioritization_tbl %>% dplyr::filter(fraction_expressing_ligand_receptor > 0)  %>% dplyr::pull(id) %>% unique()
+  
+  lr_prod_df = abundance_expression_info$sender_receiver_info$avg_df %>% dplyr::inner_join(grouping_tbl, by = "sample") %>% dplyr::mutate(lr_interaction = paste(ligand, receptor, sep = "_")) %>% dplyr::mutate(id = paste(lr_interaction, sender, receiver, sep = "_")) %>% dplyr::select(sample, id, ligand_receptor_prod) %>% dplyr::filter(id %in% ids_oi) %>% dplyr::distinct() %>% tidyr::spread(id, ligand_receptor_prod)
+  lr_prod_mat = lr_prod_df %>% dplyr::select(-sample) %>% data.frame() %>% as.matrix()
+  rownames(lr_prod_mat) = lr_prod_df$sample
+  
+  col_remove = lr_prod_mat %>% apply(2,function(x)sum(x != 0)) %>% .[. == 0] %>% names()
+  row_remove = lr_prod_mat %>% apply(1,function(x)sum(x != 0)) %>% .[. == 0] %>% names()
+  
+  lr_prod_mat = lr_prod_mat %>% .[rownames(.) %>% generics::setdiff(col_remove),colnames(.) %>% generics::setdiff(col_remove)]
+} else {
+  lr_prod_mat = NULL
+}
+
+
+```
+
+1) Calculate LR prod matrix
+
+```{r}
+# make ligand-receptor-id mapping
+lig_rec_send_rec_mapping = abundance_expression_info$sender_receiver_info$avg_df %>% dplyr::inner_join(grouping_tbl, by = "sample") %>% dplyr::mutate(lr_interaction = paste(ligand, receptor, sep = "_")) %>% dplyr::mutate(id = paste(lr_interaction, sender, receiver, sep = "_")) %>% dplyr::select(sender, receiver, ligand, receptor, id) %>% distinct()
+
+# make receiver-id mapping to filter later on
+receiver_lr_id_mapping = abundance_expression_info$sender_receiver_info$avg_df %>% dplyr::inner_join(grouping_tbl, by = "sample") %>% dplyr::mutate(lr_interaction = paste(ligand, receptor, sep = "_")) %>% dplyr::mutate(id = paste(lr_interaction, sender, receiver, sep = "_")) %>% dplyr::select(receiver, sample, id, ligand_receptor_prod) %>% dplyr::filter(id %in% ids_oi) %>% dplyr::distinct(receiver, id) 
+
+# make LR prod matrix
+lr_prod_df = abundance_expression_info$sender_receiver_info$avg_df %>% dplyr::inner_join(grouping_tbl, by = "sample") %>% dplyr::mutate(lr_interaction = paste(ligand, receptor, sep = "_")) %>% dplyr::mutate(id = paste(lr_interaction, sender, receiver, sep = "_")) %>% dplyr::select(sample, id, ligand_receptor_prod) %>% dplyr::filter(id %in% ids_oi) %>% dplyr::distinct() %>% tidyr::spread(sample, ligand_receptor_prod)
+lr_prod_mat = lr_prod_df %>% dplyr::select(-id) %>% data.frame() %>% as.matrix()
+
+rownames(lr_prod_mat) = lr_prod_df$id
+  
+col_remove = lr_prod_mat %>% apply(2,function(x)sum(x != 0)) %>% .[. == 0] %>% names()
+row_remove = lr_prod_mat %>% apply(1,function(x)sum(x != 0)) %>% .[. == 0] %>% names()
+  
+lr_prod_mat = lr_prod_mat %>% .[rownames(.) %>% generics::setdiff(col_remove),colnames(.) %>% generics::setdiff(col_remove)]
+
+lr_prod_mat = lr_prod_mat[receiver_lr_id_mapping$id, ]
+```
+
+2) Get LR prod matrix of interest: prioritized LR pairs + receiver
+
+```{r}
+receiver_oi = "Malignant"
+lr_prod_mat_oi = lr_prod_mat[receiver_lr_id_mapping %>% dplyr::filter(receiver == receiver_oi) %>% dplyr::pull(id) %>% generics::intersect(rownames(lr_prod_mat)),]
+```
+
+3) Calculate Target matrix: target genes / DE genes for receiver oi
+
+```{r}
+if(p_val_adj == FALSE){
+  targets_oi = celltype_de %>% filter(cluster_id == receiver_oi) %>% filter(p_val <= p_val_threshold & logFC >= logFC_threshold) %>% pull(gene)
+} else {
+  targets_oi = celltype_de %>% filter(cluster_id == receiver_oi) %>% filter(p_adj <= p_val_threshold & logFC >= logFC_threshold) %>% pull(gene)
+}
+
+avg_df =  abundance_expression_info$celltype_info$avg_df %>% dplyr::filter(gene %in% targets_oi & celltype %in% receiver_oi)
+
+target_df = avg_df %>% dplyr::select(sample, gene, average_sample) %>% dplyr::distinct() %>% tidyr::spread(sample, average_sample)
+target_mat = target_df %>% dplyr::select(-gene) %>% data.frame() %>% as.matrix()
+
+rownames(target_mat) = target_df$gene
+  
+col_remove = target_mat %>% apply(2,function(x)sum(x != 0)) %>% .[. == 0] %>% names()
+row_remove = target_mat %>% apply(1,function(x)sum(x != 0)) %>% .[. == 0] %>% names()
+  
+target_mat = target_mat %>% .[rownames(.) %>% generics::setdiff(col_remove),colnames(.) %>% generics::setdiff(col_remove)]
+
+target_mat = target_mat[targets_oi, ]
+
+# filtered_data = filtered_data %>% dplyr::group_by(gene) %>% dplyr::mutate(scaled_target_exprs = nichenetr::scaling_zscore(average_sample), scaled_target_frac = nichenetr::scaling_zscore(fraction_sample)) %>% dplyr::ungroup()
+
+```
+
+4) Calculate correlation between LR expression and Target expression
+
+```{r}
+cor_mat = cor(lr_prod_mat_oi %>% t(), target_mat %>% t())
+cor_mat_spearman = cor(lr_prod_mat_oi %>% t(), target_mat %>% t(), method = "spearman")
+```
+
+6) Correlation to data frame, calculate correlation z-scores -- quantile cutoff? to avoid problem with cor of 1
+
+```{r}
+cor_df = cor_mat %>% data.frame() %>% tibble::rownames_to_column("id") %>% tidyr::gather(target, pearson, -id) %>% tibble::as_tibble()
+cor_df_spearman = cor_mat_spearman %>% data.frame() %>% tibble::rownames_to_column("id") %>% tidyr::gather(target, spearman, -id) %>% tibble::as_tibble()
+cor_df = cor_df %>% dplyr::inner_join(cor_df_spearman)
+
+cor_df = lig_rec_send_rec_mapping %>% dplyr::inner_join(cor_df)
+
+cor_df %>% dplyr::arrange(-pearson)
+cor_df %>% dplyr::arrange(-spearman)
+
+cor_df %>% dplyr::filter(receptor != target) %>% dplyr::filter(! ((ligand == target) & (sender == receiver)) ) %>% dplyr::arrange(-pearson)
+cor_df %>% dplyr::filter(receptor != target) %>% dplyr::filter(! ((ligand == target) & (sender == receiver)) ) %>% dplyr::arrange(-spearman)
+
+```
+
+7) Make z-score of ligand-target scores: z-score ligand direction, target direction, combined? check correlation with expression cor to maybe see which measure is best?
+
+```{r}
+## targets are make.names
+## ligands not
+
+# first: ligand-centered approach
+ligand_target_df = ligand_target_matrix %>% data.frame() %>% tibble::rownames_to_column("target") %>% tidyr::gather(ligand, prior_score, -target) %>% tibble::as_tibble()
+ligand_target_df = ligand_target_df %>% group_by(ligand) %>% mutate(rank_ligand = rank(desc(prior_score))) %>% group_by(target) %>% mutate(rank_target = rank(desc(prior_score)))
+```
+## first easy thing = rank per ligand, with rank per ligand of correlation!
+## second easy thing = rank per target, with rank per target of correlation!
+## then we have two ligand-target ranks --> combine these in a final ranking score!
+
+```{r}
+cor_df = cor_df %>% group_by(id) %>% mutate(rank_id_pearson = rank(desc(pearson)), rank_id_spearman = rank(desc(spearman))) %>% group_by(target) %>% mutate(rank_target_pearson = rank(desc(pearson)), rank_target_spearman = rank(desc(spearman)))
+
+cor_prior_df = cor_df %>% inner_join(ligand_target_df)
+
+# first summarize the ranks on pearson/spearman per ligand
+
+normalize <- function(x, na.rm = TRUE) {
+    norm = ((x- min(x)) /(max(x)-min(x)))
+    norm + 0.01
+}
+
+cor_prior_df_prep = cor_prior_df %>% mutate(id_target = paste(id, target, sep = "_")) %>% ungroup() %>% select(id_target, rank_id_pearson, rank_ligand) %>% distinct() %>% mutate(rank_id_pearson = normalize(rank_id_pearson), rank_ligand = normalize(rank_ligand))
+cor_prior_df_prep = cor_prior_df_prep %>% select(-id_target) %>% data.frame() %>% magrittr::set_rownames(cor_prior_df_prep$id_target)
+cor_prior_df_prep = cor_prior_df_prep %>% as.matrix()
+
+
+
+
+library(RobustRankAggreg)
+ranking = aggregateRanks(rmat = cor_prior_df_prep, method = "RRA") # maybe I should min-max normalize
+ranking %>% as_tibble() %>% arrange(Score)
+
+
+cor_prior_aggr = cor_prior_df %>% mutate(id_target = paste(id, target, sep = "_")) %>% ungroup() %>% select(id_target, rank_id_pearson, rank_ligand) %>% distinct() %>% inner_join(ranking %>% as_tibble() %>% rename(id_target = Name, score_aggr = Score))
+
+```
+
+ranking works, but maybe not the best idea?????
+cf if rank one ends high for prior, not correlation, it will be indicated strongly
+so maybe z-scores and multiplying is bettter?
+
+8) make prior knowledge x expression correlation score, and use this as the new ligand-target score
+((((((9) recalculate ligand activity??)))))
+
+
+```{r}
+
+# cool rank aggregation approach?
+# this way: refine hits with prior knowledge!
+
+```
+  
 ## References
