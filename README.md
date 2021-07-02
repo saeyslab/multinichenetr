@@ -130,7 +130,7 @@ different Seurat objects:
 
 -   [Multi-sample Multi-condition Cell-Cell Communication Analysis via
     NicheNet: HNSCC application; Separate: step-by-step
-    (recommended)](vignettes/basic_analysis_separate_steps.md):
+    (recommended)](vignettes/basic_analysis_steps_separate.md):
     `vignette("basic_analysis_separate_steps", package="multinichenetr")`
 
 -   [Multi-sample Multi-condition Cell-Cell Communication Analysis via
