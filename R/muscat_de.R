@@ -220,19 +220,17 @@ perform_muscat_de_analysis = function(seurat_obj, sample_id, celltype_id, group_
 
   contrast = eval(parse(text=paste("limma::makeContrasts(", contrasts, ",levels=design)",sep="")))
 
-  # check which cell types will be excluded - Inner Muscat code
-  n_cells = S4Vectors::metadata(pb)$n_cells
+  # run DS analysis
+  res = muscat::pbDS(pb, method = de_method_oi , design = design, contrast = contrast, min_cells = min_cells, verbose = FALSE, filter = "both")
+  
+  de_output_tidy = muscat::resDS(sce, res, bind = "row", cpm = FALSE, frq = FALSE) %>% tibble::as_tibble() %>% dplyr::rename(p_adj = p_adj.glb)
+  
+  # # check which cell types were excluded 
   celltypes = SummarizedExperiment::assayNames(pb)
   names(celltypes) = celltypes
-  excluded_celltypes = celltypes %>% lapply(function(k){
-    rmv = n_cells[k, ] < min_cells
-    d = design[colnames(y <- pb[, !rmv]), , drop = FALSE]
-    if (any(tabulate(y$group_id) < 2) || qr(d)$rank == nrow(d) ||
-        qr(d)$rank < ncol(d)) {
-      return(k)
-    }
-  }) %>% unlist() %>% unique()
-
+  
+  excluded_celltypes = celltypes %>% generics::setdiff(de_output_tidy$cluster_id) %>% unique()
+  
   if(length(excluded_celltypes) > 0){
     print("excluded cell types are:")
     print(excluded_celltypes)
@@ -241,10 +239,6 @@ perform_muscat_de_analysis = function(seurat_obj, sample_id, celltype_id, group_
   if(length(excluded_celltypes) == length(celltypes)){
     print("None of the cell types passed the check. This might be due to 2 reasons. 1) no cell type has enough cells in >=2 samples per group. 2) problem in covariate definition: not all levels of your covariate are in each group - Also for groups not included in your contrasts!")
   }
-  # run DS analysis
-  res = muscat::pbDS(pb, method = de_method_oi , design = design, contrast = contrast, min_cells = min_cells, verbose = FALSE, filter = "both")
-
-  de_output_tidy = muscat::resDS(sce, res, bind = "row", cpm = FALSE, frq = FALSE) %>% tibble::as_tibble() %>% dplyr::rename(p_adj = p_adj.glb)
   
   
   return(list(de_output = res, de_output_tidy = de_output_tidy))
