@@ -91,8 +91,9 @@ get_muscat_exprs_frac = function(seurat_obj, sample_id, celltype_id, group_id, a
 #' @import muscat
 #' @import tibble
 #' @import tidyr
-#' @importFrom scater computeLibraryFactors logNormCounts
+#' @importFrom scater logNormCounts
 #' @importFrom purrr map
+#' @importFrom scran quickCluster computeSumFactors
 #'
 #' @examples
 #' \dontrun{
@@ -122,11 +123,17 @@ get_muscat_exprs_avg = function(seurat_obj, sample_id, celltype_id, group_id, as
                         sid = "id",   # sample IDs (ctrl/stim.1234)
                         drop = FALSE)  #
 
-  sce = scater::computeLibraryFactors(sce)
-  sce = scater::logNormCounts(sce)
+  # sce = scater::computeLibraryFactors(sce)
+  # sce = scater::logNormCounts(sce)
   # scater::calculateAverage()
   # sce = scater::calculateCPM(sce)
   # scater::normalizeCounts()
+  
+  set.seed(1919) # seed for reproducibility of the scran::quickCluster function (see https://bioconductor.org/books/release/OSCA/normalization.html)
+  clusters = scran::quickCluster(sce)
+  sce = scran::computeSumFactors(sce, clusters=clusters)
+  sce = scater::logNormCounts(sce)
+  
   avg = muscat::aggregateData(sce, assay = "logcounts", fun = "mean", by = c("cluster_id", "sample_id"))
 
   avg_df = sce$cluster_id %>% unique() %>% lapply(function(celltype_oi, avg){

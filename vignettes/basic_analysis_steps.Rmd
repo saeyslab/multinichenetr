@@ -84,7 +84,53 @@ DimPlot(seurat_obj, group.by = "tumor")
 DimPlot(seurat_obj, group.by = "pEMT")
 DimPlot(seurat_obj, group.by = "pEMT_fine")
 ```
+trying to experiment with counts, logscounts, and SCT residuals
+```{r}
+# convert seurat to SCE object
+sce = Seurat::as.SingleCellExperiment(Seurat::DietSeurat(seurat_obj), assay = "RNA")
+SummarizedExperiment::assays(sce)$counts %>% .[1:5,1:5]
+SummarizedExperiment::assays(sce)$logcounts %>% .[1:5,1:5]
 
+sce = scater::computeLibraryFactors(sce)
+sce = scater::logNormCounts(sce)
+SummarizedExperiment::assays(sce)$counts %>% .[1:5,1:5]
+SummarizedExperiment::assays(sce)$logcounts %>% .[1:5,1:5]
+
+sce2 = Seurat::as.SingleCellExperiment(Seurat::DietSeurat(seurat_obj), assay = "RNA")
+clusters <- scran::quickCluster(sce2)
+sce2 <- scran::computeSumFactors(sce2, clusters=clusters)
+sce2 <- scater::logNormCounts(sce2)
+SummarizedExperiment::assays(sce)$logcounts %>% .[1:5,1:5]
+SummarizedExperiment::assays(sce2)$logcounts %>% .[1:5,1:5]
+
+sce1 = Seurat::as.SingleCellExperiment(Seurat::DietSeurat(seurat_obj), assay = "SCT")
+SummarizedExperiment::assays(sce1)$counts %>% .[1:5,1:5]
+SummarizedExperiment::assays(sce1)$logcounts %>% .[1:5,1:5]
+seurat_obj@assays$SCT@counts %>% .[1:5,1:5]
+seurat_obj@assays$SCT@data %>% .[1:5,1:5]
+
+# sce2 = Seurat::as.SingleCellExperiment(Seurat::DietSeurat(seurat_obj), assay = c("RNA","SCT")) # not OK
+# SummarizedExperiment::assays(sce2)
+# SummarizedExperiment::assays(sce1)$counts %>% .[1:5,1:5]
+# SummarizedExperiment::assays(sce1)$logcounts %>% .[1:5,1:5]
+# 
+sct = sctransform::vst(SingleCellExperiment::counts(sce), verbosity = FALSE)$y
+SummarizedExperiment::assays(sce, withDimnames=FALSE)$vstresiduals <- y ## will error --> filter out the assay in advance, to contain only necessary genes...
+## I should once try out myself which visualization best accords to the DE results
+genes_kept = rownames(sct)
+cells_kept = colnames(sct)
+
+sce = sce[genes_kept, cells_kept]
+SummarizedExperiment::assays(sce, withDimnames=FALSE)$vstresiduals = sct
+
+SummarizedExperiment::assays(sce)$counts %>% .[1:5,1:5]
+SummarizedExperiment::assays(sce)$logcounts %>% .[1:5,1:5]
+SummarizedExperiment::assays(sce)$vstresiduals %>% .[1:5,1:5]
+
+# test scran
+
+``` 
+  
 We will now also check the number of cells per cell type condition combination, and the number of patients per condition.
 
 __User adaptation required__
@@ -328,6 +374,7 @@ if(empirical_pval == FALSE){
 }
 ```
 
+
 ### Combine DE information for ligand-senders and receptors-receivers (similar to step1 - `abundance_expression_info$sender_receiver_info`)
 
 ```{r}
@@ -427,22 +474,17 @@ We will set our preference for this dataset as follows:
 
 __User adaptation recommended__
 ```{r}
-prioritizing_weights_DE = c("scaled_lfc_ligand" = 1.5,
-                         "scaled_p_val_ligand" = 1.5,
-                         "scaled_lfc_receptor" = 1.5,
-                         "scaled_p_val_receptor" = 1.5)
-prioritizing_weights_activity = c("scaled_activity_scaled" = 2,
-                                  "scaled_activity" = 2)
+prioritizing_weights_DE = c("de_ligand" = 3,
+                         "de_receptor" = 3)
+prioritizing_weights_activity = c("activity_scaled" = 3)
 
-prioritizing_weights_expression_specificity = c("scaled_avg_exprs_ligand" = 1,
-                         "scaled_avg_frq_ligand" = 1,
-                         "scaled_avg_exprs_receptor" = 1,
-                         "scaled_avg_frq_receptor" = 1)
+prioritizing_weights_expression_specificity = c("exprs_ligand" = 1.5,
+                         "exprs_receptor" = 1.5)
 
-prioritizing_weights_expression_sufficiency = c("fraction_expressing_ligand_receptor" = 2)
+prioritizing_weights_expression_sufficiency = c("frac_exprs_ligand_receptor" = 2)
 
-prioritizing_weights_relative_abundance = c( "scaled_abundance_sender" = 0,
-                         "scaled_abundance_receiver" = 0)
+prioritizing_weights_relative_abundance = c( "abund_sender" = 0,
+                         "abund_receiver" = 0)
 
 ```
 
@@ -547,12 +589,15 @@ multinichenet_output = list(
     lr_prod_mat = lr_prod_mat,
     grouping_tbl = grouping_tbl
   ) 
+multinichenet_output = make_lite_output(multinichenet_output)
+
 save = FALSE
 if(save == TRUE){
   saveRDS(multinichenet_output, paste0(path, "multinichenet_output.rds"))
 
 }
 ```
+
 
 # Visualization of the results of the cell-cell communication analysis
 

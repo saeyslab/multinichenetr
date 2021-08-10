@@ -317,7 +317,6 @@ get_DE_info = function(seurat_obj, sample_id, group_id, celltype_id, covariates,
 #'
 #' @import Seurat
 #' @import dplyr
-#' @import muscat
 #' @import ggplot2
 #'
 #' @examples
@@ -347,6 +346,11 @@ get_DE_info = function(seurat_obj, sample_id, group_id, celltype_id, covariates,
 #'
 #'
 get_empirical_pvals = function(de_output_tidy){
+  
+  requireNamespace("Seurat")
+  requireNamespace("dplyr")
+  requireNamespace("ggplot2")
+  
   de_output_tidy_emp = add_empirical_pval_fdr(de_output_tidy, plot = FALSE)
   z_distr_plots_emp_pval = get_FDR_empirical_plots_all(de_output_tidy)
   
@@ -356,4 +360,91 @@ get_empirical_pvals = function(de_output_tidy){
     geom_histogram(binwidth = 0.05,boundary=0, color = "grey35") + scale_fill_manual(values = c("grey90", "lightsteelblue1")) + 
     facet_grid(contrast~cluster_id) + ggtitle("Empirical P-value histograms") + theme_bw() 
   return(list(de_output_tidy_emp = de_output_tidy_emp, z_distr_plots_emp_pval = z_distr_plots_emp_pval, hist_pvals_emp = hist_pvals_emp))
+}
+#' @title make_lite_output
+#'
+#' @description \code{make_lite_output} Reduce the size of the MultiNicheNet output object (for memory efficiency), by only keeping expression information for present ligands, receptors, and genes DE in at least one probed condition.
+#' @usage make_lite_output(multinichenet_output)
+#'
+#' @param  multinichenet_output Output of a MultiNicheNet analysis (result of `multi_nichenet_analysis()`).
+#' 
+#' @return multinichenet output list (= result of `multi_nichenet_analysis()`), but now filtered such that expression information is only returned for present ligands, receptors, and genes DE in at least one probed condition.
+#'
+#' @import dplyr
+#'
+#' @examples
+#' \dontrun{
+#' library(dplyr)
+#' multinichenet_output = multinichenet_output %>% make_lite_output()
+#' 
+#'}
+#'
+#' @export
+#'
+#'
+make_lite_output = function(multinichenet_output){
+  
+  requireNamespace("dplyr")
+  
+  if("celltype_info" %in% names(multinichenet_output)){
+    gene_subset = generics::union(multinichenet_output$prioritization_tables$group_prioritization_tbl$ligand, multinichenet_output$prioritization_tables$group_prioritization_tbl$receptor) %>% generics::union(multinichenet_output$ligand_activities_targets_DEgenes$de_genes_df %>% dplyr::pull(gene) %>% unique())
+    multinichenet_output$celltype_info$avg_df = multinichenet_output$celltype_info$avg_df %>% dplyr::filter(gene %in% gene_subset)
+    multinichenet_output$celltype_info$frq_df = multinichenet_output$celltype_info$frq_df %>% dplyr::filter(gene %in% gene_subset)
+    multinichenet_output$celltype_info$avg_df_group = multinichenet_output$celltype_info$avg_df_group %>% dplyr::filter(gene %in% gene_subset)
+    multinichenet_output$celltype_info$frq_df_group = multinichenet_output$celltype_info$frq_df_group %>% dplyr::filter(gene %in% gene_subset)
+    
+    multinichenet_output$celltype_de = multinichenet_output$celltype_de %>% dplyr::filter(gene %in% gene_subset)
+    
+    ## maybe also a subset of LR-Sender-Receiver pairs?
+    LR_subset = multinichenet_output$prioritization_tables$group_prioritization_tbl %>% dplyr::filter(fraction_expressing_ligand_receptor  > 0) %>% dplyr::distinct(ligand, receptor, sender, receiver)
+    
+    multinichenet_output$sender_receiver_info$avg_df = multinichenet_output$sender_receiver_info$avg_df %>% dplyr::inner_join(LR_subset)
+    multinichenet_output$sender_receiver_info$frq_df = multinichenet_output$sender_receiver_info$frq_df %>% dplyr::inner_join(LR_subset)
+    multinichenet_output$sender_receiver_info$avg_df_group = multinichenet_output$sender_receiver_info$avg_df_group %>% dplyr::inner_join(LR_subset)
+    multinichenet_output$sender_receiver_info$frq_df_group = multinichenet_output$sender_receiver_info$frq_df_group %>% dplyr::inner_join(LR_subset)
+    
+    multinichenet_output$sender_receiver_de = multinichenet_output$sender_receiver_de %>% dplyr::inner_join(LR_subset)
+    
+    multinichenet_output$prioritization_tables$group_prioritization_tbl = multinichenet_output$prioritization_tables$group_prioritization_tbl %>% dplyr::inner_join(LR_subset)
+    multinichenet_output$prioritization_tables$sample_prioritization_tbl = multinichenet_output$prioritization_tables$sample_prioritization_tbl %>% dplyr::inner_join(LR_subset)
+    
+  } else {
+    if("receiver_info" %in% names(multinichenet_output)) {
+      # sender
+      gene_subset = multinichenet_output$prioritization_tables$group_prioritization_tbl$ligand %>% unique()
+      multinichenet_output$sender_info$avg_df = multinichenet_output$sender_info$avg_df %>% dplyr::filter(gene %in% gene_subset)
+      multinichenet_output$sender_info$frq_df = multinichenet_output$sender_info$frq_df %>% dplyr::filter(gene %in% gene_subset)
+      multinichenet_output$sender_info$avg_df_group = multinichenet_output$sender_info$avg_df_group %>% dplyr::filter(gene %in% gene_subset)
+      multinichenet_output$sender_info$frq_df_group = multinichenet_output$sender_info$frq_df_group %>% dplyr::filter(gene %in% gene_subset)
+      
+      multinichenet_output$sender_de = multinichenet_output$sender_de %>% dplyr::filter(gene %in% gene_subset)
+      
+      # receiver
+      gene_subset = unique(multinichenet_output$prioritization_tables$group_prioritization_tbl$receptor) %>% generics::union(multinichenet_output$ligand_activities_targets_DEgenes$de_genes_df %>% dplyr::pull(gene) %>% unique())
+      multinichenet_output$receiver_info$avg_df = multinichenet_output$receiver_info$avg_df %>% dplyr::filter(gene %in% gene_subset)
+      multinichenet_output$receiver_info$frq_df = multinichenet_output$receiver_info$frq_df %>% dplyr::filter(gene %in% gene_subset)
+      multinichenet_output$receiver_info$avg_df_group = multinichenet_output$receiver_info$avg_df_group %>% dplyr::filter(gene %in% gene_subset)
+      multinichenet_output$receiver_info$frq_df_group = multinichenet_output$receiver_info$frq_df_group %>% dplyr::filter(gene %in% gene_subset)
+      
+      multinichenet_output$receiver_de = multinichenet_output$receiver_de %>% dplyr::filter(gene %in% gene_subset)
+      
+      ## maybe also a subset of LR-Sender-Receiver pairs?
+      LR_subset = multinichenet_output$prioritization_tables$group_prioritization_tbl %>% dplyr::filter(fraction_expressing_ligand_receptor  > 0) %>% dplyr::distinct(ligand, receptor, sender, receiver)
+      
+      multinichenet_output$sender_receiver_info$avg_df = multinichenet_output$sender_receiver_info$avg_df %>% dplyr::inner_join(LR_subset)
+      multinichenet_output$sender_receiver_info$frq_df = multinichenet_output$sender_receiver_info$frq_df %>% dplyr::inner_join(LR_subset)
+      multinichenet_output$sender_receiver_info$avg_df_group = multinichenet_output$sender_receiver_info$avg_df_group %>% dplyr::inner_join(LR_subset)
+      multinichenet_output$sender_receiver_info$frq_df_group = multinichenet_output$sender_receiver_info$frq_df_group %>% dplyr::inner_join(LR_subset)
+      
+      multinichenet_output$sender_receiver_de = multinichenet_output$sender_receiver_de %>% dplyr::inner_join(LR_subset)
+      
+      multinichenet_output$prioritization_tables$group_prioritization_tbl = multinichenet_output$prioritization_tables$group_prioritization_tbl %>% dplyr::inner_join(LR_subset)
+      multinichenet_output$prioritization_tables$sample_prioritization_tbl = multinichenet_output$prioritization_tables$sample_prioritization_tbl %>% dplyr::inner_join(LR_subset)
+    }
+
+  }
+  
+
+  
+  return(multinichenet_output)
 }

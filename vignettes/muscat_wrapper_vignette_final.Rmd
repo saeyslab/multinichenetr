@@ -10,7 +10,7 @@ vignette: >
 ---
 
 <!-- github markdown built using 
-rmarkdown::render("vignettes/muscat_wrapper_vignette.Rmd", output_format = "github_document")
+rmarkdown::render("vignettes/muscat_wrapper_vignette_final.Rmd", output_format = "github_document")
 -->
 
 ```{r setup, include = FALSE}

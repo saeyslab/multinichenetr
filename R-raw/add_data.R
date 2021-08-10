@@ -47,3 +47,5 @@ usethis::use_package("rmarkdown", type = "Suggests")
 usethis::use_package("tidyverse", type = "Suggests")
 usethis::use_package("locfdr")
 
+usethis::use_package("UpSetR", type = "Suggests")
+usethis::use_package("scran")

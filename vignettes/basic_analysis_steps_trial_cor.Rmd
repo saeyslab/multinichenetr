@@ -427,22 +427,18 @@ We will set our preference for this dataset as follows:
 
 __User adaptation recommended__
 ```{r}
-prioritizing_weights_DE = c("scaled_lfc_ligand" = 1.5,
-                         "scaled_p_val_ligand" = 1.5,
-                         "scaled_lfc_receptor" = 1.5,
-                         "scaled_p_val_receptor" = 1.5)
-prioritizing_weights_activity = c("scaled_activity_scaled" = 2,
-                                  "scaled_activity" = 2)
+prioritizing_weights_DE = c("de_ligand" = 3,
+                         "de_receptor" = 3)
+prioritizing_weights_activity = c("activity_scaled" = 3)
 
-prioritizing_weights_expression_specificity = c("scaled_avg_exprs_ligand" = 1,
-                         "scaled_avg_frq_ligand" = 1,
-                         "scaled_avg_exprs_receptor" = 1,
-                         "scaled_avg_frq_receptor" = 1)
+prioritizing_weights_expression_specificity = c("exprs_ligand" = 1.5,
+                         "exprs_receptor" = 1.5)
 
-prioritizing_weights_expression_sufficiency = c("fraction_expressing_ligand_receptor" = 2)
+prioritizing_weights_expression_sufficiency = c("frac_exprs_ligand_receptor" = 2)
 
-prioritizing_weights_relative_abundance = c( "scaled_abundance_sender" = 0,
-                         "scaled_abundance_receiver" = 0)
+prioritizing_weights_relative_abundance = c( "abund_sender" = 0,
+                         "abund_receiver" = 0)
+
 
 ```
 
@@ -547,6 +543,8 @@ multinichenet_output = list(
     lr_prod_mat = lr_prod_mat,
     grouping_tbl = grouping_tbl
   ) 
+multinichenet_output = multinichenet_output %>% make_lite_output()
+
 save = FALSE
 if(save == TRUE){
   saveRDS(multinichenet_output, paste0(path, "multinichenet_output.rds"))

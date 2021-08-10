@@ -80,7 +80,7 @@ scale_quantile_adapted = function(x){
 #' grouping_tbl = metadata_combined[,c(sample_id, group_id)] %>% tibble::as_tibble() %>% dplyr::distinct()
 #' colnames(grouping_tbl) = c("sample","group") 
 #' 
-#' prioritizing_weights = c("scaled_lfc_ligand" = 1,"scaled_p_val_ligand" = 1,"scaled_lfc_receptor" = 1,"scaled_p_val_receptor" = 1,"scaled_activity_scaled" = 1.5,"scaled_activity" = 0.5,"scaled_avg_exprs_ligand" = 1,"scaled_avg_frq_ligand" = 1,"scaled_avg_exprs_receptor" = 1,"scaled_avg_frq_receptor" = 1,"fraction_expressing_ligand_receptor" = 1,"scaled_abundance_sender" = 0,"scaled_abundance_receiver" = 0)
+#' prioritizing_weights = c("de_ligand" = 1,"de_receptor" = 1,"activity_scaled" = 1,"exprs_ligand" = 1,"exprs_receptor" = 1, "frac_exprs_ligand_receptor" = 1,"abund_sender" = 0,"abund_receiver" = 0)
 #' frac_cutoff = 0.05
 #' prioritization_tables = generate_prioritization_tables(
 #'     sender_receiver_info = sender_receiver_info,
@@ -105,14 +105,14 @@ generate_prioritization_tables = function(sender_receiver_info, sender_receiver_
   # Group prioritization table -------------------------------------------------------------------------------------------------------------------------------------------
 
   # receiver-focused prioritization for receptor: contrast - receiver - receptor - lfc_receptor - p_adj_receptor: group by contrast and receiver: score each receptor based on those rankings
-  receiver_receptor_prioritization = sender_receiver_de %>% dplyr::ungroup() %>% dplyr::select(contrast, receiver, receptor, lfc_receptor, p_val_receptor) %>% dplyr::distinct() %>% dplyr::mutate(scaled_lfc_receptor = scale_quantile_adapted(lfc_receptor), scaled_p_val_receptor = scale_quantile_adapted(-p_val_receptor)) %>% dplyr::arrange(p_val_receptor )
+  receiver_receptor_prioritization = sender_receiver_de %>% dplyr::ungroup() %>% dplyr::select(contrast, receiver, receptor, lfc_receptor, p_val_receptor) %>% dplyr::distinct() %>% dplyr::mutate(lfc_pval_receptor = -log10(p_val_receptor)*lfc_receptor) %>% dplyr::mutate(scaled_lfc_receptor = scale_quantile_adapted(lfc_receptor), scaled_p_val_receptor = scale_quantile_adapted(-p_val_receptor), scaled_lfc_pval_receptor = scale_quantile_adapted(lfc_pval_receptor)) %>% dplyr::arrange(-lfc_pval_receptor)
 
   # receiver-focused prioritization for ligand: contrast - receiver - ligand - activity_scaled: group by contrast and receiver: score each ligand based on the activity
   # receiver_ligand_activity_prioritization = ligand_activities_targets_DEgenes$ligand_activities %>% dplyr::ungroup() %>% dplyr::select(contrast, receiver, ligand, activity_scaled) %>% dplyr::distinct() %>% dplyr::mutate(scaled_activity_scaled = scale_quantile_adapted(activity_scaled)) %>% dplyr::arrange(-activity_scaled )
   receiver_ligand_activity_prioritization = ligand_activities_targets_DEgenes$ligand_activities %>% dplyr::ungroup() %>% dplyr::select(contrast, receiver, ligand, activity, activity_scaled) %>% dplyr::distinct() %>% dplyr::mutate(scaled_activity_scaled = scale_quantile_adapted(activity_scaled), scaled_activity = scale_quantile_adapted(activity)) %>% dplyr::arrange(-activity_scaled )
 
   # sender-focused prioritization: contrast - sender - ligand - lfc_ligand - p_adj_ligand: group by contrast and sender: score each ligand based on those rankings
-  sender_ligand_prioritization = sender_receiver_de %>% dplyr::ungroup() %>% dplyr::select(contrast, sender, ligand, lfc_ligand, p_val_ligand) %>% dplyr::distinct() %>% dplyr::mutate(scaled_lfc_ligand = scale_quantile_adapted(lfc_ligand), scaled_p_val_ligand = scale_quantile_adapted(-p_val_ligand)) %>% dplyr::arrange(p_val_ligand)
+  sender_ligand_prioritization = sender_receiver_de %>% dplyr::ungroup() %>% dplyr::select(contrast, sender, ligand, lfc_ligand, p_val_ligand) %>% dplyr::distinct() %>% dplyr::mutate(lfc_pval_ligand = -log10(p_val_ligand)*lfc_ligand) %>% dplyr::mutate(scaled_lfc_ligand = scale_quantile_adapted(lfc_ligand), scaled_p_val_ligand = scale_quantile_adapted(-p_val_ligand), scaled_lfc_pval_ligand = scale_quantile_adapted(lfc_pval_ligand)) %>% dplyr::arrange(-lfc_pval_ligand)
 
   # cell-type and condition specificity of expression of ligand:  per ligand: score each sender-condition combination based on expression and fraction
   ligand_celltype_specificity_prioritization = sender_receiver_info$avg_df_group %>% dplyr::inner_join(sender_receiver_tbl) %>% dplyr::inner_join(contrast_tbl) %>% dplyr::ungroup() %>% dplyr::select(group, sender, ligand, avg_ligand_group ) %>% dplyr::distinct() %>% dplyr::group_by(ligand) %>% dplyr::mutate(scaled_avg_exprs_ligand = scale_quantile_adapted(avg_ligand_group)) %>% dplyr::arrange(-scaled_avg_exprs_ligand)
@@ -122,7 +122,7 @@ generate_prioritization_tables = function(sender_receiver_info, sender_receiver_
   receptor_celltype_specificity_prioritization = sender_receiver_info$avg_df_group %>% dplyr::inner_join(sender_receiver_tbl) %>% dplyr::inner_join(contrast_tbl) %>% dplyr::ungroup() %>% dplyr::select(group, receiver, receptor, avg_receptor_group ) %>% dplyr::distinct() %>% dplyr::group_by(receptor) %>% dplyr::mutate(scaled_avg_exprs_receptor = scale_quantile_adapted(avg_receptor_group)) %>% dplyr::arrange(-scaled_avg_exprs_receptor)
   receptor_celltype_specificity_prioritization_frq = sender_receiver_info$frq_df_group %>% dplyr::inner_join(sender_receiver_tbl) %>% dplyr::inner_join(contrast_tbl) %>% dplyr::ungroup() %>% dplyr::select(group, receiver, receptor, fraction_receptor_group ) %>% dplyr::distinct() %>% dplyr::group_by(receptor) %>% dplyr::mutate(scaled_avg_frq_receptor = scale_quantile_adapted(fraction_receptor_group)) %>% dplyr::arrange(-scaled_avg_frq_receptor)
 
-  # both receptor and ligand should be expresse!
+  # both receptor and ligand should be expressed!
   ligand_receptor_expressed_prioritization = sender_receiver_info$frq_df %>% dplyr::inner_join(grouping_tbl)  %>% dplyr::ungroup() %>% dplyr::select(sample, group, sender, receiver, ligand, receptor, fraction_ligand, fraction_receptor ) %>% dplyr::distinct()  %>%
     dplyr::group_by(ligand, receptor, sender, receiver, group) %>%
     dplyr::summarise(n_samples = n(), n_expressing = sum(fraction_ligand > fraction_cutoff & fraction_receptor > fraction_cutoff)) %>%
@@ -157,22 +157,17 @@ generate_prioritization_tables = function(sender_receiver_info, sender_receiver_
   # have a weighted average the final score (no product!!)
   group_prioritization_tbl = group_prioritization_tbl %>%
     dplyr::mutate(prioritization_score =
-                    ((prioritizing_weights["scaled_lfc_ligand"] * scaled_lfc_ligand) +
-                       (prioritizing_weights["scaled_p_val_ligand"] * scaled_p_val_ligand) +
-                       (prioritizing_weights["scaled_lfc_receptor"] * scaled_lfc_receptor) +
-                       (prioritizing_weights["scaled_p_val_receptor"] * scaled_p_val_receptor) +
-                       (prioritizing_weights["scaled_activity_scaled"] * scaled_activity_scaled) +
-                       (prioritizing_weights["scaled_activity"] * scaled_activity) +
-                       (prioritizing_weights["scaled_avg_exprs_ligand"] * scaled_avg_exprs_ligand) +
-                       (prioritizing_weights["scaled_avg_frq_ligand"] * scaled_avg_frq_ligand) +
-                       (prioritizing_weights["scaled_avg_exprs_receptor"] * scaled_avg_exprs_receptor) +
-                       (prioritizing_weights["scaled_avg_frq_receptor"] * scaled_avg_frq_receptor) +
-                       (prioritizing_weights["fraction_expressing_ligand_receptor"] * fraction_expressing_ligand_receptor) +
-                       (prioritizing_weights["scaled_abundance_sender"] * rel_abundance_scaled_sender) +
-                       (prioritizing_weights["scaled_abundance_receiver"] * rel_abundance_scaled_receiver)
+                    ((prioritizing_weights["de_ligand"] * scaled_lfc_pval_ligand) +
+                       (prioritizing_weights["de_receptor"] * scaled_lfc_pval_receptor) +
+                       (prioritizing_weights["activity_scaled"] * scaled_activity_scaled) +
+                       (prioritizing_weights["exprs_ligand"] * (scaled_avg_exprs_ligand + scaled_avg_frq_ligand)/2 ) +
+                       (prioritizing_weights["exprs_receptor"] * (scaled_avg_exprs_receptor + scaled_avg_frq_receptor)/2 ) +
+                       (prioritizing_weights["frac_exprs_ligand_receptor"] * fraction_expressing_ligand_receptor) +
+                       (prioritizing_weights["abund_sender"] * rel_abundance_scaled_sender) +
+                       (prioritizing_weights["abund_receiver"] * rel_abundance_scaled_receiver)
                     )* (1/length(prioritizing_weights))) %>% dplyr::arrange(-prioritization_score)
 
-
+  
   # Sample-based Prioritization ----------------------------------------------- ----------------------------------------------------------------
   # sample_prioritization_tbl = sender_receiver_info$avg_df %>% dplyr::inner_join(sender_receiver_info$frq_df) %>% dplyr::inner_join(grouping_tbl) %>% dplyr::inner_join(group_prioritization_tbl %>% dplyr::distinct(group, sender, receiver, ligand, receptor, prioritization_score))
   sample_prioritization_tbl = sender_receiver_info$avg_df %>% dplyr::inner_join(sender_receiver_info$frq_df) %>% dplyr::inner_join(grouping_tbl) %>% dplyr::left_join(group_prioritization_tbl %>% dplyr::distinct(group, sender, receiver, ligand, receptor, prioritization_score)) #maybe NA there if it is not considered to be expressed
