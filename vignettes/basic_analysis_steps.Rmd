@@ -84,53 +84,6 @@ DimPlot(seurat_obj, group.by = "tumor")
 DimPlot(seurat_obj, group.by = "pEMT")
 DimPlot(seurat_obj, group.by = "pEMT_fine")
 ```
-trying to experiment with counts, logscounts, and SCT residuals
-```{r}
-# convert seurat to SCE object
-sce = Seurat::as.SingleCellExperiment(Seurat::DietSeurat(seurat_obj), assay = "RNA")
-SummarizedExperiment::assays(sce)$counts %>% .[1:5,1:5]
-SummarizedExperiment::assays(sce)$logcounts %>% .[1:5,1:5]
-
-sce = scater::computeLibraryFactors(sce)
-sce = scater::logNormCounts(sce)
-SummarizedExperiment::assays(sce)$counts %>% .[1:5,1:5]
-SummarizedExperiment::assays(sce)$logcounts %>% .[1:5,1:5]
-
-sce2 = Seurat::as.SingleCellExperiment(Seurat::DietSeurat(seurat_obj), assay = "RNA")
-clusters <- scran::quickCluster(sce2)
-sce2 <- scran::computeSumFactors(sce2, clusters=clusters)
-sce2 <- scater::logNormCounts(sce2)
-SummarizedExperiment::assays(sce)$logcounts %>% .[1:5,1:5]
-SummarizedExperiment::assays(sce2)$logcounts %>% .[1:5,1:5]
-
-sce1 = Seurat::as.SingleCellExperiment(Seurat::DietSeurat(seurat_obj), assay = "SCT")
-SummarizedExperiment::assays(sce1)$counts %>% .[1:5,1:5]
-SummarizedExperiment::assays(sce1)$logcounts %>% .[1:5,1:5]
-seurat_obj@assays$SCT@counts %>% .[1:5,1:5]
-seurat_obj@assays$SCT@data %>% .[1:5,1:5]
-
-# sce2 = Seurat::as.SingleCellExperiment(Seurat::DietSeurat(seurat_obj), assay = c("RNA","SCT")) # not OK
-# SummarizedExperiment::assays(sce2)
-# SummarizedExperiment::assays(sce1)$counts %>% .[1:5,1:5]
-# SummarizedExperiment::assays(sce1)$logcounts %>% .[1:5,1:5]
-# 
-sct = sctransform::vst(SingleCellExperiment::counts(sce), verbosity = FALSE)$y
-SummarizedExperiment::assays(sce, withDimnames=FALSE)$vstresiduals <- y ## will error --> filter out the assay in advance, to contain only necessary genes...
-## I should once try out myself which visualization best accords to the DE results
-genes_kept = rownames(sct)
-cells_kept = colnames(sct)
-
-sce = sce[genes_kept, cells_kept]
-SummarizedExperiment::assays(sce, withDimnames=FALSE)$vstresiduals = sct
-
-SummarizedExperiment::assays(sce)$counts %>% .[1:5,1:5]
-SummarizedExperiment::assays(sce)$logcounts %>% .[1:5,1:5]
-SummarizedExperiment::assays(sce)$vstresiduals %>% .[1:5,1:5]
-
-# test scran
-
-``` 
-  
 We will now also check the number of cells per cell type condition combination, and the number of patients per condition.
 
 __User adaptation required__
@@ -174,6 +127,8 @@ if(subset_senders_receivers == TRUE){
 }
 ```
 
+
+
 Now we will go to the first real step of the MultiNicheNet analysis
 
 # Step 1: Extract cell type abundance and expression information from receiver and sender cell types, and link this expression information for ligands of the sender cell types to the corresponding receptors of the receiver cell types
@@ -190,6 +145,8 @@ Now we will calculate abundance and expression information for each cell type / 
 ```{r}
 abundance_expression_info = get_abundance_expression_info(seurat_obj = seurat_obj, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id, min_cells = min_cells, senders_oi = senders_oi, receivers_oi = receivers_oi, lr_network = lr_network)
 ```
+
+Warning: means that some samples have a pseudobulk library size of 0 for a cell type (because that cell type was not present in that sample)
 
 First, check the cell type abundance diagnostic plots.
 
@@ -220,11 +177,12 @@ __Important__: Based on the cell type abundance diagnostics, we recommend users 
 
 ### Interpretation of expression information
 
-Previously, we also calculated expression information. With the following piece of code, you can check the average expression for each gene per sample (normalized expression value and fraction of expressing cells with non-zero counts). 
+Previously, we also calculated expression information. With the following piece of code, you can check the average expression for each gene per sample (normalized expression value and fraction of expressing cells with non-zero counts, and logCPM-pseudocounts). 
 
 ```{r}
 abundance_expression_info$celltype_info$avg_df
 abundance_expression_info$celltype_info$frq_df
+abundance_expression_info$celltype_info$pb_df
 ```
 
 Now for the average per group:
@@ -232,6 +190,7 @@ Now for the average per group:
 ```{r}
 abundance_expression_info$celltype_info$avg_df_group
 abundance_expression_info$celltype_info$frq_df_group
+abundance_expression_info$celltype_info$pb_df_group
 ```
 
 In the last part of this step, we combined this information for each ligand-receptor pair combination for each sender-receiver combination. The output of this can be seen as well:
@@ -241,6 +200,7 @@ For sample-based:
 ```{r}
 abundance_expression_info$sender_receiver_info$avg_df
 abundance_expression_info$sender_receiver_info$frq_df
+abundance_expression_info$sender_receiver_info$pb_df
 ```
 
 For group-based:
@@ -248,6 +208,7 @@ For group-based:
 ```{r}
 abundance_expression_info$sender_receiver_info$avg_df_group
 abundance_expression_info$sender_receiver_info$frq_df_group
+abundance_expression_info$sender_receiver_info$pb_df_group
 ```
 
 # Step 2: Perform genome-wide differential expression analysis of receiver and sender cell types to define DE genes between the conditions of interest. Based on this analysis, we can define the logFC/p-value of ligands in senders and receptors in receivers, and define the set of affected target genes in the receiver.
@@ -614,7 +575,7 @@ We will look here at the top100 predictions across all contrasts (high vs low; a
 prioritized_tbl_oi = multinichenet_output$prioritization_tables$group_prioritization_tbl %>% 
   filter(fraction_ligand_group > fraction_cutoff & fraction_receptor_group > fraction_cutoff) %>% 
   distinct(id, sender, receiver, ligand, receptor, group, prioritization_score, ligand_receptor_lfc_avg, fraction_expressing_ligand_receptor) %>% 
-  filter(ligand_receptor_lfc_avg > 0 & fraction_expressing_ligand_receptor > 0) %>% top_n(100, prioritization_score) 
+  filter(ligand_receptor_lfc_avg > 0 & fraction_expressing_ligand_receptor > 0) %>% top_n(50, prioritization_score) 
 
 prioritized_tbl_oi %>% group_by(group) %>% count()
 
@@ -651,6 +612,19 @@ prioritized_tbl_oi = multinichenet_output$prioritization_tables$group_prioritiza
   filter(group == group_oi) %>% group_by(group) %>% top_n(75, prioritization_score) 
 
 plot_oi = make_sample_lr_prod_plots(multinichenet_output$prioritization_tables, prioritized_tbl_oi)
+plot_oi
+```
+Visualize now the scaled LR prod based on pseudobulk!
+```{r, fig.height=18, fig.width=12}
+prioritized_tbl_oi = multinichenet_output$prioritization_tables$group_prioritization_tbl %>% 
+  distinct(id, sender, receiver, lr_interaction, group, ligand_receptor_lfc_avg, activity_scaled, fraction_expressing_ligand_receptor,  prioritization_score) %>% 
+  filter(fraction_expressing_ligand_receptor > 0) %>% 
+  filter(group == group_oi) %>% group_by(group) %>% top_n(75, prioritization_score) 
+
+prior_tables_adapated = multinichenet_output$prioritization_tables
+prior_tables_adapated$sample_prioritization_tbl = prior_tables_adapated$sample_prioritization_tbl %>% mutate(scaled_LR_prod = scaled_LR_pb_prod )
+
+plot_oi = make_sample_lr_prod_plots(prior_tables_adapated, prioritized_tbl_oi)
 plot_oi
 ```
 

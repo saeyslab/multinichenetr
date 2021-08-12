@@ -43,7 +43,9 @@ Imports:
     ggpubr,
     parallel,
     locfdr,
-    scran
+    scran,
+    edgeR,
+    sva
 Suggests: 
     knitr,
     testthat,

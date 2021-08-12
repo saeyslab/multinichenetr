@@ -4,7 +4,7 @@
 \alias{get_abundance_expression_info_separate}
 \title{get_abundance_expression_info_separate}
 \usage{
-get_abundance_expression_info_separate(seurat_obj_receiver, seurat_obj_sender, sample_id, group_id, celltype_id_receiver, celltype_id_sender, min_cells, senders_oi, receivers_oi, lr_network, assay_oi_sce = "RNA")
+get_abundance_expression_info_separate(seurat_obj_receiver, seurat_obj_sender, sample_id, group_id, celltype_id_receiver, celltype_id_sender, min_cells, senders_oi, receivers_oi, lr_network, covariates = NA, assay_oi_sce = "RNA")
 }
 \arguments{
 \item{seurat_obj_receiver}{Seurat object containing the receiver cell types of interest}
@@ -26,6 +26,8 @@ get_abundance_expression_info_separate(seurat_obj_receiver, seurat_obj_sender, s
 \item{receivers_oi}{Character vector indicating the names of the receiver cell types of interest}
 
 \item{lr_network}{Prior knowledge Ligand-Receptor network (columns: ligand, receptor)}
+
+\item{covariates}{NA if no covariates should be corrected for. If there should be corrected for covariates, this argument should be the name(s) of the columns in the meta data that indicate the covariate(s).}
 
 \item{assay_oi_sce}{Indicates which assay of the Seurat object should be used. Default: "RNA". See: `Seurat::as.SingleCellExperiment`.}
 }

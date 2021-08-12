@@ -130,9 +130,10 @@ get_muscat_exprs_avg = function(seurat_obj, sample_id, celltype_id, group_id, as
   # scater::normalizeCounts()
   
   set.seed(1919) # seed for reproducibility of the scran::quickCluster function (see https://bioconductor.org/books/release/OSCA/normalization.html)
-  clusters = scran::quickCluster(sce)
-  sce = scran::computeSumFactors(sce, clusters=clusters)
-  sce = scater::logNormCounts(sce)
+  
+  clusters = suppressWarnings(scran::quickCluster(sce)) # why suppressWarnings --> on the lite dataset input ":regularize.values(x, y, ties, missing(ties), na.rm = na.rm)" pops always up, not on the entire dataset. Avoid these types of warnings for checks + anyway: logcounts assay are not much used anyway in the prioritizaton and visualization.
+  sce = suppressWarnings(scran::computeSumFactors(sce, clusters=clusters))
+  sce = suppressWarnings(scater::logNormCounts(sce))
   
   avg = muscat::aggregateData(sce, assay = "logcounts", fun = "mean", by = c("cluster_id", "sample_id"))
 
@@ -146,6 +147,132 @@ get_muscat_exprs_avg = function(seurat_obj, sample_id, celltype_id, group_id, as
 
   return(avg_df)
 }
+#' @title get_pseudobulk_logCPM_exprs
+#'
+#' @description \code{get_pseudobulk_logCPM_exprs}  Calculate the 'library-size' normalized pseudbulk counts per sample for each gene - returned values are similar to logCPM. 
+#' @usage get_pseudobulk_logCPM_exprs(seurat_obj, sample_id, celltype_id, group_id, covariates = NA, assay_oi_sce = "RNA", assay_oi_pb = "counts", fun_oi_pb = "sum")
+#'
+#' @inheritParams multi_nichenet_analysis_combined
+#'
+#' @return Data frame with logCPM-like values of the library-size corrected pseudobulked counts (`pb_sample`) per gene per sample. pb_sample = log2( ((pb_raw/effective_library_size) \* 1000000) + 1). effective_library_size  = lib.size \* norm.factors (through edgeR::calcNormFactors).
+#'
+#' @import Seurat
+#' @import dplyr
+#' @import muscat
+#' @import tibble
+#' @import tidyr
+#' @importFrom edgeR DGEList calcNormFactors
+#' @importFrom sva ComBat_seq
+#' @importFrom S4Vectors metadata
+#'
+#' @examples
+#' \dontrun{
+#' library(Seurat)
+#' library(dplyr)
+#' sample_id = "tumor"
+#' group_id = "pEMT"
+#' celltype_id = "celltype"
+#' pseudobulk_logCPM_exprs = get_pseudobulk_logCPM_exprs(seurat_obj = seurat_obj, sample_id = sample_id, celltype_id =  celltype_id, group_id = group_id)
+#' }
+#'
+#' @export
+#'
+get_pseudobulk_logCPM_exprs = function(seurat_obj, sample_id, celltype_id, group_id, covariates = NA, assay_oi_sce = "RNA", assay_oi_pb = "counts", fun_oi_pb = "sum"){
+  
+  requireNamespace("Seurat")
+  requireNamespace("dplyr")
+  
+  # convert seurat to SCE object
+  sce = Seurat::as.SingleCellExperiment(seurat_obj, assay = assay_oi_sce)
+  
+  # prepare SCE for the muscat pseudobulk analysis
+  sce$id = sce[[sample_id]]
+  sce = muscat::prepSCE(sce,
+                        kid = celltype_id, # subpopulation assignments
+                        gid = group_id,  # group IDs (ctrl/stim)
+                        sid = "id",   # sample IDs (ctrl/stim.1234)
+                        drop = FALSE)  #
+  
+  pb = muscat::aggregateData(sce, assay = assay_oi_pb, fun = fun_oi_pb, by = c("cluster_id", "sample_id"))
+  
+  # Prepare the design (group and batch effects) for the combat correction
+  if(length(covariates) > 1){
+    covariates_present = TRUE
+    covariates = covariates[1] ## only keep the first batch for batch correction!
+    warning("You used more than 1 covariate/batch to correct for. This is OK for the DE analysis. But, for the Combat batch correction of pseudobulked counts (used in visualization), only the first covariate will be considered as batch. If you want to use both as batch, redo the analysis after merging both in one variable.")
+  } else {
+    if(!is.na(covariates)){
+      covariates_present = TRUE
+    } else {
+      covariates_present = FALSE
+    }
+  }
+  if(covariates_present){ ## then perform the correction!
+    extra_metadata = seurat_obj@meta.data %>% dplyr::select(all_of(sample_id), all_of(covariates)) %>% dplyr::distinct() %>% dplyr::mutate_all(factor)
+    colnames(extra_metadata) = c("sample_id","covariates")
+    ei = S4Vectors::metadata(sce)$experiment_info
+    ei = ei %>%  dplyr::inner_join(extra_metadata, by = "sample_id")
+    # do a check: will we able to correct for the covariates on a group-by-group basis?
+    n_combinations_observed = ei %>% dplyr::select(group_id, covariates) %>% dplyr::distinct() %>% nrow()
+    n_combinations_possible = length(levels(ei$group_id)) * length(levels(ei$covariates))
+    if(n_combinations_observed != n_combinations_possible){
+      warning("Not all possible group-batch/covariate combinations are present in your data. This will result in errors during the batch effect correction process of Combat and/or Muscat DE analysis. Please reconsider the groups and batches you defined.")
+    } 
+    
+    pb_df = sce$cluster_id %>% unique() %>% lapply(function(celltype_oi, pb, ei){
+      # print(celltype_oi)
+      # get the count matrix
+      count_matrix = pb@assays@data[[celltype_oi]] %>% .[,ei$sample_id]
+      non_zero_samples = count_matrix %>% apply(2,sum) %>% .[. > 0] %>% names()
+
+      count_matrix = count_matrix[,non_zero_samples]
+
+      # adjust the count matrix
+      ei = ei %>% dplyr::filter(sample_id %in% non_zero_samples)
+      adj_count_matrix = suppressMessages(sva::ComBat_seq(count_matrix, batch=ei$covariates, group=ei$group_id, full_mod=TRUE)) # to surpress its output
+      # print("pseudobulk count matrix was succesfully corrected: ")
+      # print(adj_count_matrix[1:15, 1:5])
+      # print("compared to non-adjusted matrix:")
+      # print(count_matrix[1:15, 1:5])
+      
+      # normalize the adjusted count matrix, just like we do for the non-adjusted one
+      pseudobulk_counts_celltype = edgeR::DGEList(adj_count_matrix)
+      pseudobulk_counts_celltype = edgeR::calcNormFactors(pseudobulk_counts_celltype)
+      
+      pseudobulk_counts_celltype_df = dplyr::inner_join(
+        pseudobulk_counts_celltype$sample %>% data.frame() %>% tibble::rownames_to_column("sample") %>% dplyr::mutate(effective_library_size  = lib.size * norm.factors),
+        pseudobulk_counts_celltype$counts %>% data.frame() %>% tibble::rownames_to_column("gene") %>% tidyr::gather(sample, pb_raw, -gene)
+      )
+      
+      pseudobulk_counts_celltype_df = pseudobulk_counts_celltype_df %>% dplyr::mutate(pb_norm = pb_raw / effective_library_size) %>% dplyr::mutate(pb_sample = log2( (pb_norm * 1000000) + 1)) %>% tibble::as_tibble() %>% dplyr::mutate(celltype = celltype_oi) # +1: pseudocount - should be introduced after library size correction, otherwise: we think some samples have a higher expression even though it was zero!
+      
+    },pb, ei) %>% dplyr::bind_rows() %>% dplyr::select(gene, sample, pb_sample, celltype) %>% dplyr::distinct()
+    
+  } else { # no correction of the pseudobulk counts
+    pb_df = sce$cluster_id %>% unique() %>% lapply(function(celltype_oi, pb){
+      
+      pseudobulk_counts_celltype = edgeR::DGEList(pb@assays@data[[celltype_oi]])
+      
+      non_zero_samples = pseudobulk_counts_celltype %>% apply(2,sum) %>% .[. > 0] %>% names()
+      pseudobulk_counts_celltype = pseudobulk_counts_celltype[,non_zero_samples]
+      
+      pseudobulk_counts_celltype = edgeR::calcNormFactors(pseudobulk_counts_celltype)
+      
+      pseudobulk_counts_celltype_df = dplyr::inner_join(
+        pseudobulk_counts_celltype$sample %>% data.frame() %>% tibble::rownames_to_column("sample") %>% dplyr::mutate(effective_library_size  = lib.size * norm.factors),
+        pseudobulk_counts_celltype$counts %>% data.frame() %>% tibble::rownames_to_column("gene") %>% tidyr::gather(sample, pb_raw, -gene)
+      )
+      
+      pseudobulk_counts_celltype_df = pseudobulk_counts_celltype_df %>% dplyr::mutate(pb_norm = pb_raw / effective_library_size) %>% dplyr::mutate(pb_sample = log2( (pb_norm * 1000000) + 1)) %>% tibble::as_tibble() %>% dplyr::mutate(celltype = celltype_oi) # +1: pseudocount - should be introduced after library size correction, otherwise: we think some samples have a higher expression even though it was zero!
+      
+    },pb) %>% dplyr::bind_rows() %>% dplyr::select(gene, sample, pb_sample, celltype) %>% dplyr::distinct()
+  }
+  
+  
+  return(pb_df)
+}
+
+
 
 #' @title fix_frq_df
 #'
@@ -201,12 +328,12 @@ fix_frq_df = function(seurat_obj, frq_celltype_samples){
 #' @title get_avg_frac_exprs_abund
 #'
 #' @description \code{get_avg_frac_exprs_abund}  Calculate the average and fraction of expression of each gene per sample and per group. Calculate relative abundances of cell types as well.
-#' @usage get_avg_frac_exprs_abund(seurat_obj, sample_id, celltype_id, group_id, assay_oi = "RNA")
+#' @usage get_avg_frac_exprs_abund(seurat_obj, sample_id, celltype_id, group_id, covariates = NA, assay_oi = "RNA")
 #'
 #' @inheritParams multi_nichenet_analysis_combined
 #' @param assay_oi Indicates which assay of the Seurat object should be used. Default: "RNA". See: `Seurat::as.SingleCellExperiment`.
 #' 
-#' @return List containing data frames with average and fraction of expression per sample and per group, and relative cell type abundances as well.
+#' @return List containing data frames with average and fraction of expression per sample and per group (and pseudobulked), and relative cell type abundances as well.
 #'
 #' @import Seurat
 #' @import dplyr
@@ -225,7 +352,7 @@ fix_frq_df = function(seurat_obj, frq_celltype_samples){
 #'
 #' @export
 #'
-get_avg_frac_exprs_abund = function(seurat_obj, sample_id, celltype_id, group_id, assay_oi = "RNA"){
+get_avg_frac_exprs_abund = function(seurat_obj, sample_id, celltype_id, group_id, covariates = NA, assay_oi = "RNA"){
   
   requireNamespace("Seurat")
   requireNamespace("dplyr")
@@ -290,15 +417,22 @@ get_avg_frac_exprs_abund = function(seurat_obj, sample_id, celltype_id, group_id
       warning("are you sure you don't want to use the RNA assay?")
     }
   }
-  
+  if(!is.na(covariates)){
+    if (sum(covariates %in% colnames(seurat_obj@meta.data)) != length(covariates) ) {
+      stop("covariates should be NA or all present as column name(s) in the metadata dataframe of seurat_obj_receiver")
+    }
+  }
   ## calculate averages, fractions, relative abundance of a cell type in a group
 
   # calculate average expression
   avg_df = get_muscat_exprs_avg(seurat_obj, sample_id = sample_id, celltype_id =  celltype_id, group_id = group_id, assay_oi_sce = assay_oi)
 
   # calculate fraction of expression
-  frq_df = get_muscat_exprs_frac(seurat_obj, sample_id = sample_id, celltype_id =  celltype_id, group_id = group_id, assay_oi_sce = assay_oi) %>% .$frq_celltype_samples
+  frq_df = get_muscat_exprs_frac(seurat_obj, sample_id = sample_id, celltype_id = celltype_id, group_id = group_id, assay_oi_sce = assay_oi) %>% .$frq_celltype_samples
 
+  # calculate pseudobulked counts
+  pb_df = get_pseudobulk_logCPM_exprs(seurat_obj, sample_id = sample_id, celltype_id = celltype_id, group_id = group_id, covariates = covariates, assay_oi_sce = "RNA", assay_oi_pb = "counts", fun_oi_pb = "sum") # should be these parameters
+  
   # check whether something needs to be fixed
   if(nrow(avg_df %>% dplyr::filter(is.na(average_sample))) > 0 | nrow(avg_df %>% dplyr::filter(is.nan(average_sample))) > 0) {
     warning("There are some genes with NA average expression.")
@@ -324,7 +458,8 @@ get_avg_frac_exprs_abund = function(seurat_obj, sample_id, celltype_id, group_id
 
   avg_df_group = avg_df %>% dplyr::inner_join(grouping_df) %>% dplyr::group_by(group, celltype, gene) %>% dplyr::summarise(average_group = mean(average_sample))
   frq_df_group = frq_df %>% dplyr::inner_join(grouping_df) %>% dplyr::group_by(group, celltype, gene) %>% dplyr::summarise(fraction_group = mean(fraction_sample))
-
+  pb_df_group = pb_df %>% dplyr::inner_join(grouping_df) %>% dplyr::group_by(group, celltype, gene) %>% dplyr::summarise(pb_group = mean(pb_sample))
+  
   # calculate relative abundance
   n_celltypes = metadata$celltype_id %>% unique() %>% length()
   if(n_celltypes > 1){
@@ -339,7 +474,7 @@ get_avg_frac_exprs_abund = function(seurat_obj, sample_id, celltype_id, group_id
   # rel_ab_z = (rel_abundance_celltype_vs_group - rel_ab_mean) / rel_ab_sd
   # rel_abundance_df = rel_ab_z %>% data.frame() %>% tibble::rownames_to_column("group") %>% tidyr::gather(celltype, rel_abundance_scaled, -group) %>% tibble::as_tibble()
   rel_abundance_df = rel_abundance_celltype_vs_group %>% data.frame() %>% tibble::rownames_to_column("group") %>% tidyr::gather(celltype, rel_abundance_scaled, -group) %>% tibble::as_tibble() %>% dplyr::mutate(rel_abundance_scaled = scale_quantile_adapted(rel_abundance_scaled))
-  return(list(avg_df = avg_df, frq_df = frq_df, avg_df_group = avg_df_group, frq_df_group = frq_df_group, rel_abundance_df = rel_abundance_df))
+  return(list(avg_df = avg_df, frq_df = frq_df, pb_df = pb_df, avg_df_group = avg_df_group, frq_df_group = frq_df_group, pb_df_group = pb_df_group, rel_abundance_df = rel_abundance_df))
 
 }
 
@@ -382,23 +517,27 @@ process_info_to_ic = function(info_object, ic_type = "sender", lr_network){
   if(ic_type == "sender"){
     avg_df = info_object$avg_df %>% dplyr::filter(gene %in% ligands) %>% dplyr::rename(sender = celltype, ligand = gene, avg_ligand = average_sample)
     frq_df = info_object$frq_df %>% dplyr::filter(gene %in% ligands) %>% dplyr::rename(sender = celltype, ligand = gene, fraction_ligand = fraction_sample)
-
+    pb_df = info_object$pb_df %>% dplyr::filter(gene %in% ligands) %>% dplyr::rename(sender = celltype, ligand = gene, pb_ligand = pb_sample)
+      
     avg_df_group = info_object$avg_df_group %>% dplyr::filter(gene %in% ligands) %>% dplyr::rename(sender = celltype, ligand = gene, avg_ligand_group = average_group)
     frq_df_group = info_object$frq_df_group %>% dplyr::filter(gene %in% ligands) %>% dplyr::rename(sender = celltype, ligand = gene, fraction_ligand_group = fraction_group)
-
+    pb_df_group = info_object$pb_df_group %>% dplyr::filter(gene %in% ligands) %>% dplyr::rename(sender = celltype, ligand = gene, pb_ligand_group = pb_group)
+    
     rel_abundance_df = info_object$rel_abundance_df %>% dplyr::rename(sender = celltype, rel_abundance_scaled_sender = rel_abundance_scaled)
   }
   if(ic_type == "receiver"){
     avg_df = info_object$avg_df %>% dplyr::filter(gene %in% receptors) %>% dplyr::rename(receiver = celltype, receptor = gene, avg_receptor = average_sample)
     frq_df = info_object$frq_df %>% dplyr::filter(gene %in% receptors) %>% dplyr::rename(receiver = celltype, receptor = gene, fraction_receptor = fraction_sample)
-
+    pb_df = info_object$pb_df %>% dplyr::filter(gene %in% receptors) %>% dplyr::rename(receiver = celltype, receptor = gene, pb_receptor = pb_sample)
+    
     avg_df_group = info_object$avg_df_group %>% dplyr::filter(gene %in% receptors) %>% dplyr::rename(receiver = celltype, receptor = gene, avg_receptor_group = average_group)
     frq_df_group = info_object$frq_df_group %>% dplyr::filter(gene %in% receptors) %>% dplyr::rename(receiver = celltype, receptor = gene, fraction_receptor_group = fraction_group)
-
+    pb_df_group = info_object$pb_df_group %>% dplyr::filter(gene %in% receptors) %>% dplyr::rename(receiver = celltype, receptor = gene, pb_receptor_group = pb_group)
+    
     rel_abundance_df = info_object$rel_abundance_df %>% dplyr::rename(receiver = celltype, rel_abundance_scaled_receiver = rel_abundance_scaled)
   }
 
-  return(list(avg_df = avg_df, frq_df = frq_df, avg_df_group = avg_df_group, frq_df_group = frq_df_group, rel_abundance_df = rel_abundance_df))
+  return(list(avg_df = avg_df, frq_df = frq_df, pb_df = pb_df,  avg_df_group = avg_df_group, frq_df_group = frq_df_group, pb_df_group = pb_df_group, rel_abundance_df = rel_abundance_df))
 }
 
 
@@ -529,6 +668,20 @@ combine_sender_receiver_info_ic = function(sender_info, receiver_info, senders_o
   frq_df_group_sender_receiver = frq_df_group_sender %>% dplyr::inner_join(lr_network, by = "ligand") %>% dplyr::inner_join(frq_df_group_receiver, by = c("receptor","group"))
   frq_df_group_sender_receiver = frq_df_group_sender_receiver %>% dplyr::mutate(ligand_receptor_fraction_prod_group = fraction_ligand_group * fraction_receptor_group) %>% dplyr::arrange(-ligand_receptor_fraction_prod_group) %>% dplyr::select(group, sender, receiver, ligand, receptor, fraction_ligand_group, fraction_receptor_group, ligand_receptor_fraction_prod_group) %>% dplyr::distinct()
 
+  # combine pb_df
+  pb_df_sender = sender_info$pb_df %>% dplyr::filter(sender %in% senders_oi)
+  pb_df_receiver = receiver_info$pb_df %>% dplyr::filter(receiver %in% receivers_oi)
+  
+  pb_df_sender_receiver = pb_df_sender %>% dplyr::inner_join(lr_network, by = "ligand") %>% dplyr::inner_join(pb_df_receiver, by = c("receptor","sample"))
+  pb_df_sender_receiver = pb_df_sender_receiver %>% dplyr::mutate(ligand_receptor_pb_prod = pb_ligand * pb_receptor) %>% dplyr::arrange(-ligand_receptor_pb_prod) %>% dplyr::select(sample, sender, receiver, ligand, receptor, pb_ligand, pb_receptor, ligand_receptor_pb_prod) %>% dplyr::distinct()
+  
+  # combine pb_df_group
+  pb_df_group_sender = sender_info$pb_df_group %>% dplyr::filter(sender %in% senders_oi)
+  pb_df_group_receiver = receiver_info$pb_df_group %>% dplyr::filter(receiver %in% receivers_oi)
+  
+  pb_df_group_sender_receiver = pb_df_group_sender %>% dplyr::inner_join(lr_network, by = "ligand") %>% dplyr::inner_join(pb_df_group_receiver, by = c("receptor","group"))
+  pb_df_group_sender_receiver = pb_df_group_sender_receiver %>% dplyr::mutate(ligand_receptor_pb_prod_group = pb_ligand_group * pb_receptor_group) %>% dplyr::arrange(-ligand_receptor_pb_prod_group) %>% dplyr::select(group, sender, receiver, ligand, receptor, pb_ligand_group, pb_receptor_group, ligand_receptor_pb_prod_group) %>% dplyr::distinct()
+  
   # combine relative abundances
   rel_abundance_df_sender = sender_info$rel_abundance_df %>% dplyr::filter(sender %in% senders_oi)
   rel_abundance_df_receiver = receiver_info$rel_abundance_df %>% dplyr::filter(receiver %in% receivers_oi)
@@ -536,7 +689,7 @@ combine_sender_receiver_info_ic = function(sender_info, receiver_info, senders_o
   rel_abundance_df_sender_receiver = rel_abundance_df_sender %>%  dplyr::inner_join(rel_abundance_df_receiver, by = "group") %>% dplyr::mutate(sender_receiver_rel_abundance_avg = 0.5*(rel_abundance_scaled_sender  + rel_abundance_scaled_receiver))
 
   # return
-  return(list(avg_df = avg_df_sender_receiver, frq_df = frq_df_sender_receiver, avg_df_group = avg_df_group_sender_receiver, frq_df_group = frq_df_group_sender_receiver, rel_abundance_df = rel_abundance_df_sender_receiver))
+  return(list(avg_df = avg_df_sender_receiver, frq_df = frq_df_sender_receiver, pb_df = pb_df_sender_receiver,  avg_df_group = avg_df_group_sender_receiver, frq_df_group = frq_df_group_sender_receiver, pb_df_group = pb_df_group_sender_receiver, rel_abundance_df = rel_abundance_df_sender_receiver))
 }
 
 #' @title combine_sender_receiver_de

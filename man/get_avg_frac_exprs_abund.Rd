@@ -4,7 +4,7 @@
 \alias{get_avg_frac_exprs_abund}
 \title{get_avg_frac_exprs_abund}
 \usage{
-get_avg_frac_exprs_abund(seurat_obj, sample_id, celltype_id, group_id, assay_oi = "RNA")
+get_avg_frac_exprs_abund(seurat_obj, sample_id, celltype_id, group_id, covariates = NA, assay_oi = "RNA")
 }
 \arguments{
 \item{seurat_obj}{Seurat object of the scRNAseq data of interest. Contains both sender and receiver cell types.}
@@ -15,10 +15,12 @@ get_avg_frac_exprs_abund(seurat_obj, sample_id, celltype_id, group_id, assay_oi 
 
 \item{group_id}{Name of the meta data column that indicates from which group/condition a cell comes from (in both seurat_obj_receiver and seurat_obj_sender)}
 
+\item{covariates}{NA if no covariates should be corrected for. If there should be corrected for covariates, this argument should be the name(s) of the columns in the meta data that indicate the covariate(s).}
+
 \item{assay_oi}{Indicates which assay of the Seurat object should be used. Default: "RNA". See: `Seurat::as.SingleCellExperiment`.}
 }
 \value{
-List containing data frames with average and fraction of expression per sample and per group, and relative cell type abundances as well.
+List containing data frames with average and fraction of expression per sample and per group (and pseudobulked), and relative cell type abundances as well.
 }
 \description{
 \code{get_avg_frac_exprs_abund}  Calculate the average and fraction of expression of each gene per sample and per group. Calculate relative abundances of cell types as well.

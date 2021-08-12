@@ -1,7 +1,7 @@
 #' @title get_abundance_expression_info
 #'
 #' @description \code{get_abundance_expression_info} Visualize cell type abundances. Calculate the average and fraction of expression of each gene per sample and per group. Calculate relative abundances of cell types as well. Under the hood, the following functions are used: `get_avg_frac_exprs_abund`, `process_info_to_ic`, `combine_sender_receiver_info_ic`
-#' @usage get_abundance_expression_info(seurat_obj, sample_id, group_id, celltype_id, min_cells, senders_oi, receivers_oi, lr_network,  assay_oi_sce = "RNA")
+#' @usage get_abundance_expression_info(seurat_obj, sample_id, group_id, celltype_id, min_cells, senders_oi, receivers_oi, lr_network, covariates = NA, assay_oi_sce = "RNA")
 #'
 #' @inheritParams multi_nichenet_analysis_combined
 #' @inheritParams combine_sender_receiver_info_ic
@@ -30,7 +30,7 @@
 #'
 #' @export
 #'
-get_abundance_expression_info = function(seurat_obj, sample_id, group_id, celltype_id, min_cells, senders_oi, receivers_oi, lr_network, assay_oi_sce = "RNA"){
+get_abundance_expression_info = function(seurat_obj, sample_id, group_id, celltype_id, min_cells, senders_oi, receivers_oi, lr_network, covariates = NA, assay_oi_sce = "RNA"){
   
   requireNamespace("dplyr")
   requireNamespace("ggplot2")
@@ -75,6 +75,7 @@ get_abundance_expression_info = function(seurat_obj, sample_id, group_id, cellty
     sample_id = sample_id,
     celltype_id =  celltype_id,
     group_id = group_id, 
+    covariates = covariates,
     assay_oi = assay_oi_sce))
   
   
@@ -104,7 +105,7 @@ get_abundance_expression_info = function(seurat_obj, sample_id, group_id, cellty
 #' @title get_abundance_expression_info_separate
 #'
 #' @description \code{get_abundance_expression_info_separate}.Similar to `get_abundance_expression_info`, but now for sender and receiver object separately. Visualize cell type abundances. Calculate the average and fraction of expression of each gene per sample and per group. Calculate relative abundances of cell types as well. Under the hood, the following functions are used: `get_avg_frac_exprs_abund`, `process_info_to_ic`, `combine_sender_receiver_info_ic`
-#' @usage get_abundance_expression_info_separate(seurat_obj_receiver, seurat_obj_sender, sample_id, group_id, celltype_id_receiver, celltype_id_sender, min_cells, senders_oi, receivers_oi, lr_network, assay_oi_sce = "RNA")
+#' @usage get_abundance_expression_info_separate(seurat_obj_receiver, seurat_obj_sender, sample_id, group_id, celltype_id_receiver, celltype_id_sender, min_cells, senders_oi, receivers_oi, lr_network, covariates = NA, assay_oi_sce = "RNA")
 #'
 #' @inheritParams multi_nichenet_analysis_separate
 #' @inheritParams combine_sender_receiver_info_ic
@@ -136,7 +137,7 @@ get_abundance_expression_info = function(seurat_obj, sample_id, group_id, cellty
 #'
 #' @export
 #'
-get_abundance_expression_info_separate = function(seurat_obj_receiver, seurat_obj_sender, sample_id, group_id, celltype_id_receiver, celltype_id_sender, min_cells, senders_oi, receivers_oi, lr_network, assay_oi_sce = "RNA"){
+get_abundance_expression_info_separate = function(seurat_obj_receiver, seurat_obj_sender, sample_id, group_id, celltype_id_receiver, celltype_id_sender, min_cells, senders_oi, receivers_oi, lr_network, covariates = NA, assay_oi_sce = "RNA"){
   
   requireNamespace("dplyr")
   requireNamespace("ggplot2")
@@ -179,6 +180,7 @@ get_abundance_expression_info_separate = function(seurat_obj_receiver, seurat_ob
     sample_id = sample_id,
     celltype_id =  celltype_id_receiver,
     group_id = group_id, 
+    covariates = covariates,
     assay_oi = assay_oi_sce))
   receiver_info_ic = suppressMessages(process_info_to_ic(
     info_object = receiver_info,
@@ -222,6 +224,7 @@ get_abundance_expression_info_separate = function(seurat_obj_receiver, seurat_ob
     sample_id = sample_id,
     celltype_id =  celltype_id_sender,
     group_id = group_id, 
+    covariates = covariates,
     assay_oi = assay_oi_sce))
   sender_info_ic = suppressMessages(process_info_to_ic(
     info_object = sender_info,
@@ -390,8 +393,11 @@ make_lite_output = function(multinichenet_output){
     gene_subset = generics::union(multinichenet_output$prioritization_tables$group_prioritization_tbl$ligand, multinichenet_output$prioritization_tables$group_prioritization_tbl$receptor) %>% generics::union(multinichenet_output$ligand_activities_targets_DEgenes$de_genes_df %>% dplyr::pull(gene) %>% unique())
     multinichenet_output$celltype_info$avg_df = multinichenet_output$celltype_info$avg_df %>% dplyr::filter(gene %in% gene_subset)
     multinichenet_output$celltype_info$frq_df = multinichenet_output$celltype_info$frq_df %>% dplyr::filter(gene %in% gene_subset)
+    multinichenet_output$celltype_info$pb_df = multinichenet_output$celltype_info$pb_df %>% dplyr::filter(gene %in% gene_subset)
+    
     multinichenet_output$celltype_info$avg_df_group = multinichenet_output$celltype_info$avg_df_group %>% dplyr::filter(gene %in% gene_subset)
     multinichenet_output$celltype_info$frq_df_group = multinichenet_output$celltype_info$frq_df_group %>% dplyr::filter(gene %in% gene_subset)
+    multinichenet_output$celltype_info$pb_df_group = multinichenet_output$celltype_info$pb_df_group %>% dplyr::filter(gene %in% gene_subset)
     
     multinichenet_output$celltype_de = multinichenet_output$celltype_de %>% dplyr::filter(gene %in% gene_subset)
     
@@ -400,8 +406,11 @@ make_lite_output = function(multinichenet_output){
     
     multinichenet_output$sender_receiver_info$avg_df = multinichenet_output$sender_receiver_info$avg_df %>% dplyr::inner_join(LR_subset)
     multinichenet_output$sender_receiver_info$frq_df = multinichenet_output$sender_receiver_info$frq_df %>% dplyr::inner_join(LR_subset)
+    multinichenet_output$sender_receiver_info$pb_df = multinichenet_output$sender_receiver_info$pb_df %>% dplyr::inner_join(LR_subset)
+    
     multinichenet_output$sender_receiver_info$avg_df_group = multinichenet_output$sender_receiver_info$avg_df_group %>% dplyr::inner_join(LR_subset)
     multinichenet_output$sender_receiver_info$frq_df_group = multinichenet_output$sender_receiver_info$frq_df_group %>% dplyr::inner_join(LR_subset)
+    multinichenet_output$sender_receiver_info$pb_df_group = multinichenet_output$sender_receiver_info$pb_df_group %>% dplyr::inner_join(LR_subset)
     
     multinichenet_output$sender_receiver_de = multinichenet_output$sender_receiver_de %>% dplyr::inner_join(LR_subset)
     
@@ -414,8 +423,11 @@ make_lite_output = function(multinichenet_output){
       gene_subset = multinichenet_output$prioritization_tables$group_prioritization_tbl$ligand %>% unique()
       multinichenet_output$sender_info$avg_df = multinichenet_output$sender_info$avg_df %>% dplyr::filter(gene %in% gene_subset)
       multinichenet_output$sender_info$frq_df = multinichenet_output$sender_info$frq_df %>% dplyr::filter(gene %in% gene_subset)
+      multinichenet_output$sender_info$pb_df = multinichenet_output$sender_info$pb_df %>% dplyr::filter(gene %in% gene_subset)
+      
       multinichenet_output$sender_info$avg_df_group = multinichenet_output$sender_info$avg_df_group %>% dplyr::filter(gene %in% gene_subset)
       multinichenet_output$sender_info$frq_df_group = multinichenet_output$sender_info$frq_df_group %>% dplyr::filter(gene %in% gene_subset)
+      multinichenet_output$sender_info$pb_df_group = multinichenet_output$sender_info$pb_df_group %>% dplyr::filter(gene %in% gene_subset)
       
       multinichenet_output$sender_de = multinichenet_output$sender_de %>% dplyr::filter(gene %in% gene_subset)
       
@@ -423,8 +435,11 @@ make_lite_output = function(multinichenet_output){
       gene_subset = unique(multinichenet_output$prioritization_tables$group_prioritization_tbl$receptor) %>% generics::union(multinichenet_output$ligand_activities_targets_DEgenes$de_genes_df %>% dplyr::pull(gene) %>% unique())
       multinichenet_output$receiver_info$avg_df = multinichenet_output$receiver_info$avg_df %>% dplyr::filter(gene %in% gene_subset)
       multinichenet_output$receiver_info$frq_df = multinichenet_output$receiver_info$frq_df %>% dplyr::filter(gene %in% gene_subset)
+      multinichenet_output$receiver_info$pb_df = multinichenet_output$receiver_info$pb_df %>% dplyr::filter(gene %in% gene_subset)
+      
       multinichenet_output$receiver_info$avg_df_group = multinichenet_output$receiver_info$avg_df_group %>% dplyr::filter(gene %in% gene_subset)
       multinichenet_output$receiver_info$frq_df_group = multinichenet_output$receiver_info$frq_df_group %>% dplyr::filter(gene %in% gene_subset)
+      multinichenet_output$receiver_info$pb_df_group = multinichenet_output$receiver_info$pb_df_group %>% dplyr::filter(gene %in% gene_subset)
       
       multinichenet_output$receiver_de = multinichenet_output$receiver_de %>% dplyr::filter(gene %in% gene_subset)
       
@@ -433,8 +448,11 @@ make_lite_output = function(multinichenet_output){
       
       multinichenet_output$sender_receiver_info$avg_df = multinichenet_output$sender_receiver_info$avg_df %>% dplyr::inner_join(LR_subset)
       multinichenet_output$sender_receiver_info$frq_df = multinichenet_output$sender_receiver_info$frq_df %>% dplyr::inner_join(LR_subset)
+      multinichenet_output$sender_receiver_info$pb_df = multinichenet_output$sender_receiver_info$pb_df %>% dplyr::inner_join(LR_subset)
+      
       multinichenet_output$sender_receiver_info$avg_df_group = multinichenet_output$sender_receiver_info$avg_df_group %>% dplyr::inner_join(LR_subset)
       multinichenet_output$sender_receiver_info$frq_df_group = multinichenet_output$sender_receiver_info$frq_df_group %>% dplyr::inner_join(LR_subset)
+      multinichenet_output$sender_receiver_info$pb_df_group = multinichenet_output$sender_receiver_info$pb_df_group %>% dplyr::inner_join(LR_subset)
       
       multinichenet_output$sender_receiver_de = multinichenet_output$sender_receiver_de %>% dplyr::inner_join(LR_subset)
       

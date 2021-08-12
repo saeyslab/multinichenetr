@@ -31,7 +31,7 @@ make_sample_lr_prod_plots = function(prioritization_tables, prioritized_tbl_oi){
   
   
   p1 = filtered_data %>%
-    ggplot(aes(sample, lr_interaction, color = scaled_LR_prod, size = keep_sender_receiver)) +
+    ggplot(aes(sample, lr_interaction, color = scaled_LR_pb_prod, size = keep_sender_receiver)) +
     geom_point() +
     facet_grid(sender_receiver~group, scales = "free", space = "free") +
     scale_x_discrete(position = "top") +
@@ -50,9 +50,9 @@ make_sample_lr_prod_plots = function(prioritization_tables, prioritized_tbl_oi){
       strip.text.x = element_text(size = 11, color = "black", face = "bold"),
       strip.text.y = element_text(size = 9, color = "black", face = "bold", angle = 0),
       strip.background = element_rect(color="darkgrey", fill="whitesmoke", size=1.5, linetype="solid")
-    ) + labs(color = "Scaled L-R\navg expression product", size= "Sufficient presence\nof sender & receiver") + 
+    ) + labs(color = "Scaled L-R\npseudobulk exprs product", size= "Sufficient presence\nof sender & receiver") + 
     scale_size_manual(values = keep_sender_receiver_values)
-  max_lfc = abs(filtered_data$scaled_LR_prod) %>% max()
+  max_lfc = abs(filtered_data$scaled_LR_pb_prod) %>% max()
   custom_scale_fill = scale_color_gradientn(colours = RColorBrewer::brewer.pal(n = 7, name = "RdBu") %>% rev(),values = c(0, 0.350, 0.4850, 0.5, 0.5150, 0.65, 1),  limits = c(-1*max_lfc, max_lfc))
 
   p1 = p1 + custom_scale_fill
@@ -96,7 +96,7 @@ make_sample_lr_prod_activity_plots = function(prioritization_tables, prioritized
   
   
   p1 = sample_data %>%
-    ggplot(aes(sample, lr_interaction, color = scaled_LR_prod, size = keep_sender_receiver)) +
+    ggplot(aes(sample, lr_interaction, color = scaled_LR_pb_prod, size = keep_sender_receiver)) +
     geom_point() +
     facet_grid(sender_receiver~group, scales = "free", space = "free", switch = "y") +
     scale_x_discrete(position = "top") +
@@ -115,9 +115,9 @@ make_sample_lr_prod_activity_plots = function(prioritization_tables, prioritized
       strip.text.x.top = element_text(size = 10, color = "black", face = "bold", angle = 0),
       strip.text.y.left = element_text(size = 9, color = "black", face = "bold", angle = 0),
       strip.background = element_rect(color="darkgrey", fill="whitesmoke", size=1.5, linetype="solid")
-    ) + labs(color = "Scaled L-R\navg expression product", size= "Sufficient presence\nof sender & receiver") + 
+    ) + labs(color = "Scaled L-R\npseudobulk exprs product", size= "Sufficient presence\nof sender & receiver") + 
     scale_size_manual(values = keep_sender_receiver_values)
-  max_lfc = abs(sample_data$scaled_LR_prod) %>% max()
+  max_lfc = abs(sample_data$scaled_LR_pb_prod) %>% max()
   custom_scale_fill = scale_color_gradientn(colours = RColorBrewer::brewer.pal(n = 7, name = "RdBu") %>% rev(),values = c(0, 0.350, 0.4850, 0.5, 0.5150, 0.65, 1),  limits = c(-1*max_lfc, max_lfc))
 
   p1 = p1 + custom_scale_fill
@@ -238,7 +238,7 @@ make_sample_lr_prod_activity_covariate_plots = function(prioritization_tables, p
   group_data = prioritization_tables$group_prioritization_tbl %>% dplyr::mutate(sender_receiver = paste(sender, receiver, sep = " to ")) %>% dplyr::distinct(id, sender, receiver, sender_receiver, lr_interaction, group, ligand_receptor_lfc_avg, activity, activity_scaled, fraction_ligand_group, prioritization_score, scaled_avg_exprs_ligand) %>% dplyr::filter(id %in% sample_data$id)
   
   p1 = sample_data %>%
-    ggplot(aes(sample, lr_interaction, color = scaled_LR_prod, size = scaled_LR_frac)) +
+    ggplot(aes(sample, lr_interaction, color = scaled_LR_pb_prod, size = scaled_LR_frac)) +
     geom_point() +
     facet_grid(sender_receiver~group, scales = "free", space = "free", switch = "y") +
     scale_x_discrete(position = "top") +
@@ -257,8 +257,8 @@ make_sample_lr_prod_activity_covariate_plots = function(prioritization_tables, p
       strip.text.x.top = element_text(size = 10, color = "black", face = "bold", angle = 0),
       strip.text.y.left = element_text(size = 9, color = "black", face = "bold", angle = 0),
       strip.background = element_rect(color="darkgrey", fill="whitesmoke", size=1.5, linetype="solid")
-    ) + labs(color = "Scaled L-R\navg expression product", size= "Scaled L-R\navg exprs fraction product")
-  max_lfc = abs(sample_data$scaled_LR_prod) %>% max()
+    ) + labs(color = "Scaled L-R\npseudobulk exprs product", size= "Scaled L-R\navg exprs fraction product")
+  max_lfc = abs(sample_data$scaled_LR_pb_prod) %>% max()
   custom_scale_fill = scale_color_gradientn(colours = RColorBrewer::brewer.pal(n = 7, name = "RdBu") %>% rev(),values = c(0, 0.350, 0.4850, 0.5, 0.5150, 0.65, 1),  limits = c(-1*max_lfc, max_lfc))
   
   p1 = p1 + custom_scale_fill

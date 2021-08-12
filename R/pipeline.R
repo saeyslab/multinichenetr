@@ -59,7 +59,7 @@ multi_nichenet_analysis = function(sender_receiver_separate = TRUE, ...){
 #' @description \code{multi_nichenet_analysis_separate}  Perform a MultiNicheNet analysis between sender cell types and receiver cell types of interest.
 #' @usage multi_nichenet_analysis_separate(
 #' seurat_obj_receiver,seurat_obj_sender,celltype_id_receiver,celltype_id_sender,sample_id,group_id, covariates, lr_network,ligand_target_matrix,contrasts_oi,contrast_tbl, fraction_cutoff = 0.05,
-#' prioritizing_weights = c("de_ligand" = 1,"de_receptor" = 1,"activity_scaled" = 1,"exprs_ligand" = 1,"exprs_receptor" = 1, 1,"frac_exprs_ligand_receptor" = 1,"abund_sender" = 0,"abund_receiver" = 0),
+#' prioritizing_weights = c("de_ligand" = 1,"de_receptor" = 1,"activity_scaled" = 1,"exprs_ligand" = 1,"exprs_receptor" = 1, "frac_exprs_ligand_receptor" = 1,"abund_sender" = 0,"abund_receiver" = 0),
 #' assay_oi_sce = "RNA",assay_oi_pb ="counts",fun_oi_pb = "sum",de_method_oi = "edgeR",min_cells = 10,logFC_threshold = 0.25,p_val_threshold = 0.05, p_val_adj = FALSE, empirical_pval = TRUE, top_n_target = 250, verbose = FALSE, n.cores = 1, return_lr_prod_matrix = FALSE)
 #'
 #' @param seurat_obj_receiver Seurat object containing the receiver cell types of interest
@@ -501,7 +501,7 @@ multi_nichenet_analysis_separate = function(seurat_obj_receiver,
     print("Make diagnostic abundance plots + Calculate expression information")
   }
   
-  abundance_expression_info = get_abundance_expression_info_separate(seurat_obj_receiver = seurat_obj_receiver, seurat_obj_sender = seurat_obj_sender, sample_id = sample_id, group_id = group_id, celltype_id_receiver = celltype_id_receiver, celltype_id_sender = celltype_id_sender, senders_oi = senders_oi, receivers_oi = receivers_oi, lr_network = lr_network, min_cells = min_cells)
+  abundance_expression_info = get_abundance_expression_info_separate(seurat_obj_receiver = seurat_obj_receiver, seurat_obj_sender = seurat_obj_sender, sample_id = sample_id, group_id = group_id, celltype_id_receiver = celltype_id_receiver, celltype_id_sender = celltype_id_sender, senders_oi = senders_oi, receivers_oi = receivers_oi, lr_network = lr_network, covariates = covariates, min_cells = min_cells)
   
   ### Perform the DE analysis ----------------------------------------------------------------
   
@@ -978,7 +978,7 @@ multi_nichenet_analysis_combined = function(seurat_obj,
     print("Make diagnostic abundance plots + Calculate expression information")
   }
   
-  abundance_expression_info = get_abundance_expression_info(seurat_obj = seurat_obj, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id, min_cells = min_cells, assay_oi_sce = assay_oi_sce, senders_oi = senders_oi, receivers_oi = receivers_oi, lr_network = lr_network)
+  abundance_expression_info = get_abundance_expression_info(seurat_obj = seurat_obj, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id, min_cells = min_cells, assay_oi_sce = assay_oi_sce, senders_oi = senders_oi, receivers_oi = receivers_oi, lr_network = lr_network, covariates = covariates)
   
   ### Perform the DE analysis ----------------------------------------------------------------
 

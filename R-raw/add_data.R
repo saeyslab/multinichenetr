@@ -38,6 +38,9 @@ usethis::use_package("scater")
 
 usethis::use_package("RColorBrewer")
 usethis::use_package("ggpubr")
+usethis::use_package("edgeR")
+usethis::use_package("sva")
+
 
 
 usethis::use_package("knitr", type = "Suggests")

@@ -21,7 +21,9 @@ test_that("Pipeline for all-vs-all analysis works", {
        contrast_tbl = contrast_tbl       )
   expect_type(output,"list")
   expect_type(output$prioritization_tables,"list")
-  
+  output = make_lite_output(output)
+  expect_type(output,"list")
+  expect_type(output$prioritization_tables,"list")
   # for coming calculations: reduce running time by having only one contrast of interest
   contrasts_oi = c("'High-Low'")
   contrast_tbl = tibble(contrast = c("High-Low"), group = c("High"))
@@ -884,4 +886,68 @@ test_that("Pipeline with wrapper function works", {
   
 
 })
-
+test_that("Pipeline with wrapper function works - while correcting for batch effects", {
+  sample_id = "tumor"
+  group_id = "pEMT"
+  set.seed(1919)
+  extra_metadata = seurat_obj@meta.data %>% dplyr::select(all_of(sample_id)) %>% dplyr::distinct() %>% mutate(batch = sample(c("A","B"),nrow(.), replace = TRUE)) %>% tibble::as_tibble() 
+  new_metadata = seurat_obj@meta.data %>% inner_join(extra_metadata)
+  new_metadata = new_metadata %>% data.frame()
+  rownames(new_metadata) = new_metadata$cell
+  seurat_obj@meta.data = new_metadata
+  sample_id = "tumor"
+  group_id = "pEMT"
+  celltype_id = "celltype"
+  covariates = "batch"
+  contrasts_oi = c("'High-Low'")
+  contrast_tbl = tibble(contrast = c("High-Low"), group = c("High"))
+  output = multi_nichenet_analysis(
+    seurat_obj = seurat_obj,
+    celltype_id = celltype_id,
+    sample_id = sample_id,
+    group_id = group_id,
+    covariates = covariates,
+    lr_network = lr_network,
+    ligand_target_matrix = ligand_target_matrix,
+    contrasts_oi = contrasts_oi,
+    contrast_tbl = contrast_tbl,
+    sender_receiver_separate = FALSE
+  )
+  expect_type(output,"list")
+  expect_type(output$prioritization_tables,"list")
+  
+  
+})
+test_that("Pipeline for separate analysis works - while correcting for batch effects", {
+  sample_id = "tumor"
+  group_id = "pEMT"
+  set.seed(1919)
+  extra_metadata = seurat_obj@meta.data %>% dplyr::select(all_of(sample_id)) %>% dplyr::distinct() %>% mutate(batch = sample(c("A","B"),nrow(.), replace = TRUE)) %>% tibble::as_tibble() 
+  new_metadata = seurat_obj@meta.data %>% inner_join(extra_metadata)
+  new_metadata = new_metadata %>% data.frame()
+  rownames(new_metadata) = new_metadata$cell
+  seurat_obj@meta.data = new_metadata
+  
+  seurat_obj_receiver = seurat_obj %>% subset(subset = celltype == "Malignant")
+  seurat_obj_sender = seurat_obj %>% subset(subset = celltype == "CAF")
+  celltype_id_receiver = "celltype"
+  celltype_id_sender = "celltype"
+  covariates = "batch"
+  contrasts_oi = c("'High-Low','Low-High'")
+  contrast_tbl = tibble(contrast = c("High-Low","Low-High"), group = c("High","Low"))
+  output = multi_nichenet_analysis_separate(
+    seurat_obj_receiver = seurat_obj_receiver,
+    seurat_obj_sender = seurat_obj_sender,
+    celltype_id_receiver = celltype_id_receiver,
+    celltype_id_sender = celltype_id_sender,
+    sample_id = sample_id,
+    group_id = group_id,
+    covariates = covariates,
+    lr_network = lr_network,
+    ligand_target_matrix = ligand_target_matrix,
+    contrasts_oi = contrasts_oi,
+    contrast_tbl = contrast_tbl
+  )
+  expect_type(output,"list")
+  expect_type(output$prioritization_tables,"list")
+})

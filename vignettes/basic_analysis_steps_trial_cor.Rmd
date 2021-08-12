@@ -109,6 +109,160 @@ group_id = "pEMT"
 celltype_id = "celltype"
 ```
 
+trying to experiment with counts, logscounts, and SCT residuals -- abandon this, and don't use SCT --- REMOVE THIS LATER
+```{r}
+# convert seurat to SCE object
+sce = Seurat::as.SingleCellExperiment(Seurat::DietSeurat(seurat_obj), assay = "RNA")
+SummarizedExperiment::assays(sce)$counts %>% .[1:5,1:5]
+SummarizedExperiment::assays(sce)$logcounts %>% .[1:5,1:5]
+
+sce = scater::computeLibraryFactors(sce)
+sce = scater::logNormCounts(sce)
+SummarizedExperiment::assays(sce)$counts %>% .[1:5,1:5]
+SummarizedExperiment::assays(sce)$logcounts %>% .[1:5,1:5]
+
+sce2 = Seurat::as.SingleCellExperiment(Seurat::DietSeurat(seurat_obj), assay = "RNA")
+clusters <- scran::quickCluster(sce2)
+sce2 <- scran::computeSumFactors(sce2, clusters=clusters)
+sce2 <- scater::logNormCounts(sce2)
+SummarizedExperiment::assays(sce)$logcounts %>% .[1:5,1:5]
+SummarizedExperiment::assays(sce2)$logcounts %>% .[1:5,1:5]
+
+sce1 = Seurat::as.SingleCellExperiment(Seurat::DietSeurat(seurat_obj), assay = "SCT")
+SummarizedExperiment::assays(sce1)$counts %>% .[1:5,1:5]
+SummarizedExperiment::assays(sce1)$logcounts %>% .[1:5,1:5]
+seurat_obj@assays$SCT@counts %>% .[1:5,1:5]
+seurat_obj@assays$SCT@data %>% .[1:5,1:5]
+
+# sce2 = Seurat::as.SingleCellExperiment(Seurat::DietSeurat(seurat_obj), assay = c("RNA","SCT")) # not OK
+# SummarizedExperiment::assays(sce2)
+# SummarizedExperiment::assays(sce1)$counts %>% .[1:5,1:5]
+# SummarizedExperiment::assays(sce1)$logcounts %>% .[1:5,1:5]
+# 
+sct = sctransform::vst(SingleCellExperiment::counts(sce), verbosity = FALSE)$y
+SummarizedExperiment::assays(sce, withDimnames=FALSE)$vstresiduals <- y ## will error --> filter out the assay in advance, to contain only necessary genes...
+## I should once try out myself which visualization best accords to the DE results
+genes_kept = rownames(sct)
+cells_kept = colnames(sct)
+
+sce = sce[genes_kept, cells_kept]
+SummarizedExperiment::assays(sce, withDimnames=FALSE)$vstresiduals = sct
+
+SummarizedExperiment::assays(sce)$counts %>% .[1:5,1:5]
+SummarizedExperiment::assays(sce)$logcounts %>% .[1:5,1:5]
+SummarizedExperiment::assays(sce)$vstresiduals %>% .[1:5,1:5]
+
+# test scran
+
+``` 
+  
+trying to experiment with normalized pseudobulked counts --- REMOVE THIS LATER
+```{r}
+## get pseudobulk sum counts
+# convert seurat to SCE object
+sce = Seurat::as.SingleCellExperiment(Seurat::DietSeurat(seurat_obj), assay = "RNA")
+sample_id = "tumor"
+group_id = "pEMT"
+celltype_id = "celltype"
+# prepare SCE for the muscat pseudobulk analysis
+sce$id = sce[[sample_id]]
+sce = muscat::prepSCE(sce,
+                        kid = celltype_id, # subpopulation assignments
+                        gid = group_id,  # group IDs (ctrl/stim)
+                        sid = "id",   # sample IDs (ctrl/stim.1234)
+                        drop = FALSE)  # drop all other colData columns ----------------- change to false
+
+pb = muscat::aggregateData(sce,assay = "counts", fun = "sum", by = c("cluster_id", "sample_id"))
+
+pb_df_old = sce$cluster_id %>% unique() %>% lapply(function(celltype_oi, pb){
+    pseudobulk_counts_celltype = pb@assays@data[[celltype_oi]] + 1 # add a pseudocount
+    pseudobulk_counts_celltype_sample_sum = pseudobulk_counts_celltype %>% apply(2, sum)
+    pseudobulk_counts_celltype_normalized = pseudobulk_counts_celltype/pseudobulk_counts_celltype_sample_sum
+    logCPM_pseudobulk_counts_celltype_normalized = log2(pseudobulk_counts_celltype_normalized*1000000)
+    logCPM_pseudobulk_counts_celltype_normalized_df = logCPM_pseudobulk_counts_celltype_normalized %>% data.frame() %>% tibble::rownames_to_column("gene") %>% tidyr::gather(sample, pb_sample, -gene) %>% tibble::as_tibble() %>% dplyr::mutate(celltype = celltype_oi)
+
+  },pb) %>% dplyr::bind_rows()
+
+
+# now: normalize pb myself
+# This is done by dividing the count for each gene/spike-in transcript with the appropriate size factor for that cell. The function also log-transforms the normalized values, creating a new assay called "logcounts"
+# effective library size = product of the original library size and the scaling factor 
+pb_df = sce$cluster_id %>% unique() %>% lapply(function(celltype_oi, pb){
+    pseudobulk_counts_celltype = edgeR::DGEList(pb@assays@data[[celltype_oi]]) 
+    non_zero_samples = pseudobulk_counts_celltype %>% apply(2,sum) %>% .[. > 0] %>% names()
+    pseudobulk_counts_celltype = pseudobulk_counts_celltype[,non_zero_samples]
+    pseudobulk_counts_celltype = edgeR::calcNormFactors(pseudobulk_counts_celltype)
+
+    pseudobulk_counts_celltype_df = inner_join(
+      pseudobulk_counts_celltype$sample %>% data.frame() %>% tibble::rownames_to_column("sample") %>% mutate(effective_library_size  = lib.size * norm.factors), 
+      pseudobulk_counts_celltype$counts %>% data.frame() %>% tibble::rownames_to_column("gene") %>% tidyr::gather(sample, pb_raw, -gene)
+    )
+    
+    pseudobulk_counts_celltype_df = pseudobulk_counts_celltype_df %>% mutate(pb_norm = pb_raw / effective_library_size) %>% mutate(pb_sample = log2( (pb_norm * 1000000) + 1)) %>% tibble::as_tibble() %>% dplyr::mutate(celltype = celltype_oi) # +1: pseudocount - should be introduced after library size correction, otherwise: we think some samples have a higher expression even though it was zero!
+
+  },pb) %>% dplyr::bind_rows() %>% select(gene, sample, pb_sample, celltype) %>% distinct()
+
+
+# y = scater::logNormCounts(y)
+
+#### compare to the averages:
+  clusters = scran::quickCluster(sce)
+  sce = scran::computeSumFactors(sce, clusters=clusters)
+  sce = scater::logNormCounts(sce)
+  
+  avg = muscat::aggregateData(sce, assay = "logcounts", fun = "mean", by = c("cluster_id", "sample_id"))
+
+  avg_df = sce$cluster_id %>% unique() %>% lapply(function(celltype_oi, avg){
+    avg_celltype = avg@assays@data[[celltype_oi]]
+
+    avg_celltype_samples = avg_celltype[,sce$sample_id %>% unique()]
+    avg_celltype_samples = avg_celltype_samples %>% data.frame() %>% tibble::rownames_to_column("gene") %>% tidyr::gather(sample, average_sample, -gene) %>% tibble::as_tibble() %>% dplyr::mutate(celltype = celltype_oi)
+
+  },avg) %>% dplyr::bind_rows()
+
+avg_df %>% filter(gene == "TSLP" & celltype == "Malignant") %>% arrange(-average_sample) #HN17/HN5 in malignant to CAF
+avg_df %>% filter(gene == "TSLP" & celltype == "Malignant") %>% arrange(-average_sample) #HN17/HN5 in malignant to CAF
+pb_df_old %>% filter(gene == "TSLP" & celltype == "Malignant") %>% arrange(-pb_sample)
+pb_df %>% filter(gene == "TSLP" & celltype == "Malignant") %>% arrange(-pb_sample)
+
+``` 
+  
+### Test out the covariate correction step things....
+
+
+```{r}
+# convert seurat to SCE object
+sce = Seurat::as.SingleCellExperiment(seurat_obj, assay = "RNA")
+  
+# prepare SCE for the muscat pseudobulk analysis
+sce$id = sce[[sample_id]]
+sce = muscat::prepSCE(sce,
+                        kid = celltype_id, # subpopulation assignments
+                        gid = group_id,  # group IDs (ctrl/stim)
+                        sid = "id",   # sample IDs (ctrl/stim.1234)
+                        drop = FALSE)  #
+  
+pb = muscat::aggregateData(sce, assay = "counts", fun = "sum", by = c("cluster_id", "sample_id"))
+celltype_oi = "Malignant"
+pseudobulk_counts_celltype = edgeR::DGEList(pb@assays@data[[celltype_oi]])
+
+# try to correct these counts here and now
+set.seed(1919)
+extra_metadata = seurat_obj@meta.data %>% dplyr::select(all_of(sample_id)) %>% dplyr::distinct() %>% mutate(batch = sample(c("A","B"),nrow(.), replace = TRUE)) %>% tibble::as_tibble() 
+new_metadata = seurat_obj@meta.data %>% inner_join(extra_metadata)
+new_metadata = new_metadata %>% data.frame()
+rownames(new_metadata) = new_metadata$cell
+seurat_obj@meta.data = new_metadata
+seurat_obj@meta.data[1:50,]
+## really add a toy covariate to the seurat object!
+
+non_corrected = get_pseudobulk_logCPM_exprs(seurat_obj, sample_id, celltype_id, group_id, covariates = NA, assay_oi_sce = "RNA", assay_oi_pb = "counts", fun_oi_pb = "sum")
+corrected = get_pseudobulk_logCPM_exprs(seurat_obj, sample_id, celltype_id, group_id, covariates = "batch", assay_oi_sce = "RNA", assay_oi_pb = "counts", fun_oi_pb = "sum")
+
+non_corrected %>% inner_join(corrected %>% rename(cor_pb_sample = pb_sample)) %>% mutate(diff = cor_pb_sample-pb_sample) %>% arrange(diff)
+
+
+```  
 Sender and receiver cell types also need to be defined. Both are here all cell types in the dataset because we are interested in an All-vs-All analysis.
 
 ```{r}
