@@ -170,6 +170,7 @@ jobs:
           BiocManager::install("limma", update = FALSE)
           BiocManager::install("sva", update = FALSE)
           remotes::install_cran("tidyverse")
+          remotes::install_cran("covr") #### remove this later? this to currently fix the Ubuntu error
           BiocManager::install("Nebulosa", update = FALSE)
           remotes::install_github("saeyslab/nichenetr",build_vignettes = FALSE)
           install.packages('TMB', type = 'source') #### remove this later? this to currently fix the Mac error

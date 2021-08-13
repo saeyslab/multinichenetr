@@ -17,7 +17,6 @@ get_empirical_pvals(de_output_tidy)
 }
 \examples{
 \dontrun{
-library(Seurat)
 library(dplyr)
 lr_network = readRDS(url("https://zenodo.org/record/3260758/files/lr_network.rds"))
 lr_network = lr_network \%>\% dplyr::rename(ligand = from, receptor = to) \%>\% dplyr::distinct(ligand, receptor)
@@ -26,10 +25,10 @@ group_id = "pEMT"
 celltype_id = "celltype"
 covariates = NA
 contrasts_oi = c("'High-Low','Low-High'")
-senders_oi = Idents(seurat_obj) \%>\% unique()
-receivers_oi = Idents(seurat_obj) \%>\% unique()
+senders_oi = SummarizedExperiment::colData(sce)[,celltype_id] \%>\% unique()
+receivers_oi = SummarizedExperiment::colData(sce)[,celltype_id] \%>\% unique()
 DE_info = get_DE_info(
-   seurat_obj = seurat_obj,
+   sce = sce,
    sample_id = sample_id,
    celltype_id = celltype_id,
    group_id = group_id,

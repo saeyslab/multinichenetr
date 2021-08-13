@@ -19,7 +19,6 @@ de_output_tidy dataframe with two columns added: p_emp and p_adj_emp.
 }
 \examples{
 \dontrun{
-library(Seurat)
 library(dplyr)
 lr_network = readRDS(url("https://zenodo.org/record/3260758/files/lr_network.rds"))
 lr_network = lr_network \%>\% dplyr::rename(ligand = from, receptor = to) \%>\% dplyr::distinct(ligand, receptor)
@@ -28,10 +27,10 @@ group_id = "pEMT"
 celltype_id = "celltype"
 covariates = NA
 contrasts_oi = c("'High-Low','Low-High'")
-senders_oi = Idents(seurat_obj) \%>\% unique()
-receivers_oi = Idents(seurat_obj) \%>\% unique()
+senders_oi = SummarizedExperiment::colData(sce)[,celltype_id] \%>\% unique()
+receivers_oi = SummarizedExperiment::colData(sce)[,celltype_id] \%>\% unique()
 celltype_de = perform_muscat_de_analysis(
-   seurat_obj = seurat_obj,
+   sce = sce,
    sample_id = sample_id,
    celltype_id = celltype_id,
    group_id = group_id,

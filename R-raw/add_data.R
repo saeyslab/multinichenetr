@@ -1,12 +1,16 @@
-library(Seurat)
 library(tidyverse)
 
-# add visium
-seurat_obj = readRDS("C:/Users/rbrowaey/work/Research/NicheNet/current_projects/CRC_NicheNet/data/seurat_obj_lite_hnscc.rds")
-usethis::use_data(seurat_obj,overwrite = T, compress = "bzip2")
+# in the past, we used seurat objects as input
+# now this was changed to single-cell experiment
+# seurat_obj = readRDS("C:/Users/rbrowaey/work/Research/NicheNet/current_projects/CRC_NicheNet/data/seurat_obj_lite_hnscc.rds")
+# usethis::use_data(seurat_obj,overwrite = T, compress = "bzip2")
+# convert seurat to SCE object
+# sce = Seurat::as.SingleCellExperiment(seurat_obj, assay = "RNA")
+sce = readRDS("C:/Users/rbrowaey/work/Research/NicheNet/sce_hnscc.rds.rds")
+usethis::use_data(sce,overwrite = T, compress = "bzip2")
 
 
-usethis::use_package("Seurat")
+# usethis::use_package("Seurat") # not used anymore
 usethis::use_package("dplyr")
 usethis::use_package("ggplot2")
 usethis::use_package("circlize")
@@ -34,7 +38,7 @@ usethis::use_package("SummarizedExperiment")
 usethis::use_package("S4Vectors")
 usethis::use_package("magrittr")
 usethis::use_package("nichenetr")
-usethis::use_package("scater")
+# usethis::use_package("scater")
 
 usethis::use_package("RColorBrewer")
 usethis::use_package("ggpubr")

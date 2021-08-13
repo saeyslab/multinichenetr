@@ -1,13 +1,12 @@
 #' @title get_muscat_exprs_frac
 #'
 #' @description \code{get_muscat_exprs_frac} Calculate sample- and group-average of fraction of cells in a cell type expressing a gene.
-#' @usage get_muscat_exprs_frac(seurat_obj, sample_id, celltype_id, group_id, assay_oi_sce = "RNA")
+#' @usage get_muscat_exprs_frac(sce, sample_id, celltype_id, group_id)
 #'
 #' @inheritParams multi_nichenet_analysis_combined
 #'
 #' @return List with two dataframes: one with fraction of cells in a cell type expressing a gene, averaged per sample; and one averaged per group.
 #'
-#' @import Seurat
 #' @import dplyr
 #' @import muscat
 #' @import tibble
@@ -17,24 +16,19 @@
 #'
 #' @examples
 #' \dontrun{
-#' library(Seurat)
 #' library(dplyr)
 #' sample_id = "tumor"
 #' group_id = "pEMT"
 #' celltype_id = "celltype"
-#' muscat_exprs_frac = get_muscat_exprs_frac(seurat_obj = seurat_obj, sample_id = sample_id, celltype_id =  celltype_id, group_id = group_id)
+#' muscat_exprs_frac = get_muscat_exprs_frac(sce = sce, sample_id = sample_id, celltype_id =  celltype_id, group_id = group_id)
 #' }
 #'
 #' @export
 #'
-get_muscat_exprs_frac = function(seurat_obj, sample_id, celltype_id, group_id, assay_oi_sce = "RNA"){
+get_muscat_exprs_frac = function(sce, sample_id, celltype_id, group_id){
 
-  requireNamespace("Seurat")
   requireNamespace("dplyr")
   
-  # convert seurat to SCE object
-  sce = Seurat::as.SingleCellExperiment(seurat_obj, assay = assay_oi_sce)
-
   # prepare SCE for the muscat pseudobulk analysis
   sce$id = sce[[sample_id]]
   sce = muscat::prepSCE(sce,
@@ -80,41 +74,33 @@ get_muscat_exprs_frac = function(seurat_obj, sample_id, celltype_id, group_id, a
 #' @title get_muscat_exprs_avg
 #'
 #' @description \code{get_muscat_exprs_avg}  Calculate sample- and group-average of gene expression per cell type.
-#' @usage get_muscat_exprs_avg(seurat_obj, sample_id, celltype_id, group_id, assay_oi_sce = "RNA")
+#' @usage get_muscat_exprs_avg(sce, sample_id, celltype_id, group_id)
 #'
 #' @inheritParams multi_nichenet_analysis_combined
 #'
 #' @return Data frame with average gene expression per sample and per group.
 #'
-#' @import Seurat
 #' @import dplyr
 #' @import muscat
 #' @import tibble
 #' @import tidyr
-#' @importFrom scater logNormCounts
-#' @importFrom purrr map
-#' @importFrom scran quickCluster computeSumFactors
+#' @importFrom scater logNormCounts computeLibraryFactors
 #'
 #' @examples
 #' \dontrun{
-#' library(Seurat)
 #' library(dplyr)
 #' sample_id = "tumor"
 #' group_id = "pEMT"
 #' celltype_id = "celltype"
-#' muscat_exprs_avg = get_muscat_exprs_avg(seurat_obj = seurat_obj, sample_id = sample_id, celltype_id =  celltype_id, group_id = group_id)
+#' muscat_exprs_avg = get_muscat_exprs_avg(sce = sce, sample_id = sample_id, celltype_id =  celltype_id, group_id = group_id)
 #' }
 #'
 #' @export
 #'
-get_muscat_exprs_avg = function(seurat_obj, sample_id, celltype_id, group_id, assay_oi_sce = "RNA"){
+get_muscat_exprs_avg = function(sce, sample_id, celltype_id, group_id){
 
-  requireNamespace("Seurat")
   requireNamespace("dplyr")
   
-  # convert seurat to SCE object
-  sce = Seurat::as.SingleCellExperiment(seurat_obj, assay = assay_oi_sce)
-
   # prepare SCE for the muscat pseudobulk analysis
   sce$id = sce[[sample_id]]
   sce = muscat::prepSCE(sce,
@@ -123,17 +109,15 @@ get_muscat_exprs_avg = function(seurat_obj, sample_id, celltype_id, group_id, as
                         sid = "id",   # sample IDs (ctrl/stim.1234)
                         drop = FALSE)  #
 
-  # sce = scater::computeLibraryFactors(sce)
-  # sce = scater::logNormCounts(sce)
-  # scater::calculateAverage()
-  # sce = scater::calculateCPM(sce)
-  # scater::normalizeCounts()
-  
-  set.seed(1919) # seed for reproducibility of the scran::quickCluster function (see https://bioconductor.org/books/release/OSCA/normalization.html)
-  
-  clusters = suppressWarnings(scran::quickCluster(sce)) # why suppressWarnings --> on the lite dataset input ":regularize.values(x, y, ties, missing(ties), na.rm = na.rm)" pops always up, not on the entire dataset. Avoid these types of warnings for checks + anyway: logcounts assay are not much used anyway in the prioritizaton and visualization.
-  sce = suppressWarnings(scran::computeSumFactors(sce, clusters=clusters))
-  sce = suppressWarnings(scater::logNormCounts(sce))
+  sce = scater::computeLibraryFactors(sce)
+  sce = scater::logNormCounts(sce)
+
+  # if wanting to use scran: --- uncomment this --> add this to the description file again (via add_data.R + add this to this import file)
+  # set.seed(1919) # seed for reproducibility of the scran::quickCluster function (see https://bioconductor.org/books/release/OSCA/normalization.html)
+  # 
+  # clusters = suppressWarnings(scran::quickCluster(sce)) # why suppressWarnings --> on the lite dataset input ":regularize.values(x, y, ties, missing(ties), na.rm = na.rm)" pops always up, not on the entire dataset. Avoid these types of warnings for checks + anyway: logcounts assay are not much used anyway in the prioritizaton and visualization.
+  # sce = suppressWarnings(scran::computeSumFactors(sce, clusters=clusters))
+  # sce = suppressWarnings(scater::logNormCounts(sce))
   
   avg = muscat::aggregateData(sce, assay = "logcounts", fun = "mean", by = c("cluster_id", "sample_id"))
 
@@ -150,13 +134,12 @@ get_muscat_exprs_avg = function(seurat_obj, sample_id, celltype_id, group_id, as
 #' @title get_pseudobulk_logCPM_exprs
 #'
 #' @description \code{get_pseudobulk_logCPM_exprs}  Calculate the 'library-size' normalized pseudbulk counts per sample for each gene - returned values are similar to logCPM. 
-#' @usage get_pseudobulk_logCPM_exprs(seurat_obj, sample_id, celltype_id, group_id, covariates = NA, assay_oi_sce = "RNA", assay_oi_pb = "counts", fun_oi_pb = "sum")
+#' @usage get_pseudobulk_logCPM_exprs(sce, sample_id, celltype_id, group_id, covariates = NA, assay_oi_pb = "counts", fun_oi_pb = "sum")
 #'
 #' @inheritParams multi_nichenet_analysis_combined
 #'
 #' @return Data frame with logCPM-like values of the library-size corrected pseudobulked counts (`pb_sample`) per gene per sample. pb_sample = log2( ((pb_raw/effective_library_size) \* 1000000) + 1). effective_library_size  = lib.size \* norm.factors (through edgeR::calcNormFactors).
 #'
-#' @import Seurat
 #' @import dplyr
 #' @import muscat
 #' @import tibble
@@ -164,26 +147,22 @@ get_muscat_exprs_avg = function(seurat_obj, sample_id, celltype_id, group_id, as
 #' @importFrom edgeR DGEList calcNormFactors
 #' @importFrom sva ComBat_seq
 #' @importFrom S4Vectors metadata
+#' @importFrom SummarizedExperiment colData
 #'
 #' @examples
 #' \dontrun{
-#' library(Seurat)
 #' library(dplyr)
 #' sample_id = "tumor"
 #' group_id = "pEMT"
 #' celltype_id = "celltype"
-#' pseudobulk_logCPM_exprs = get_pseudobulk_logCPM_exprs(seurat_obj = seurat_obj, sample_id = sample_id, celltype_id =  celltype_id, group_id = group_id)
+#' pseudobulk_logCPM_exprs = get_pseudobulk_logCPM_exprs(sce = sce, sample_id = sample_id, celltype_id =  celltype_id, group_id = group_id)
 #' }
 #'
 #' @export
 #'
-get_pseudobulk_logCPM_exprs = function(seurat_obj, sample_id, celltype_id, group_id, covariates = NA, assay_oi_sce = "RNA", assay_oi_pb = "counts", fun_oi_pb = "sum"){
+get_pseudobulk_logCPM_exprs = function(sce, sample_id, celltype_id, group_id, covariates = NA, assay_oi_pb = "counts", fun_oi_pb = "sum"){
   
-  requireNamespace("Seurat")
   requireNamespace("dplyr")
-  
-  # convert seurat to SCE object
-  sce = Seurat::as.SingleCellExperiment(seurat_obj, assay = assay_oi_sce)
   
   # prepare SCE for the muscat pseudobulk analysis
   sce$id = sce[[sample_id]]
@@ -208,7 +187,7 @@ get_pseudobulk_logCPM_exprs = function(seurat_obj, sample_id, celltype_id, group
     }
   }
   if(covariates_present){ ## then perform the correction!
-    extra_metadata = seurat_obj@meta.data %>% dplyr::select(all_of(sample_id), all_of(covariates)) %>% dplyr::distinct() %>% dplyr::mutate_all(factor)
+    extra_metadata = SummarizedExperiment::colData(sce) %>% tibble::as_tibble() %>% dplyr::select(all_of(sample_id), all_of(covariates)) %>% dplyr::distinct() %>% dplyr::mutate_all(factor)
     colnames(extra_metadata) = c("sample_id","covariates")
     ei = S4Vectors::metadata(sce)$experiment_info
     ei = ei %>%  dplyr::inner_join(extra_metadata, by = "sample_id")
@@ -229,7 +208,12 @@ get_pseudobulk_logCPM_exprs = function(seurat_obj, sample_id, celltype_id, group
 
       # adjust the count matrix
       ei = ei %>% dplyr::filter(sample_id %in% non_zero_samples)
-      adj_count_matrix = suppressMessages(sva::ComBat_seq(count_matrix, batch=ei$covariates, group=ei$group_id, full_mod=TRUE)) # to surpress its output
+      quiet <- function(x) { 
+        sink(tempfile()) 
+        on.exit(sink()) 
+        invisible(force(x)) 
+      } 
+      adj_count_matrix = quiet(sva::ComBat_seq(count_matrix, batch=ei$covariates, group=ei$group_id, full_mod=TRUE)) # to suppress its output
       # print("pseudobulk count matrix was succesfully corrected: ")
       # print(adj_count_matrix[1:15, 1:5])
       # print("compared to non-adjusted matrix:")
@@ -277,38 +261,35 @@ get_pseudobulk_logCPM_exprs = function(seurat_obj, sample_id, celltype_id, group
 #' @title fix_frq_df
 #'
 #' @description \code{fix_frq_df}  Fix muscat-bug in fraction calculation in case that expression fraction would be NA / NaN. Change NA to 0.
-#' @usage fix_frq_df(seurat_obj, frq_celltype_samples)
+#' @usage fix_frq_df(sce, frq_celltype_samples)
 #'
 #' @inheritParams multi_nichenet_analysis_combined
 #' @param frq_celltype_samples Sample-average data frame output of `get_muscat_exprs_frac`
 #'
 #' @return Fixed data frame with fraction of cells expressing a gene.
 #'
-#' @import Seurat
 #' @import dplyr
 #' @importFrom magrittr set_names
 #'
 #' @examples
 #' \dontrun{
-#' library(Seurat)
 #' library(dplyr)
 #' sample_id = "tumor"
 #' group_id = "pEMT"
 #' celltype_id = "celltype"
-#' frq_df = get_muscat_exprs_frac(seurat_obj, sample_id = sample_id, celltype_id =  celltype_id, group_id = group_id, assay_oi_sce = assay_oi) %>% .$frq_celltype_samples
+#' frq_df = get_muscat_exprs_frac(sce, sample_id = sample_id, celltype_id =  celltype_id, group_id = group_id) %>% .$frq_celltype_samples
 #' if(nrow(frq_df %>% dplyr::filter(is.na(fraction_sample))) > 0 | nrow(frq_df %>% dplyr::filter(is.nan(fraction_sample))) > 0) {
-#'   frq_df = fix_frq_df(seurat_obj, frq_df)
+#'   frq_df = fix_frq_df(sce, frq_df)
 #'   }
 #' }
 #'
 #' @export
 #'
-fix_frq_df = function(seurat_obj, frq_celltype_samples){
+fix_frq_df = function(sce, frq_celltype_samples){
   
-  requireNamespace("Seurat")
   requireNamespace("dplyr")
   
-  genes = seurat_obj@assays$RNA@data %>% rownames()
+  genes = rownames(sce)
   gene_mapping = genes %>% magrittr::set_names(seq(length(genes)))
 
   frq_celltype_samples_OK = frq_celltype_samples %>% dplyr::filter(gene %in% genes)
@@ -328,110 +309,101 @@ fix_frq_df = function(seurat_obj, frq_celltype_samples){
 #' @title get_avg_frac_exprs_abund
 #'
 #' @description \code{get_avg_frac_exprs_abund}  Calculate the average and fraction of expression of each gene per sample and per group. Calculate relative abundances of cell types as well.
-#' @usage get_avg_frac_exprs_abund(seurat_obj, sample_id, celltype_id, group_id, covariates = NA, assay_oi = "RNA")
+#' @usage get_avg_frac_exprs_abund(sce, sample_id, celltype_id, group_id, covariates = NA)
 #'
 #' @inheritParams multi_nichenet_analysis_combined
-#' @param assay_oi Indicates which assay of the Seurat object should be used. Default: "RNA". See: `Seurat::as.SingleCellExperiment`.
 #' 
 #' @return List containing data frames with average and fraction of expression per sample and per group (and pseudobulked), and relative cell type abundances as well.
 #'
-#' @import Seurat
 #' @import dplyr
 #' @import tibble
 #' @importFrom tidyr gather
+#' @importFrom SummarizedExperiment colData
 #'
 #' @examples
 #' \dontrun{
-#' library(Seurat)
 #' library(dplyr)
 #' sample_id = "tumor"
 #' group_id = "pEMT"
 #' celltype_id = "celltype"
-#' celltype_info = get_avg_frac_exprs_abund(seurat_obj = seurat_obj, sample_id = sample_id, celltype_id =  celltype_id, group_id = group_id)
+#' celltype_info = get_avg_frac_exprs_abund(sce = sce, sample_id = sample_id, celltype_id =  celltype_id, group_id = group_id)
 #' }
 #'
 #' @export
 #'
-get_avg_frac_exprs_abund = function(seurat_obj, sample_id, celltype_id, group_id, covariates = NA, assay_oi = "RNA"){
+get_avg_frac_exprs_abund = function(sce, sample_id, celltype_id, group_id, covariates = NA){
   
-  requireNamespace("Seurat")
   requireNamespace("dplyr")
   
   # input checks
   
-  if (class(seurat_obj) != "Seurat") {
-    stop("seurat_obj should be a Seurat object")
+  if (class(sce) != "SingleCellExperiment") {
+    stop("sce should be a SingleCellExperiment object")
   }
-  if (!celltype_id %in% colnames(seurat_obj@meta.data)) {
-    stop("celltype_id should be a column name in the metadata dataframe of seurat_obj")
+  if (!celltype_id %in% colnames(SummarizedExperiment::colData(sce))) {
+    stop("celltype_id should be a column name in the metadata dataframe of sce")
   }
   if (celltype_id != make.names(celltype_id)) {
     stop("celltype_id should be a syntactically valid R name - check make.names")
   }
-  if (!sample_id %in% colnames(seurat_obj@meta.data)) {
-    stop("sample_id should be a column name in the metadata dataframe of seurat_obj")
+  if (!sample_id %in% colnames(SummarizedExperiment::colData(sce))) {
+    stop("sample_id should be a column name in the metadata dataframe of sce")
   }
   if (sample_id != make.names(sample_id)) {
     stop("sample_id should be a syntactically valid R name - check make.names")
   }
-  if (!group_id %in% colnames(seurat_obj@meta.data)) {
-    stop("group_id should be a column name in the metadata dataframe of seurat_obj")
+  if (!group_id %in% colnames(SummarizedExperiment::colData(sce))) {
+    stop("group_id should be a column name in the metadata dataframe of sce")
   }
   if (group_id != make.names(group_id)) {
     stop("group_id should be a syntactically valid R name - check make.names")
   }
   
-  if(is.double(seurat_obj@meta.data[,celltype_id])){
-    stop("seurat_obj@meta.data[,celltype_id] should be a character vector or a factor")
+  if(is.double(SummarizedExperiment::colData(sce)[,celltype_id])){
+    stop("SummarizedExperiment::colData(sce)[,celltype_id] should be a character vector or a factor")
   }
-  if(is.double(seurat_obj@meta.data[,group_id])){
-    stop("seurat_obj@meta.data[,group_id] should be a character vector or a factor")
+  if(is.double(SummarizedExperiment::colData(sce)[,group_id])){
+    stop("SummarizedExperiment::colData(sce)[,group_id] should be a character vector or a factor")
   }
-  if(is.double(seurat_obj@meta.data[,sample_id])){
-    stop("seurat_obj@meta.data[,sample_id] should be a character vector or a factor")
+  if(is.double(SummarizedExperiment::colData(sce)[,sample_id])){
+    stop("SummarizedExperiment::colData(sce)[,sample_id] should be a character vector or a factor")
   }
   
   # if some of these are factors, and not all levels have syntactically valid names - prompt to change this
-  if(is.factor(seurat_obj@meta.data[,celltype_id])){
-    is_make_names = levels(seurat_obj@meta.data[,celltype_id]) == make.names(levels(seurat_obj@meta.data[,celltype_id]))
-    if(sum(is_make_names) != length(levels(seurat_obj@meta.data[,celltype_id]))){
-      stop("The levels of the factor seurat_obj@meta.data[,celltype_id] should be a syntactically valid R names - see make.names")
+  if(is.factor(SummarizedExperiment::colData(sce)[,celltype_id])){
+    is_make_names = levels(SummarizedExperiment::colData(sce)[,celltype_id]) == make.names(levels(SummarizedExperiment::colData(sce)[,celltype_id]))
+    if(sum(is_make_names) != length(levels(SummarizedExperiment::colData(sce)[,celltype_id]))){
+      stop("The levels of the factor SummarizedExperiment::colData(sce)[,celltype_id] should be a syntactically valid R names - see make.names")
     }
   }
-  if(is.factor(seurat_obj@meta.data[,group_id])){
-    is_make_names = levels(seurat_obj@meta.data[,group_id]) == make.names(levels(seurat_obj@meta.data[,group_id]))
-    if(sum(is_make_names) != length(levels(seurat_obj@meta.data[,group_id]))){
-      stop("The levels of the factor seurat_obj@meta.data[,group_id] should be a syntactically valid R names - see make.names")
+  if(is.factor(SummarizedExperiment::colData(sce)[,group_id])){
+    is_make_names = levels(SummarizedExperiment::colData(sce)[,group_id]) == make.names(levels(SummarizedExperiment::colData(sce)[,group_id]))
+    if(sum(is_make_names) != length(levels(SummarizedExperiment::colData(sce)[,group_id]))){
+      stop("The levels of the factor SummarizedExperiment::colData(sce)[,group_id] should be a syntactically valid R names - see make.names")
     }
   }
-  if(is.factor(seurat_obj@meta.data[,sample_id])){
-    is_make_names = levels(seurat_obj@meta.data[,sample_id]) == make.names(levels(seurat_obj@meta.data[,sample_id]))
-    if(sum(is_make_names) != length(levels(seurat_obj@meta.data[,sample_id]))){
-      stop("The levels of the factor seurat_obj@meta.data[,sample_id] should be a syntactically valid R names - see make.names")
+  if(is.factor(SummarizedExperiment::colData(sce)[,sample_id])){
+    is_make_names = levels(SummarizedExperiment::colData(sce)[,sample_id]) == make.names(levels(SummarizedExperiment::colData(sce)[,sample_id]))
+    if(sum(is_make_names) != length(levels(SummarizedExperiment::colData(sce)[,sample_id]))){
+      stop("The levels of the factor SummarizedExperiment::colData(sce)[,sample_id] should be a syntactically valid R names - see make.names")
     }
   }
-  if(!is.character(assay_oi)){
-    stop("assay_oi should be a character vector")
-  } else {
-    if(assay_oi != "RNA"){
-      warning("are you sure you don't want to use the RNA assay?")
-    }
-  }
+
   if(!is.na(covariates)){
-    if (sum(covariates %in% colnames(seurat_obj@meta.data)) != length(covariates) ) {
-      stop("covariates should be NA or all present as column name(s) in the metadata dataframe of seurat_obj_receiver")
+    if (sum(covariates %in% colnames(SummarizedExperiment::colData(sce))) != length(covariates) ) {
+      stop("covariates should be NA or all present as column name(s) in the metadata dataframe of sce_receiver")
     }
   }
   ## calculate averages, fractions, relative abundance of a cell type in a group
 
   # calculate average expression
-  avg_df = get_muscat_exprs_avg(seurat_obj, sample_id = sample_id, celltype_id =  celltype_id, group_id = group_id, assay_oi_sce = assay_oi)
+  avg_df = get_muscat_exprs_avg(sce, sample_id = sample_id, celltype_id =  celltype_id, group_id = group_id)
 
   # calculate fraction of expression
-  frq_df = get_muscat_exprs_frac(seurat_obj, sample_id = sample_id, celltype_id = celltype_id, group_id = group_id, assay_oi_sce = assay_oi) %>% .$frq_celltype_samples
+  frq_df = get_muscat_exprs_frac(sce, sample_id = sample_id, celltype_id = celltype_id, group_id = group_id) %>% .$frq_celltype_samples
 
   # calculate pseudobulked counts
-  pb_df = get_pseudobulk_logCPM_exprs(seurat_obj, sample_id = sample_id, celltype_id = celltype_id, group_id = group_id, covariates = covariates, assay_oi_sce = "RNA", assay_oi_pb = "counts", fun_oi_pb = "sum") # should be these parameters
+  pb_df = get_pseudobulk_logCPM_exprs(sce, sample_id = sample_id, celltype_id = celltype_id, group_id = group_id, covariates = covariates, assay_oi_pb = "counts", fun_oi_pb = "sum") # should be these parameters
   
   # check whether something needs to be fixed
   if(nrow(avg_df %>% dplyr::filter(is.na(average_sample))) > 0 | nrow(avg_df %>% dplyr::filter(is.nan(average_sample))) > 0) {
@@ -439,11 +411,11 @@ get_avg_frac_exprs_abund = function(seurat_obj, sample_id, celltype_id, group_id
   }
   if(nrow(frq_df %>% dplyr::filter(is.na(fraction_sample))) > 0 | nrow(frq_df %>% dplyr::filter(is.nan(fraction_sample))) > 0) {
     warning("There are some genes with NA fraction of expression. This is the result of the muscat function `calcExprFreqs` which will give NA when there are no cells of a particular cell type in a particular group. As a temporary fix, we give all these genes an expression fraction of 0 in that group for that cell type")
-    frq_df = fix_frq_df(seurat_obj, frq_df)
+    frq_df = fix_frq_df(sce, frq_df)
   }
 
   # prepare grouping to get group averages
-  metadata = seurat_obj@meta.data
+  metadata = SummarizedExperiment::colData(sce) %>% tibble::as_tibble()
   if('sample_id' != sample_id){
     metadata$sample_id = metadata[[sample_id]]
   }
@@ -493,14 +465,13 @@ get_avg_frac_exprs_abund = function(seurat_obj, sample_id, celltype_id, group_id
 #'
 #' @examples
 #' \dontrun{
-#' library(Seurat)
 #' library(dplyr)
 #' lr_network = readRDS(url("https://zenodo.org/record/3260758/files/lr_network.rds"))
 #' lr_network = lr_network %>% dplyr::rename(ligand = from, receptor = to) %>% dplyr::distinct(ligand, receptor)
 #' sample_id = "tumor"
 #' group_id = "pEMT"
 #' celltype_id = "celltype"
-#' celltype_info = get_avg_frac_exprs_abund(seurat_obj = seurat_obj, sample_id = sample_id, celltype_id =  celltype_id, group_id = group_id)
+#' celltype_info = get_avg_frac_exprs_abund(sce = sce, sample_id = sample_id, celltype_id =  celltype_id, group_id = group_id)
 #' receiver_info_ic = process_info_to_ic(info_object = celltype_info, ic_type = "receiver", lr_network = lr_network)
 #' sender_info_ic = process_info_to_ic(info_object = celltype_info, ic_type = "sender", lr_network = lr_network)
 #' }
@@ -555,12 +526,11 @@ process_info_to_ic = function(info_object, ic_type = "sender", lr_network){
 #'
 #' @examples
 #' \dontrun{
-#' library(Seurat)
 #' library(dplyr)
 #' sample_id = "tumor"
 #' group_id = "pEMT"
 #' celltype_id = "celltype"
-#' metadata_abundance = seurat_obj@meta.data[,c(sample_id, group_id, celltype_id)]
+#' metadata_abundance = SummarizedExperiment::colData(sce)[,c(sample_id, group_id, celltype_id)]
 #' colnames(metadata_abundance) =c("sample_id", "group_id", "celltype_id")
 #' abundance_data = metadata_abundance %>% tibble::as_tibble() %>% dplyr::group_by(sample_id , celltype_id) %>% dplyr::count() %>% dplyr::inner_join(metadata_abundance %>% dplyr::distinct(sample_id , group_id ))
 #' abundance_data = abundance_data %>% dplyr::mutate(keep = n >= min_cells) %>% dplyr::mutate(keep = factor(keep, levels = c(TRUE,FALSE)))
@@ -616,18 +586,17 @@ process_abund_info = function(abund_data, ic_type = "sender"){
 #'
 #' @examples
 #' \dontrun{
-#' library(Seurat)
 #' library(dplyr)
 #' lr_network = readRDS(url("https://zenodo.org/record/3260758/files/lr_network.rds"))
 #' lr_network = lr_network %>% dplyr::rename(ligand = from, receptor = to) %>% dplyr::distinct(ligand, receptor)
 #' sample_id = "tumor"
 #' group_id = "pEMT"
 #' celltype_id = "celltype"
-#' celltype_info = get_avg_frac_exprs_abund(seurat_obj = seurat_obj, sample_id = sample_id, celltype_id =  celltype_id, group_id = group_id)
+#' celltype_info = get_avg_frac_exprs_abund(sce = sce, sample_id = sample_id, celltype_id =  celltype_id, group_id = group_id)
 #' receiver_info_ic = process_info_to_ic(info_object = celltype_info, ic_type = "receiver", lr_network = lr_network)
 #' sender_info_ic = process_info_to_ic(info_object = celltype_info, ic_type = "sender", lr_network = lr_network)
-#' senders_oi = Idents(seurat_obj) %>% unique()
-#' receivers_oi = Idents(seurat_obj) %>% unique()
+#' senders_oi = SummarizedExperiment::colData(sce)[,celltype_id] %>% unique()
+#' receivers_oi = SummarizedExperiment::colData(sce)[,celltype_id] %>% unique()
 #' sender_receiver_info = combine_sender_receiver_info_ic(sender_info = sender_info_ic,receiver_info = receiver_info_ic,senders_oi = senders_oi,receivers_oi = receivers_oi,lr_network = lr_network)
 #'   
 #' }
@@ -709,7 +678,6 @@ combine_sender_receiver_info_ic = function(sender_info, receiver_info, senders_o
 #'
 #' @examples
 #' \dontrun{
-#' library(Seurat)
 #' library(dplyr)
 #' lr_network = readRDS(url("https://zenodo.org/record/3260758/files/lr_network.rds"))
 #' lr_network = lr_network %>% dplyr::rename(ligand = from, receptor = to) %>% dplyr::distinct(ligand, receptor)
@@ -718,10 +686,10 @@ combine_sender_receiver_info_ic = function(sender_info, receiver_info, senders_o
 #' celltype_id = "celltype"
 #' covariates = NA
 #' contrasts_oi = c("'High-Low','Low-High'")
-#' senders_oi = Idents(seurat_obj) %>% unique()
-#' receivers_oi = Idents(seurat_obj) %>% unique()
+#' senders_oi = SummarizedExperiment::colData(sce)[,celltype_id] %>% unique()
+#' receivers_oi = SummarizedExperiment::colData(sce)[,celltype_id] %>% unique()
 #' celltype_de = perform_muscat_de_analysis(
-#'    seurat_obj = seurat_obj,
+#'    sce = sce,
 #'    sample_id = sample_id,
 #'    celltype_id = celltype_id,
 #'    group_id = group_id,

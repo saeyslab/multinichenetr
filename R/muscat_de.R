@@ -1,7 +1,7 @@
 #' @title perform_muscat_de_analysis
 #'
 #' @description \code{perform_muscat_de_analysis} Perform differential expression analysis via Muscat - Pseudobulking approach.
-#' @usage perform_muscat_de_analysis(seurat_obj, sample_id, celltype_id, group_id, covariates, contrasts, assay_oi_sce = "RNA", assay_oi_pb = "counts", fun_oi_pb = "sum", de_method_oi = "edgeR", min_cells = 10)
+#' @usage perform_muscat_de_analysis(sce, sample_id, celltype_id, group_id, covariates, contrasts, assay_oi_pb = "counts", fun_oi_pb = "sum", de_method_oi = "edgeR", min_cells = 10)
 #'
 #' @inheritParams multi_nichenet_analysis_combined
 #' @param contrasts String indicating the contrasts of interest (= which groups/conditions will be compared) for the differential expression and MultiNicheNet analysis. 
@@ -15,16 +15,14 @@
 #' Note that the groups A, B, ... should be present in the meta data column 'group_id'.
 #' @return List with output of the differential expression analysis in 1) default format(`muscat::pbDS()`), and 2) in a tidy table format (`muscat::resDS()`).
 #'
-#' @import Seurat
 #' @import dplyr
 #' @import muscat
-#' @importFrom SummarizedExperiment assayNames 
+#' @importFrom SummarizedExperiment assayNames colData
 #' @importFrom S4Vectors metadata
 #' @importFrom limma makeContrasts
 #'
 #' @examples
 #' \dontrun{
-#' library(Seurat)
 #' library(dplyr)
 #' lr_network = readRDS(url("https://zenodo.org/record/3260758/files/lr_network.rds"))
 #' lr_network = lr_network %>% dplyr::rename(ligand = from, receptor = to) %>% dplyr::distinct(ligand, receptor)
@@ -34,7 +32,7 @@
 #' covariates = NA
 #' contrasts_oi = c("'High-Low','Low-High'")
 #' celltype_de = perform_muscat_de_analysis(
-#'    seurat_obj = seurat_obj,
+#'    sce = sce,
 #'    sample_id = sample_id,
 #'    celltype_id = celltype_id,
 #'    group_id = group_id,
@@ -45,58 +43,59 @@
 #' @export
 #'
 #'
-perform_muscat_de_analysis = function(seurat_obj, sample_id, celltype_id, group_id, covariates, contrasts, assay_oi_sce = "RNA", assay_oi_pb = "counts", fun_oi_pb = "sum", de_method_oi = "edgeR", min_cells = 10){
+perform_muscat_de_analysis = function(sce, sample_id, celltype_id, group_id, covariates, contrasts, assay_oi_pb = "counts", fun_oi_pb = "sum", de_method_oi = "edgeR", min_cells = 10){
   requireNamespace("dplyr")
   
-  if (class(seurat_obj) != "Seurat") {
-    stop("seurat_obj should be a Seurat object")
+
+  if (class(sce) != "SingleCellExperiment") {
+    stop("sce should be a SingleCellExperiment object")
   }
-  if (!celltype_id %in% colnames(seurat_obj@meta.data)) {
-    stop("celltype_id should be a column name in the metadata dataframe of seurat_obj")
+  if (!celltype_id %in% colnames(SummarizedExperiment::colData(sce))) {
+    stop("celltype_id should be a column name in the metadata dataframe of sce")
   }
   if (celltype_id != make.names(celltype_id)) {
     stop("celltype_id should be a syntactically valid R name - check make.names")
   }
-  if (!sample_id %in% colnames(seurat_obj@meta.data)) {
-    stop("sample_id should be a column name in the metadata dataframe of seurat_obj")
+  if (!sample_id %in% colnames(SummarizedExperiment::colData(sce))) {
+    stop("sample_id should be a column name in the metadata dataframe of sce")
   }
   if (sample_id != make.names(sample_id)) {
     stop("sample_id should be a syntactically valid R name - check make.names")
   }
-  if (!group_id %in% colnames(seurat_obj@meta.data)) {
-    stop("group_id should be a column name in the metadata dataframe of seurat_obj")
+  if (!group_id %in% colnames(SummarizedExperiment::colData(sce))) {
+    stop("group_id should be a column name in the metadata dataframe of sce")
   }
   if (group_id != make.names(group_id)) {
     stop("group_id should be a syntactically valid R name - check make.names")
   }
   
-  if(is.double(seurat_obj@meta.data[,celltype_id])){
-    stop("seurat_obj@meta.data[,celltype_id] should be a character vector or a factor")
+  if(is.double(SummarizedExperiment::colData(sce)[,celltype_id])){
+    stop("SummarizedExperiment::colData(sce)[,celltype_id] should be a character vector or a factor")
   }
-  if(is.double(seurat_obj@meta.data[,group_id])){
-    stop("seurat_obj@meta.data[,group_id] should be a character vector or a factor")
+  if(is.double(SummarizedExperiment::colData(sce)[,group_id])){
+    stop("SummarizedExperiment::colData(sce)[,group_id] should be a character vector or a factor")
   }
-  if(is.double(seurat_obj@meta.data[,sample_id])){
-    stop("seurat_obj@meta.data[,sample_id] should be a character vector or a factor")
+  if(is.double(SummarizedExperiment::colData(sce)[,sample_id])){
+    stop("SummarizedExperiment::colData(sce)[,sample_id] should be a character vector or a factor")
   }
   
   # if some of these are factors, and not all levels have syntactically valid names - prompt to change this
-  if(is.factor(seurat_obj@meta.data[,celltype_id])){
-    is_make_names = levels(seurat_obj@meta.data[,celltype_id]) == make.names(levels(seurat_obj@meta.data[,celltype_id]))
-    if(sum(is_make_names) != length(levels(seurat_obj@meta.data[,celltype_id]))){
-      stop("The levels of the factor seurat_obj@meta.data[,celltype_id] should be a syntactically valid R names - see make.names")
+  if(is.factor(SummarizedExperiment::colData(sce)[,celltype_id])){
+    is_make_names = levels(SummarizedExperiment::colData(sce)[,celltype_id]) == make.names(levels(SummarizedExperiment::colData(sce)[,celltype_id]))
+    if(sum(is_make_names) != length(levels(SummarizedExperiment::colData(sce)[,celltype_id]))){
+      stop("The levels of the factor SummarizedExperiment::colData(sce)[,celltype_id] should be a syntactically valid R names - see make.names")
     }
   }
-  if(is.factor(seurat_obj@meta.data[,group_id])){
-    is_make_names = levels(seurat_obj@meta.data[,group_id]) == make.names(levels(seurat_obj@meta.data[,group_id]))
-    if(sum(is_make_names) != length(levels(seurat_obj@meta.data[,group_id]))){
-      stop("The levels of the factor seurat_obj@meta.data[,group_id] should be a syntactically valid R names - see make.names")
+  if(is.factor(SummarizedExperiment::colData(sce)[,group_id])){
+    is_make_names = levels(SummarizedExperiment::colData(sce)[,group_id]) == make.names(levels(SummarizedExperiment::colData(sce)[,group_id]))
+    if(sum(is_make_names) != length(levels(SummarizedExperiment::colData(sce)[,group_id]))){
+      stop("The levels of the factor SummarizedExperiment::colData(sce)[,group_id] should be a syntactically valid R names - see make.names")
     }
   }
-  if(is.factor(seurat_obj@meta.data[,sample_id])){
-    is_make_names = levels(seurat_obj@meta.data[,sample_id]) == make.names(levels(seurat_obj@meta.data[,sample_id]))
-    if(sum(is_make_names) != length(levels(seurat_obj@meta.data[,sample_id]))){
-      stop("The levels of the factor seurat_obj@meta.data[,sample_id] should be a syntactically valid R names - see make.names")
+  if(is.factor(SummarizedExperiment::colData(sce)[,sample_id])){
+    is_make_names = levels(SummarizedExperiment::colData(sce)[,sample_id]) == make.names(levels(SummarizedExperiment::colData(sce)[,sample_id]))
+    if(sum(is_make_names) != length(levels(SummarizedExperiment::colData(sce)[,sample_id]))){
+      stop("The levels of the factor SummarizedExperiment::colData(sce)[,sample_id] should be a syntactically valid R names - see make.names")
     }
   }
   
@@ -105,7 +104,7 @@ perform_muscat_de_analysis = function(seurat_obj, sample_id, celltype_id, group_
   }
 
   # conditions of interest in the contrast should be present in the in the group column of the metadata
-  groups_oi = seurat_obj@meta.data[,group_id] %>% unique()
+  groups_oi = SummarizedExperiment::colData(sce)[,group_id] %>% unique()
   conditions_oi = stringr::str_split(contrasts, "'") %>% unlist() %>% unique() %>%
     # stringr::str_split("[:digit:]") %>% unlist() %>% unique() %>%
     stringr::str_split("\\)") %>% unlist() %>% unique() %>%
@@ -129,18 +128,11 @@ perform_muscat_de_analysis = function(seurat_obj, sample_id, celltype_id, group_
   }
 
   if(!is.na(covariates)){
-    if (sum(covariates %in% colnames(seurat_obj@meta.data)) != length(covariates) ) {
-      stop("covariates should be NA or all present as column name(s) in the metadata dataframe of seurat_obj_receiver")
+    if (sum(covariates %in% colnames(SummarizedExperiment::colData(sce))) != length(covariates) ) {
+      stop("covariates should be NA or all present as column name(s) in the metadata dataframe of sce_receiver")
     }
   }
   
-  if(!is.character(assay_oi_sce)){
-    stop("assay_oi_sce should be a character vector")
-  } else {
-    if(assay_oi_sce != "RNA"){
-      warning("are you sure you don't want to use the RNA assay?")
-    }
-  }
   if(!is.character(assay_oi_pb)){
     stop("assay_oi_pb should be a character vector")
   } else {
@@ -163,11 +155,8 @@ perform_muscat_de_analysis = function(seurat_obj, sample_id, celltype_id, group_
     }
   }
 
-  requireNamespace("Seurat")
   requireNamespace("dplyr")
   
-  # convert seurat to SCE object
-  sce = Seurat::as.SingleCellExperiment(seurat_obj, assay = assay_oi_sce)
 
   # prepare SCE for the muscat pseudobulk analysis
   sce$id = sce[[sample_id]]
@@ -175,7 +164,7 @@ perform_muscat_de_analysis = function(seurat_obj, sample_id, celltype_id, group_
                         kid = celltype_id, # subpopulation assignments
                         gid = group_id,  # group IDs (ctrl/stim)
                         sid = "id",   # sample IDs (ctrl/stim.1234)
-                        drop = FALSE)  # drop all other colData columns ----------------- change to false
+                        drop = FALSE)  # drop all other SummarizedExperiment::colData columns ----------------- change to false
 
   pb = muscat::aggregateData(sce,
                              assay = assay_oi_pb, fun = fun_oi_pb,
@@ -194,10 +183,10 @@ perform_muscat_de_analysis = function(seurat_obj, sample_id, celltype_id, group_
   }
 
   if(covariates_present){
-    extra_metadata = seurat_obj@meta.data %>% dplyr::select(all_of(sample_id), all_of(covariates)) %>% dplyr::distinct() %>% dplyr::mutate_all(factor)
+    extra_metadata = SummarizedExperiment::colData(sce)  %>% tibble::as_tibble() %>% dplyr::select(all_of(sample_id), all_of(covariates)) %>% dplyr::distinct() %>% dplyr::mutate_all(factor)
   } else {
-    extra_metadata = seurat_obj@meta.data %>% dplyr::select(all_of(sample_id)) %>% dplyr::distinct() %>% dplyr::mutate_all(factor)
-  }
+    extra_metadata = SummarizedExperiment::colData(sce) %>% tibble::as_tibble() %>% dplyr::select(all_of(sample_id)) %>% dplyr::distinct() %>% dplyr::mutate_all(factor) 
+  } 
   if('sample_id' != sample_id){
     extra_metadata$sample_id = extra_metadata[[sample_id]]
   }
@@ -260,7 +249,6 @@ perform_muscat_de_analysis = function(seurat_obj, sample_id, celltype_id, group_
 #'
 #' @examples
 #' \dontrun{
-#' library(Seurat)
 #' library(dplyr)
 #' lr_network = readRDS(url("https://zenodo.org/record/3260758/files/lr_network.rds"))
 #' lr_network = lr_network %>% dplyr::rename(ligand = from, receptor = to) %>% dplyr::distinct(ligand, receptor)
@@ -269,10 +257,10 @@ perform_muscat_de_analysis = function(seurat_obj, sample_id, celltype_id, group_
 #' celltype_id = "celltype"
 #' covariates = NA
 #' contrasts_oi = c("'High-Low','Low-High'")
-#' senders_oi = Idents(seurat_obj) %>% unique()
-#' receivers_oi = Idents(seurat_obj) %>% unique()
+#' senders_oi = SummarizedExperiment::colData(sce)[,celltype_id] %>% unique()
+#' receivers_oi = SummarizedExperiment::colData(sce)[,celltype_id] %>% unique()
 #' celltype_de = perform_muscat_de_analysis(
-#'    seurat_obj = seurat_obj,
+#'    sce = sce,
 #'    sample_id = sample_id,
 #'    celltype_id = celltype_id,
 #'    group_id = group_id,
@@ -411,7 +399,6 @@ get_FDR_empirical = function(de_output_tidy, cluster_id_oi, contrast_oi, plot = 
 #'
 #' @examples
 #' \dontrun{
-#' library(Seurat)
 #' library(dplyr)
 #' lr_network = readRDS(url("https://zenodo.org/record/3260758/files/lr_network.rds"))
 #' lr_network = lr_network %>% dplyr::rename(ligand = from, receptor = to) %>% dplyr::distinct(ligand, receptor)
@@ -420,10 +407,10 @@ get_FDR_empirical = function(de_output_tidy, cluster_id_oi, contrast_oi, plot = 
 #' celltype_id = "celltype"
 #' covariates = NA
 #' contrasts_oi = c("'High-Low','Low-High'")
-#' senders_oi = Idents(seurat_obj) %>% unique()
-#' receivers_oi = Idents(seurat_obj) %>% unique()
+#' senders_oi = SummarizedExperiment::colData(sce)[,celltype_id] %>% unique()
+#' receivers_oi = SummarizedExperiment::colData(sce)[,celltype_id] %>% unique()
 #' celltype_de = perform_muscat_de_analysis(
-#'    seurat_obj = seurat_obj,
+#'    sce = sce,
 #'    sample_id = sample_id,
 #'    celltype_id = celltype_id,
 #'    group_id = group_id,

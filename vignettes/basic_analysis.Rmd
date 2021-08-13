@@ -22,9 +22,9 @@ knitr::opts_chunk$set(
 )
 ```
 
-In this vignette, you can learn how to perform an all-vs-all MultiNicheNet analysis. In this vignette, we start from one single Seurat object containing cells from both sender and receiver cell types and from different patients.
+In this vignette, you can learn how to perform an all-vs-all MultiNicheNet analysis. In this vignette, we start from one single SingleCellExperiment object containing cells from both sender and receiver cell types and from different patients.
 
-As example expression data of interacting cells, we will use data from Puram et al. to explore intercellular communication in the tumor microenvironment in head and neck squamous cell carcinoma (HNSCC) [See @puram_single-cell_2017] [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.4675430.svg)](https://doi.org/10.5281/zenodo.4675430).  More specifically, we will look at differential cell-cell communication patterns between tumors scoring high for a partial epithelial-mesenschymal transition (p-EMT) program vs low-scoring tumors.
+As example expression data of interacting cells, we will use data from Puram et al. to explore intercellular communication in the tumor microenvironment in head and neck squamous cell carcinoma (HNSCC) [See @puram_single-cell_2017] [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.5196144.svg)](https://doi.org/10.5281/zenodo.5196144).  More specifically, we will look at differential cell-cell communication patterns between tumors scoring high for a partial epithelial-mesenschymal transition (p-EMT) program vs low-scoring tumors.
 
 In this vignette, we will prepare the data and analysis parameters, and then perform the MultiNicheNet analysis. 
 
@@ -47,7 +47,6 @@ After the MultiNicheNet analysis is done, we will explore the output of the anal
 # Step 0: Load required packages and NicheNet ligand-receptor network and ligand-target matrix
 
 ```{r}
-library(Seurat)
 library(dplyr)
 library(ggplot2)
 library(multinichenetr)
@@ -64,15 +63,15 @@ lr_network = lr_network %>% dplyr::rename(ligand = from, receptor = to) %>% dist
 ligand_target_matrix = readRDS(url("https://zenodo.org/record/3260758/files/ligand_target_matrix.rds"))
 ```
 
-# Step 1: Prepare Seurat Objects for Sender and Receiver cells
+# Step 1: Prepare SingleCellExperiment objects for Sender and Receiver cells
 
-In this vignette, sender and receiver cell types are in the same Seurat object, which we will load here.
+In this vignette, sender and receiver cell types are in the same SingleCellExperiment object, which we will load here.
 
 In this case study, we want to study differences in cell-cell communication patterns between pEMT-high and pEMT-low tumors. The meta data columns that indicate the pEMT status of tumors are 'pEMT' and 'pEMT_fine', cell type is indicated in the 'celltype' column, and the sample is indicated by the 'tumor' column. 
 
 __User adaptation required__
 ```{r}
-seurat_obj = readRDS(url("https://zenodo.org/record/4675430/files/seurat_obj_hnscc.rds"))
+sce = readRDS(url("https://zenodo.org/record/5196144/files/sce_hnscc.rds"))
 DimPlot(seurat_obj, group.by = "celltype")
 DimPlot(seurat_obj, group.by = "tumor")
 DimPlot(seurat_obj, group.by = "pEMT")
@@ -83,9 +82,9 @@ We will now also check the number of cells per cell type condition combination, 
 
 __User adaptation required__
 ```{r}
-table(seurat_obj@meta.data$celltype, seurat_obj@meta.data$tumor) # cell types vs samples
-table(seurat_obj@meta.data$celltype, seurat_obj@meta.data$pEMT) # cell types vs conditions
-table(seurat_obj@meta.data$tumor, seurat_obj@meta.data$pEMT) # samples vs conditions
+table(SummarizedExperiment::colData(sce)$celltype, SummarizedExperiment::colData(sce)$tumor) # cell types vs samples
+table(SummarizedExperiment::colData(sce)$celltype, SummarizedExperiment::colData(sce)$pEMT) # cell types vs conditions
+table(SummarizedExperiment::colData(sce)$tumor, SummarizedExperiment::colData(sce)$pEMT) # samples vs conditions
 ```
 
 As you can see, some Celltype-Sample combinations have 0 cells. It is possible that during DE analysis, some cell types will be removed from the analysis if there is not enough information to do a DE analysis.
@@ -177,12 +176,12 @@ prioritizing_weights = c(prioritizing_weights_DE,
 
 # Step 3: Perform the cell-cell communication analysis
 
-Now we will run the MultiNicheNet wrapper. In the function `multi_nichenet_analysis`, we need to specify that we use one Seurat object of which all cell types should be considered as both receiver and sender by setting `sender_receiver_separate = FALSE`. This setting will call the underlying `multi_nichenet_analysis_combined` pipeline function.
+Now we will run the MultiNicheNet wrapper. In the function `multi_nichenet_analysis`, we need to specify that we use one SingleCellExperiment object of which all cell types should be considered as both receiver and sender by setting `sender_receiver_separate = FALSE`. This setting will call the underlying `multi_nichenet_analysis_combined` pipeline function.
 
 To keep track of the different steps, we will here set `verbose = TRUE`
 
 ```{r}
-output = multi_nichenet_analysis(seurat_obj = seurat_obj, celltype_id = celltype_id, sample_id = sample_id, group_id = group_id, 
+output = multi_nichenet_analysis(sce = sce, celltype_id = celltype_id, sample_id = sample_id, group_id = group_id, 
                                 lr_network = lr_network, ligand_target_matrix = ligand_target_matrix, contrasts_oi = contrasts_oi, contrast_tbl = contrast_tbl, covariates = covariates,
                                 prioritizing_weights = prioritizing_weights, min_cells = min_cells, logFC_threshold = logFC_threshold, p_val_threshold = p_val_threshold,  
                                 fraction_cutoff = fraction_cutoff, p_val_adj = p_val_adj, empirical_pval = empirical_pval, top_n_target = top_n_target, sender_receiver_separate = FALSE, verbose = TRUE)

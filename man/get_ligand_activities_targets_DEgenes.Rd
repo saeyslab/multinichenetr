@@ -33,7 +33,6 @@ List with two data frames: one data frame containing the ligand activities and l
 }
 \examples{
 \dontrun{
-library(Seurat)
 library(dplyr)
 lr_network = readRDS(url("https://zenodo.org/record/3260758/files/lr_network.rds"))
 lr_network = lr_network \%>\% dplyr::rename(ligand = from, receptor = to) \%>\% dplyr::distinct(ligand, receptor)
@@ -43,10 +42,10 @@ group_id = "pEMT"
 celltype_id = "celltype"
 covariates = NA
 contrasts_oi = c("'High-Low','Low-High'")
-receivers_oi = Idents(seurat_obj) \%>\% unique()
-celltype_info = get_avg_frac_exprs_abund(seurat_obj = seurat_obj, sample_id = sample_id, celltype_id =  celltype_id, group_id = group_id)
+receivers_oi = SummarizedExperiment::colData(sce)[,celltype_id] \%>\% unique() 
+celltype_info = get_avg_frac_exprs_abund(sce = sce, sample_id = sample_id, celltype_id =  celltype_id, group_id = group_id)
 celltype_de = perform_muscat_de_analysis(
-   seurat_obj = seurat_obj,
+   sce = sce,
    sample_id = sample_id,
    celltype_id = celltype_id,
    group_id = group_id,

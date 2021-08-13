@@ -10,7 +10,7 @@ test_that("Pipeline for all-vs-all analysis works", {
   contrasts_oi = c("'High-Low','Low-High'")
   contrast_tbl = tibble(contrast = c("High-Low","Low-High"), group = c("High","Low"))
   output = multi_nichenet_analysis_combined(
-       seurat_obj = seurat_obj,
+       sce = sce,
        celltype_id = celltype_id,
        sample_id = sample_id,
        group_id = group_id,
@@ -29,13 +29,13 @@ test_that("Pipeline for all-vs-all analysis works", {
   contrast_tbl = tibble(contrast = c("High-Low"), group = c("High"))
   
   # test whether input checks are stringent enough: celltype_id, sample_id, group_id
-  seurat_obj@meta.data$`Test Celltype` = seurat_obj@meta.data$celltype 
-  seurat_obj@meta.data$`Test Group` = seurat_obj@meta.data$pEMT 
-  seurat_obj@meta.data$`Test Sample` = seurat_obj@meta.data$tumor 
-  seurat_obj@meta.data$false_celltype = seurat_obj@meta.data$seurat_clusters %>% as.double()
+  SummarizedExperiment::colData(sce)$`Test Celltype` = SummarizedExperiment::colData(sce)$celltype 
+  SummarizedExperiment::colData(sce)$`Test Group` = SummarizedExperiment::colData(sce)$pEMT 
+  SummarizedExperiment::colData(sce)$`Test Sample` = SummarizedExperiment::colData(sce)$tumor 
+  SummarizedExperiment::colData(sce)$false_celltype = SummarizedExperiment::colData(sce)$seurat_clusters %>% as.double()
   
   expect_error(multi_nichenet_analysis_combined(
-    seurat_obj = seurat_obj,
+    sce = sce,
     celltype_id = "Test Celltype",
     sample_id = sample_id,
     group_id = group_id,
@@ -46,7 +46,7 @@ test_that("Pipeline for all-vs-all analysis works", {
     contrast_tbl = contrast_tbl
   ))
   expect_error(multi_nichenet_analysis_combined(
-    seurat_obj = seurat_obj,
+    sce = sce,
     celltype_id = celltype_id,
     sample_id = "Test Sample",
     group_id = group_id,
@@ -57,7 +57,7 @@ test_that("Pipeline for all-vs-all analysis works", {
     contrast_tbl = contrast_tbl
   ))
   expect_error(multi_nichenet_analysis_combined(
-    seurat_obj = seurat_obj,
+    sce = sce,
     celltype_id = celltype_id,
     sample_id = sample_id,
     group_id = "Test Group",
@@ -69,7 +69,7 @@ test_that("Pipeline for all-vs-all analysis works", {
   ))
 
   expect_error(multi_nichenet_analysis_combined(
-    seurat_obj = seurat_obj,
+    sce = sce,
     celltype_id = "Valencia",
     sample_id = sample_id,
     group_id = group_id,
@@ -80,7 +80,7 @@ test_that("Pipeline for all-vs-all analysis works", {
     contrast_tbl = contrast_tbl
   ))
   expect_error(multi_nichenet_analysis_combined(
-    seurat_obj = seurat_obj,
+    sce = sce,
     celltype_id = celltype_id,
     sample_id =  "Valencia",
     group_id = group_id,
@@ -91,7 +91,7 @@ test_that("Pipeline for all-vs-all analysis works", {
     contrast_tbl = contrast_tbl
   ))
   expect_error(multi_nichenet_analysis_combined(
-    seurat_obj = seurat_obj,
+    sce = sce,
     celltype_id = celltype_id,
     sample_id = sample_id,
     group_id =  "Valencia",
@@ -102,7 +102,7 @@ test_that("Pipeline for all-vs-all analysis works", {
     contrast_tbl = contrast_tbl
   ))
   expect_error(multi_nichenet_analysis_combined(
-    seurat_obj = seurat_obj,
+    sce = sce,
     celltype_id = "false_celltype",
     sample_id = sample_id,
     group_id = group_id,
@@ -114,7 +114,7 @@ test_that("Pipeline for all-vs-all analysis works", {
   ))
   # test whether input checks are stringent enough: covariates
   expect_error(multi_nichenet_analysis_combined(
-    seurat_obj = seurat_obj,
+    sce = sce,
     celltype_id = celltype_id,
     sample_id = sample_id,
     group_id = group_id,
@@ -128,7 +128,7 @@ test_that("Pipeline for all-vs-all analysis works", {
   # test whether input checks are stringent enough: ligand-target matrix and ligand-receptor network
 
   expect_error(multi_nichenet_analysis_combined(
-    seurat_obj = seurat_obj,
+    sce = sce,
     celltype_id = celltype_id,
     sample_id = sample_id,
     group_id = group_id,
@@ -139,7 +139,7 @@ test_that("Pipeline for all-vs-all analysis works", {
     contrast_tbl = contrast_tbl
   ))
   expect_error(multi_nichenet_analysis_combined(
-    seurat_obj = seurat_obj,
+    sce = sce,
     celltype_id = celltype_id,
     sample_id = sample_id,
     group_id = group_id,
@@ -152,7 +152,7 @@ test_that("Pipeline for all-vs-all analysis works", {
   
   # test whether input checks are stringent enough: contrast definition and contrast tbl
   expect_error(multi_nichenet_analysis_combined(
-    seurat_obj = seurat_obj,
+    sce = sce,
     celltype_id = celltype_id,
     sample_id = sample_id,
     group_id = group_id,
@@ -163,7 +163,7 @@ test_that("Pipeline for all-vs-all analysis works", {
     contrast_tbl = contrast_tbl
   ))
   expect_error(multi_nichenet_analysis_combined(
-    seurat_obj = seurat_obj,
+    sce = sce,
     celltype_id = celltype_id,
     sample_id = sample_id,
     group_id = group_id,
@@ -174,7 +174,7 @@ test_that("Pipeline for all-vs-all analysis works", {
     contrast_tbl = contrast_tbl
   ))
   expect_error(multi_nichenet_analysis_combined(
-    seurat_obj = seurat_obj,
+    sce = sce,
     celltype_id = celltype_id,
     sample_id = sample_id,
     group_id = group_id,
@@ -185,7 +185,7 @@ test_that("Pipeline for all-vs-all analysis works", {
     contrast_tbl = tibble(contrast = c("High-Medium","Low-High"), group = c("High","Low"))
   ))
   expect_warning(multi_nichenet_analysis_combined(
-    seurat_obj = seurat_obj,
+    sce = sce,
     celltype_id = celltype_id,
     sample_id = sample_id,
     group_id = group_id,
@@ -196,7 +196,7 @@ test_that("Pipeline for all-vs-all analysis works", {
     contrast_tbl = tibble(contrast = c("High-Low","Low-High"), group = c("Medium","Low"))
   ))
   expect_warning(multi_nichenet_analysis_combined(
-    seurat_obj = seurat_obj,
+    sce = sce,
     celltype_id = celltype_id,
     sample_id = sample_id,
     group_id = group_id,
@@ -208,7 +208,7 @@ test_that("Pipeline for all-vs-all analysis works", {
   ))
   # other input checks
   expect_error(multi_nichenet_analysis_combined(
-    seurat_obj = seurat_obj,
+    sce = sce,
     celltype_id = celltype_id,
     sample_id = sample_id,
     group_id = group_id,
@@ -220,7 +220,7 @@ test_that("Pipeline for all-vs-all analysis works", {
     prioritizing_weights = c("Anil" = 1, "Canalla" = 2, "Fuera De Mestalla" = 3, "Lim Vete Ya" = 4, "Marcelino OE OE" = 5)
   ))
   expect_error(multi_nichenet_analysis_combined(
-    seurat_obj = seurat_obj,
+    sce = sce,
     celltype_id = celltype_id,
     sample_id = sample_id,
     group_id = group_id,
@@ -232,7 +232,7 @@ test_that("Pipeline for all-vs-all analysis works", {
     assay_oi_sce = "Spatial"
   ))
   expect_error(multi_nichenet_analysis_combined(
-    seurat_obj = seurat_obj,
+    sce = sce,
     celltype_id = celltype_id,
     sample_id = sample_id,
     group_id = group_id,
@@ -244,7 +244,7 @@ test_that("Pipeline for all-vs-all analysis works", {
     assay_oi_pb = "Spatial"
   ))
   expect_error(multi_nichenet_analysis_combined(
-    seurat_obj = seurat_obj,
+    sce = sce,
     celltype_id = celltype_id,
     sample_id = sample_id,
     group_id = group_id,
@@ -256,7 +256,7 @@ test_that("Pipeline for all-vs-all analysis works", {
     de_method_oi = "EdgePython"
   ))
   # expect_warning(multi_nichenet_analysis_combined(
-  #   seurat_obj = seurat_obj,
+  #   sce = sce,
   #   celltype_id = celltype_id,
   #   sample_id = sample_id,
   #   group_id = group_id,
@@ -268,7 +268,7 @@ test_that("Pipeline for all-vs-all analysis works", {
   #   min_cells = 0
   # ))
   expect_error(multi_nichenet_analysis_combined(
-    seurat_obj = seurat_obj,
+    sce = sce,
     celltype_id = celltype_id,
     sample_id = sample_id,
     group_id = group_id,
@@ -280,7 +280,7 @@ test_that("Pipeline for all-vs-all analysis works", {
     min_cells = "0"
   ))
   # expect_warning(multi_nichenet_analysis_combined(
-  #   seurat_obj = seurat_obj,
+  #   sce = sce,
   #   celltype_id = celltype_id,
   #   sample_id = sample_id,
   #   group_id = group_id,
@@ -292,7 +292,7 @@ test_that("Pipeline for all-vs-all analysis works", {
   #   logFC_threshold = -0.25
   # ))
   expect_error(multi_nichenet_analysis_combined(
-    seurat_obj = seurat_obj,
+    sce = sce,
     celltype_id = celltype_id,
     sample_id = sample_id,
     group_id = group_id,
@@ -304,7 +304,7 @@ test_that("Pipeline for all-vs-all analysis works", {
     logFC_threshold = "0.25"
   ))
   # expect_warning(multi_nichenet_analysis_combined(
-  #   seurat_obj = seurat_obj,
+  #   sce = sce,
   #   celltype_id = celltype_id,
   #   sample_id = sample_id,
   #   group_id = group_id,
@@ -316,7 +316,7 @@ test_that("Pipeline for all-vs-all analysis works", {
   #   p_val_threshold = 2
   # ))
   expect_error(multi_nichenet_analysis_combined(
-    seurat_obj = seurat_obj,
+    sce = sce,
     celltype_id = celltype_id,
     sample_id = sample_id,
     group_id = group_id,
@@ -328,7 +328,7 @@ test_that("Pipeline for all-vs-all analysis works", {
     p_val_threshold = "0.1"
   ))
   # expect_warning(multi_nichenet_analysis_combined(
-  #   seurat_obj = seurat_obj,
+  #   sce = sce,
   #   celltype_id = celltype_id,
   #   sample_id = sample_id,
   #   group_id = group_id,
@@ -340,7 +340,7 @@ test_that("Pipeline for all-vs-all analysis works", {
   #   fraction_cutoff = 2
   # ))
   expect_error(multi_nichenet_analysis_combined(
-    seurat_obj = seurat_obj,
+    sce = sce,
     celltype_id = celltype_id,
     sample_id = sample_id,
     group_id = group_id,
@@ -352,7 +352,7 @@ test_that("Pipeline for all-vs-all analysis works", {
     p_val_adj = "maybe"
   ))
   expect_error(multi_nichenet_analysis_combined(
-    seurat_obj = seurat_obj,
+    sce = sce,
     celltype_id = celltype_id,
     sample_id = sample_id,
     group_id = group_id,
@@ -367,7 +367,7 @@ test_that("Pipeline for all-vs-all analysis works", {
   # contrasts_oi = c("'High-Low'")
   # contrast_tbl = tibble(contrast = c("High-Low"), group = c("High"))
   # output = multi_nichenet_analysis_combined(
-  #   seurat_obj = seurat_obj,
+  #   sce = sce,
   #   celltype_id = celltype_id,
   #   sample_id = sample_id,
   #   group_id = group_id,
@@ -382,18 +382,21 @@ test_that("Pipeline for all-vs-all analysis works", {
   
 })
 test_that("Pipeline for separate analysis works", {
-  seurat_obj_receiver = seurat_obj %>% subset(subset = celltype == "Malignant")
-  seurat_obj_sender = seurat_obj %>% subset(subset = celltype == "CAF")
-  sample_id = "tumor"
-  group_id = "pEMT"
+  
   celltype_id_receiver = "celltype"
   celltype_id_sender = "celltype"
+  
+  sce_sender = sce[, SummarizedExperiment::colData(sce)[,celltype_id_sender] == "CAF"]
+  sce_receiver = sce[, SummarizedExperiment::colData(sce)[,celltype_id_receiver] == "Malignant"]
+  
+  sample_id = "tumor"
+  group_id = "pEMT"
   covariates = NA
   contrasts_oi = c("'High-Low','Low-High'")
   contrast_tbl = tibble(contrast = c("High-Low","Low-High"), group = c("High","Low"))
   output = multi_nichenet_analysis_separate(
-       seurat_obj_receiver = seurat_obj_receiver,
-       seurat_obj_sender = seurat_obj_sender,
+       sce_receiver = sce_receiver,
+       sce_sender = sce_sender,
        celltype_id_receiver = celltype_id_receiver,
        celltype_id_sender = celltype_id_sender,
        sample_id = sample_id,
@@ -412,14 +415,14 @@ test_that("Pipeline for separate analysis works", {
   contrast_tbl = tibble(contrast = c("High-Low"), group = c("High"))
   
   # test whether input checks are stringent enough: celltype_id, sample_id, group_id
-  seurat_obj@meta.data$`Test Celltype` = seurat_obj@meta.data$celltype 
-  seurat_obj@meta.data$`Test Group` = seurat_obj@meta.data$pEMT 
-  seurat_obj@meta.data$`Test Sample` = seurat_obj@meta.data$tumor 
-  seurat_obj@meta.data$false_celltype = seurat_obj@meta.data$seurat_clusters %>% as.double()
+  SummarizedExperiment::colData(sce)$`Test Celltype` = SummarizedExperiment::colData(sce)$celltype 
+  SummarizedExperiment::colData(sce)$`Test Group` = SummarizedExperiment::colData(sce)$pEMT 
+  SummarizedExperiment::colData(sce)$`Test Sample` = SummarizedExperiment::colData(sce)$tumor 
+  SummarizedExperiment::colData(sce)$false_celltype = SummarizedExperiment::colData(sce)$seurat_clusters %>% as.double()
   
   expect_error(multi_nichenet_analysis_separate(
-    seurat_obj_receiver = seurat_obj_receiver,
-    seurat_obj_sender = seurat_obj_sender,
+    sce_receiver = sce_receiver,
+    sce_sender = sce_sender,
     celltype_id_receiver = "Test Celltype",
     celltype_id_sender = celltype_id_sender,
     sample_id = sample_id,
@@ -431,8 +434,8 @@ test_that("Pipeline for separate analysis works", {
     contrast_tbl = contrast_tbl
   ))
   expect_error(multi_nichenet_analysis_separate(
-    seurat_obj_receiver = seurat_obj_receiver,
-    seurat_obj_sender = seurat_obj_sender,
+    sce_receiver = sce_receiver,
+    sce_sender = sce_sender,
     celltype_id_receiver = celltype_id_receiver,
     celltype_id_sender = "Test Celltype",
     sample_id = sample_id,
@@ -444,8 +447,8 @@ test_that("Pipeline for separate analysis works", {
     contrast_tbl = contrast_tbl
   ))
   expect_error(multi_nichenet_analysis_separate(
-    seurat_obj_receiver = seurat_obj_receiver,
-    seurat_obj_sender = seurat_obj_sender,
+    sce_receiver = sce_receiver,
+    sce_sender = sce_sender,
     celltype_id_receiver = celltype_id_receiver,
     celltype_id_sender = celltype_id_sender,
     sample_id = "Test Sample",
@@ -457,8 +460,8 @@ test_that("Pipeline for separate analysis works", {
     contrast_tbl = contrast_tbl
   ))
   expect_error(multi_nichenet_analysis_separate(
-    seurat_obj_receiver = seurat_obj_receiver,
-    seurat_obj_sender = seurat_obj_sender,
+    sce_receiver = sce_receiver,
+    sce_sender = sce_sender,
     celltype_id_receiver = celltype_id_receiver,
     celltype_id_sender = celltype_id_sender,
     sample_id = sample_id,
@@ -471,8 +474,8 @@ test_that("Pipeline for separate analysis works", {
   ))
   
   expect_error(multi_nichenet_analysis_separate(
-    seurat_obj_receiver = seurat_obj_receiver,
-    seurat_obj_sender = seurat_obj_sender,
+    sce_receiver = sce_receiver,
+    sce_sender = sce_sender,
     celltype_id_receiver = "Valencia",
     celltype_id_sender = celltype_id_sender,
     sample_id = sample_id,
@@ -484,8 +487,8 @@ test_that("Pipeline for separate analysis works", {
     contrast_tbl = contrast_tbl
   ))
   expect_error(multi_nichenet_analysis_separate(
-    seurat_obj_receiver = seurat_obj_receiver,
-    seurat_obj_sender = seurat_obj_sender,
+    sce_receiver = sce_receiver,
+    sce_sender = sce_sender,
     celltype_id_receiver = celltype_id_receiver,
     celltype_id_sender = "Valencia",
     sample_id = sample_id,
@@ -497,8 +500,8 @@ test_that("Pipeline for separate analysis works", {
     contrast_tbl = contrast_tbl
   ))
   expect_error(multi_nichenet_analysis_separate(
-    seurat_obj_receiver = seurat_obj_receiver,
-    seurat_obj_sender = seurat_obj_sender,
+    sce_receiver = sce_receiver,
+    sce_sender = sce_sender,
     celltype_id_receiver = celltype_id_receiver,
     celltype_id_sender = celltype_id_sender,
     sample_id =  "Valencia",
@@ -510,8 +513,8 @@ test_that("Pipeline for separate analysis works", {
     contrast_tbl = contrast_tbl
   ))
   expect_error(multi_nichenet_analysis_separate(
-    seurat_obj_receiver = seurat_obj_receiver,
-    seurat_obj_sender = seurat_obj_sender,
+    sce_receiver = sce_receiver,
+    sce_sender = sce_sender,
     celltype_id_receiver = celltype_id_receiver,
     celltype_id_sender = celltype_id_sender,
     sample_id = sample_id,
@@ -523,8 +526,8 @@ test_that("Pipeline for separate analysis works", {
     contrast_tbl = contrast_tbl
   ))
   expect_error(multi_nichenet_analysis_separate(
-    seurat_obj_receiver = seurat_obj_receiver,
-    seurat_obj_sender = seurat_obj_sender,
+    sce_receiver = sce_receiver,
+    sce_sender = sce_sender,
     celltype_id_receiver = "false_celltype",
     celltype_id_sender = celltype_id_sender,
     sample_id = sample_id,
@@ -536,8 +539,8 @@ test_that("Pipeline for separate analysis works", {
     contrast_tbl = contrast_tbl
   ))
   expect_error(multi_nichenet_analysis_separate(
-    seurat_obj_receiver = seurat_obj_receiver,
-    seurat_obj_sender = seurat_obj_sender,
+    sce_receiver = sce_receiver,
+    sce_sender = sce_sender,
     celltype_id_receiver = celltype_id_sender,
     celltype_id_sender =  "false_celltype",
     sample_id = sample_id,
@@ -550,8 +553,8 @@ test_that("Pipeline for separate analysis works", {
   ))
   # test whether input checks are stringent enough: covariates
   expect_error(multi_nichenet_analysis_separate(
-    seurat_obj_receiver = seurat_obj_receiver,
-    seurat_obj_sender = seurat_obj_sender,
+    sce_receiver = sce_receiver,
+    sce_sender = sce_sender,
     celltype_id_receiver = celltype_id_receiver,
     celltype_id_sender = celltype_id_sender,
     sample_id = sample_id,
@@ -566,8 +569,8 @@ test_that("Pipeline for separate analysis works", {
   # test whether input checks are stringent enough: ligand-target matrix and ligand-receptor network
 
   expect_error(multi_nichenet_analysis_separate(
-    seurat_obj_receiver = seurat_obj_receiver,
-    seurat_obj_sender = seurat_obj_sender,
+    sce_receiver = sce_receiver,
+    sce_sender = sce_sender,
     celltype_id_receiver = celltype_id_receiver,
     celltype_id_sender = celltype_id_sender,
     sample_id = sample_id,
@@ -579,8 +582,8 @@ test_that("Pipeline for separate analysis works", {
     contrast_tbl = contrast_tbl
   ))
   expect_error(multi_nichenet_analysis_separate(
-    seurat_obj_receiver = seurat_obj_receiver,
-    seurat_obj_sender = seurat_obj_sender,
+    sce_receiver = sce_receiver,
+    sce_sender = sce_sender,
     celltype_id_receiver = celltype_id_receiver,
     celltype_id_sender = celltype_id_sender,
     sample_id = sample_id,
@@ -594,8 +597,8 @@ test_that("Pipeline for separate analysis works", {
   
   # test whether input checks are stringent enough: contrast definition and contrast tbl
   expect_error(multi_nichenet_analysis_separate(
-    seurat_obj_receiver = seurat_obj_receiver,
-    seurat_obj_sender = seurat_obj_sender,
+    sce_receiver = sce_receiver,
+    sce_sender = sce_sender,
     celltype_id_receiver = celltype_id_receiver,
     celltype_id_sender = celltype_id_sender,
     sample_id = sample_id,
@@ -607,8 +610,8 @@ test_that("Pipeline for separate analysis works", {
     contrast_tbl = contrast_tbl
   ))
   expect_error(multi_nichenet_analysis_separate(
-    seurat_obj_receiver = seurat_obj_receiver,
-    seurat_obj_sender = seurat_obj_sender,
+    sce_receiver = sce_receiver,
+    sce_sender = sce_sender,
     celltype_id_receiver = celltype_id_receiver,
     celltype_id_sender = celltype_id_sender,
     sample_id = sample_id,
@@ -620,8 +623,8 @@ test_that("Pipeline for separate analysis works", {
     contrast_tbl = contrast_tbl
   ))
   expect_error(multi_nichenet_analysis_separate(
-    seurat_obj_receiver = seurat_obj_receiver,
-    seurat_obj_sender = seurat_obj_sender,
+    sce_receiver = sce_receiver,
+    sce_sender = sce_sender,
     celltype_id_receiver = celltype_id_receiver,
     celltype_id_sender = celltype_id_sender,
     sample_id = sample_id,
@@ -633,8 +636,8 @@ test_that("Pipeline for separate analysis works", {
     contrast_tbl = tibble(contrast = c("High-Medium","Low-High"), group = c("High","Low"))
   ))
   expect_warning(multi_nichenet_analysis_separate(
-    seurat_obj_receiver = seurat_obj_receiver,
-    seurat_obj_sender = seurat_obj_sender,
+    sce_receiver = sce_receiver,
+    sce_sender = sce_sender,
     celltype_id_receiver = celltype_id_receiver,
     celltype_id_sender = celltype_id_sender,
     sample_id = sample_id,
@@ -646,8 +649,8 @@ test_that("Pipeline for separate analysis works", {
     contrast_tbl = tibble(contrast = c("High-Low","Low-High"), group = c("Medium","Low"))
   ))
   expect_warning(multi_nichenet_analysis_separate(
-    seurat_obj_receiver = seurat_obj_receiver,
-    seurat_obj_sender = seurat_obj_sender,
+    sce_receiver = sce_receiver,
+    sce_sender = sce_sender,
     celltype_id_receiver = celltype_id_receiver,
     celltype_id_sender = celltype_id_sender,
     sample_id = sample_id,
@@ -660,8 +663,8 @@ test_that("Pipeline for separate analysis works", {
   ))
   # other input checks
   expect_error(multi_nichenet_analysis_separate(
-    seurat_obj_receiver = seurat_obj_receiver,
-    seurat_obj_sender = seurat_obj_sender,
+    sce_receiver = sce_receiver,
+    sce_sender = sce_sender,
     celltype_id_receiver = celltype_id_receiver,
     celltype_id_sender = celltype_id_sender,
     sample_id = sample_id,
@@ -674,8 +677,8 @@ test_that("Pipeline for separate analysis works", {
     prioritizing_weights = c("Anil" = 1, "Canalla" = 2, "Fuera De Mestalla" = 3, "Lim Vete Ya" = 4, "Marcelino OE OE" = 5)
   ))
   expect_error(multi_nichenet_analysis_separate(
-    seurat_obj_receiver = seurat_obj_receiver,
-    seurat_obj_sender = seurat_obj_sender,
+    sce_receiver = sce_receiver,
+    sce_sender = sce_sender,
     celltype_id_receiver = celltype_id_receiver,
     celltype_id_sender = celltype_id_sender,
     sample_id = sample_id,
@@ -688,8 +691,8 @@ test_that("Pipeline for separate analysis works", {
     assay_oi_sce = "Spatial"
   ))
   expect_error(multi_nichenet_analysis_separate(
-    seurat_obj_receiver = seurat_obj_receiver,
-    seurat_obj_sender = seurat_obj_sender,
+    sce_receiver = sce_receiver,
+    sce_sender = sce_sender,
     celltype_id_receiver = celltype_id_receiver,
     celltype_id_sender = celltype_id_sender,
     sample_id = sample_id,
@@ -702,8 +705,8 @@ test_that("Pipeline for separate analysis works", {
     assay_oi_pb = "Spatial"
   ))
   expect_error(multi_nichenet_analysis_separate(
-    seurat_obj_receiver = seurat_obj_receiver,
-    seurat_obj_sender = seurat_obj_sender,
+    sce_receiver = sce_receiver,
+    sce_sender = sce_sender,
     celltype_id_receiver = celltype_id_receiver,
     celltype_id_sender = celltype_id_sender,
     sample_id = sample_id,
@@ -716,8 +719,8 @@ test_that("Pipeline for separate analysis works", {
     de_method_oi = "EdgePython"
   ))
   # expect_warning(multi_nichenet_analysis_separate(
-  #   seurat_obj_receiver = seurat_obj_receiver,
-  #   seurat_obj_sender = seurat_obj_sender,
+  #   sce_receiver = sce_receiver,
+  #   sce_sender = sce_sender,
   #   celltype_id_receiver = celltype_id_receiver,
   #   celltype_id_sender = celltype_id_sender,
   #   sample_id = sample_id,
@@ -730,8 +733,8 @@ test_that("Pipeline for separate analysis works", {
   #   min_cells = 0
   # ))
   expect_error(multi_nichenet_analysis_separate(
-    seurat_obj_receiver = seurat_obj_receiver,
-    seurat_obj_sender = seurat_obj_sender,
+    sce_receiver = sce_receiver,
+    sce_sender = sce_sender,
     celltype_id_receiver = celltype_id_receiver,
     celltype_id_sender = celltype_id_sender,
     sample_id = sample_id,
@@ -744,8 +747,8 @@ test_that("Pipeline for separate analysis works", {
     min_cells = "0"
   ))
   # expect_warning(multi_nichenet_analysis_separate(
-  #   seurat_obj_receiver = seurat_obj_receiver,
-  #   seurat_obj_sender = seurat_obj_sender,
+  #   sce_receiver = sce_receiver,
+  #   sce_sender = sce_sender,
   #   celltype_id_receiver = celltype_id_receiver,
   #   celltype_id_sender = celltype_id_sender,
   #   sample_id = sample_id,
@@ -758,8 +761,8 @@ test_that("Pipeline for separate analysis works", {
   #   logFC_threshold = -0.25
   # ))
   expect_error(multi_nichenet_analysis_separate(
-    seurat_obj_receiver = seurat_obj_receiver,
-    seurat_obj_sender = seurat_obj_sender,
+    sce_receiver = sce_receiver,
+    sce_sender = sce_sender,
     celltype_id_receiver = celltype_id_receiver,
     celltype_id_sender = celltype_id_sender,
     sample_id = sample_id,
@@ -772,8 +775,8 @@ test_that("Pipeline for separate analysis works", {
     logFC_threshold = "0.25"
   ))
   # expect_warning(multi_nichenet_analysis_separate(
-  #   seurat_obj_receiver = seurat_obj_receiver,
-  #   seurat_obj_sender = seurat_obj_sender,
+  #   sce_receiver = sce_receiver,
+  #   sce_sender = sce_sender,
   #   celltype_id_receiver = celltype_id_receiver,
   #   celltype_id_sender = celltype_id_sender,
   #   sample_id = sample_id,
@@ -786,8 +789,8 @@ test_that("Pipeline for separate analysis works", {
   #   p_val_threshold = 2
   # ))
   expect_error(multi_nichenet_analysis_separate(
-    seurat_obj_receiver = seurat_obj_receiver,
-    seurat_obj_sender = seurat_obj_sender,
+    sce_receiver = sce_receiver,
+    sce_sender = sce_sender,
     celltype_id_receiver = celltype_id_receiver,
     celltype_id_sender = celltype_id_sender,
     sample_id = sample_id,
@@ -800,8 +803,8 @@ test_that("Pipeline for separate analysis works", {
     p_val_threshold = "0.1"
   ))
   expect_error(multi_nichenet_analysis_separate(
-    seurat_obj_receiver = seurat_obj_receiver,
-    seurat_obj_sender = seurat_obj_sender,
+    sce_receiver = sce_receiver,
+    sce_sender = sce_sender,
     celltype_id_receiver = celltype_id_receiver,
     celltype_id_sender = celltype_id_sender,
     sample_id = sample_id,
@@ -814,8 +817,8 @@ test_that("Pipeline for separate analysis works", {
     fraction_cutoff = 2
   ))
   expect_error(multi_nichenet_analysis_separate(
-    seurat_obj_receiver = seurat_obj_receiver,
-    seurat_obj_sender = seurat_obj_sender,
+    sce_receiver = sce_receiver,
+    sce_sender = sce_sender,
     celltype_id_receiver = celltype_id_receiver,
     celltype_id_sender = celltype_id_sender,
     sample_id = sample_id,
@@ -828,8 +831,8 @@ test_that("Pipeline for separate analysis works", {
     p_val_adj = "maybe"
   ))
   expect_error(multi_nichenet_analysis_separate(
-    seurat_obj_receiver = seurat_obj_receiver,
-    seurat_obj_sender = seurat_obj_sender,
+    sce_receiver = sce_receiver,
+    sce_sender = sce_sender,
     celltype_id_receiver = celltype_id_receiver,
     celltype_id_sender = celltype_id_sender,
     sample_id = sample_id,
@@ -846,8 +849,8 @@ test_that("Pipeline for separate analysis works", {
   # contrasts_oi = c("'High-Low'")
   # contrast_tbl = tibble(contrast = c("High-Low"), group = c("High"))
   # output = multi_nichenet_analysis_separate(
-  #   seurat_obj_receiver = seurat_obj_receiver,
-  #   seurat_obj_sender = seurat_obj_sender,
+  #   sce_receiver = sce_receiver,
+  #   sce_sender = sce_sender,
   #   celltype_id_receiver = celltype_id_receiver,
   #   celltype_id_sender = celltype_id_sender,
   #   sample_id = sample_id,
@@ -870,7 +873,7 @@ test_that("Pipeline with wrapper function works", {
   contrasts_oi = c("'High-Low'")
   contrast_tbl = tibble(contrast = c("High-Low"), group = c("High"))
   output = multi_nichenet_analysis(
-    seurat_obj = seurat_obj,
+    sce = sce,
     celltype_id = celltype_id,
     sample_id = sample_id,
     group_id = group_id,
@@ -890,11 +893,11 @@ test_that("Pipeline with wrapper function works - while correcting for batch eff
   sample_id = "tumor"
   group_id = "pEMT"
   set.seed(1919)
-  extra_metadata = seurat_obj@meta.data %>% dplyr::select(all_of(sample_id)) %>% dplyr::distinct() %>% mutate(batch = sample(c("A","B"),nrow(.), replace = TRUE)) %>% tibble::as_tibble() 
-  new_metadata = seurat_obj@meta.data %>% inner_join(extra_metadata)
+  extra_metadata = SummarizedExperiment::colData(sce) %>% dplyr::select(all_of(sample_id)) %>% dplyr::distinct() %>% mutate(batch = sample(c("A","B"),nrow(.), replace = TRUE)) %>% tibble::as_tibble() 
+  new_metadata = SummarizedExperiment::colData(sce) %>% inner_join(extra_metadata)
   new_metadata = new_metadata %>% data.frame()
   rownames(new_metadata) = new_metadata$cell
-  seurat_obj@meta.data = new_metadata
+  SummarizedExperiment::colData(sce) = new_metadata
   sample_id = "tumor"
   group_id = "pEMT"
   celltype_id = "celltype"
@@ -902,7 +905,7 @@ test_that("Pipeline with wrapper function works - while correcting for batch eff
   contrasts_oi = c("'High-Low'")
   contrast_tbl = tibble(contrast = c("High-Low"), group = c("High"))
   output = multi_nichenet_analysis(
-    seurat_obj = seurat_obj,
+    sce = sce,
     celltype_id = celltype_id,
     sample_id = sample_id,
     group_id = group_id,
@@ -922,22 +925,24 @@ test_that("Pipeline for separate analysis works - while correcting for batch eff
   sample_id = "tumor"
   group_id = "pEMT"
   set.seed(1919)
-  extra_metadata = seurat_obj@meta.data %>% dplyr::select(all_of(sample_id)) %>% dplyr::distinct() %>% mutate(batch = sample(c("A","B"),nrow(.), replace = TRUE)) %>% tibble::as_tibble() 
-  new_metadata = seurat_obj@meta.data %>% inner_join(extra_metadata)
+  extra_metadata = SummarizedExperiment::colData(sce) %>% dplyr::select(all_of(sample_id)) %>% dplyr::distinct() %>% mutate(batch = sample(c("A","B"),nrow(.), replace = TRUE)) %>% tibble::as_tibble() 
+  new_metadata = SummarizedExperiment::colData(sce) %>% inner_join(extra_metadata)
   new_metadata = new_metadata %>% data.frame()
   rownames(new_metadata) = new_metadata$cell
-  seurat_obj@meta.data = new_metadata
+  SummarizedExperiment::colData(sce) = new_metadata
   
-  seurat_obj_receiver = seurat_obj %>% subset(subset = celltype == "Malignant")
-  seurat_obj_sender = seurat_obj %>% subset(subset = celltype == "CAF")
   celltype_id_receiver = "celltype"
   celltype_id_sender = "celltype"
+  
+  sce_sender = sce[, SummarizedExperiment::colData(sce)[,celltype_id_sender] == "CAF"]
+  sce_receiver = sce[, SummarizedExperiment::colData(sce)[,celltype_id_receiver] == "Malignant"]
+  
   covariates = "batch"
   contrasts_oi = c("'High-Low','Low-High'")
   contrast_tbl = tibble(contrast = c("High-Low","Low-High"), group = c("High","Low"))
   output = multi_nichenet_analysis_separate(
-    seurat_obj_receiver = seurat_obj_receiver,
-    seurat_obj_sender = seurat_obj_sender,
+    sce_obj_receiver = sce_obj_receiver,
+    sce_obj_sender = sce_obj_sender,
     celltype_id_receiver = celltype_id_receiver,
     celltype_id_sender = celltype_id_sender,
     sample_id = sample_id,

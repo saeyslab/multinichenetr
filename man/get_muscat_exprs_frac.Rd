@@ -4,18 +4,16 @@
 \alias{get_muscat_exprs_frac}
 \title{get_muscat_exprs_frac}
 \usage{
-get_muscat_exprs_frac(seurat_obj, sample_id, celltype_id, group_id, assay_oi_sce = "RNA")
+get_muscat_exprs_frac(sce, sample_id, celltype_id, group_id)
 }
 \arguments{
-\item{seurat_obj}{Seurat object of the scRNAseq data of interest. Contains both sender and receiver cell types.}
+\item{sce}{SingleCellExperiment object of the scRNAseq data of interest. Contains both sender and receiver cell types.}
 
-\item{sample_id}{Name of the meta data column that indicates from which sample/patient a cell comes from (in both seurat_obj_receiver and seurat_obj_sender)}
+\item{sample_id}{Name of the meta data column that indicates from which sample/patient a cell comes from (in both sce_receiver and sce_sender)}
 
-\item{celltype_id}{Name of the column in the meta data of seurat_obj that indicates the cell type of a cell.}
+\item{celltype_id}{Name of the column in the meta data of sce that indicates the cell type of a cell.}
 
-\item{group_id}{Name of the meta data column that indicates from which group/condition a cell comes from (in both seurat_obj_receiver and seurat_obj_sender)}
-
-\item{assay_oi_sce}{Indicates which assay of the Seurat object should be used. Default: "RNA". See: `Seurat::as.SingleCellExperiment`.}
+\item{group_id}{Name of the meta data column that indicates from which group/condition a cell comes from (in both sce_receiver and sce_sender)}
 }
 \value{
 List with two dataframes: one with fraction of cells in a cell type expressing a gene, averaged per sample; and one averaged per group.
@@ -25,12 +23,11 @@ List with two dataframes: one with fraction of cells in a cell type expressing a
 }
 \examples{
 \dontrun{
-library(Seurat)
 library(dplyr)
 sample_id = "tumor"
 group_id = "pEMT"
 celltype_id = "celltype"
-muscat_exprs_frac = get_muscat_exprs_frac(seurat_obj = seurat_obj, sample_id = sample_id, celltype_id =  celltype_id, group_id = group_id)
+muscat_exprs_frac = get_muscat_exprs_frac(sce = sce, sample_id = sample_id, celltype_id =  celltype_id, group_id = group_id)
 }
 
 }

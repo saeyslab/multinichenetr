@@ -957,7 +957,7 @@ make_circos_group_comparison = function(prioritized_tbl_oi, colors_sender, color
 #'
 #' @return XXXX
 #'
-#' @import Seurat
+
 #' @import ggplot2
 #' @import dplyr
 #' @importFrom RColorBrewer brewer.pal
@@ -973,7 +973,7 @@ make_circos_group_comparison = function(prioritized_tbl_oi, colors_sender, color
 #'
 make_nebulosa = function(seurat_subset_oi, seurat_subset_bg, title_umap, gene_oi, group_oi, background_groups){
   requireNamespace("dplyr")
-  requireNamespace("Seurat")
+  
   requireNamespace("ggplot2")
   warning("Do not overinterpret a Nebulosa plot. For checking Smart-seq2 data, we recommend checking the normal Feature plot.")
 
@@ -1019,7 +1019,7 @@ make_nebulosa = function(seurat_subset_oi, seurat_subset_bg, title_umap, gene_oi
 #'
 #' @import ggplot2
 #' @import dplyr
-#' @import Seurat
+
 #' @importFrom RColorBrewer brewer.pal
 #' @importFrom patchwork wrap_plots
 #'
@@ -1033,7 +1033,7 @@ make_nebulosa = function(seurat_subset_oi, seurat_subset_bg, title_umap, gene_oi
 make_featureplot = function(seurat_subset_oi, seurat_subset_bg, title_umap, gene_oi, group_oi, background_groups, group_id){
   requireNamespace("dplyr")
   requireNamespace("ggplot2")
-  requireNamespace("Seurat")
+  
   
   p_dim = DimPlot(seurat_subset_oi, label = T, repel = TRUE) + ggtitle(title_umap) + theme(title = element_text(face = "bold"))
 
@@ -1081,7 +1081,7 @@ make_featureplot = function(seurat_subset_oi, seurat_subset_bg, title_umap, gene
 #'
 #' @import ggplot2
 #' @import dplyr
-#' @import Seurat
+
 #' @importFrom RColorBrewer brewer.pal
 #' @importFrom generics setdiff
 #' @importFrom patchwork wrap_plots
@@ -1097,7 +1097,7 @@ make_ligand_receptor_nebulosa_feature_plot = function(seurat_obj_sender, seurat_
   
   requireNamespace("dplyr")
   requireNamespace("ggplot2")
-  requireNamespace("Seurat")
+  
   # senders_prioritized = prioritized_tbl_oi %>% dplyr::filter(ligand == ligand_oi & group == group_oi) %>% dplyr::pull(sender) %>% unique()
   # receptors_prioritized = prioritized_tbl_oi %>% dplyr::filter(receptor == receptor_oi & group == group_oi) %>% dplyr::pull(receiver) %>% unique()
 
@@ -1167,7 +1167,7 @@ make_ligand_receptor_nebulosa_feature_plot = function(seurat_obj_sender, seurat_
 #'
 #' @import ggplot2
 #' @import dplyr
-#' @import Seurat
+
 #' @importFrom RColorBrewer brewer.pal
 #' @importFrom generics setdiff
 #' @importFrom patchwork wrap_plots
@@ -1183,7 +1183,7 @@ make_ligand_receptor_violin_plot = function(seurat_obj_sender, seurat_obj_receiv
   
   requireNamespace("dplyr")
   requireNamespace("ggplot2")
-  requireNamespace("Seurat")
+  
   
   # background_groups = prioritized_tbl_oi$group %>% unique() %>% generics::setdiff(group_oi)
   background_groups = seurat_obj_sender@meta.data[[group_id]] %>% unique() %>% generics::setdiff(group_oi)
@@ -1261,7 +1261,7 @@ make_ligand_receptor_violin_plot = function(seurat_obj_sender, seurat_obj_receiv
 #'
 #' @import ggplot2
 #' @import dplyr
-#' @import Seurat
+
 #' @importFrom generics setdiff
 #'
 #' @examples
@@ -1274,7 +1274,7 @@ make_ligand_receptor_violin_plot = function(seurat_obj_sender, seurat_obj_receiv
 make_target_violin_plot = function(seurat_obj_receiver, target_oi, receiver_oi, group_oi, group_id, sample_id, celltype_id_receiver, prioritized_tbl_oi){
   requireNamespace("dplyr")
   requireNamespace("ggplot2")
-  requireNamespace("Seurat")
+  
   
   # background_groups = prioritized_tbl_oi$group %>% unique() %>% generics::setdiff(group_oi)
   background_groups = seurat_obj_receiver@meta.data[[group_id]]%>% unique() %>% generics::setdiff(group_oi)
@@ -1327,7 +1327,7 @@ make_target_violin_plot = function(seurat_obj_receiver, target_oi, receiver_oi, 
 #'
 #' @import ggplot2
 #' @import dplyr
-#' @import Seurat
+
 #' @importFrom generics setdiff
 #'
 #' @examples
@@ -1340,7 +1340,7 @@ make_target_violin_plot = function(seurat_obj_receiver, target_oi, receiver_oi, 
 make_target_nebulosa_feature_plot = function(seurat_obj_receiver, target_oi, group_oi, group_id, celltype_id_receiver, receivers_oi, prioritized_tbl_oi){
   requireNamespace("dplyr")
   requireNamespace("ggplot2")
-  requireNamespace("Seurat")
+  
   # senders_prioritized = prioritized_tbl_oi %>% dplyr::filter(ligand == ligand_oi & group == group_oi) %>% dplyr::pull(sender) %>% unique()
   # receptors_prioritized = prioritized_tbl_oi %>% dplyr::filter(receptor == receptor_oi & group == group_oi) %>% dplyr::pull(receiver) %>% unique()
 

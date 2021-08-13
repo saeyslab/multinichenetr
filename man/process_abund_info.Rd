@@ -19,12 +19,11 @@ Data frame with number of cells per cell type - sample combination; but now adap
 }
 \examples{
 \dontrun{
-library(Seurat)
 library(dplyr)
 sample_id = "tumor"
 group_id = "pEMT"
 celltype_id = "celltype"
-metadata_abundance = seurat_obj@meta.data[,c(sample_id, group_id, celltype_id)]
+metadata_abundance = SummarizedExperiment::colData(sce)[,c(sample_id, group_id, celltype_id)]
 colnames(metadata_abundance) =c("sample_id", "group_id", "celltype_id")
 abundance_data = metadata_abundance \%>\% tibble::as_tibble() \%>\% dplyr::group_by(sample_id , celltype_id) \%>\% dplyr::count() \%>\% dplyr::inner_join(metadata_abundance \%>\% dplyr::distinct(sample_id , group_id ))
 abundance_data = abundance_data \%>\% dplyr::mutate(keep = n >= min_cells) \%>\% dplyr::mutate(keep = factor(keep, levels = c(TRUE,FALSE)))

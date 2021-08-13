@@ -3,7 +3,7 @@
 #' @description \code{multi_nichenet_analysis}  Perform a MultiNicheNet analysis. See `multi_nichenet_analysis_separate` and `multi_nichenet_analysis_combined` for more information.
 #' @usage multi_nichenet_analysis(sender_receiver_separate = TRUE, ...)
 #'
-#' @param sender_receiver_separate Indicates whether the user gives as input one separate seurat object with sender cell types and one with receiver cell types (TRUE) or whether only one seurat object with both sender and receiver cell types of interest (FALSE).
+#' @param sender_receiver_separate Indicates whether the user gives as input one separate SingleCellExperiment object with sender cell types and one with receiver cell types (TRUE) or whether only one SingleCellExperiment object with both sender and receiver cell types of interest (FALSE).
 #' TRUE calls the function `multi_nichenet_analysis_separate`, FALSE calls the function `multi_nichenet_analysis_combined`. Default: TRUE.
 #' @param ... Arguments to `multi_nichenet_analysis_separate` or `multi_nichenet_analysis_combined`. 
 #'
@@ -13,7 +13,6 @@
 #'
 #' @examples
 #' \dontrun{
-#' library(Seurat)
 #' library(dplyr)
 #' lr_network = readRDS(url("https://zenodo.org/record/3260758/files/lr_network.rds"))
 #' lr_network = lr_network %>% dplyr::rename(ligand = from, receptor = to) %>% dplyr::distinct(ligand, receptor)
@@ -25,7 +24,7 @@
 #' contrasts_oi = c("'High-Low','Low-High'")
 #' contrast_tbl = tibble(contrast = c("High-Low","Low-High"), group = c("High","Low"))
 #' output = multi_nichenet_analysis(
-#'      seurat_obj = seurat_obj, 
+#'      sce = sce, 
 #'      celltype_id = celltype_id, 
 #'      sample_id = sample_id, 
 #'      group_id = group_id,
@@ -58,16 +57,16 @@ multi_nichenet_analysis = function(sender_receiver_separate = TRUE, ...){
 #'
 #' @description \code{multi_nichenet_analysis_separate}  Perform a MultiNicheNet analysis between sender cell types and receiver cell types of interest.
 #' @usage multi_nichenet_analysis_separate(
-#' seurat_obj_receiver,seurat_obj_sender,celltype_id_receiver,celltype_id_sender,sample_id,group_id, covariates, lr_network,ligand_target_matrix,contrasts_oi,contrast_tbl, fraction_cutoff = 0.05,
+#' sce_receiver, sce_sender,celltype_id_receiver,celltype_id_sender,sample_id,group_id, covariates, lr_network,ligand_target_matrix,contrasts_oi,contrast_tbl, fraction_cutoff = 0.05,
 #' prioritizing_weights = c("de_ligand" = 1,"de_receptor" = 1,"activity_scaled" = 1,"exprs_ligand" = 1,"exprs_receptor" = 1, "frac_exprs_ligand_receptor" = 1,"abund_sender" = 0,"abund_receiver" = 0),
-#' assay_oi_sce = "RNA",assay_oi_pb ="counts",fun_oi_pb = "sum",de_method_oi = "edgeR",min_cells = 10,logFC_threshold = 0.25,p_val_threshold = 0.05, p_val_adj = FALSE, empirical_pval = TRUE, top_n_target = 250, verbose = FALSE, n.cores = 1, return_lr_prod_matrix = FALSE)
+#' assay_oi_pb ="counts",fun_oi_pb = "sum",de_method_oi = "edgeR",min_cells = 10,logFC_threshold = 0.25,p_val_threshold = 0.05, p_val_adj = FALSE, empirical_pval = TRUE, top_n_target = 250, verbose = FALSE, n.cores = 1, return_lr_prod_matrix = FALSE)
 #'
-#' @param seurat_obj_receiver Seurat object containing the receiver cell types of interest
-#' @param seurat_obj_sender Seurat object containing the sender cell types of interest
-#' @param celltype_id_receiver Name of the meta data column that indicates the cell type of a cell (in seurat_obj_receiver).
-#' @param celltype_id_sender Name of the meta data column that indicates the cell type of a cell (in seurat_obj_receiver). 
-#' @param sample_id Name of the meta data column that indicates from which sample/patient a cell comes from (in both seurat_obj_receiver and seurat_obj_sender)
-#' @param group_id Name of the meta data column that indicates from which group/condition a cell comes from (in both seurat_obj_receiver and seurat_obj_sender)
+#' @param sce_receiver SingleCellExperiment object containing the receiver cell types of interest
+#' @param sce_sender SingleCellExperiment object containing the sender cell types of interest
+#' @param celltype_id_receiver Name of the meta data column that indicates the cell type of a cell (in sce_receiver).
+#' @param celltype_id_sender Name of the meta data column that indicates the cell type of a cell (in sce_sender). 
+#' @param sample_id Name of the meta data column that indicates from which sample/patient a cell comes from (in both sce_receiver and sce_sender)
+#' @param group_id Name of the meta data column that indicates from which group/condition a cell comes from (in both sce_receiver and sce_sender)
 #' @param covariates NA if no covariates should be corrected for. If there should be corrected for covariates, this argument should be the name(s) of the columns in the meta data that indicate the covariate(s).
 #' @param lr_network Prior knowledge Ligand-Receptor network (columns: ligand, receptor)
 #' @param ligand_target_matrix Prior knowledge model of ligand-target regulatory potential (matrix with ligands in columns and targets in rows). See https://github.com/saeyslab/nichenetr.
@@ -95,7 +94,6 @@ multi_nichenet_analysis = function(sender_receiver_separate = TRUE, ...){
 #' frac_exprs_ligand_receptor: importance of the fraction of samples in a group that show high enough expression of the specific ligand-receptor pair.
 #' abund_sender: importance of relative cell type abundance of the sender cell type.
 #' abund_receiver: importance of relative cell type abundance of the receiver cell type.
-#' @param assay_oi_sce Indicates which assay of the Seurat object should be used. Default: "RNA". See: `Seurat::as.SingleCellExperiment`.
 #' @param assay_oi_pb Indicates which information of the assay of interest should be used (counts, scaled data,...). Default: "counts". See `muscat::aggregateData`.
 #' @param fun_oi_pb Indicates way of doing the pseudobulking. Default: "sum". See `muscat::aggregateData`.
 #' @param de_method_oi Indicates the DE method that will be used after pseudobulking. Default: "edgeR". See `muscat::pbDS`.
@@ -126,20 +124,19 @@ multi_nichenet_analysis = function(sender_receiver_separate = TRUE, ...){
 #' abund_plot_group_sender: boxplot showing cell number per sample-celltype combination for the sender cell types across the different conditions.
 #' abund_plot_sample_receiver: barplot showing cell number per sample-celltype combination for the receiver cell types.
 #' abund_plot_group_receiver: boxplot showing cell number per sample-celltype combination for the receiver cell types across the different conditions.
-#' @import Seurat
 #' @import dplyr
 #' @import ggplot2
 #' @importFrom generics setdiff intersect union
 #' @importFrom stringr str_split
 #' @importFrom tibble as_tibble
 #' @importFrom tidyr spread
+#' @importFrom SummarizedExperiment colData
 #'
 #' @examples
 #' \dontrun{
-#' library(Seurat)
 #' library(dplyr)
-#' seurat_obj_receiver = seurat_obj %>% subset(subset = celltype == "Malignant")
-#' seurat_obj_sender = seurat_obj %>% subset(subset = celltype == "CAF")
+#' sce_receiver = sce %>% subset(subset = celltype == "Malignant")
+#' sce_sender = sce %>% subset(subset = celltype == "CAF")
 #' lr_network = readRDS(url("https://zenodo.org/record/3260758/files/lr_network.rds"))
 #' lr_network = lr_network %>% dplyr::rename(ligand = from, receptor = to) %>% dplyr::distinct(ligand, receptor)
 #' ligand_target_matrix = readRDS(url("https://zenodo.org/record/3260758/files/ligand_target_matrix.rds"))
@@ -151,8 +148,8 @@ multi_nichenet_analysis = function(sender_receiver_separate = TRUE, ...){
 #' contrasts_oi = c("'High-Low','Low-High'")
 #' contrast_tbl = tibble(contrast = c("High-Low","Low-High"), group = c("High","Low"))
 #' output = multi_nichenet_analysis_separate(
-#'      seurat_obj_receiver = seurat_obj_receiver, 
-#'      seurat_obj_sender = seurat_obj_sender,
+#'      sce_receiver = sce_receiver, 
+#'      sce_sender = sce_sender,
 #'      celltype_id_receiver = celltype_id_receiver, 
 #'      celltype_id_sender = celltype_id_sender,
 #'      sample_id = sample_id, 
@@ -167,8 +164,8 @@ multi_nichenet_analysis = function(sender_receiver_separate = TRUE, ...){
 #'
 #' @export
 #'
-multi_nichenet_analysis_separate = function(seurat_obj_receiver,
-                                            seurat_obj_sender,
+multi_nichenet_analysis_separate = function(sce_receiver,
+                                            sce_sender,
                                             celltype_id_receiver,
                                             celltype_id_sender,
                                             sample_id,
@@ -180,7 +177,6 @@ multi_nichenet_analysis_separate = function(seurat_obj_receiver,
                                             contrast_tbl,
                                             fraction_cutoff = 0.05,
                                             prioritizing_weights = c("de_ligand" = 1,"de_receptor" = 1,"activity_scaled" = 1,"exprs_ligand" = 1,"exprs_receptor" = 1, "frac_exprs_ligand_receptor" = 1,"abund_sender" = 0,"abund_receiver" = 0),
-                                            assay_oi_sce = "RNA",
                                             assay_oi_pb ="counts",
                                             fun_oi_pb = "sum",
                                             de_method_oi = "edgeR",
@@ -192,109 +188,107 @@ multi_nichenet_analysis_separate = function(seurat_obj_receiver,
                                             top_n_target = 250, verbose = FALSE, n.cores = 1, return_lr_prod_matrix = FALSE){
 
 
-  requireNamespace("Seurat")
   requireNamespace("dplyr")
   requireNamespace("ggplot2")
   
   # input checks
-
-  if (class(seurat_obj_receiver) != "Seurat") {
-    stop("seurat_obj_receiver should be a Seurat object")
+  if (class(sce_receiver) != "SingleCellExperiment") {
+    stop("sce_receiver should be a SingleCellExperiment object")
   }
-  if (class(seurat_obj_sender) != "Seurat") {
-    stop("seurat_obj_sender should be a Seurat object")
+  if (class(sce_sender) != "SingleCellExperiment") {
+    stop("sce_sender should be a SingleCellExperiment object")
   }
-  if (!celltype_id_receiver %in% colnames(seurat_obj_receiver@meta.data)) {
-    stop("celltype_id_receiver should be a column name in the metadata dataframe of seurat_obj_receiver")
+  if (!celltype_id_receiver %in% colnames(SummarizedExperiment::colData(sce_receiver))) {
+    stop("celltype_id_receiver should be a column name in the metadata dataframe of sce_receiver")
   }
   if (celltype_id_receiver != make.names(celltype_id_receiver)) {
     stop("celltype_id_receiver should be a syntactically valid R name - check make.names")
   }
-  if (!celltype_id_sender %in% colnames(seurat_obj_sender@meta.data)) {
-    stop("celltype_id_sender should be a column name in the metadata dataframe of seurat_obj_sender")
+  if (!celltype_id_sender %in% colnames(SummarizedExperiment::colData(sce_sender))) {
+    stop("celltype_id_sender should be a column name in the metadata dataframe of sce_sender")
   }
   if (celltype_id_sender != make.names(celltype_id_sender)) {
     stop("celltype_id_sender should be a syntactically valid R name - check make.names")
   }
-  if (!sample_id %in% colnames(seurat_obj_receiver@meta.data)) {
-    stop("sample_id should be a column name in the metadata dataframe of seurat_obj_receiver")
+  if (!sample_id %in% colnames(SummarizedExperiment::colData(sce_receiver))) {
+    stop("sample_id should be a column name in the metadata dataframe of sce_receiver")
   }
-  if (!sample_id %in% colnames(seurat_obj_sender@meta.data)) {
-    stop("sample_id should be a column name in the metadata dataframe of seurat_obj_sender")
+  if (!sample_id %in% colnames(SummarizedExperiment::colData(sce_sender))) {
+    stop("sample_id should be a column name in the metadata dataframe of sce_sender")
   }
   if (sample_id != make.names(sample_id)) {
     stop("sample_id should be a syntactically valid R name - check make.names")
   }
-  if (!group_id %in% colnames(seurat_obj_receiver@meta.data)) {
-    stop("group_id should be a column name in the metadata dataframe of seurat_obj_receiver")
+  if (!group_id %in% colnames(SummarizedExperiment::colData(sce_receiver))) {
+    stop("group_id should be a column name in the metadata dataframe of sce_receiver")
   }
-  if (!group_id %in% colnames(seurat_obj_sender@meta.data)) {
-    stop("group_id should be a column name in the metadata dataframe of seurat_obj_sender")
+  if (!group_id %in% colnames(SummarizedExperiment::colData(sce_sender))) {
+    stop("group_id should be a column name in the metadata dataframe of sce_sender")
   }
   if (group_id != make.names(group_id)) {
     stop("group_id should be a syntactically valid R name - check make.names")
   }
   
   # group, sample and cell type id must not be numeric
-  if(is.double(seurat_obj_receiver@meta.data[,celltype_id_receiver])){
-    stop("seurat_obj_receiver@meta.data[,celltype_id_receiver] should be a character vector or a factor")
+  if(is.double(SummarizedExperiment::colData(sce_receiver)[,celltype_id_receiver])){
+    stop("SummarizedExperiment::colData(sce_receiver)[,celltype_id_receiver] should be a character vector or a factor")
   }
-  if(is.double(seurat_obj_receiver@meta.data[,group_id])){
-    stop("seurat_obj_receiver@meta.data[,group_id] should be a character vector or a factor")
+  if(is.double(SummarizedExperiment::colData(sce_receiver)[,group_id])){
+    stop("SummarizedExperiment::colData(sce_receiver)[,group_id] should be a character vector or a factor")
   }
-  if(is.double(seurat_obj_receiver@meta.data[,sample_id])){
-    stop("seurat_obj_receiver@meta.data[,sample_id] should be a character vector or a factor")
+  if(is.double(SummarizedExperiment::colData(sce_receiver)[,sample_id])){
+    stop("SummarizedExperiment::colData(sce_receiver)[,sample_id] should be a character vector or a factor")
   }
-  if(is.double(seurat_obj_sender@meta.data[,celltype_id_sender])){
-    stop("seurat_obj_sender@meta.data[,celltype_id_sender] should be a character vector or a factor")
+  if(is.double(SummarizedExperiment::colData(sce_sender)[,celltype_id_sender])){
+    stop("SummarizedExperiment::colData(sce_sender)[,celltype_id_sender] should be a character vector or a factor")
   }
-  if(is.double(seurat_obj_sender@meta.data[,group_id])){
-    stop("seurat_obj_sender@meta.data[,group_id] should be a character vector or a factor")
+  if(is.double(SummarizedExperiment::colData(sce_sender)[,group_id])){
+    stop("SummarizedExperiment::colData(sce_sender)[,group_id] should be a character vector or a factor")
   }
-  if(is.double(seurat_obj_sender@meta.data[,sample_id])){
-    stop("seurat_obj_sender@meta.data[,sample_id] should be a character vector or a factor")
+  if(is.double(SummarizedExperiment::colData(sce_sender)[,sample_id])){
+    stop("SummarizedExperiment::colData(sce_sender)[,sample_id] should be a character vector or a factor")
   }
   
   # if some of these are factors, and not all levels have syntactically valid names - prompt to change this
-  if(is.factor(seurat_obj_sender@meta.data[,celltype_id_sender])){
-    is_make_names = levels(seurat_obj_sender@meta.data[,celltype_id_sender]) == make.names(levels(seurat_obj_sender@meta.data[,celltype_id_sender]))
-    if(sum(is_make_names) != length(levels(seurat_obj_sender@meta.data[,celltype_id_sender]))){
-      stop("The levels of the factor seurat_obj_sender@meta.data[,celltype_id_sender] should be a syntactically valid R names - see make.names")
+  if(is.factor(SummarizedExperiment::colData(sce_sender)[,celltype_id_sender])){
+    is_make_names = levels(SummarizedExperiment::colData(sce_sender)[,celltype_id_sender]) == make.names(levels(SummarizedExperiment::colData(sce_sender)[,celltype_id_sender]))
+    if(sum(is_make_names) != length(levels(SummarizedExperiment::colData(sce_sender)[,celltype_id_sender]))){
+      stop("The levels of the factor SummarizedExperiment::colData(sce_sender)[,celltype_id_sender] should be a syntactically valid R names - see make.names")
     }
   }
   
-  if(is.factor(seurat_obj_sender@meta.data[,group_id])){
-    is_make_names = levels(seurat_obj_sender@meta.data[,group_id]) == make.names(levels(seurat_obj_sender@meta.data[,group_id]))
-    if(sum(is_make_names) != length(levels(seurat_obj_sender@meta.data[,group_id]))){
-      stop("The levels of the factor seurat_obj_sender@meta.data[,group_id] should be a syntactically valid R names - see make.names")
+  if(is.factor(SummarizedExperiment::colData(sce_sender)[,group_id])){
+    is_make_names = levels(SummarizedExperiment::colData(sce_sender)[,group_id]) == make.names(levels(SummarizedExperiment::colData(sce_sender)[,group_id]))
+    if(sum(is_make_names) != length(levels(SummarizedExperiment::colData(sce_sender)[,group_id]))){
+      stop("The levels of the factor SummarizedExperiment::colData(sce_sender)[,group_id] should be a syntactically valid R names - see make.names")
     }
   }
   
-  if(is.factor(seurat_obj_sender@meta.data[,sample_id])){
-    is_make_names = levels(seurat_obj_sender@meta.data[,sample_id]) == make.names(levels(seurat_obj_sender@meta.data[,sample_id]))
-    if(sum(is_make_names) != length(levels(seurat_obj_sender@meta.data[,sample_id]))){
-      stop("The levels of the factor seurat_obj_sender@meta.data[,sample_id] should be a syntactically valid R names - see make.names")
+  if(is.factor(SummarizedExperiment::colData(sce_sender)[,sample_id])){
+    is_make_names = levels(SummarizedExperiment::colData(sce_sender)[,sample_id]) == make.names(levels(SummarizedExperiment::colData(sce_sender)[,sample_id]))
+    if(sum(is_make_names) != length(levels(SummarizedExperiment::colData(sce_sender)[,sample_id]))){
+      stop("The levels of the factor SummarizedExperiment::colData(sce_sender)[,sample_id] should be a syntactically valid R names - see make.names")
     }
   }
   
-  if(is.factor(seurat_obj_receiver@meta.data[,celltype_id_receiver])){
-    is_make_names = levels(seurat_obj_receiver@meta.data[,celltype_id_receiver]) == make.names(levels(seurat_obj_receiver@meta.data[,celltype_id_receiver]))
-    if(sum(is_make_names) != length(levels(seurat_obj_receiver@meta.data[,celltype_id_receiver]))){
-      stop("The levels of the factor seurat_obj_receiver@meta.data[,celltype_id_receiver] should be a syntactically valid R names - see make.names")
+  if(is.factor(SummarizedExperiment::colData(sce_receiver)[,celltype_id_receiver])){
+    is_make_names = levels(SummarizedExperiment::colData(sce_receiver)[,celltype_id_receiver]) == make.names(levels(SummarizedExperiment::colData(sce_receiver)[,celltype_id_receiver]))
+    if(sum(is_make_names) != length(levels(SummarizedExperiment::colData(sce_receiver)[,celltype_id_receiver]))){
+      stop("The levels of the factor SummarizedExperiment::colData(sce_receiver)[,celltype_id_receiver] should be a syntactically valid R names - see make.names")
     }
   }
   
-  if(is.factor(seurat_obj_receiver@meta.data[,group_id])){
-    is_make_names = levels(seurat_obj_receiver@meta.data[,group_id]) == make.names(levels(seurat_obj_receiver@meta.data[,group_id]))
-    if(sum(is_make_names) != length(levels(seurat_obj_receiver@meta.data[,group_id]))){
-      stop("The levels of the factor seurat_obj_receiver@meta.data[,group_id] should be a syntactically valid R names - see make.names")
+  if(is.factor(SummarizedExperiment::colData(sce_receiver)[,group_id])){
+    is_make_names = levels(SummarizedExperiment::colData(sce_receiver)[,group_id]) == make.names(levels(SummarizedExperiment::colData(sce_receiver)[,group_id]))
+    if(sum(is_make_names) != length(levels(SummarizedExperiment::colData(sce_receiver)[,group_id]))){
+      stop("The levels of the factor SummarizedExperiment::colData(sce_receiver)[,group_id] should be a syntactically valid R names - see make.names")
     }
   }
   
-  if(is.factor(seurat_obj_receiver@meta.data[,sample_id])){
-    is_make_names = levels(seurat_obj_receiver@meta.data[,sample_id]) == make.names(levels(seurat_obj_receiver@meta.data[,sample_id]))
-    if(sum(is_make_names) != length(levels(seurat_obj_receiver@meta.data[,sample_id]))){
-      stop("The levels of the factor seurat_obj_receiver@meta.data[,sample_id] should be a syntactically valid R names - see make.names")
+  if(is.factor(SummarizedExperiment::colData(sce_receiver)[,sample_id])){
+    is_make_names = levels(SummarizedExperiment::colData(sce_receiver)[,sample_id]) == make.names(levels(SummarizedExperiment::colData(sce_receiver)[,sample_id]))
+    if(sum(is_make_names) != length(levels(SummarizedExperiment::colData(sce_receiver)[,sample_id]))){
+      stop("The levels of the factor SummarizedExperiment::colData(sce_receiver)[,sample_id] should be a syntactically valid R names - see make.names")
     }
   }
   
@@ -306,7 +300,7 @@ multi_nichenet_analysis_separate = function(seurat_obj_receiver,
     stop("contrast_tbl should be a data frame / tibble")
   }
   # conditions of interest in the contrast should be present in the in the group column of the metadata
-  groups_oi = seurat_obj_receiver@meta.data[,group_id] %>% unique()
+  groups_oi = SummarizedExperiment::colData(sce_receiver)[,group_id] %>% unique()
 
   conditions_oi = stringr::str_split(contrasts_oi, "'") %>% unlist() %>% unique() %>%
     # stringr::str_split("[:digit:]") %>% unlist() %>% unique() %>%
@@ -336,7 +330,7 @@ multi_nichenet_analysis_separate = function(seurat_obj_receiver,
   # 
   groups_oi_contrast_tbl = contrast_tbl$group %>% unique()
   if(sum(groups_oi_contrast_tbl %in% groups_oi) != length(groups_oi_contrast_tbl)){
-    warning("You have defined some groups in contrast_tbl$group that are not present seurat_obj@meta.data[,group_id]. This will result in lack of information downstream. We recommend to change your metadata or this contrast_tbl appropriately.")
+    warning("You have defined some groups in contrast_tbl$group that are not present SummarizedExperiment::colData(sce)[,group_id]. This will result in lack of information downstream. We recommend to change your metadata or this contrast_tbl appropriately.")
   }
   if(length(groups_oi_contrast_tbl) != length(contrast_tbl$group)){
     warning("According to your contrast_tbl, some of your contrasts will be assigned to the same group. This should not be a problem if this was intended, but be aware not to make mistakes in the further interpretation and plotting of the results.")
@@ -344,15 +338,15 @@ multi_nichenet_analysis_separate = function(seurat_obj_receiver,
   
   
   if(!is.na(covariates)){
-    if (sum(covariates %in% colnames(seurat_obj_receiver@meta.data)) != length(covariates) ) {
-      stop("covariates should be NA or all present as column name(s) in the metadata dataframe of seurat_obj_receiver")
+    if (sum(covariates %in% colnames(SummarizedExperiment::colData(sce_receiver))) != length(covariates) ) {
+      stop("covariates should be NA or all present as column name(s) in the metadata dataframe of sce_receiver")
     }
-    if (sum(covariates %in% colnames(seurat_obj_sender@meta.data)) != length(covariates) ) {
-      stop("covariates should be NA or all present column name(s) in the metadata dataframe of seurat_obj_sender")
+    if (sum(covariates %in% colnames(SummarizedExperiment::colData(sce_sender))) != length(covariates) ) {
+      stop("covariates should be NA or all present column name(s) in the metadata dataframe of sce_sender")
     }
   }
   
-  # Check concordance ligand-receptor network and ligand-target network - and concordance with Seurat object features
+  # Check concordance ligand-receptor network and ligand-target network - and concordance with sce object features
   if (!is.matrix(ligand_target_matrix)){
     stop("ligand_target_matrix should be a matrix")
   }
@@ -386,13 +380,13 @@ multi_nichenet_analysis_separate = function(seurat_obj_receiver,
     warning("Not all Ligands from your ligand-target matrix are in the ligand-receptor network")
   }
 
-  if(length(seurat_obj_sender@assays$RNA@counts %>% rownames() %>% generics::intersect(ligands_lrnetwork)) < 25 ){
+  if(length(rownames(sce_sender) %>% generics::intersect(ligands_lrnetwork)) < 25 ){
     warning("Less than 25 ligands from your ligand-receptor network are in your expression matrix of the sender cell.\nDid you convert the gene symbols of the ligand-receptor network and the ligand-target matrix if your data is not from human?")
   }
-  if(length(seurat_obj_sender@assays$RNA@counts %>% rownames() %>% generics::intersect(ligands_ligand_target_matrix)) < 25 ){
+  if(length(rownames(sce_sender) %>% generics::intersect(ligands_ligand_target_matrix)) < 25 ){
     warning("Less than 25 ligands from your ligand-target matrix are in your expression matrix of the sender cell.\nDid you convert the gene symbols of the ligand-receptor network and the ligand-target matrix if your data is not from human?")
   }
-  if(length(seurat_obj_receiver@assays$RNA@counts %>% rownames() %>% generics::intersect(receptors_lrnetwork)) < 25 ){
+  if(length(rownames(sce_receiver) %>% generics::intersect(receptors_lrnetwork)) < 25 ){
     warning("Less than 25 receptors from your ligand-receptor network are in your expression matrix of the receiver cell.\nDid you convert the gene symbols of the ligand-receptor network and the ligand-target matrix if your data is not from human?")
   }
 
@@ -411,13 +405,6 @@ multi_nichenet_analysis_separate = function(seurat_obj_receiver,
     stop("prioritizing_weights should be have the correct names. Check the vignettes and code documentation")
   }
   
-  if(!is.character(assay_oi_sce)){
-    stop("assay_oi_sce should be a character vector")
-  } else {
-    if(assay_oi_sce != "RNA"){
-      warning("are you sure you don't want to use the RNA assay?")
-    }
-  }
   if(!is.character(assay_oi_pb)){
     stop("assay_oi_pb should be a character vector")
   } else {
@@ -493,15 +480,15 @@ multi_nichenet_analysis_separate = function(seurat_obj_receiver,
   }
   
   ### Define Senders-Receivers
-  senders_oi = seurat_obj_sender@meta.data[,celltype_id_sender] %>% unique()
-  receivers_oi = seurat_obj_receiver@meta.data[,celltype_id_receiver] %>% unique()
+  senders_oi = SummarizedExperiment::colData(sce_sender)[,celltype_id_sender] %>% unique()
+  receivers_oi = SummarizedExperiment::colData(sce_receiver)[,celltype_id_receiver] %>% unique()
   
   ### Receiver abundance plots + Calculate expression information
   if(verbose == TRUE){
     print("Make diagnostic abundance plots + Calculate expression information")
   }
   
-  abundance_expression_info = get_abundance_expression_info_separate(seurat_obj_receiver = seurat_obj_receiver, seurat_obj_sender = seurat_obj_sender, sample_id = sample_id, group_id = group_id, celltype_id_receiver = celltype_id_receiver, celltype_id_sender = celltype_id_sender, senders_oi = senders_oi, receivers_oi = receivers_oi, lr_network = lr_network, covariates = covariates, min_cells = min_cells)
+  abundance_expression_info = get_abundance_expression_info_separate(sce_receiver = sce_receiver, sce_sender = sce_sender, sample_id = sample_id, group_id = group_id, celltype_id_receiver = celltype_id_receiver, celltype_id_sender = celltype_id_sender, senders_oi = senders_oi, receivers_oi = receivers_oi, lr_network = lr_network, covariates = covariates, min_cells = min_cells)
   
   ### Perform the DE analysis ----------------------------------------------------------------
   
@@ -509,14 +496,12 @@ multi_nichenet_analysis_separate = function(seurat_obj_receiver,
     print("Calculate differential expression for all cell types")
   }
   
-  DE_info_receiver = get_DE_info(seurat_obj = seurat_obj_receiver, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id_receiver, covariates = covariates, contrasts_oi = contrasts_oi, min_cells = min_cells, 
-                                 assay_oi_sce = assay_oi_sce,
+  DE_info_receiver = get_DE_info(sce = sce_receiver, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id_receiver, covariates = covariates, contrasts_oi = contrasts_oi, min_cells = min_cells, 
                                  assay_oi_pb = assay_oi_pb,
                                  fun_oi_pb = fun_oi_pb,
                                  de_method_oi = de_method_oi)
   
-  DE_info_sender = get_DE_info(seurat_obj = seurat_obj_sender, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id_sender, covariates = covariates, contrasts_oi = contrasts_oi, min_cells = min_cells, 
-                               assay_oi_sce = assay_oi_sce,
+  DE_info_sender = get_DE_info(sce = sce_sender, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id_sender, covariates = covariates, contrasts_oi = contrasts_oi, min_cells = min_cells, 
                                assay_oi_pb = assay_oi_pb,
                                fun_oi_pb = fun_oi_pb,
                                de_method_oi = de_method_oi)
@@ -579,7 +564,7 @@ multi_nichenet_analysis_separate = function(seurat_obj_receiver,
   
   sender_receiver_tbl = sender_receiver_de %>% dplyr::distinct(sender, receiver)
   
-  metadata_combined = seurat_obj_receiver@meta.data %>% tibble::as_tibble()
+  metadata_combined = SummarizedExperiment::colData(sce_receiver) %>% tibble::as_tibble()
   
   if(!is.na(covariates)){
     grouping_tbl = metadata_combined[,c(sample_id, group_id, covariates)] %>% tibble::as_tibble() %>% dplyr::distinct()
@@ -642,12 +627,12 @@ multi_nichenet_analysis_separate = function(seurat_obj_receiver,
 #'
 #' @description \code{multi_nichenet_analysis_combined}  Perform a MultiNicheNet analysis in an all-vs-all setting: all cell types in the data will be considered both as sender and receiver.
 #' @usage multi_nichenet_analysis_combined(
-#' seurat_obj, celltype_id, sample_id,group_id, covariates, lr_network,ligand_target_matrix,contrasts_oi,contrast_tbl,  fraction_cutoff = 0.05,
+#' sce, celltype_id, sample_id,group_id, covariates, lr_network,ligand_target_matrix,contrasts_oi,contrast_tbl,  fraction_cutoff = 0.05,
 #' prioritizing_weights = c("de_ligand" = 1,"de_receptor" = 1,"activity_scaled" = 1,"exprs_ligand" = 1,"exprs_receptor" = 1, "frac_exprs_ligand_receptor" = 1,"abund_sender" = 0,"abund_receiver" = 0),
-#' assay_oi_sce = "RNA",assay_oi_pb ="counts",fun_oi_pb = "sum",de_method_oi = "edgeR",min_cells = 10,logFC_threshold = 0.25,p_val_threshold = 0.05,p_val_adj = FALSE, empirical_pval = TRUE, top_n_target = 250, verbose = FALSE, n.cores = 1, return_lr_prod_matrix = FALSE)
+#' assay_oi_pb ="counts",fun_oi_pb = "sum",de_method_oi = "edgeR",min_cells = 10,logFC_threshold = 0.25,p_val_threshold = 0.05,p_val_adj = FALSE, empirical_pval = TRUE, top_n_target = 250, verbose = FALSE, n.cores = 1, return_lr_prod_matrix = FALSE)
 #'
-#' @param seurat_obj Seurat object of the scRNAseq data of interest. Contains both sender and receiver cell types.
-#' @param celltype_id Name of the column in the meta data of seurat_obj that indicates the cell type of a cell.
+#' @param sce SingleCellExperiment object of the scRNAseq data of interest. Contains both sender and receiver cell types.
+#' @param celltype_id Name of the column in the meta data of sce that indicates the cell type of a cell.
 #' @inheritParams multi_nichenet_analysis_separate
 #'
 #'
@@ -661,17 +646,16 @@ multi_nichenet_analysis_separate = function(seurat_obj_receiver,
 #' lr_prod_mat: matrix of the ligand-receptor expression product of the expressed senderLigand-receiverReceptor pairs,
 #' grouping_tbl: data frame showing the group per sample 
 #' 
-#' @import Seurat
 #' @import dplyr
 #' @import ggplot2
 #' @importFrom generics setdiff intersect union
 #' @importFrom stringr str_split
 #' @importFrom tibble as_tibble
 #' @importFrom tidyr spread
+#' @importFrom SummarizedExperiment colData
 #'
 #' @examples
 #' \dontrun{
-#' library(Seurat)
 #' library(dplyr)
 #' lr_network = readRDS(url("https://zenodo.org/record/3260758/files/lr_network.rds"))
 #' lr_network = lr_network %>% dplyr::rename(ligand = from, receptor = to) %>% dplyr::distinct(ligand, receptor)
@@ -683,7 +667,7 @@ multi_nichenet_analysis_separate = function(seurat_obj_receiver,
 #' contrasts_oi = c("'High-Low','Low-High'")
 #' contrast_tbl = tibble(contrast = c("High-Low","Low-High"), group = c("High","Low"))
 #' output = multi_nichenet_analysis_combined(
-#'      seurat_obj = seurat_obj, 
+#'      sce = sce, 
 #'      celltype_id = celltype_id, 
 #'      sample_id = sample_id, 
 #'      group_id = group_id, 
@@ -696,7 +680,7 @@ multi_nichenet_analysis_separate = function(seurat_obj_receiver,
 #'
 #' @export
 #'
-multi_nichenet_analysis_combined = function(seurat_obj,
+multi_nichenet_analysis_combined = function(sce,
                                             celltype_id,
                                             sample_id,
                                             group_id,
@@ -707,7 +691,6 @@ multi_nichenet_analysis_combined = function(seurat_obj,
                                             contrast_tbl,
                                             fraction_cutoff = 0.05,
                                             prioritizing_weights = c("de_ligand" = 1,"de_receptor" = 1,"activity_scaled" = 1,"exprs_ligand" = 1,"exprs_receptor" = 1, "frac_exprs_ligand_receptor" = 1,"abund_sender" = 0,"abund_receiver" = 0),
-                                            assay_oi_sce = "RNA",
                                             assay_oi_pb ="counts",
                                             fun_oi_pb = "sum",
                                             de_method_oi = "edgeR",
@@ -719,63 +702,62 @@ multi_nichenet_analysis_combined = function(seurat_obj,
                                             top_n_target = 250, verbose = FALSE, n.cores = 1, return_lr_prod_matrix = FALSE){
 
 
-  requireNamespace("Seurat")
   requireNamespace("dplyr")
   requireNamespace("ggplot2")
   
   # input checks
-
-  if (class(seurat_obj) != "Seurat") {
-    stop("seurat_obj should be a Seurat object")
+  if (class(sce) != "SingleCellExperiment") {
+    stop("sce should be a SingleCellExperiment object")
   }
-  if (!celltype_id %in% colnames(seurat_obj@meta.data)) {
-    stop("celltype_id should be a column name in the metadata dataframe of seurat_obj")
+  
+  if (!celltype_id %in% colnames(SummarizedExperiment::colData(sce))) {
+    stop("celltype_id should be a column name in the metadata dataframe of sce")
   }
   if (celltype_id != make.names(celltype_id)) {
     stop("celltype_id should be a syntactically valid R name - check make.names")
   }
-  if (!sample_id %in% colnames(seurat_obj@meta.data)) {
-    stop("sample_id should be a column name in the metadata dataframe of seurat_obj")
+  if (!sample_id %in% colnames(SummarizedExperiment::colData(sce))) {
+    stop("sample_id should be a column name in the metadata dataframe of sce")
   }
   if (sample_id != make.names(sample_id)) {
     stop("sample_id should be a syntactically valid R name - check make.names")
   }
-  if (!group_id %in% colnames(seurat_obj@meta.data)) {
-    stop("group_id should be a column name in the metadata dataframe of seurat_obj")
+  if (!group_id %in% colnames(SummarizedExperiment::colData(sce))) {
+    stop("group_id should be a column name in the metadata dataframe of sce")
   }
   if (group_id != make.names(group_id)) {
     stop("group_id should be a syntactically valid R name - check make.names")
   }
   
-  if(is.double(seurat_obj@meta.data[,celltype_id])){
-    stop("seurat_obj@meta.data[,celltype_id] should be a character vector or a factor")
+  if(is.double(SummarizedExperiment::colData(sce)[,celltype_id])){
+    stop("SummarizedExperiment::colData(sce)[,celltype_id] should be a character vector or a factor")
   }
-  if(is.double(seurat_obj@meta.data[,group_id])){
-    stop("seurat_obj@meta.data[,group_id] should be a character vector or a factor")
+  if(is.double(SummarizedExperiment::colData(sce)[,group_id])){
+    stop("SummarizedExperiment::colData(sce)[,group_id] should be a character vector or a factor")
   }
-  if(is.double(seurat_obj@meta.data[,sample_id])){
-    stop("seurat_obj@meta.data[,sample_id] should be a character vector or a factor")
+  if(is.double(SummarizedExperiment::colData(sce)[,sample_id])){
+    stop("SummarizedExperiment::colData(sce)[,sample_id] should be a character vector or a factor")
   }
 
   # if some of these are factors, and not all levels have syntactically valid names - prompt to change this
-  if(is.factor(seurat_obj@meta.data[,celltype_id])){
-    is_make_names = levels(seurat_obj@meta.data[,celltype_id]) == make.names(levels(seurat_obj@meta.data[,celltype_id]))
-    if(sum(is_make_names) != length(levels(seurat_obj@meta.data[,celltype_id]))){
-      stop("The levels of the factor seurat_obj@meta.data[,celltype_id] should be a syntactically valid R names - see make.names")
+  if(is.factor(SummarizedExperiment::colData(sce)[,celltype_id])){
+    is_make_names = levels(SummarizedExperiment::colData(sce)[,celltype_id]) == make.names(levels(SummarizedExperiment::colData(sce)[,celltype_id]))
+    if(sum(is_make_names) != length(levels(SummarizedExperiment::colData(sce)[,celltype_id]))){
+      stop("The levels of the factor SummarizedExperiment::colData(sce)[,celltype_id] should be a syntactically valid R names - see make.names")
     }
   }
   
-  if(is.factor(seurat_obj@meta.data[,group_id])){
-    is_make_names = levels(seurat_obj@meta.data[,group_id]) == make.names(levels(seurat_obj@meta.data[,group_id]))
-    if(sum(is_make_names) != length(levels(seurat_obj@meta.data[,group_id]))){
-      stop("The levels of the factor seurat_obj@meta.data[,group_id] should be a syntactically valid R names - see make.names")
+  if(is.factor(SummarizedExperiment::colData(sce)[,group_id])){
+    is_make_names = levels(SummarizedExperiment::colData(sce)[,group_id]) == make.names(levels(SummarizedExperiment::colData(sce)[,group_id]))
+    if(sum(is_make_names) != length(levels(SummarizedExperiment::colData(sce)[,group_id]))){
+      stop("The levels of the factor SummarizedExperiment::colData(sce)[,group_id] should be a syntactically valid R names - see make.names")
     }
   }
   
-  if(is.factor(seurat_obj@meta.data[,sample_id])){
-    is_make_names = levels(seurat_obj@meta.data[,sample_id]) == make.names(levels(seurat_obj@meta.data[,sample_id]))
-    if(sum(is_make_names) != length(levels(seurat_obj@meta.data[,sample_id]))){
-      stop("The levels of the factor seurat_obj@meta.data[,sample_id] should be a syntactically valid R names - see make.names")
+  if(is.factor(SummarizedExperiment::colData(sce)[,sample_id])){
+    is_make_names = levels(SummarizedExperiment::colData(sce)[,sample_id]) == make.names(levels(SummarizedExperiment::colData(sce)[,sample_id]))
+    if(sum(is_make_names) != length(levels(SummarizedExperiment::colData(sce)[,sample_id]))){
+      stop("The levels of the factor SummarizedExperiment::colData(sce)[,sample_id] should be a syntactically valid R names - see make.names")
     }
   }
   
@@ -787,7 +769,7 @@ multi_nichenet_analysis_combined = function(seurat_obj,
     stop("contrast_tbl should be a data frame / tibble")
   }
   # conditions of interest in the contrast should be present in the in the group column of the metadata
-  groups_oi = seurat_obj@meta.data[,group_id] %>% unique()
+  groups_oi = SummarizedExperiment::colData(sce)[,group_id] %>% unique()
   conditions_oi = stringr::str_split(contrasts_oi, "'") %>% unlist() %>% unique() %>%
     # stringr::str_split("[:digit:]") %>% unlist() %>% unique() %>%
     stringr::str_split("\\)") %>% unlist() %>% unique() %>%
@@ -816,7 +798,7 @@ multi_nichenet_analysis_combined = function(seurat_obj,
   #
   groups_oi_contrast_tbl = contrast_tbl$group %>% unique()
   if(sum(groups_oi_contrast_tbl %in% groups_oi) != length(groups_oi_contrast_tbl)){
-    warning("You have defined some groups in contrast_tbl$group that are not present seurat_obj@meta.data[,group_id]. This will result in lack of information downstream. We recommend to change your metadata or this contrast_tbl appropriately.")
+    warning("You have defined some groups in contrast_tbl$group that are not present SummarizedExperiment::colData(sce)[,group_id]. This will result in lack of information downstream. We recommend to change your metadata or this contrast_tbl appropriately.")
   }
   
   if(length(groups_oi_contrast_tbl) != length(contrast_tbl$group)){
@@ -824,12 +806,12 @@ multi_nichenet_analysis_combined = function(seurat_obj,
   }
   
   if(!is.na(covariates)){
-    if (sum(covariates %in% colnames(seurat_obj@meta.data)) != length(covariates) ) {
-      stop("covariates should be NA or all present as column name(s) in the metadata dataframe of seurat_obj_receiver")
+    if (sum(covariates %in% colnames(SummarizedExperiment::colData(sce))) != length(covariates) ) {
+      stop("covariates should be NA or all present as column name(s) in the metadata dataframe of sce_receiver")
     }
   }
   
-  # Check concordance ligand-receptor network and ligand-target network - and concordance with Seurat object features
+  # Check concordance ligand-receptor network and ligand-target network - and concordance with sce object features
   if (!is.matrix(ligand_target_matrix)){
     stop("ligand_target_matrix should be a matrix")
   }
@@ -864,13 +846,13 @@ multi_nichenet_analysis_combined = function(seurat_obj,
   }
   
 
-  if(length(seurat_obj@assays$RNA@counts %>% rownames() %>% generics::intersect(ligands_lrnetwork)) < 25 ){
+  if(length(rownames(sce) %>% generics::intersect(ligands_lrnetwork)) < 25 ){
     warning("Less than 25 ligands from your ligand-receptor network are in your expression matrix of the sender cell.\nDid you convert the gene symbols of the ligand-receptor network and the ligand-target matrix if your data is not from human?")
   }
-  if(length(seurat_obj@assays$RNA@counts %>% rownames() %>% generics::intersect(ligands_ligand_target_matrix)) < 25 ){
+  if(length(rownames(sce) %>% generics::intersect(ligands_ligand_target_matrix)) < 25 ){
     warning("Less than 25 ligands from your ligand-target matrix are in your expression matrix of the sender cell.\nDid you convert the gene symbols of the ligand-receptor network and the ligand-target matrix if your data is not from human?")
   }
-  if(length(seurat_obj@assays$RNA@counts %>% rownames() %>% generics::intersect(receptors_lrnetwork)) < 25 ){
+  if(length(rownames(sce) %>% generics::intersect(receptors_lrnetwork)) < 25 ){
     warning("Less than 25 receptors from your ligand-receptor network are in your expression matrix of the receiver cell.\nDid you convert the gene symbols of the ligand-receptor network and the ligand-target matrix if your data is not from human?")
   }
 
@@ -889,13 +871,7 @@ multi_nichenet_analysis_combined = function(seurat_obj,
     stop("prioritizing_weights should be have the correct names. Check the vignettes and code documentation")
   }
 
-  if(!is.character(assay_oi_sce)){
-    stop("assay_oi_sce should be a character vector")
-  } else {
-    if(assay_oi_sce != "RNA"){
-      warning("are you sure you don't want to use the RNA assay?")
-    }
-  }
+
   if(!is.character(assay_oi_pb)){
     stop("assay_oi_pb should be a character vector")
   } else {
@@ -970,15 +946,15 @@ multi_nichenet_analysis_combined = function(seurat_obj,
   }
   
   ### Define Senders-Receivers
-  senders_oi = seurat_obj@meta.data[,celltype_id] %>% unique()
-  receivers_oi = seurat_obj@meta.data[,celltype_id] %>% unique()
+  senders_oi = SummarizedExperiment::colData(sce)[,celltype_id] %>% unique()
+  receivers_oi = SummarizedExperiment::colData(sce)[,celltype_id] %>% unique()
   
   ### Receiver abundance plots + Calculate expression information
   if(verbose == TRUE){
     print("Make diagnostic abundance plots + Calculate expression information")
   }
   
-  abundance_expression_info = get_abundance_expression_info(seurat_obj = seurat_obj, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id, min_cells = min_cells, assay_oi_sce = assay_oi_sce, senders_oi = senders_oi, receivers_oi = receivers_oi, lr_network = lr_network, covariates = covariates)
+  abundance_expression_info = get_abundance_expression_info(sce = sce, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id, min_cells = min_cells, senders_oi = senders_oi, receivers_oi = receivers_oi, lr_network = lr_network, covariates = covariates)
   
   ### Perform the DE analysis ----------------------------------------------------------------
 
@@ -986,8 +962,7 @@ multi_nichenet_analysis_combined = function(seurat_obj,
     print("Calculate differential expression for all cell types")
   }
   
-  DE_info = get_DE_info(seurat_obj = seurat_obj, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id, covariates = covariates, contrasts_oi = contrasts_oi, min_cells = min_cells,
-                        assay_oi_sce = assay_oi_sce,
+  DE_info = get_DE_info(sce = sce, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id, covariates = covariates, contrasts_oi = contrasts_oi, min_cells = min_cells,
                         assay_oi_pb = assay_oi_pb,
                         fun_oi_pb = fun_oi_pb,
                         de_method_oi = de_method_oi)
@@ -1034,7 +1009,7 @@ multi_nichenet_analysis_combined = function(seurat_obj,
 
   sender_receiver_tbl = sender_receiver_de %>% dplyr::distinct(sender, receiver)
   
-  metadata_combined = seurat_obj@meta.data %>% tibble::as_tibble()
+  metadata_combined = SummarizedExperiment::colData(sce) %>% tibble::as_tibble()
   
   if(!is.na(covariates)){
     grouping_tbl = metadata_combined[,c(sample_id, group_id, covariates)] %>% tibble::as_tibble() %>% dplyr::distinct()

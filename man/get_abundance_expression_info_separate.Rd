@@ -4,20 +4,20 @@
 \alias{get_abundance_expression_info_separate}
 \title{get_abundance_expression_info_separate}
 \usage{
-get_abundance_expression_info_separate(seurat_obj_receiver, seurat_obj_sender, sample_id, group_id, celltype_id_receiver, celltype_id_sender, min_cells, senders_oi, receivers_oi, lr_network, covariates = NA, assay_oi_sce = "RNA")
+get_abundance_expression_info_separate(sce_receiver, sce_sender, sample_id, group_id, celltype_id_receiver, celltype_id_sender, min_cells, senders_oi, receivers_oi, lr_network, covariates = NA)
 }
 \arguments{
-\item{seurat_obj_receiver}{Seurat object containing the receiver cell types of interest}
+\item{sce_receiver}{SingleCellExperiment object containing the receiver cell types of interest}
 
-\item{seurat_obj_sender}{Seurat object containing the sender cell types of interest}
+\item{sce_sender}{SingleCellExperiment object containing the sender cell types of interest}
 
-\item{sample_id}{Name of the meta data column that indicates from which sample/patient a cell comes from (in both seurat_obj_receiver and seurat_obj_sender)}
+\item{sample_id}{Name of the meta data column that indicates from which sample/patient a cell comes from (in both sce_receiver and sce_sender)}
 
-\item{group_id}{Name of the meta data column that indicates from which group/condition a cell comes from (in both seurat_obj_receiver and seurat_obj_sender)}
+\item{group_id}{Name of the meta data column that indicates from which group/condition a cell comes from (in both sce_receiver and sce_sender)}
 
-\item{celltype_id_receiver}{Name of the meta data column that indicates the cell type of a cell (in seurat_obj_receiver).}
+\item{celltype_id_receiver}{Name of the meta data column that indicates the cell type of a cell (in sce_receiver).}
 
-\item{celltype_id_sender}{Name of the meta data column that indicates the cell type of a cell (in seurat_obj_receiver).}
+\item{celltype_id_sender}{Name of the meta data column that indicates the cell type of a cell (in sce_sender).}
 
 \item{min_cells}{Indicates the minimal number of cells that a sample should have to be considered in the DE analysis. Default: 10. See `muscat::pbDS`.}
 
@@ -28,8 +28,6 @@ get_abundance_expression_info_separate(seurat_obj_receiver, seurat_obj_sender, s
 \item{lr_network}{Prior knowledge Ligand-Receptor network (columns: ligand, receptor)}
 
 \item{covariates}{NA if no covariates should be corrected for. If there should be corrected for covariates, this argument should be the name(s) of the columns in the meta data that indicate the covariate(s).}
-
-\item{assay_oi_sce}{Indicates which assay of the Seurat object should be used. Default: "RNA". See: `Seurat::as.SingleCellExperiment`.}
 }
 \value{
 List containing cell type abundance plots, and data frames with average and fraction of expression per sample and per group, and relative cell type abundances as well.
@@ -39,18 +37,18 @@ List containing cell type abundance plots, and data frames with average and frac
 }
 \examples{
 \dontrun{
-library(Seurat)
 library(dplyr)
 lr_network = readRDS(url("https://zenodo.org/record/3260758/files/lr_network.rds"))
 lr_network = lr_network \%>\% dplyr::rename(ligand = from, receptor = to) \%>\% dplyr::distinct(ligand, receptor)
-seurat_obj_sender = seurat_obj \%>\% subset(subset = celltype == "CAF")
+sce_receiver = sce[, sce$celltype == "Malignant"]
+sce_sender = sce[, sce$celltype == "CAF"]
 sample_id = "tumor"
 group_id = "pEMT"
 celltype_id_receiver = "celltype"
 celltype_id_sender = "celltype"
-senders_oi = seurat_obj_sender@meta.data[,celltype_id_sender] \%>\% unique() 
-receivers_oi = seurat_obj_receiver@meta.data[,celltype_id_sender] \%>\% unique() 
-abundance_celltype_info = get_abundance_expression_info_separate(seurat_obj_receiver = seurat_obj_receiver, seurat_obj_sender = seurat_obj_sender, sample_id = sample_id, group_id = group_id, celltype_id_receiver = celltype_id_receiver, celltype_id_sender = celltype_id_sender, senders_oi = senders_oi, receivers_oi = receivers_oi, lr_network)
+senders_oi =   SummarizedExperiment::colData(sce)[,celltype_id_sender] \%>\% unique() 
+receivers_oi = SummarizedExperiment::colData(sce)[,celltype_id_receiver] \%>\% unique() 
+abundance_celltype_info = get_abundance_expression_info_separate(sce_receiver = sce_receiver, sce_sender = sce_sender, sample_id = sample_id, group_id = group_id, celltype_id_receiver = celltype_id_receiver, celltype_id_sender = celltype_id_sender, senders_oi = senders_oi, receivers_oi = receivers_oi, lr_network)
 }
 
 }

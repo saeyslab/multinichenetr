@@ -19,7 +19,6 @@ LazyData: yes
 LazyDataCompression: bzip2
 biocViews:
 Imports: 
-    Seurat,
     circlize,
     patchwork,
     ggplot2,
@@ -43,7 +42,6 @@ Imports:
     ggpubr,
     parallel,
     locfdr,
-    scran,
     edgeR,
     sva
 Suggests: 

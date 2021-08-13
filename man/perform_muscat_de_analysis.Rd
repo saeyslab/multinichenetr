@@ -4,16 +4,16 @@
 \alias{perform_muscat_de_analysis}
 \title{perform_muscat_de_analysis}
 \usage{
-perform_muscat_de_analysis(seurat_obj, sample_id, celltype_id, group_id, covariates, contrasts, assay_oi_sce = "RNA", assay_oi_pb = "counts", fun_oi_pb = "sum", de_method_oi = "edgeR", min_cells = 10)
+perform_muscat_de_analysis(sce, sample_id, celltype_id, group_id, covariates, contrasts, assay_oi_pb = "counts", fun_oi_pb = "sum", de_method_oi = "edgeR", min_cells = 10)
 }
 \arguments{
-\item{seurat_obj}{Seurat object of the scRNAseq data of interest. Contains both sender and receiver cell types.}
+\item{sce}{SingleCellExperiment object of the scRNAseq data of interest. Contains both sender and receiver cell types.}
 
-\item{sample_id}{Name of the meta data column that indicates from which sample/patient a cell comes from (in both seurat_obj_receiver and seurat_obj_sender)}
+\item{sample_id}{Name of the meta data column that indicates from which sample/patient a cell comes from (in both sce_receiver and sce_sender)}
 
-\item{celltype_id}{Name of the column in the meta data of seurat_obj that indicates the cell type of a cell.}
+\item{celltype_id}{Name of the column in the meta data of sce that indicates the cell type of a cell.}
 
-\item{group_id}{Name of the meta data column that indicates from which group/condition a cell comes from (in both seurat_obj_receiver and seurat_obj_sender)}
+\item{group_id}{Name of the meta data column that indicates from which group/condition a cell comes from (in both sce_receiver and sce_sender)}
 
 \item{covariates}{NA if no covariates should be corrected for. If there should be corrected for covariates, this argument should be the name(s) of the columns in the meta data that indicate the covariate(s).}
 
@@ -26,8 +26,6 @@ If wanting to compare group A vs B and C: `contrasts_oi = c("'A-(B+C)/2'")`
 If wanting to compare group A vs B, C and D: `contrasts_oi = c("'A-(B+C+D)/3'")`
 If wanting to compare group A vs B, C and D & B vs A,C,D: `contrasts_oi = c("'A-(B+C+D)/3', 'B-(A+C+D)/3'")`
 Note that the groups A, B, ... should be present in the meta data column 'group_id'.}
-
-\item{assay_oi_sce}{Indicates which assay of the Seurat object should be used. Default: "RNA". See: `Seurat::as.SingleCellExperiment`.}
 
 \item{assay_oi_pb}{Indicates which information of the assay of interest should be used (counts, scaled data,...). Default: "counts". See `muscat::aggregateData`.}
 
@@ -45,7 +43,6 @@ List with output of the differential expression analysis in 1) default format(`m
 }
 \examples{
 \dontrun{
-library(Seurat)
 library(dplyr)
 lr_network = readRDS(url("https://zenodo.org/record/3260758/files/lr_network.rds"))
 lr_network = lr_network \%>\% dplyr::rename(ligand = from, receptor = to) \%>\% dplyr::distinct(ligand, receptor)
@@ -55,7 +52,7 @@ celltype_id = "celltype"
 covariates = NA
 contrasts_oi = c("'High-Low','Low-High'")
 celltype_de = perform_muscat_de_analysis(
-   seurat_obj = seurat_obj,
+   sce = sce,
    sample_id = sample_id,
    celltype_id = celltype_id,
    group_id = group_id,

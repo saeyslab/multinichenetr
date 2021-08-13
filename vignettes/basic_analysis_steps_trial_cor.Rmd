@@ -22,11 +22,11 @@ knitr::opts_chunk$set(
 )
 ```
 
-In this vignette, you can learn how to perform an all-vs-all MultiNicheNet analysis. In this vignette, we start from one single Seurat object containing cells from both sender and receiver cell types and from different patients.
+In this vignette, you can learn how to perform an all-vs-all MultiNicheNet analysis. In this vignette, we start from one single SingleCellExperiment object containing cells from both sender and receiver cell types and from different patients.
 
 A MultiNicheNet analysis can be performed if you have multi-sample, multi-group single-cell data. MultiNicheNet will look for cell-cell communication between the cell types in your data for each sample, and compare the cell-cell communication patterns between the groups of interest. Therefore, the absolute minimum of meta data you need to have, are following columns indicating for each cell: the **group**, **sample** and **cell type**.
  
-As example expression data of interacting cells, we will use data from Puram et al. to explore intercellular communication in the tumor microenvironment in head and neck squamous cell carcinoma (HNSCC) [See @puram_single-cell_2017] [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.4675430.svg)](https://doi.org/10.5281/zenodo.4675430).  More specifically, we will look at differential cell-cell communication patterns between tumors scoring high for a partial epithelial-mesenschymal transition (p-EMT) program vs low-scoring tumors.
+As example expression data of interacting cells, we will use data from Puram et al. to explore intercellular communication in the tumor microenvironment in head and neck squamous cell carcinoma (HNSCC) [See @puram_single-cell_2017] [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.5196144.svg)](https://doi.org/10.5281/zenodo.5196144).  More specifically, we will look at differential cell-cell communication patterns between tumors scoring high for a partial epithelial-mesenschymal transition (p-EMT) program vs low-scoring tumors.
 
 In this vignette, we will prepare the data and analysis parameters, and then perform the MultiNicheNet analysis. 
 
@@ -53,7 +53,6 @@ After the MultiNicheNet analysis is done, we will explore the output of the anal
 ## Step 0.1: Load required packages and NicheNet ligand-receptor network and ligand-target matrix
 
 ```{r}
-library(Seurat)
 library(dplyr)
 library(ggplot2)
 library(multinichenetr)
@@ -70,15 +69,15 @@ lr_network = lr_network %>% dplyr::rename(ligand = from, receptor = to) %>% dist
 ligand_target_matrix = readRDS(url("https://zenodo.org/record/3260758/files/ligand_target_matrix.rds"))
 ```
 
-## Step 0.2: Prepare Seurat Objects for Sender and Receiver cells
+## Step 0.2: Prepare SingleCellExperiment Objects for Sender and Receiver cells
 
-In this vignette, sender and receiver cell types are in the same Seurat object, which we will load here.
+In this vignette, sender and receiver cell types are in the same SingleCellExperiment object, which we will load here.
 
 In this case study, we want to study differences in cell-cell communication patterns between pEMT-high and pEMT-low tumors. The meta data columns that indicate the pEMT status of tumors are 'pEMT' and 'pEMT_fine', cell type is indicated in the 'celltype' column, and the sample is indicated by the 'tumor' column. 
 
 __User adaptation required__
 ```{r}
-seurat_obj = readRDS(url("https://zenodo.org/record/4675430/files/seurat_obj_hnscc.rds"))
+sce = readRDS(url("https://zenodo.org/record/5196144/files/sce_hnscc.rds"))
 DimPlot(seurat_obj, group.by = "celltype")
 DimPlot(seurat_obj, group.by = "tumor")
 DimPlot(seurat_obj, group.by = "pEMT")
@@ -89,9 +88,9 @@ We will now also check the number of cells per cell type condition combination, 
 
 __User adaptation required__
 ```{r}
-table(seurat_obj@meta.data$celltype, seurat_obj@meta.data$tumor) # cell types vs samples
-table(seurat_obj@meta.data$celltype, seurat_obj@meta.data$pEMT) # cell types vs conditions
-table(seurat_obj@meta.data$tumor, seurat_obj@meta.data$pEMT) # samples vs conditions
+table(SummarizedExperiment::colData(sce)$celltype, SummarizedExperiment::colData(sce)$tumor) # cell types vs samples
+table(SummarizedExperiment::colData(sce)$celltype, SummarizedExperiment::colData(sce)$pEMT) # cell types vs conditions
+table(SummarizedExperiment::colData(sce)$tumor, SummarizedExperiment::colData(sce)$pEMT) # samples vs conditions
 ```
 
 As you can see, some Celltype-Sample combinations have 0 cells. It is possible that during DE analysis, some cell types will be removed from the analysis if there is not enough information to do a DE analysis. (More info later)
@@ -170,7 +169,7 @@ sce = muscat::prepSCE(sce,
                         kid = celltype_id, # subpopulation assignments
                         gid = group_id,  # group IDs (ctrl/stim)
                         sid = "id",   # sample IDs (ctrl/stim.1234)
-                        drop = FALSE)  # drop all other colData columns ----------------- change to false
+                        drop = FALSE)  # drop all other SummarizedExperiment::colData columns ----------------- change to false
 
 pb = muscat::aggregateData(sce,assay = "counts", fun = "sum", by = c("cluster_id", "sample_id"))
 
@@ -248,12 +247,12 @@ pseudobulk_counts_celltype = edgeR::DGEList(pb@assays@data[[celltype_oi]])
 
 # try to correct these counts here and now
 set.seed(1919)
-extra_metadata = seurat_obj@meta.data %>% dplyr::select(all_of(sample_id)) %>% dplyr::distinct() %>% mutate(batch = sample(c("A","B"),nrow(.), replace = TRUE)) %>% tibble::as_tibble() 
-new_metadata = seurat_obj@meta.data %>% inner_join(extra_metadata)
+extra_metadata = SummarizedExperiment::colData(sce) %>% dplyr::select(all_of(sample_id)) %>% dplyr::distinct() %>% mutate(batch = sample(c("A","B"),nrow(.), replace = TRUE)) %>% tibble::as_tibble() 
+new_metadata = SummarizedExperiment::colData(sce) %>% inner_join(extra_metadata)
 new_metadata = new_metadata %>% data.frame()
 rownames(new_metadata) = new_metadata$cell
-seurat_obj@meta.data = new_metadata
-seurat_obj@meta.data[1:50,]
+SummarizedExperiment::colData(sce) = new_metadata
+SummarizedExperiment::colData(sce)[1:50,]
 ## really add a toy covariate to the seurat object!
 
 non_corrected = get_pseudobulk_logCPM_exprs(seurat_obj, sample_id, celltype_id, group_id, covariates = NA, assay_oi_sce = "RNA", assay_oi_pb = "counts", fun_oi_pb = "sum")
@@ -266,8 +265,8 @@ non_corrected %>% inner_join(corrected %>% rename(cor_pb_sample = pb_sample)) %>
 Sender and receiver cell types also need to be defined. Both are here all cell types in the dataset because we are interested in an All-vs-All analysis.
 
 ```{r}
-senders_oi = seurat_obj@meta.data[,celltype_id] %>% unique()
-receivers_oi = seurat_obj@meta.data[,celltype_id] %>% unique()
+senders_oi = SummarizedExperiment::colData(sce)[,celltype_id] %>% unique()
+receivers_oi = SummarizedExperiment::colData(sce)[,celltype_id] %>% unique()
 ```
 
 If the user wants it, it is possible to use only a subset of senders and receivers. Senders and receivers can be entirely different, but also overlapping, or the same. If you don't use all the cell types in your data, we recommend to continue with a subset of your data.
@@ -276,9 +275,9 @@ Example code:
 ```{r}
 subset_senders_receivers = FALSE
 if(subset_senders_receivers == TRUE){
-  senders_oi = seurat_obj@meta.data[,celltype_id] %>% unique() %>% .[1:2]
-  receivers_oi = seurat_obj@meta.data[,celltype_id] %>% unique() %>% .[2:4]
-  seurat_obj = seurat_obj %>% subset(subset = celltype %in% c(senders_oi, receivers_oi))
+  senders_oi = SummarizedExperiment::colData(sce)[,celltype_id] %>% unique() %>% .[1:2]
+  receivers_oi = SummarizedExperiment::colData(sce)[,celltype_id] %>% unique() %>% .[2:4]
+  sce = sce[, SummarizedExperiment::colData(sce)[,celltype_id] %in% c(senders_oi, receivers_oi)]
 }
 ```
 
@@ -296,7 +295,7 @@ min_cells = 5
 Now we will calculate abundance and expression information for each cell type / sample / group combination with the following functions. In the output of this function, you can also find some 'Cell type abundance diagnostic plots' that will the users which celltype-sample combinations will be left out later on for DE calculation because the nr of cells is lower than de defined minimum defined here above. If too many celltype-sample combinations don't pass this threshold, we recommend to define your cell types in a more general way (use one level higher of the cell type ontology hierarchy) (eg TH17 CD4T cells --> CD4T cells).
 
 ```{r}
-abundance_expression_info = get_abundance_expression_info(seurat_obj = seurat_obj, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id, min_cells = min_cells, senders_oi = senders_oi, receivers_oi = receivers_oi, lr_network = lr_network)
+abundance_expression_info = get_abundance_expression_info(sce = sce, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id, min_cells = min_cells, senders_oi = senders_oi, receivers_oi = receivers_oi, lr_network = lr_network)
 ```
 
 First, check the cell type abundance diagnostic plots.
@@ -380,10 +379,10 @@ contrast_tbl = tibble(contrast =
 ### Perform the DE analysis for each cell type.
 
 ```{r}
-DE_info = get_DE_info(seurat_obj = seurat_obj, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id, covariates = covariates, contrasts_oi = contrasts_oi, min_cells = min_cells)
+DE_info = get_DE_info(sce = sce, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id, covariates = covariates, contrasts_oi = contrasts_oi, min_cells = min_cells)
 
 # try once with limma-trend on the average
-# DE_info = get_DE_info(seurat_obj = seurat_obj, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id, covariates = covariates, contrasts_oi = contrasts_oi, min_cells = min_cells, fun_oi_pb = "mean", de_method_oi = "limma-trend")
+# DE_info = get_DE_info(sce = sce, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id, covariates = covariates, contrasts_oi = contrasts_oi, min_cells = min_cells, fun_oi_pb = "mean", de_method_oi = "limma-trend")
 ```
 
 ### Check DE results
@@ -609,7 +608,7 @@ Make necessary grouping data frame
 ```{r}
 sender_receiver_tbl = sender_receiver_de %>% dplyr::distinct(sender, receiver)
 
-metadata_combined = seurat_obj@meta.data %>% tibble::as_tibble()
+metadata_combined = SummarizedExperiment::colData(sce) %>% tibble::as_tibble()
 
 if(!is.na(covariates)){
   grouping_tbl = metadata_combined[,c(sample_id, group_id, covariates)] %>% tibble::as_tibble() %>% dplyr::distinct()

@@ -1,47 +1,45 @@
 #' @title get_abundance_expression_info
 #'
 #' @description \code{get_abundance_expression_info} Visualize cell type abundances. Calculate the average and fraction of expression of each gene per sample and per group. Calculate relative abundances of cell types as well. Under the hood, the following functions are used: `get_avg_frac_exprs_abund`, `process_info_to_ic`, `combine_sender_receiver_info_ic`
-#' @usage get_abundance_expression_info(seurat_obj, sample_id, group_id, celltype_id, min_cells, senders_oi, receivers_oi, lr_network, covariates = NA, assay_oi_sce = "RNA")
+#' @usage get_abundance_expression_info(sce, sample_id, group_id, celltype_id, min_cells, senders_oi, receivers_oi, lr_network, covariates = NA)
 #'
 #' @inheritParams multi_nichenet_analysis_combined
 #' @inheritParams combine_sender_receiver_info_ic
 #' 
 #' @return List containing cell type abundance plots, and data frames with average and fraction of expression per sample and per group, and relative cell type abundances as well.
 #'
-#' @import Seurat
 #' @import dplyr
 #' @import tibble
 #' @import ggplot2
 #' @importFrom tidyr gather
+#' @importFrom SummarizedExperiment colData
 #'
 #' @examples
 #' \dontrun{
-#' library(Seurat)
 #' library(dplyr)
 #' lr_network = readRDS(url("https://zenodo.org/record/3260758/files/lr_network.rds"))
 #' lr_network = lr_network %>% dplyr::rename(ligand = from, receptor = to) %>% dplyr::distinct(ligand, receptor)
 #' sample_id = "tumor"
 #' group_id = "pEMT"
 #' celltype_id = "celltype"
-#' senders_oi = seurat_obj@meta.data[,celltype_id] %>% unique()
-#' receivers_oi = seurat_obj@meta.data[,celltype_id] %>% unique()
-#' abundance_celltype_info = get_abundance_expression_info(seurat_obj = seurat_obj, sample_id = sample_id, group_id = group_id, celltype_id =  celltype_id, senders_oi = senders_oi, receivers_oi = receivers_oi, lr_network)
+#' senders_oi = SummarizedExperiment::colData(sce)[,celltype_id] %>% unique()  
+#' receivers_oi = SummarizedExperiment::colData(sce)[,celltype_id] %>% unique() 
+#' abundance_celltype_info = get_abundance_expression_info(sce = sce, sample_id = sample_id, group_id = group_id, celltype_id =  celltype_id, senders_oi = senders_oi, receivers_oi = receivers_oi, lr_network)
 #' }
 #'
 #' @export
 #'
-get_abundance_expression_info = function(seurat_obj, sample_id, group_id, celltype_id, min_cells, senders_oi, receivers_oi, lr_network, covariates = NA, assay_oi_sce = "RNA"){
+get_abundance_expression_info = function(sce, sample_id, group_id, celltype_id, min_cells, senders_oi, receivers_oi, lr_network, covariates = NA){
   
   requireNamespace("dplyr")
   requireNamespace("ggplot2")
-  requireNamespace("Seurat")
-  
+
   ### Receiver abundance plots
   
-  metadata_abundance = seurat_obj@meta.data[,c(sample_id, group_id, celltype_id)]
+  metadata_abundance = SummarizedExperiment::colData(sce)[,c(sample_id, group_id, celltype_id)]
   colnames(metadata_abundance) =c("sample_id", "group_id", "celltype_id")
   
-  abundance_data = metadata_abundance %>% tibble::as_tibble() %>% dplyr::group_by(sample_id , celltype_id) %>% dplyr::count() %>% dplyr::inner_join(metadata_abundance %>% dplyr::distinct(sample_id , group_id ), by = "sample_id")
+  abundance_data = metadata_abundance %>% tibble::as_tibble() %>% dplyr::group_by(sample_id , celltype_id) %>% dplyr::count() %>% dplyr::inner_join(metadata_abundance %>% tibble::as_tibble() %>% dplyr::distinct(sample_id , group_id ), by = "sample_id")
   abundance_data = abundance_data %>% dplyr::mutate(keep = n >= min_cells) %>% dplyr::mutate(keep = factor(keep, levels = c(TRUE,FALSE)))
   
   abund_plot = abundance_data %>% ggplot(aes(sample_id, n, fill = keep)) + geom_bar(stat="identity") + scale_fill_manual(values = c("royalblue", "lightcoral")) + facet_grid(celltype_id ~ group_id, scales = "free", space = "free_x") +
@@ -71,12 +69,11 @@ get_abundance_expression_info = function(seurat_obj, sample_id, group_id, cellty
   ### Cell type Info
   
   celltype_info = suppressMessages(get_avg_frac_exprs_abund(
-    seurat_obj = seurat_obj,
+    sce = sce,
     sample_id = sample_id,
     celltype_id =  celltype_id,
     group_id = group_id, 
-    covariates = covariates,
-    assay_oi = assay_oi_sce))
+    covariates = covariates))
   
   
   ### Link LR network to Cell type info
@@ -105,50 +102,48 @@ get_abundance_expression_info = function(seurat_obj, sample_id, group_id, cellty
 #' @title get_abundance_expression_info_separate
 #'
 #' @description \code{get_abundance_expression_info_separate}.Similar to `get_abundance_expression_info`, but now for sender and receiver object separately. Visualize cell type abundances. Calculate the average and fraction of expression of each gene per sample and per group. Calculate relative abundances of cell types as well. Under the hood, the following functions are used: `get_avg_frac_exprs_abund`, `process_info_to_ic`, `combine_sender_receiver_info_ic`
-#' @usage get_abundance_expression_info_separate(seurat_obj_receiver, seurat_obj_sender, sample_id, group_id, celltype_id_receiver, celltype_id_sender, min_cells, senders_oi, receivers_oi, lr_network, covariates = NA, assay_oi_sce = "RNA")
+#' @usage get_abundance_expression_info_separate(sce_receiver, sce_sender, sample_id, group_id, celltype_id_receiver, celltype_id_sender, min_cells, senders_oi, receivers_oi, lr_network, covariates = NA)
 #'
 #' @inheritParams multi_nichenet_analysis_separate
 #' @inheritParams combine_sender_receiver_info_ic
 #' 
 #' @return List containing cell type abundance plots, and data frames with average and fraction of expression per sample and per group, and relative cell type abundances as well.
 #'
-#' @import Seurat
 #' @import dplyr
 #' @import tibble
 #' @import ggplot2
 #' @importFrom tidyr gather
+#' @importFrom SummarizedExperiment colData
 #'
 #' @examples
 #' \dontrun{
-#' library(Seurat)
 #' library(dplyr)
 #' lr_network = readRDS(url("https://zenodo.org/record/3260758/files/lr_network.rds"))
 #' lr_network = lr_network %>% dplyr::rename(ligand = from, receptor = to) %>% dplyr::distinct(ligand, receptor)
-## seurat_obj_receiver = seurat_obj %>% subset(subset = celltype == "Malignant")
-#' seurat_obj_sender = seurat_obj %>% subset(subset = celltype == "CAF")
+#' sce_receiver = sce[, sce$celltype == "Malignant"]
+#' sce_sender = sce[, sce$celltype == "CAF"]
 #' sample_id = "tumor"
 #' group_id = "pEMT"
 #' celltype_id_receiver = "celltype"
 #' celltype_id_sender = "celltype"
-#' senders_oi = seurat_obj_sender@meta.data[,celltype_id_sender] %>% unique() 
-#' receivers_oi = seurat_obj_receiver@meta.data[,celltype_id_sender] %>% unique() 
-#' abundance_celltype_info = get_abundance_expression_info_separate(seurat_obj_receiver = seurat_obj_receiver, seurat_obj_sender = seurat_obj_sender, sample_id = sample_id, group_id = group_id, celltype_id_receiver = celltype_id_receiver, celltype_id_sender = celltype_id_sender, senders_oi = senders_oi, receivers_oi = receivers_oi, lr_network)
+#' senders_oi =   SummarizedExperiment::colData(sce)[,celltype_id_sender] %>% unique() 
+#' receivers_oi = SummarizedExperiment::colData(sce)[,celltype_id_receiver] %>% unique() 
+#' abundance_celltype_info = get_abundance_expression_info_separate(sce_receiver = sce_receiver, sce_sender = sce_sender, sample_id = sample_id, group_id = group_id, celltype_id_receiver = celltype_id_receiver, celltype_id_sender = celltype_id_sender, senders_oi = senders_oi, receivers_oi = receivers_oi, lr_network)
 #' }
 #'
 #' @export
 #'
-get_abundance_expression_info_separate = function(seurat_obj_receiver, seurat_obj_sender, sample_id, group_id, celltype_id_receiver, celltype_id_sender, min_cells, senders_oi, receivers_oi, lr_network, covariates = NA, assay_oi_sce = "RNA"){
+get_abundance_expression_info_separate = function(sce_receiver, sce_sender, sample_id, group_id, celltype_id_receiver, celltype_id_sender, min_cells, senders_oi, receivers_oi, lr_network, covariates = NA){
   
   requireNamespace("dplyr")
   requireNamespace("ggplot2")
-  requireNamespace("Seurat")
-  
+
   ### Receiver plots and info
   
-  metadata_abundance = seurat_obj_receiver@meta.data[,c(sample_id, group_id, celltype_id_receiver)]
+  metadata_abundance = SummarizedExperiment::colData(sce_receiver)[,c(sample_id, group_id, celltype_id_receiver)]
   colnames(metadata_abundance) =c("sample_id", "group_id", "celltype_id_receiver")
   
-  abundance_data = metadata_abundance %>% tibble::as_tibble() %>% dplyr::group_by(sample_id , celltype_id_receiver) %>% dplyr::count() %>% dplyr::inner_join(metadata_abundance %>% dplyr::distinct(sample_id , group_id ), by = "sample_id")
+  abundance_data = metadata_abundance %>% tibble::as_tibble() %>% dplyr::group_by(sample_id , celltype_id_receiver) %>% dplyr::count() %>% dplyr::inner_join(metadata_abundance %>% tibble::as_tibble() %>% dplyr::distinct(sample_id , group_id ), by = "sample_id")
   abundance_data = abundance_data %>% dplyr::mutate(keep = n >= min_cells) %>% dplyr::mutate(keep = factor(keep, levels = c(TRUE,FALSE)))
   
   abund_plot_receiver = abundance_data %>% ggplot(aes(sample_id, n, fill = keep)) + geom_bar(stat="identity") + scale_fill_manual(values = c("royalblue", "lightcoral")) + facet_grid(celltype_id_receiver ~ group_id, scales = "free", space = "free_x") +
@@ -176,12 +171,11 @@ get_abundance_expression_info_separate = function(seurat_obj_receiver, seurat_ob
   
   
   receiver_info = suppressMessages(get_avg_frac_exprs_abund(
-    seurat_obj = seurat_obj_receiver,
+    sce = sce_receiver,
     sample_id = sample_id,
     celltype_id =  celltype_id_receiver,
     group_id = group_id, 
-    covariates = covariates,
-    assay_oi = assay_oi_sce))
+    covariates = covariates))
   receiver_info_ic = suppressMessages(process_info_to_ic(
     info_object = receiver_info,
     ic_type = "receiver",
@@ -189,10 +183,10 @@ get_abundance_expression_info_separate = function(seurat_obj_receiver, seurat_ob
   
   ### Sender plots and info
   
-  metadata_abundance = seurat_obj_sender@meta.data[,c(sample_id, group_id, celltype_id_sender)]
+  metadata_abundance = SummarizedExperiment::colData(sce_sender)[,c(sample_id, group_id, celltype_id_sender)] 
   colnames(metadata_abundance) =c("sample_id", "group_id", "celltype_id_sender")
   
-  abundance_data = metadata_abundance %>% tibble::as_tibble() %>% dplyr::group_by(sample_id , celltype_id_sender) %>% dplyr::count() %>% dplyr::inner_join(metadata_abundance %>% dplyr::distinct(sample_id , group_id ), by = "sample_id")
+  abundance_data = metadata_abundance %>% tibble::as_tibble() %>% dplyr::group_by(sample_id , celltype_id_sender) %>% dplyr::count() %>% dplyr::inner_join(metadata_abundance %>% tibble::as_tibble() %>% dplyr::distinct(sample_id , group_id ), by = "sample_id")
   abundance_data = abundance_data %>% dplyr::mutate(keep = n >= min_cells) %>% dplyr::mutate(keep = factor(keep, levels = c(TRUE,FALSE)))
   
   abund_plot_sender = abundance_data %>% ggplot(aes(sample_id, n, fill = keep)) + geom_bar(stat="identity") + scale_fill_manual(values = c("royalblue", "lightcoral")) + facet_grid(celltype_id_sender ~ group_id, scales = "free", space = "free_x") +
@@ -220,12 +214,11 @@ get_abundance_expression_info_separate = function(seurat_obj_receiver, seurat_ob
   
   
   sender_info = suppressMessages(get_avg_frac_exprs_abund(
-    seurat_obj = seurat_obj_sender,
+    sce = sce_sender,
     sample_id = sample_id,
     celltype_id =  celltype_id_sender,
     group_id = group_id, 
-    covariates = covariates,
-    assay_oi = assay_oi_sce))
+    covariates = covariates))
   sender_info_ic = suppressMessages(process_info_to_ic(
     info_object = sender_info,
     ic_type = "sender",
@@ -250,21 +243,19 @@ get_abundance_expression_info_separate = function(seurat_obj_receiver, seurat_ob
 #' @title get_DE_info
 #'
 #' @description \code{get_DE_info} Perform differential expression analysis via Muscat - Pseudobulking approach. Also visualize the p-value distribution. Under the hood, the following function is used: `perform_muscat_de_analysis`.
-#' @usage get_DE_info(seurat_obj, sample_id, group_id, celltype_id, covariates, contrasts_oi, min_cells = 10, assay_oi_sce  = "RNA", assay_oi_pb = "counts", fun_oi_pb = "sum", de_method_oi = "edgeR")
+#' @usage get_DE_info(sce, sample_id, group_id, celltype_id, covariates, contrasts_oi, min_cells = 10, assay_oi_pb = "counts", fun_oi_pb = "sum", de_method_oi = "edgeR")
 #'
 #' @inheritParams multi_nichenet_analysis_combined
 #' @inheritParams perform_muscat_de_analysis
 #' 
 #' @return List with output of the differential expression analysis in 1) default format(`muscat::pbDS()`), and 2) in a tidy table format (`muscat::resDS()`) (both in the `celltype_de` slot); Histogram plot of the p-values is also returned.
 #'
-#' @import Seurat
 #' @import dplyr
 #' @import muscat
 #' @import ggplot2
 #'
 #' @examples
 #' \dontrun{
-#' library(Seurat)
 #' library(dplyr)
 #' sample_id = "tumor"
 #' group_id = "pEMT"
@@ -272,7 +263,7 @@ get_abundance_expression_info_separate = function(seurat_obj_receiver, seurat_ob
 #' covariates = NA
 #' contrasts_oi = c("'High-Low','Low-High'")
 #' DE_info = get_DE_info(
-#'    seurat_obj = seurat_obj,
+#'    sce = sce,
 #'    sample_id = sample_id,
 #'    celltype_id = celltype_id,
 #'    group_id = group_id,
@@ -283,20 +274,18 @@ get_abundance_expression_info_separate = function(seurat_obj_receiver, seurat_ob
 #' @export
 #'
 #'
-get_DE_info = function(seurat_obj, sample_id, group_id, celltype_id, covariates, contrasts_oi, min_cells = 10, assay_oi_sce  = "RNA", assay_oi_pb = "counts", fun_oi_pb = "sum", de_method_oi = "edgeR"){
+get_DE_info = function(sce, sample_id, group_id, celltype_id, covariates, contrasts_oi, min_cells = 10, assay_oi_pb = "counts", fun_oi_pb = "sum", de_method_oi = "edgeR"){
   
-  requireNamespace("Seurat")
   requireNamespace("dplyr")
   requireNamespace("ggplot2")
   
   celltype_de = perform_muscat_de_analysis(
-    seurat_obj = seurat_obj,
+    sce = sce,
     sample_id = sample_id,
     celltype_id = celltype_id,
     group_id = group_id,
     covariates = covariates,
     contrasts = contrasts_oi,
-    assay_oi_sce = assay_oi_sce,
     assay_oi_pb = assay_oi_pb,
     fun_oi_pb = fun_oi_pb,
     de_method_oi = de_method_oi,
@@ -318,13 +307,11 @@ get_DE_info = function(seurat_obj, sample_id, group_id, celltype_id, covariates,
 #' 
 #' @return `de_output_tidy`, but now 2 columns added with the empirical pvalues (normal and adjusted for multiple testing); Histogram plot of the empirical p-values is also returned.
 #'
-#' @import Seurat
 #' @import dplyr
 #' @import ggplot2
 #'
 #' @examples
 #' \dontrun{
-#' library(Seurat)
 #' library(dplyr)
 #' lr_network = readRDS(url("https://zenodo.org/record/3260758/files/lr_network.rds"))
 #' lr_network = lr_network %>% dplyr::rename(ligand = from, receptor = to) %>% dplyr::distinct(ligand, receptor)
@@ -333,10 +320,10 @@ get_DE_info = function(seurat_obj, sample_id, group_id, celltype_id, covariates,
 #' celltype_id = "celltype"
 #' covariates = NA
 #' contrasts_oi = c("'High-Low','Low-High'")
-#' senders_oi = Idents(seurat_obj) %>% unique()
-#' receivers_oi = Idents(seurat_obj) %>% unique()
+#' senders_oi = SummarizedExperiment::colData(sce)[,celltype_id] %>% unique()
+#' receivers_oi = SummarizedExperiment::colData(sce)[,celltype_id] %>% unique()
 #' DE_info = get_DE_info(
-#'    seurat_obj = seurat_obj,
+#'    sce = sce,
 #'    sample_id = sample_id,
 #'    celltype_id = celltype_id,
 #'    group_id = group_id,
@@ -350,7 +337,6 @@ get_DE_info = function(seurat_obj, sample_id, group_id, celltype_id, covariates,
 #'
 get_empirical_pvals = function(de_output_tidy){
   
-  requireNamespace("Seurat")
   requireNamespace("dplyr")
   requireNamespace("ggplot2")
   

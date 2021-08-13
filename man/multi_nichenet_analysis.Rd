@@ -7,7 +7,7 @@
 multi_nichenet_analysis(sender_receiver_separate = TRUE, ...)
 }
 \arguments{
-\item{sender_receiver_separate}{Indicates whether the user gives as input one separate seurat object with sender cell types and one with receiver cell types (TRUE) or whether only one seurat object with both sender and receiver cell types of interest (FALSE).
+\item{sender_receiver_separate}{Indicates whether the user gives as input one separate SingleCellExperiment object with sender cell types and one with receiver cell types (TRUE) or whether only one SingleCellExperiment object with both sender and receiver cell types of interest (FALSE).
 TRUE calls the function `multi_nichenet_analysis_separate`, FALSE calls the function `multi_nichenet_analysis_combined`. Default: TRUE.}
 
 \item{...}{Arguments to `multi_nichenet_analysis_separate` or `multi_nichenet_analysis_combined`.}
@@ -21,7 +21,6 @@ See `multi_nichenet_analysis_separate` and `multi_nichenet_analysis_combined` fo
 }
 \examples{
 \dontrun{
-library(Seurat)
 library(dplyr)
 lr_network = readRDS(url("https://zenodo.org/record/3260758/files/lr_network.rds"))
 lr_network = lr_network \%>\% dplyr::rename(ligand = from, receptor = to) \%>\% dplyr::distinct(ligand, receptor)
@@ -33,7 +32,7 @@ covariates = NA
 contrasts_oi = c("'High-Low','Low-High'")
 contrast_tbl = tibble(contrast = c("High-Low","Low-High"), group = c("High","Low"))
 output = multi_nichenet_analysis(
-     seurat_obj = seurat_obj, 
+     sce = sce, 
      celltype_id = celltype_id, 
      sample_id = sample_id, 
      group_id = group_id,

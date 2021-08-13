@@ -22,11 +22,11 @@ knitr::opts_chunk$set(
 )
 ```
 
-In this vignette, you can learn how to perform an all-vs-all MultiNicheNet analysis. In this vignette, we start from two Seurat objects: one seurat object containing the sender cell types, and one seurat object with receiver cell types. (for demonstration purposes, we start from the same object, that we then split based on sender/receiver cell type)
+In this vignette, you can learn how to perform an all-vs-all MultiNicheNet analysis. In this vignette, we start from two SingleCellExperiment objects: one SingleCellExperiment object containing the sender cell types, and one SingleCellExperiment object with receiver cell types. (for demonstration purposes, we start from the same object, that we then split based on sender/receiver cell type)
 
 A MultiNicheNet analysis can be performed if you have multi-sample, multi-group single-cell data. MultiNicheNet will look for cell-cell communication between the cell types in your data for each sample, and compare the cell-cell communication patterns between the groups of interest. Therefore, the absolute minimum of meta data you need to have, are following columns indicating for each cell: the **group**, **sample** and **cell type**.
  
-As example expression data of interacting cells, we will use data from Puram et al. to explore intercellular communication in the tumor microenvironment in head and neck squamous cell carcinoma (HNSCC) [See @puram_single-cell_2017] [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.4675430.svg)](https://doi.org/10.5281/zenodo.4675430).  More specifically, we will look at differential cell-cell communication patterns between tumors scoring high for a partial epithelial-mesenschymal transition (p-EMT) program vs low-scoring tumors.
+As example expression data of interacting cells, we will use data from Puram et al. to explore intercellular communication in the tumor microenvironment in head and neck squamous cell carcinoma (HNSCC) [See @puram_single-cell_2017] [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.5196144.svg)](https://doi.org/10.5281/zenodo.5196144).  More specifically, we will look at differential cell-cell communication patterns between tumors scoring high for a partial epithelial-mesenschymal transition (p-EMT) program vs low-scoring tumors.
 
 In this vignette, we will prepare the data and analysis parameters, and then perform the MultiNicheNet analysis. 
 
@@ -53,7 +53,6 @@ After the MultiNicheNet analysis is done, we will explore the output of the anal
 ## Step 0.1: Load required packages and NicheNet ligand-receptor network and ligand-target matrix
 
 ```{r}
-library(Seurat)
 library(dplyr)
 library(ggplot2)
 library(multinichenetr)
@@ -70,9 +69,9 @@ lr_network = lr_network %>% dplyr::rename(ligand = from, receptor = to) %>% dist
 ligand_target_matrix = readRDS(url("https://zenodo.org/record/3260758/files/ligand_target_matrix.rds"))
 ```
 
-## Step 0.2: Prepare Seurat Objects for Sender and Receiver cells
+## Step 0.2: Prepare SingleCellExperiment objects for Sender and Receiver cells
 
-In this vignette, sender and receiver cell types are in the same Seurat object, which we will load here.
+In this vignette, sender and receiver cell types are in the same SingleCellExperiment object, which we will load here.
 
 In this case study, we want to study differences in cell-cell communication patterns between pEMT-high and pEMT-low tumors. The meta data columns that indicate the pEMT status of tumors are 'pEMT' and 'pEMT_fine', cell type is indicated in the 'celltype' column, and the sample is indicated by the 'tumor' column. 
 
@@ -80,9 +79,12 @@ In this case study, we want to study differences in cell-cell communication patt
 
 __User adaptation required__
 ```{r}
-getwd()
-seurat_obj_receiver = readRDS(url("https://zenodo.org/record/4675430/files/seurat_obj_hnscc.rds")) %>% subset(subset = celltype == "Malignant")
-seurat_obj_receiver@meta.data$pEMT_fine = factor(seurat_obj_receiver@meta.data$pEMT_fine, levels = c("High","Medium","Low")) 
+sce = readRDS(url("https://zenodo.org/record/5196144/files/sce_hnscc.rds")) 
+sce$pEMT_fine = factor(sce$pEMT_fine, levels = c("High","Medium","Low")) 
+
+celltype_id_receiver = "celltype"
+sce_receiver = sce[, SummarizedExperiment::colData(sce)[,celltype_id_receiver] == "Malignant"]
+
 DimPlot(seurat_obj_receiver, group.by = "celltype")
 DimPlot(seurat_obj_receiver, group.by = "tumor")
 DimPlot(seurat_obj_receiver, group.by = "pEMT")
@@ -93,9 +95,9 @@ We will now also check the number of cells per cell type condition combination, 
 
 __User adaptation required__
 ```{r}
-table(seurat_obj_receiver@meta.data$celltype, seurat_obj_receiver@meta.data$tumor) # cell types vs samples
-table(seurat_obj_receiver@meta.data$celltype, seurat_obj_receiver@meta.data$pEMT_fine) # cell types vs conditions
-table(seurat_obj_receiver@meta.data$tumor, seurat_obj_receiver@meta.data$pEMT_fine) # samples vs conditions
+table(SummarizedExperiment::colData(sce_receiver)$celltype, SummarizedExperiment::colData(sce_receiver)$tumor) # cell types vs samples
+table(SummarizedExperiment::colData(sce_receiver)$celltype, SummarizedExperiment::colData(sce_receiver)$pEMT_fine) # cell types vs conditions
+table(SummarizedExperiment::colData(sce_receiver)$tumor, SummarizedExperiment::colData(sce_receiver)$pEMT_fine) # samples vs conditions
 ```
 
 ### Non-Malignant cells as sender
@@ -103,8 +105,10 @@ table(seurat_obj_receiver@meta.data$tumor, seurat_obj_receiver@meta.data$pEMT_fi
 __User adaptation required__
 ```{r}
 getwd()
-seurat_obj_sender =readRDS(url("https://zenodo.org/record/4675430/files/seurat_obj_hnscc.rds")) %>% subset(subset = celltype != "Malignant")
-seurat_obj_sender@meta.data$pEMT_fine = factor(seurat_obj_sender@meta.data$pEMT_fine, levels = c("High","Medium","Low")) 
+
+celltype_id_sender = "celltype"
+sce_sender = sce[, SummarizedExperiment::colData(sce)[,celltype_id_sender] != "Malignant"]
+
 DimPlot(seurat_obj_sender, group.by = "celltype")
 DimPlot(seurat_obj_sender, group.by = "tumor")
 DimPlot(seurat_obj_sender, group.by = "pEMT")
@@ -115,9 +119,9 @@ We will now also check the number of cells per cell type condition combination, 
 
 __User adaptation required__
 ```{r}
-table(seurat_obj_sender@meta.data$celltype, seurat_obj_sender@meta.data$tumor) # cell types vs samples
-table(seurat_obj_sender@meta.data$celltype, seurat_obj_sender@meta.data$pEMT_fine) # cell types vs conditions
-table(seurat_obj_sender@meta.data$tumor, seurat_obj_sender@meta.data$pEMT_fine) # samples vs conditions
+table(SummarizedExperiment::colData(sce_sender)$celltype, SummarizedExperiment::colData(sce_sender)$tumor) # cell types vs samples
+table(SummarizedExperiment::colData(sce_sender)$celltype, SummarizedExperiment::colData(sce_sender)$pEMT_fine) # cell types vs conditions
+table(SummarizedExperiment::colData(sce_sender)$tumor, SummarizedExperiment::colData(sce_sender)$pEMT_fine) # samples vs conditions
 ```
 
 As you can see, some Celltype-Sample combinations have 0 cells. It is possible that during DE analysis, some cell types will be removed from the analysis if there is not enough information to do a DE analysis. (More info later)
@@ -132,15 +136,13 @@ __User adaptation required__
 ```{r}
 sample_id = "tumor"
 group_id = "pEMT_fine"
-celltype_id_receiver = "celltype"
-celltype_id_sender = "celltype"
 ```
 
 Sender and receiver cell types also need to be defined. Both are here all cell types in the dataset because we are interested in an All-vs-All analysis.
 
 ```{r}
-senders_oi = seurat_obj_sender@meta.data[,celltype_id_sender] %>% unique()
-receivers_oi = seurat_obj_receiver@meta.data[,celltype_id_receiver] %>% unique()
+senders_oi = SummarizedExperiment::colData(sce_sender)[,celltype_id_sender] %>% unique()
+receivers_oi = SummarizedExperiment::colData(sce_receiver)[,celltype_id_receiver] %>% unique()
 ```
 
 Now we will go to the first real step of the MultiNicheNet analysis
@@ -157,7 +159,7 @@ min_cells = 5
 Now we will calculate abundance and expression information for each cell type / sample / group combination with the following functions. In the output of this function, you can also find some 'Cell type abundance diagnostic plots' that will the users which celltype-sample combinations will be left out later on for DE calculation because the nr of cells is lower than de defined minimum defined here above. If too many celltype-sample combinations don't pass this threshold, we recommend to define your cell types in a more general way (use one level higher of the cell type ontology hierarchy) (eg TH17 CD4T cells --> CD4T cells).
 
 ```{r}
-abundance_expression_info = get_abundance_expression_info_separate(seurat_obj_receiver = seurat_obj_receiver, seurat_obj_sender = seurat_obj_sender, sample_id = sample_id, group_id = group_id, celltype_id_receiver = celltype_id_receiver, celltype_id_sender = celltype_id_sender, senders_oi = senders_oi, receivers_oi = receivers_oi, lr_network = lr_network, min_cells = min_cells)
+abundance_expression_info = get_abundance_expression_info_separate(sce_receiver = sce_receiver, sce_sender = sce_sender, sample_id = sample_id, group_id = group_id, celltype_id_receiver = celltype_id_receiver, celltype_id_sender = celltype_id_sender, senders_oi = senders_oi, receivers_oi = receivers_oi, lr_network = lr_network, covariates = covariates, min_cells = min_cells)
 ```
 
 First, check the cell type abundance diagnostic plots.
@@ -251,11 +253,11 @@ min_cells = 5 # here 5 for demonstration purposes - but recommended default is 1
 ### Perform the DE analysis for each cell type.
 
 ```{r}
-DE_info_receiver = get_DE_info(seurat_obj = seurat_obj_receiver, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id_receiver, covariates = covariates, contrasts_oi = contrasts_oi, min_cells = min_cells)
+DE_info_receiver = get_DE_info(sce = sce_receiver, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id_receiver, covariates = covariates, contrasts_oi = contrasts_oi, min_cells = min_cells)
 ```
 
 ```{r}
-DE_info_sender = get_DE_info(seurat_obj = seurat_obj_sender, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id_sender, covariates = covariates, contrasts_oi = contrasts_oi, min_cells = min_cells)
+DE_info_sender = get_DE_info(sce = sce_sender, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id_sender, covariates = covariates, contrasts_oi = contrasts_oi, min_cells = min_cells)
 ```
 
 ### Check DE results
@@ -531,7 +533,7 @@ Make necessary grouping data frame
 ```{r}
 sender_receiver_tbl = sender_receiver_de %>% dplyr::distinct(sender, receiver)
 
-metadata_combined = seurat_obj_receiver@meta.data %>% tibble::as_tibble()
+metadata_combined = SummarizedExperiment::colData(sce_receiver) %>% tibble::as_tibble()
 
 if(!is.na(covariates)){
   grouping_tbl = metadata_combined[,c(sample_id, group_id, covariates)] %>% tibble::as_tibble() %>% dplyr::distinct()
@@ -817,7 +819,7 @@ receiver_oi = "Malignant"
 Nebulosa and Feature plot of the ligand in the sender cell type and the receptor in the receiver cell type (split per condition)
 
 ```{r, fig.width=15, fig.height=15}
-plot_list = make_ligand_receptor_nebulosa_feature_plot(seurat_obj_sender = seurat_obj_sender, seurat_obj_receiver = seurat_obj_receiver, ligand_oi = ligand_oi, receptor_oi = receptor_oi, group_oi = group_oi, group_id = group_id, celltype_id_sender = celltype_id_sender, celltype_id_receiver = celltype_id_receiver, senders_oi = c("myofibroblast","CAF"), receivers_oi = c("Malignant"), prioritized_tbl_oi = prioritized_tbl_oi)
+plot_list = make_ligand_receptor_nebulosa_feature_plot(sce_sender = sce_sender, sce_receiver = sce_receiver, ligand_oi = ligand_oi, receptor_oi = receptor_oi, group_oi = group_oi, group_id = group_id, celltype_id_sender = celltype_id_sender, celltype_id_receiver = celltype_id_receiver, senders_oi = c("myofibroblast","CAF"), receivers_oi = c("Malignant"), prioritized_tbl_oi = prioritized_tbl_oi)
 plot_list$nebulosa # not recommended for Smart-seq data
 plot_list$feature
 ```
@@ -825,7 +827,7 @@ Pooled single-cell and sample-specific single-cell violin plots of ligand and re
 
 
 ```{r, fig.width=13, fig.height=8}
-plot_list2 = make_ligand_receptor_violin_plot(seurat_obj_sender = seurat_obj_sender, seurat_obj_receiver = seurat_obj_receiver, ligand_oi = ligand_oi, receptor_oi = receptor_oi, group_oi = group_oi, group_id = group_id, sender_oi = sender_oi, receiver_oi = receiver_oi, sample_id = sample_id, celltype_id_sender = celltype_id_sender, celltype_id_receiver = celltype_id_receiver, prioritized_tbl_oi = prioritized_tbl_oi)
+plot_list2 = make_ligand_receptor_violin_plot(sce_sender = sce_sender, sce_receiver = sce_receiver, ligand_oi = ligand_oi, receptor_oi = receptor_oi, group_oi = group_oi, group_id = group_id, sender_oi = sender_oi, receiver_oi = receiver_oi, sample_id = sample_id, celltype_id_sender = celltype_id_sender, celltype_id_receiver = celltype_id_receiver, prioritized_tbl_oi = prioritized_tbl_oi)
 plot_list2$violin_group
 plot_list2$violin_sample
 ```
@@ -846,8 +848,8 @@ RAB31: interesting gene
 ```{r, fig.width=18, fig.height=8}
 target_oi = "MMP10"
 
-make_target_violin_plot(seurat_obj_receiver = seurat_obj_receiver, target_oi = target_oi, receiver_oi = receiver_oi, group_oi = group_oi, group_id = group_id, sample_id, celltype_id_receiver = celltype_id_receiver, multinichenet_output$prioritization_tables$group_prioritization_tbl)
-make_target_nebulosa_feature_plot(seurat_obj_receiver = seurat_obj_receiver, target_oi = target_oi, group_oi = group_oi, group_id = group_id, celltype_id_receiver = celltype_id_receiver, receivers_oi = c("Malignant"), multinichenet_output$prioritization_tables$group_prioritization_tbl) 
+make_target_violin_plot(sce_receiver = sce_receiver, target_oi = target_oi, receiver_oi = receiver_oi, group_oi = group_oi, group_id = group_id, sample_id, celltype_id_receiver = celltype_id_receiver, multinichenet_output$prioritization_tables$group_prioritization_tbl)
+make_target_nebulosa_feature_plot(sce_receiver = sce_receiver, target_oi = target_oi, group_oi = group_oi, group_id = group_id, celltype_id_receiver = celltype_id_receiver, receivers_oi = c("Malignant"), multinichenet_output$prioritization_tables$group_prioritization_tbl) 
 
 ```
 
