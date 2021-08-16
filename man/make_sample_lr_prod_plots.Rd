@@ -12,10 +12,10 @@ make_sample_lr_prod_plots(prioritization_tables, prioritized_tbl_oi)
 \item{prioritized_tbl_oi}{XXX}
 }
 \value{
-XXXX
+Ligand-Receptor Expression Product Dotplot/Heatmap
 }
 \description{
-\code{make_sample_lr_prod_plots}  XXXX
+\code{make_sample_lr_prod_plots}  Visualize the scaled product of Ligand-Receptor (pseudobulk) expression per sample, and compare the different groups
 }
 \examples{
 \dontrun{

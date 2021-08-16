@@ -9,17 +9,17 @@ make_sample_target_plots_reversed(receiver_info, targets_oi, receiver_oi, groupi
 \arguments{
 \item{receiver_info}{XXX}
 
-\item{targets_oi}{XXX}
+\item{targets_oi}{Character vector of genes of which the expression should be visualized}
 
-\item{receiver_oi}{XXX}
+\item{receiver_oi}{Name of the receiver cell type of interest for which expression of genes should be visualized}
 
-\item{grouping_tbl}{XXX}
+\item{grouping_tbl}{Data frame linking the sample_id, group_id and covariate_oi}
 }
 \value{
-XXXX
+Heatmap/Dotplot of scaled target gene expression (samples in rows, genes in columns)
 }
 \description{
-\code{make_sample_target_plots_reversed}  XXXX
+\code{make_sample_target_plots_reversed}  Heatmap/Dotplot of scaled target gene expression per sample, compared between the groups of interest. (genes in columns, samples in rows)
 }
 \examples{
 \dontrun{

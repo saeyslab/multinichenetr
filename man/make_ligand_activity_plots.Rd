@@ -9,17 +9,17 @@ make_ligand_activity_plots(prioritization_tables, ligands_oi, contrast_tbl, widt
 \arguments{
 \item{prioritization_tables}{XXX}
 
-\item{ligands_oi}{XXX}
+\item{ligands_oi}{Character vector of ligands for which the activities should be visualized}
 
-\item{contrast_tbl}{XXX}
+\item{contrast_tbl}{Table to link the contrast definitions to the group ids.}
 
-\item{widths}{XXX}
+\item{widths}{Vector of 2 elements: Width of the scaled ligand activity panel, width of the ligand activity panel. Default NULL: automatically defined based number of group-receiver combinations. If manual change: example format: c(3,2)}
 }
 \value{
-XXXX
+Heatmap of ligand activities (normal and scaled) of each group-receiver combination
 }
 \description{
-\code{make_ligand_activity_plots}  XXXX
+\code{make_ligand_activity_plots}  Visualize the ligand activities (normal and scaled) of each group-receiver combination
 }
 \examples{
 \dontrun{

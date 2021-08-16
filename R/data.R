@@ -2,7 +2,7 @@
 
 #' SingleCellExperiment object containing scRNAseq data (subsampled)
 #'
-#' SingleCellExperiment object containing scRNAseq data (subsampled). Source of the data: Puram et al., Cell 2017: “Single-Cell Transcriptomic Analysis of Primary and Metastatic Tumor Ecosystems in Head and Neck Cancer.”. This example data was downsampled (features and cells).
+#' SingleCellExperiment object containing scRNAseq data (subsampled). Source of the data: Puram et al., Cell 2017: “Single-Cell Transcriptomic Analysis of Primary and Metastatic Tumor Ecosystems in Head and Neck Cancer.”. This example data was downsampled (features and cells). Interesting metadata/colData columns: tumor, pEMT, pEMT_fine, celltype, batch
 #'
 #' @format An object of class SingleCellExperiment
 #'

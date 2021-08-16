@@ -4,28 +4,28 @@
 \alias{make_featureplot}
 \title{make_featureplot}
 \usage{
-make_featureplot(seurat_subset_oi, seurat_subset_bg, title_umap, gene_oi, group_oi, background_groups, group_id)
+make_featureplot(sce_subset_oi, sce_subset_bg, title_umap, gene_oi, group_oi, background_groups, group_id)
 }
 \arguments{
-\item{seurat_subset_oi}{XXX}
+\item{sce_subset_oi}{SingleCellExperiment object containing the cells of the celltype and group of interest}
 
-\item{seurat_subset_bg}{XXX}
+\item{sce_subset_bg}{SingleCellExperiment object containing the background cells (cells not of interest)}
 
-\item{title_umap}{XXX}
+\item{title_umap}{Character vector: title of the umap}
 
-\item{gene_oi}{XXX}
+\item{gene_oi}{Character vector: name of the gene of interest}
 
-\item{group_oi}{XXX}
+\item{group_oi}{Character vector: name of the group of interest}
 
-\item{background_groups}{XXX}
+\item{background_groups}{Character vector: names of the background group(s)}
 
-\item{group_id}{XXX}
+\item{group_id}{Name of the colData(sce) column in which the id of the group is defined}
 }
 \value{
-XXXX
+UMAP plots showing the expression of gene of interest, compared between a group of interest and background groups
 }
 \description{
-\code{make_featureplot}  XXXX
+\code{make_featureplot}  Make a panel of UMAP plots showing the expression of a gene of interest in the group of interest vs other groups
 }
 \examples{
 \dontrun{

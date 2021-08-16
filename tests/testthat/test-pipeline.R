@@ -892,18 +892,6 @@ test_that("Pipeline with wrapper function works", {
 test_that("Pipeline with wrapper function works - while correcting for batch effects", {
   sample_id = "tumor"
   group_id = "pEMT"
-  set.seed(1919)
-  extra_metadata = SummarizedExperiment::colData(sce) %>% tibble::as_tibble()  %>% dplyr::select(all_of(sample_id)) %>% dplyr::distinct() %>% mutate(batch = sample(c("A","B"),nrow(.), replace = TRUE)) 
-  new_metadata = SummarizedExperiment::colData(sce) %>% tibble::as_tibble()  %>% inner_join(extra_metadata)
-  new_metadata = new_metadata %>% data.frame()
-  rownames(new_metadata) = new_metadata$cell
-
-  sce = SingleCellExperiment::SingleCellExperiment(list(counts=SingleCellExperiment::counts(sce)),
-                              colData=new_metadata,
-                              rowData=SingleCellExperiment::rowData(sce),
-                              metadata=sce@metadata
-  )
-  
   sample_id = "tumor"
   group_id = "pEMT"
   celltype_id = "celltype"
@@ -930,18 +918,7 @@ test_that("Pipeline with wrapper function works - while correcting for batch eff
 test_that("Pipeline for separate analysis works - while correcting for batch effects", {
   sample_id = "tumor"
   group_id = "pEMT"
-  set.seed(1919)
-  extra_metadata = SummarizedExperiment::colData(sce)  %>% tibble::as_tibble()  %>% dplyr::select(all_of(sample_id)) %>% dplyr::distinct() %>% mutate(batch = sample(c("A","B"),nrow(.), replace = TRUE))
-  new_metadata = SummarizedExperiment::colData(sce)  %>% tibble::as_tibble()  %>% inner_join(extra_metadata)
-  new_metadata = new_metadata %>% data.frame()
-  rownames(new_metadata) = new_metadata$cell
-  
-  sce = SingleCellExperiment::SingleCellExperiment(list(counts=SingleCellExperiment::counts(sce)),
-                                                   colData=new_metadata,
-                                                   rowData=SingleCellExperiment::rowData(sce),
-                                                   metadata=sce@metadata
-  )  
-  
+
   celltype_id_receiver = "celltype"
   celltype_id_sender = "celltype"
   

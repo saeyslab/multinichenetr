@@ -43,7 +43,9 @@ Imports:
     parallel,
     locfdr,
     edgeR,
-    sva
+    sva,
+    SingleCellExperiment,
+    ggbeeswarm
 Suggests: 
     knitr,
     testthat,

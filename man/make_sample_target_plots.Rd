@@ -9,17 +9,17 @@ make_sample_target_plots(receiver_info, targets_oi, receiver_oi, grouping_tbl)
 \arguments{
 \item{receiver_info}{XXX}
 
-\item{targets_oi}{XXX}
+\item{targets_oi}{Character vector of genes of which the expression should be visualized}
 
-\item{receiver_oi}{XXX}
+\item{receiver_oi}{Name of the receiver cell type of interest for which expression of genes should be visualized}
 
-\item{grouping_tbl}{XXX}
+\item{grouping_tbl}{Data frame linking the sample_id, group_id and covariate_oi}
 }
 \value{
-XXXX
+Heatmap/Dotplot of scaled target gene expression (samples in columns, genes in rows)
 }
 \description{
-\code{make_sample_target_plots}  XXXX
+\code{make_sample_target_plots}  Heatmap/Dotplot of scaled target gene expression per sample, compared between the groups of interest. (samples in columns, genes in rows)
 }
 \examples{
 \dontrun{

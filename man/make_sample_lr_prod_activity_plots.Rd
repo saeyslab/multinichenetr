@@ -11,13 +11,13 @@ make_sample_lr_prod_activity_plots(prioritization_tables, prioritized_tbl_oi, wi
 
 \item{prioritized_tbl_oi}{XXX}
 
-\item{widths}{XXX}
+\item{widths}{Vector of 3 elements: Width of the LR exprs product panel,  width of the scaled ligand activity panel, width of the ligand activity panel. Default NULL: automatically defined based on nr of samples vs nr of group-receiver combinations. If manual change: example format: c(5,1,1)}
 }
 \value{
-XXXX
+Ligand-Receptor Expression Product & Ligand Activities Dotplot/Heatmap
 }
 \description{
-\code{make_sample_lr_prod_activity_plots}  XXXX
+\code{make_sample_lr_prod_activity_plots}  Visualize the scaled product of Ligand-Receptor (pseudobulk) expression per sample, and compare the different groups. In addition, show the NicheNet ligand activities in each receiver-celltype combination.
 }
 \examples{
 \dontrun{

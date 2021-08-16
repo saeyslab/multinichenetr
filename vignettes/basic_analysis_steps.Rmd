@@ -79,10 +79,10 @@ __User adaptation required__
 ```{r}
 sce = readRDS(url("https://zenodo.org/record/5196144/files/sce_hnscc.rds"))
 
-DimPlot(seurat_obj, group.by = "celltype")
-DimPlot(seurat_obj, group.by = "tumor")
-DimPlot(seurat_obj, group.by = "pEMT")
-DimPlot(seurat_obj, group.by = "pEMT_fine")
+scater::plotReducedDim(sce, dimred = "UMAP", colour_by = "celltype")
+scater::plotReducedDim(sce, dimred = "UMAP", colour_by = "tumor")
+scater::plotReducedDim(sce, dimred = "UMAP", colour_by = "pEMT")
+scater::plotReducedDim(sce, dimred = "UMAP", colour_by = "pEMT_fine")
 ```
 We will now also check the number of cells per cell type condition combination, and the number of patients per condition.
 

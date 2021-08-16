@@ -6,7 +6,18 @@ library(tidyverse)
 # usethis::use_data(seurat_obj,overwrite = T, compress = "bzip2")
 # convert seurat to SCE object
 # sce = Seurat::as.SingleCellExperiment(seurat_obj, assay = "RNA")
-sce = readRDS("C:/Users/rbrowaey/work/Research/NicheNet/sce_hnscc.rds.rds")
+sce = readRDS("C:/Users/rbrowaey/work/Research/NicheNet/sce_hnscc.rds")
+set.seed(1919)
+extra_metadata = SummarizedExperiment::colData(sce)  %>% tibble::as_tibble()  %>% dplyr::select(all_of(sample_id)) %>% dplyr::distinct() %>% mutate(batch = sample(c("A","B"),nrow(.), replace = TRUE))
+new_metadata = SummarizedExperiment::colData(sce)  %>% tibble::as_tibble()  %>% inner_join(extra_metadata)
+new_metadata = new_metadata %>% data.frame()
+rownames(new_metadata) = new_metadata$cell
+
+sce = SingleCellExperiment::SingleCellExperiment(list(counts=SingleCellExperiment::counts(sce)),
+                                                 colData=new_metadata,
+                                                 rowData=SingleCellExperiment::rowData(sce),
+                                                 metadata=sce@metadata
+)
 usethis::use_data(sce,overwrite = T, compress = "bzip2")
 
 
@@ -15,7 +26,8 @@ usethis::use_package("dplyr")
 usethis::use_package("ggplot2")
 usethis::use_package("circlize")
 usethis::use_package("patchwork")
-
+usethis::use_package("SingleCellExperiment") # because of the data input dependency!
+usethis::use_package("ggbeeswarm")
 usethis::use_package("Scater")
 usethis::use_package("Muscat")
 usethis::use_package("tibble")

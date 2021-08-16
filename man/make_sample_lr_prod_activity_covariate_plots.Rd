@@ -11,13 +11,13 @@ make_sample_lr_prod_activity_covariate_plots(prioritization_tables, prioritized_
 
 \item{prioritized_tbl_oi}{XXX}
 
-\item{grouping_tbl}{XXX}
+\item{grouping_tbl}{Data frame linking the sample_id, group_id and covariate_oi}
 
-\item{covariate_oi}{XXX}
+\item{covariate_oi}{Name of the covariate/batch that needs to be visualized for each sample}
 
-\item{widths}{XXX}
+\item{widths}{Vector of 3 elements: Width of the LR exprs product panel,  width of the scaled ligand activity panel, width of the ligand activity panel. Default NULL: automatically defined based on nr of samples vs nr of group-receiver combinations. If manual change: example format: c(5,1,1)}
 
-\item{heights}{XXX}
+\item{heights}{Vector of 2 elements: Height of the covariate panel and height of the ligand-receptor prod+activity panel. Default NULL: automatically defined based on the nr of Ligand-Receptor pairs. If manual change: example format: c(1,5)}
 }
 \value{
 XXXX
