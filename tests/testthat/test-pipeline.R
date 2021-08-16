@@ -893,11 +893,17 @@ test_that("Pipeline with wrapper function works - while correcting for batch eff
   sample_id = "tumor"
   group_id = "pEMT"
   set.seed(1919)
-  extra_metadata = SummarizedExperiment::colData(sce) %>% dplyr::select(all_of(sample_id)) %>% dplyr::distinct() %>% mutate(batch = sample(c("A","B"),nrow(.), replace = TRUE)) %>% tibble::as_tibble() 
-  new_metadata = SummarizedExperiment::colData(sce) %>% inner_join(extra_metadata)
+  extra_metadata = SummarizedExperiment::colData(sce) %>% tibble::as_tibble()  %>% dplyr::select(all_of(sample_id)) %>% dplyr::distinct() %>% mutate(batch = sample(c("A","B"),nrow(.), replace = TRUE)) 
+  new_metadata = SummarizedExperiment::colData(sce) %>% tibble::as_tibble()  %>% inner_join(extra_metadata)
   new_metadata = new_metadata %>% data.frame()
   rownames(new_metadata) = new_metadata$cell
-  SummarizedExperiment::colData(sce) = new_metadata
+
+  sce = SingleCellExperiment::SingleCellExperiment(list(counts=SingleCellExperiment::counts(sce)),
+                              colData=new_metadata,
+                              rowData=SingleCellExperiment::rowData(sce),
+                              metadata=sce@metadata
+  )
+  
   sample_id = "tumor"
   group_id = "pEMT"
   celltype_id = "celltype"
@@ -925,11 +931,16 @@ test_that("Pipeline for separate analysis works - while correcting for batch eff
   sample_id = "tumor"
   group_id = "pEMT"
   set.seed(1919)
-  extra_metadata = SummarizedExperiment::colData(sce) %>% dplyr::select(all_of(sample_id)) %>% dplyr::distinct() %>% mutate(batch = sample(c("A","B"),nrow(.), replace = TRUE)) %>% tibble::as_tibble() 
-  new_metadata = SummarizedExperiment::colData(sce) %>% inner_join(extra_metadata)
+  extra_metadata = SummarizedExperiment::colData(sce)  %>% tibble::as_tibble()  %>% dplyr::select(all_of(sample_id)) %>% dplyr::distinct() %>% mutate(batch = sample(c("A","B"),nrow(.), replace = TRUE))
+  new_metadata = SummarizedExperiment::colData(sce)  %>% tibble::as_tibble()  %>% inner_join(extra_metadata)
   new_metadata = new_metadata %>% data.frame()
   rownames(new_metadata) = new_metadata$cell
-  SummarizedExperiment::colData(sce) = new_metadata
+  
+  sce = SingleCellExperiment::SingleCellExperiment(list(counts=SingleCellExperiment::counts(sce)),
+                                                   colData=new_metadata,
+                                                   rowData=SingleCellExperiment::rowData(sce),
+                                                   metadata=sce@metadata
+  )  
   
   celltype_id_receiver = "celltype"
   celltype_id_sender = "celltype"
@@ -941,8 +952,8 @@ test_that("Pipeline for separate analysis works - while correcting for batch eff
   contrasts_oi = c("'High-Low','Low-High'")
   contrast_tbl = tibble(contrast = c("High-Low","Low-High"), group = c("High","Low"))
   output = multi_nichenet_analysis_separate(
-    sce_obj_receiver = sce_obj_receiver,
-    sce_obj_sender = sce_obj_sender,
+    sce_receiver = sce_receiver,
+    sce_sender = sce_sender,
     celltype_id_receiver = celltype_id_receiver,
     celltype_id_sender = celltype_id_sender,
     sample_id = sample_id,
