@@ -113,7 +113,7 @@ In the following vignettes, you can find how to do a MultiNicheNet
 analysis:
 
 Performing an all-vs-all analysis with sender cell types and receiver
-cell types in the same Seurat object:
+cell types in the same SingleCellExperiment object:
 
 -   [Multi-sample Multi-condition Cell-Cell Communication Analysis via
     NicheNet: HNSCC application; All-vs-All: step-by-step
@@ -126,7 +126,7 @@ cell types in the same Seurat object:
     `vignette("basic_analysis", package="multinichenetr")`
 
 Performing an analysis with predefined sender and receiver cell types in
-different Seurat objects:
+different SingleCellExperiment objects:
 
 -   [Multi-sample Multi-condition Cell-Cell Communication Analysis via
     NicheNet: HNSCC application; Separate: step-by-step

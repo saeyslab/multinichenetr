@@ -2,7 +2,7 @@ context("MultiNicheNet pipeline")
 lr_network = readRDS(url("https://zenodo.org/record/3260758/files/lr_network.rds"))
 lr_network = lr_network %>% dplyr::rename(ligand = from, receptor = to) %>% dplyr::distinct(ligand, receptor)
 ligand_target_matrix = readRDS(url("https://zenodo.org/record/3260758/files/ligand_target_matrix.rds"))
-test_that("Pipeline for all-vs-all analysis works", {
+test_that("Pipeline for all-vs-all analysis works & plotting functions work", {
   sample_id = "tumor"
   group_id = "pEMT"
   celltype_id = "celltype"
@@ -18,12 +18,81 @@ test_that("Pipeline for all-vs-all analysis works", {
        lr_network = lr_network,
        ligand_target_matrix = ligand_target_matrix,
        contrasts_oi = contrasts_oi,
-       contrast_tbl = contrast_tbl       )
+       contrast_tbl = contrast_tbl)
   expect_type(output,"list")
   expect_type(output$prioritization_tables,"list")
   output = make_lite_output(output)
   expect_type(output,"list")
   expect_type(output$prioritization_tables,"list")
+  
+  # test plotting functions
+  group_oi = "High"
+  prioritized_tbl_oi = output$prioritization_tables$group_prioritization_tbl %>% filter(fraction_expressing_ligand_receptor > 0) %>% filter(group == group_oi) %>% top_n(50, prioritization_score)
+  lr_prod_plot = make_sample_lr_prod_plots(output$prioritization_tables, prioritized_tbl_oi)
+  expect_true("ggplot" %in% class(lr_prod_plot)) 
+  
+  lr_prod_activity_plot = make_sample_lr_prod_activity_plots(output$prioritization_tables, prioritized_tbl_oi)
+  expect_true("ggplot" %in% class(lr_prod_activity_plot))
+  
+  ligands_oi = output$prioritization_tables$ligand_activities_target_de_tbl %>% inner_join(contrast_tbl) %>% group_by(group, receiver) %>% distinct(ligand, receiver, group, activity) %>% top_n(5, activity) %>% pull(ligand) %>% unique()
+  ligand_activity_plot = make_ligand_activity_plots(output$prioritization_tables, ligands_oi, contrast_tbl)
+  expect_true("ggplot" %in% class(ligand_activity_plot))
+  
+  group_oi = "High"
+  receiver_oi = "Malignant"
+  
+  prioritized_tbl_oi = output$prioritization_tables$group_prioritization_tbl %>% filter(fraction_expressing_ligand_receptor > 0) %>% filter(group == group_oi & receiver == receiver_oi) %>% top_n(50, prioritization_score) %>% top_n(25, activity_scaled) %>% arrange(-activity_scaled)
+  ligand_activity_target_plot = make_ligand_activity_target_plot(group_oi, receiver_oi, prioritized_tbl_oi, output$ligand_activities_targets_DEgenes, contrast_tbl, output$grouping_tbl, output$celltype_info, plot_legend = FALSE)
+  expect_true("ggplot" %in% class(ligand_activity_target_plot$combined_plot))
+  expect_true("ggplot" %in% class(ligand_activity_target_plot$legends))
+  
+  targets_oi = output$ligand_activities_targets_DEgenes$de_genes_df %>% inner_join(contrast_tbl) %>% filter(group == group_oi) %>% arrange(p_val) %>% filter(receiver == receiver_oi) %>% pull(gene) %>% unique()
+  sample_target_plot = make_sample_target_plots(receiver_info = output$celltype_info, targets_oi, receiver_oi, output$grouping_tbl)
+  expect_true("ggplot" %in% class(sample_target_plot))
+  sample_target_plot_reversed = make_sample_target_plots_reversed(receiver_info = output$celltype_info, targets_oi, receiver_oi, output$grouping_tbl)
+  expect_true("ggplot" %in% class(sample_target_plot_reversed))
+  
+  group_lfc_exprs_activity_plot = make_group_lfc_exprs_activity_plot(output$prioritization_tables, prioritized_tbl_oi, receiver_oi = receiver_oi)
+  expect_true("ggplot" %in% class(group_lfc_exprs_activity_plot))
+  
+  target_oi = "RAB31"
+  target_violin_plot = make_target_violin_plot(sce_receiver = sce, target_oi = target_oi, receiver_oi = receiver_oi, group_oi = group_oi, group_id = group_id, sample_id, celltype_id_receiver = celltype_id)
+  expect_true("ggplot" %in% class(target_violin_plot))
+  target_feature_plot = make_target_feature_plot(sce_receiver = sce, target_oi = target_oi, group_oi = group_oi, group_id = group_id, celltype_id_receiver = celltype_id, receivers_oi = c("Malignant","myofibroblast","CAF"))
+  expect_true("ggplot" %in% class(target_feature_plot))
+  
+  ligand_oi = "DLL1"
+  receptor_oi = "NOTCH3"
+  sender_oi = "Malignant"
+  receiver_oi = "myofibroblast"
+  
+  ligand_receptor_feature_plot = make_ligand_receptor_feature_plot(sce_sender = sce, sce_receiver = sce, ligand_oi = ligand_oi, receptor_oi = receptor_oi, group_oi = group_oi, group_id = group_id, celltype_id_sender = celltype_id, celltype_id_receiver = celltype_id, senders_oi = c("Malignant","myofibroblast","CAF"), receivers_oi = c("Malignant","myofibroblast","CAF"))
+  expect_true("ggplot" %in% class(ligand_receptor_feature_plot))
+  
+  ligand_receptor_violin_plot = make_ligand_receptor_violin_plot(sce_sender = sce, sce_receiver = sce, ligand_oi = ligand_oi, receptor_oi = receptor_oi, group_oi = group_oi, group_id = group_id, sender_oi = sender_oi, receiver_oi = receiver_oi, sample_id = sample_id, celltype_id_sender = celltype_id, celltype_id_receiver = celltype_id)
+  expect_true("ggplot" %in% class(ligand_receptor_violin_plot))
+  
+  prioritized_tbl_oi_prep = output$prioritization_tables$group_prioritization_tbl %>% 
+    distinct(id, sender, receiver, ligand, receptor, group, prioritization_score, ligand_receptor_lfc_avg, fraction_expressing_ligand_receptor) %>% 
+    filter(ligand_receptor_lfc_avg > 0 & fraction_expressing_ligand_receptor > 0) %>% top_n(30, prioritization_score) 
+  prioritized_tbl_oi = output$prioritization_tables$group_prioritization_tbl %>% 
+    filter(id %in% prioritized_tbl_oi_prep$id) %>% 
+    distinct(id, sender, receiver, ligand, receptor, group) %>% left_join(prioritized_tbl_oi_prep)
+  prioritized_tbl_oi$prioritization_score[is.na(prioritized_tbl_oi$prioritization_score)] = 0
+  senders_receivers = union(prioritized_tbl_oi$sender %>% unique(), prioritized_tbl_oi$receiver %>% unique())
+  colors_sender = RColorBrewer::brewer.pal(n = length(senders_receivers), name = 'Spectral') %>% magrittr::set_names(senders_receivers)
+  colors_receiver = RColorBrewer::brewer.pal(n = length(senders_receivers), name = 'Spectral') %>% magrittr::set_names(senders_receivers)
+  circos_list = make_circos_group_comparison(prioritized_tbl_oi, colors_sender, colors_receiver)
+  expect_type(circos_list,"list")
+  
+  group_oi = "High"
+  prioritized_tbl_oi = output$prioritization_tables$group_prioritization_tbl %>% filter(ligand_receptor_lfc_avg > 0 & fraction_expressing_ligand_receptor > 0 & group == group_oi) %>% top_n(25, prioritization_score)
+  senders_receivers = union(prioritized_tbl_oi$sender %>% unique(), prioritized_tbl_oi$receiver %>% unique())
+  colors_sender = RColorBrewer::brewer.pal(n = length(senders_receivers), name = 'Spectral') %>% magrittr::set_names(senders_receivers)
+  colors_receiver = RColorBrewer::brewer.pal(n = length(senders_receivers), name = 'Spectral') %>% magrittr::set_names(senders_receivers)
+  circos_list = make_circos_one_group(prioritized_tbl_oi, colors_sender, colors_receiver)
+  expect_type(circos_list,"list")
+  
   # for coming calculations: reduce running time by having only one contrast of interest
   contrasts_oi = c("'High-Low'")
   contrast_tbl = tibble(contrast = c("High-Low"), group = c("High"))

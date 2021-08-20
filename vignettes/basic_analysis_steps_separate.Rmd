@@ -77,6 +77,8 @@ In this case study, we want to study differences in cell-cell communication patt
 
 ### Malignant cells as receiver
 
+If you start from a Seurat object, you can convert it easily to a SingleCellExperiment via `sce = Seurat::as.SingleCellExperiment(seurat_obj, assay = "RNA")`.
+
 __User adaptation required__
 ```{r}
 sce = readRDS(url("https://zenodo.org/record/5196144/files/sce_hnscc.rds")) 
@@ -641,26 +643,42 @@ We will look here at the top100 predictions across all contrasts (high vs low; a
 ## Circos plot of top-prioritized links
 
 ```{r, fig.width=15, fig.height=12}
-prioritized_tbl_oi = multinichenet_output$prioritization_tables$group_prioritization_tbl %>% 
+prioritized_tbl_oi_prep = multinichenet_output$prioritization_tables$group_prioritization_tbl %>% 
   filter(fraction_ligand_group > fraction_cutoff & fraction_receptor_group > fraction_cutoff) %>% 
   distinct(id, sender, receiver, ligand, receptor, group, prioritization_score, ligand_receptor_lfc_avg, fraction_expressing_ligand_receptor) %>% 
-  filter(fraction_expressing_ligand_receptor > 0) %>% top_n(100, prioritization_score) 
+  filter(ligand_receptor_lfc_avg > 0 & fraction_expressing_ligand_receptor > 0) %>% top_n(30, prioritization_score) 
 
-prioritized_tbl_oi %>% group_by(group) %>% count()
+prioritized_tbl_oi_prep %>% group_by(group) %>% count()
 
 prioritized_tbl_oi = multinichenet_output$prioritization_tables$group_prioritization_tbl %>% 
-  filter(id %in% prioritized_tbl_oi$id) %>% 
-  distinct(id, sender, receiver, ligand, receptor, group) %>% left_join(prioritized_tbl_oi)
+  filter(id %in% prioritized_tbl_oi_prep$id) %>% 
+  distinct(id, sender, receiver, ligand, receptor, group) %>% left_join(prioritized_tbl_oi_prep)
 prioritized_tbl_oi$prioritization_score[is.na(prioritized_tbl_oi$prioritization_score)] = 0
 
+senders_receivers = union(prioritized_tbl_oi$sender %>% unique(), prioritized_tbl_oi$receiver %>% unique())
 
-n_senders = prioritized_tbl_oi$sender %>% unique() %>% length()
-n_receivers = prioritized_tbl_oi$receiver %>% unique() %>% length()
-
-colors_sender = c("red", "royalblue") %>% magrittr::set_names(prioritized_tbl_oi$sender %>% unique())
-colors_receiver = c("orange") %>% magrittr::set_names(prioritized_tbl_oi$receiver %>% unique())
+colors_sender = RColorBrewer::brewer.pal(n = length(senders_receivers), name = 'Spectral') %>% magrittr::set_names(senders_receivers)
+colors_receiver = RColorBrewer::brewer.pal(n = length(senders_receivers), name = 'Spectral') %>% magrittr::set_names(senders_receivers)
 
 circos_list = make_circos_group_comparison(prioritized_tbl_oi, colors_sender, colors_receiver)
+
+```
+
+Now you can also make a full circos plot for one group of interest
+
+```{r, fig.width=15, fig.height=12}
+group_oi = "High"
+prioritized_tbl_oi = multinichenet_output$prioritization_tables$group_prioritization_tbl %>% 
+  filter(fraction_ligand_group > fraction_cutoff & fraction_receptor_group > fraction_cutoff & group == group_oi) %>% 
+  distinct(id, sender, receiver, ligand, receptor, group, prioritization_score, ligand_receptor_lfc_avg, fraction_expressing_ligand_receptor) %>% 
+  filter(ligand_receptor_lfc_avg > 0 & fraction_expressing_ligand_receptor > 0) %>% top_n(30, prioritization_score) 
+
+senders_receivers = union(prioritized_tbl_oi$sender %>% unique(), prioritized_tbl_oi$receiver %>% unique())
+
+colors_sender = RColorBrewer::brewer.pal(n = length(senders_receivers), name = 'Spectral') %>% magrittr::set_names(senders_receivers)
+colors_receiver = RColorBrewer::brewer.pal(n = length(senders_receivers), name = 'Spectral') %>% magrittr::set_names(senders_receivers)
+
+circos_list = make_circos_one_group(prioritized_tbl_oi, colors_sender, colors_receiver)
 
 ```
 
@@ -794,7 +812,7 @@ plot_oi
 
 ## Zoom in on specific ligand-receptor interactions: show their expression in the single-cell data!
 
-Single-cell-based Nebulosa, Feature, and Violin plots of ligand-receptor interaction of interest: `make_ligand_receptor_nebulosa_feature_plot` and `make_ligand_receptor_violin_plot`
+Single-cell-based Feature, and Violin plots of ligand-receptor interaction of interest: `make_ligand_receptor_feature_plot` and `make_ligand_receptor_violin_plot`
 
 It is often useful to zoom in on specific ligand-receptor interactions of interest by looking in more detail to their expression at the single cell level 
 
@@ -816,25 +834,23 @@ sender_oi = "CAF"
 receiver_oi = "Malignant"
 ```
 
-Nebulosa and Feature plot of the ligand in the sender cell type and the receptor in the receiver cell type (split per condition)
+Feature plot of the ligand in the sender cell type and the receptor in the receiver cell type (split per condition)
 
 ```{r, fig.width=15, fig.height=15}
-plot_list = make_ligand_receptor_nebulosa_feature_plot(sce_sender = sce_sender, sce_receiver = sce_receiver, ligand_oi = ligand_oi, receptor_oi = receptor_oi, group_oi = group_oi, group_id = group_id, celltype_id_sender = celltype_id_sender, celltype_id_receiver = celltype_id_receiver, senders_oi = c("myofibroblast","CAF"), receivers_oi = c("Malignant"), prioritized_tbl_oi = prioritized_tbl_oi)
-plot_list$nebulosa # not recommended for Smart-seq data
-plot_list$feature
+p_feature = make_ligand_receptor_feature_plot(sce_sender = sce_sender, sce_receiver = sce_receiver, ligand_oi = ligand_oi, receptor_oi = receptor_oi, group_oi = group_oi, group_id = group_id, celltype_id_sender = celltype_id_sender, celltype_id_receiver = celltype_id_receiver, senders_oi = c("myofibroblast","CAF"), receivers_oi = c("Malignant"))
+p_feature
 ```
 Pooled single-cell and sample-specific single-cell violin plots of ligand and receptor expression in respectively sender and receiver.
 
 
 ```{r, fig.width=13, fig.height=8}
-plot_list2 = make_ligand_receptor_violin_plot(sce_sender = sce_sender, sce_receiver = sce_receiver, ligand_oi = ligand_oi, receptor_oi = receptor_oi, group_oi = group_oi, group_id = group_id, sender_oi = sender_oi, receiver_oi = receiver_oi, sample_id = sample_id, celltype_id_sender = celltype_id_sender, celltype_id_receiver = celltype_id_receiver, prioritized_tbl_oi = prioritized_tbl_oi)
-plot_list2$violin_group
-plot_list2$violin_sample
+p_violin = make_ligand_receptor_violin_plot(sce_sender = sce_sender, sce_receiver = sce_receiver, ligand_oi = ligand_oi, receptor_oi = receptor_oi, group_oi = group_oi, group_id = group_id, sender_oi = sender_oi, receiver_oi = receiver_oi, sample_id = sample_id, celltype_id_sender = celltype_id_sender, celltype_id_receiver = celltype_id_receiver)
+p_violin
 ```
 
 ## Zoom in on specific ligand-target interactions: show their expression in the single-cell data!
 
-Make target gene violin and nebulosa plots: `make_target_violin_plot` and `make_target_nebulosa_feature_plot`
+Make target gene violin and feature plots: `make_target_violin_plot` and `make_target_feature_plot`
 
 ```{r}
 receiver_oi = "Malignant"
@@ -848,8 +864,9 @@ RAB31: interesting gene
 ```{r, fig.width=18, fig.height=8}
 target_oi = "MMP10"
 
-make_target_violin_plot(sce_receiver = sce_receiver, target_oi = target_oi, receiver_oi = receiver_oi, group_oi = group_oi, group_id = group_id, sample_id, celltype_id_receiver = celltype_id_receiver, multinichenet_output$prioritization_tables$group_prioritization_tbl)
-make_target_nebulosa_feature_plot(sce_receiver = sce_receiver, target_oi = target_oi, group_oi = group_oi, group_id = group_id, celltype_id_receiver = celltype_id_receiver, receivers_oi = c("Malignant"), multinichenet_output$prioritization_tables$group_prioritization_tbl) 
+make_target_violin_plot(sce_receiver = sce_receiver, target_oi = target_oi, receiver_oi = receiver_oi, group_oi = group_oi, group_id = group_id, sample_id, celltype_id_receiver = celltype_id_receiver)
+
+make_target_feature_plot(sce_receiver = sce_receiver, target_oi = target_oi, group_oi = group_oi, group_id = group_id, celltype_id_receiver = celltype_id_receiver, receivers_oi = c("Malignant")) 
 
 ```
 

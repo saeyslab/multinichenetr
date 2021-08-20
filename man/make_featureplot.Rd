@@ -29,7 +29,8 @@ UMAP plots showing the expression of gene of interest, compared between a group 
 }
 \examples{
 \dontrun{
-print("XXXX")
+library(dplyr)
+p = make_featureplot(sce, sce, title_umap = "title", gene_oi = "TNF", group_oi = "High", background_groups = "Low", group_id = "pEMT")
 }
 
 }

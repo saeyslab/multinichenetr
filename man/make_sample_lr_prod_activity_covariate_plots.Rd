@@ -7,9 +7,9 @@
 make_sample_lr_prod_activity_covariate_plots(prioritization_tables, prioritized_tbl_oi, grouping_tbl, covariate_oi, widths = NULL, heights = NULL)
 }
 \arguments{
-\item{prioritization_tables}{XXX}
+\item{prioritization_tables}{Output of `generate_prioritization_tables` or sublist in the output of `multi_nichenet_analysis`}
 
-\item{prioritized_tbl_oi}{XXX}
+\item{prioritized_tbl_oi}{Subset of `prioritization_tables$group_prioritization_tbl`: the ligand-receptor interactions shown in this subset will be visualized: recommended to consider the top n LR interactions of a group of interest, based on the prioritization_score (eg n = 50; see vignettes for examples).}
 
 \item{grouping_tbl}{Data frame linking the sample_id, group_id and covariate_oi}
 
@@ -20,7 +20,7 @@ make_sample_lr_prod_activity_covariate_plots(prioritization_tables, prioritized_
 \item{heights}{Vector of 2 elements: Height of the covariate panel and height of the ligand-receptor prod+activity panel. Default NULL: automatically defined based on the nr of Ligand-Receptor pairs. If manual change: example format: c(1,5)}
 }
 \value{
-XXXX
+Ligand-Receptor Expression Product & Ligand Activities Dotplot/Heatmap, complemented with a heatmap indicating the covariate/batch of interest
 }
 \description{
 \code{make_sample_lr_prod_activity_covariate_plots}  XXXX EXPERIMENTAL FEATURE!!!!!!!!!!!!!!!!!!!!NOT WORKINGN RIGHT NOW

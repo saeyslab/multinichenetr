@@ -4,7 +4,7 @@
 \alias{make_target_feature_plot}
 \title{make_target_feature_plot}
 \usage{
-make_target_feature_plot(sce_receiver, target_oi, group_oi, group_id, celltype_id_receiver, receivers_oi, prioritized_tbl_oi)
+make_target_feature_plot(sce_receiver, target_oi, group_oi, group_id, celltype_id_receiver, receivers_oi, background_groups = NULL)
 }
 \arguments{
 \item{sce_receiver}{SingleCellExperiment object containing the receiver cell types of interest}
@@ -29,7 +29,32 @@ UMAP showing target gene expression in groups and celltypes of interest vs other
 }
 \examples{
 \dontrun{
-print("XXXX")
+library(dplyr)
+lr_network = readRDS(url("https://zenodo.org/record/3260758/files/lr_network.rds"))
+lr_network = lr_network \%>\% dplyr::rename(ligand = from, receptor = to) \%>\% dplyr::distinct(ligand, receptor)
+ligand_target_matrix = readRDS(url("https://zenodo.org/record/3260758/files/ligand_target_matrix.rds"))
+sample_id = "tumor"
+group_id = "pEMT"
+celltype_id = "celltype"
+covariates = NA
+contrasts_oi = c("'High-Low','Low-High'")
+contrast_tbl = tibble(contrast = c("High-Low","Low-High"), group = c("High","Low"))
+output = multi_nichenet_analysis(
+     sce = sce, 
+     celltype_id = celltype_id, 
+     sample_id = sample_id, 
+     group_id = group_id,
+     covariates = covariates,
+     lr_network = lr_network, 
+     ligand_target_matrix = ligand_target_matrix, 
+     contrasts_oi = contrasts_oi, 
+     contrast_tbl = contrast_tbl, 
+     sender_receiver_separate = FALSE
+     )
+receiver_oi = "Malignant"
+group_oi = "High"
+target_oi = "RAB31"
+make_target_feature_plot(sce_receiver = sce, target_oi = target_oi, group_oi = group_oi, group_id = group_id, celltype_id_receiver = celltype_id, receivers_oi = c("Malignant","myofibroblast","CAF")) 
 }
 
 }

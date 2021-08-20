@@ -7,35 +7,61 @@
 make_ligand_activity_target_plot(group_oi, receiver_oi, prioritized_tbl_oi, ligand_activities_targets_DEgenes, contrast_tbl, grouping_tbl, receiver_info, plot_legend = TRUE, heights = NULL, widths = NULL)
 }
 \arguments{
-\item{group_oi}{XXX}
+\item{group_oi}{Character vector: name of the group of interest}
 
-\item{receiver_oi}{XXX}
+\item{receiver_oi}{Name of the receiver cell type of interest for which expression of genes should be visualized}
 
-\item{prioritized_tbl_oi}{XXX}
+\item{prioritized_tbl_oi}{Subset of `prioritization_tables$group_prioritization_tbl`: the ligand-receptor interactions shown in this subset will be visualized: recommended to consider the top n LR interactions of a group of interest, based on the prioritization_score (eg n = 50; see vignettes for examples).}
 
-\item{ligand_activities_targets_DEgenes}{XXX}
+\item{ligand_activities_targets_DEgenes}{Sublist in the output of `multi_nichenet_analysis`}
 
-\item{contrast_tbl}{XXX}
+\item{contrast_tbl}{Table to link the contrast definitions to the group ids.}
 
-\item{grouping_tbl}{XXX}
+\item{grouping_tbl}{Data frame linking the sample_id, group_id and covariate_oi}
 
-\item{receiver_info}{XXX}
+\item{receiver_info}{`receiver_info` or `celltype_info` slots from the output of `multi_nichenet_analysis`. Also: part of the output of `get_abundance_expression_info_separate`}
 
-\item{plot_legend}{XXX}
+\item{plot_legend}{if TRUE (default): show legend on the same figure, if FALSE (recommended): show legend in separate figure}
 
-\item{heights}{XXX}
+\item{heights}{Vector of 2 elements: height of the ligand-activity-target panel, height of the target expression panel. Default NULL: automatically defined based on nr of ligands and samples. If manual change: example format: c(1,1)}
 
-\item{widths}{XXX}
+\item{widths}{Vector of 3 elements: Width of the scaled ligand activity panel, width of the ligand activity panel, width of the ligand-target heatmap panel. Default NULL: automatically defined based on nr of target genes and group-receiver combinations. If manual change: example format: c(1,1,10)}
 }
 \value{
-XXXX
+Summary plot showing the activity of prioritized ligands acting on a receiver cell type of interest, together with the predicted target genes and their sample-by-sample expression
 }
 \description{
-\code{make_ligand_activity_target_plot}  XXXX
+\code{make_ligand_activity_target_plot}  Summary plot showing the activity of prioritized ligands acting on a receiver cell type of interest, together with the predicted target genes and their sample-by-sample expression
 }
 \examples{
 \dontrun{
-print("XXXX")
+library(dplyr)
+lr_network = readRDS(url("https://zenodo.org/record/3260758/files/lr_network.rds"))
+lr_network = lr_network \%>\% dplyr::rename(ligand = from, receptor = to) \%>\% dplyr::distinct(ligand, receptor)
+ligand_target_matrix = readRDS(url("https://zenodo.org/record/3260758/files/ligand_target_matrix.rds"))
+sample_id = "tumor"
+group_id = "pEMT"
+celltype_id = "celltype"
+covariates = NA
+contrasts_oi = c("'High-Low','Low-High'")
+contrast_tbl = tibble(contrast = c("High-Low","Low-High"), group = c("High","Low"))
+output = multi_nichenet_analysis(
+     sce = sce, 
+     celltype_id = celltype_id, 
+     sample_id = sample_id, 
+     group_id = group_id,
+     covariates = covariates,
+     lr_network = lr_network, 
+     ligand_target_matrix = ligand_target_matrix, 
+     contrasts_oi = contrasts_oi, 
+     contrast_tbl = contrast_tbl, 
+     sender_receiver_separate = FALSE
+     )
+group_oi = "High"
+receiver_oi = "Malignant"
+prioritized_tbl_oi = output$prioritization_tables$group_prioritization_tbl \%>\% filter(fraction_expressing_ligand_receptor > 0) \%>\% filter(group == group_oi & receiver == receiver_oi) \%>\% top_n(50, prioritization_score) \%>\% top_n(25, activity_scaled) \%>\% arrange(-activity_scaled)
+combined_plot = make_ligand_activity_target_plot(group_oi, receiver_oi, prioritized_tbl_oi, output$ligand_activities_targets_DEgenes, contrast_tbl, output$grouping_tbl, output$celltype_info, plot_legend = FALSE)
+
 }
 
 }

@@ -40,10 +40,10 @@ In this vignette, we will demonstrate all these steps in detail.
 
 # Step 0: Preparation of the analysis: load packages, read in the single-cell expression data, and define the main settings of the muscat analysis
 
-The current implementation of the muscat wrapper starts from a Seurat object, therefore we will need to load the Seurat library.
+The current implementation of the muscat wrapper starts from a SingleCellExperiment object, therefore we will need to load the SingleCellExperiment library. If you start from a Seurat object, you can convert it easily to a SingleCellExperiment via `sce = Seurat::as.SingleCellExperiment(seurat_obj, assay = "RNA")`.
 
 ```{r}
-library(Seurat)
+library(SingleCellExperiment)
 library(dplyr)
 library(ggplot2)
 library(multinichenetr)
@@ -53,11 +53,11 @@ In this case study, we want to study differences in expression between pEMT-high
 
 __User adaptation required__
 ```{r}
-seurat_obj = readRDS(url("https://zenodo.org/record/4675430/files/seurat_obj_hnscc.rds"))
-DimPlot(seurat_obj, group.by = "celltype") # celltype_id
-DimPlot(seurat_obj, group.by = "tumor") # sample_id
-DimPlot(seurat_obj, group.by = "pEMT") # group_id (option 1)
-DimPlot(seurat_obj, group.by = "pEMT_fine") # group_id (option 2)
+sce = readRDS(url("https://zenodo.org/record/5196144/files/sce_hnscc.rds"))
+scater::plotReducedDim(sce, dimred = "UMAP", colour_by = "celltype")
+scater::plotReducedDim(sce, dimred = "UMAP", colour_by = "tumor")
+scater::plotReducedDim(sce, dimred = "UMAP", colour_by = "pEMT")
+scater::plotReducedDim(sce, dimred = "UMAP", colour_by = "pEMT_fine")
 ```
 
 Now we will define in which metadata columns we can find the **group**, **sample** and **cell type** IDs
@@ -82,9 +82,9 @@ This is important because muscat performs pseudobulking to infer group differenc
 
 __User adaptation required__
 ```{r}
-table(seurat_obj@meta.data$celltype, seurat_obj@meta.data$tumor) # cell types vs samples
-table(seurat_obj@meta.data$celltype, seurat_obj@meta.data$pEMT) # cell types vs conditions
-table(seurat_obj@meta.data$tumor, seurat_obj@meta.data$pEMT) # samples vs conditions
+table(SummarizedExperiment::colData(sce)$celltype, SummarizedExperiment::colData(sce)$tumor) # cell types vs samples
+table(SummarizedExperiment::colData(sce)$celltype, SummarizedExperiment::colData(sce)$pEMT) # cell types vs conditions
+table(SummarizedExperiment::colData(sce)$tumor, SummarizedExperiment::colData(sce)$pEMT) # samples vs conditions
 ```
 
 As you can see in the upper table, some Celltype-Sample combinations have 0 cells. It is possible that during DE analysis, some cell types will be removed from the analysis if there is not enough information to do a DE analysis. (More info later)
@@ -99,7 +99,7 @@ min_cells = 10
 To visually see which celltype-sample combinations won't be considered, you can run the following code:
 
 ```{r, fig.height=8, fig.width=9}
-metadata_abundance = seurat_obj@meta.data[,c(sample_id, group_id, celltype_id)]
+metadata_abundance = SummarizedExperiment::colData(sce) %>% tibble::as_tibble() %>% .[,c(sample_id, group_id, celltype_id)]
 colnames(metadata_abundance) =c("sample_id", "group_id", "celltype_id")
   
 abundance_data = metadata_abundance %>% tibble::as_tibble() %>% dplyr::group_by(sample_id , celltype_id) %>% dplyr::count() %>% dplyr::inner_join(metadata_abundance %>% dplyr::distinct(sample_id , group_id ), by = "sample_id")
@@ -174,7 +174,7 @@ contrast_tbl = tibble(contrast =
 ### Perform the DE analysis for each cell type.
 
 ```{r}
-DE_info = get_DE_info(seurat_obj = seurat_obj, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id, covariates = covariates, contrasts_oi = contrasts_oi, min_cells = min_cells)
+DE_info = get_DE_info(sce = sce, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id, covariates = covariates, contrasts_oi = contrasts_oi, min_cells = min_cells)
 ```
 
 ### Check DE results
@@ -265,7 +265,29 @@ If possible it might be a good idea to include more covariates in the model, or 
 # Step 3: Downstream analysis and visualization
 
 
+
 ```{r}
+receiver_oi = "Malignant"
 group_oi = "High"
+
+targets_oi = DE_info$celltype_de$de_output_tidy %>% inner_join(contrast_tbl) %>% filter(group == group_oi) %>% filter(cluster_id == receiver_oi) %>% filter(p_adj <= 0.05) %>% arrange(p_adj) %>% pull(gene) %>% unique()
+
 ```
- 
+
+First, make a violin plot
+
+```{r, fig.width=14, fig.height=5}
+target_oi = targets_oi[1]
+
+make_target_violin_plot(sce_receiver = sce, target_oi = target_oi, receiver_oi = receiver_oi, group_oi = group_oi, group_id = group_id, sample_id, celltype_id_receiver = celltype_id)
+
+```
+
+Then a feature plot
+
+```{r, fig.width=18, fig.height=8}
+target_oi = targets_oi[1]
+
+make_target_feature_plot(sce_receiver = sce, target_oi = target_oi, group_oi = group_oi, group_id = group_id, celltype_id_receiver = celltype_id, receivers_oi = c("Malignant","myofibroblast","CAF")) 
+
+```

@@ -9,11 +9,11 @@ rmarkdown::render("vignettes/basic_analysis_steps_separate.Rmd", output_format =
 -->
 
 In this vignette, you can learn how to perform an all-vs-all
-MultiNicheNet analysis. In this vignette, we start from two Seurat
-objects: one seurat object containing the sender cell types, and one
-seurat object with receiver cell types. (for demonstration purposes, we
-start from the same object, that we then split based on sender/receiver
-cell type)
+MultiNicheNet analysis. In this vignette, we start from two
+SingleCellExperiment objects: one SingleCellExperiment object containing
+the sender cell types, and one SingleCellExperiment object with receiver
+cell types. (for demonstration purposes, we start from the same object,
+that we then split based on sender/receiver cell type)
 
 A MultiNicheNet analysis can be performed if you have multi-sample,
 multi-group single-cell data. MultiNicheNet will look for cell-cell
@@ -27,7 +27,7 @@ As example expression data of interacting cells, we will use data from
 Puram et al. to explore intercellular communication in the tumor
 microenvironment in head and neck squamous cell carcinoma (HNSCC) \[See
 @puram\_single-cell\_2017\]
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.4675430.svg)](https://doi.org/10.5281/zenodo.4675430).
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.5196144.svg)](https://doi.org/10.5281/zenodo.5196144).
 More specifically, we will look at differential cell-cell communication
 patterns between tumors scoring high for a partial
 epithelial-mesenschymal transition (p-EMT) program vs low-scoring
@@ -38,7 +38,7 @@ then perform the MultiNicheNet analysis.
 
 The different steps of the MultiNicheNet analysis are the following:
 
--   1.  Preparation of the analysis: load packages, NicheNet LR network
+-   0.  Preparation of the analysis: load packages, NicheNet LR network
         & ligand-target matrix, single-cell expression data, and define
         main settings of the MultiNicheNet analysis
 
@@ -47,19 +47,19 @@ The different steps of the MultiNicheNet analysis are the following:
         information for ligands of the sender cell types to the
         corresponding receptors of the receiver cell types
 
--   1.  Perform genome-wide differential expression analysis of receiver
+-   2.  Perform genome-wide differential expression analysis of receiver
         and sender cell types to define DE genes between the conditions
         of interest. Based on this analysis, we can define the
         logFC/p-value of ligands in senders and receptors in receivers,
         and define the set of affected target genes in the receiver.
 
--   1.  Predict NicheNet ligand activities and NicheNet ligand-target
+-   3.  Predict NicheNet ligand activities and NicheNet ligand-target
         links based on these differential expression results
 
--   1.  Use the information collected above to prioritize all
+-   4.  Use the information collected above to prioritize all
         sender-ligand—receiver-receptor pairs.
 
--   1.  Optional: unsupervised analysis of
+-   5.  Optional: unsupervised analysis of
         sender-ligand—receiver-receptor pair expression values per
         sample, to see heterogeneity in cell-cell communication.
 
@@ -73,7 +73,6 @@ the analysis with different ways of visualization.
 ## Step 0.1: Load required packages and NicheNet ligand-receptor network and ligand-target matrix
 
 ``` r
-library(Seurat)
 library(dplyr)
 library(ggplot2)
 library(multinichenetr)
@@ -90,10 +89,10 @@ lr_network = lr_network %>% dplyr::rename(ligand = from, receptor = to) %>% dist
 ligand_target_matrix = readRDS(url("https://zenodo.org/record/3260758/files/ligand_target_matrix.rds"))
 ```
 
-## Step 0.2: Prepare Seurat Objects for Sender and Receiver cells
+## Step 0.2: Prepare SingleCellExperiment objects for Sender and Receiver cells
 
-In this vignette, sender and receiver cell types are in the same Seurat
-object, which we will load here.
+In this vignette, sender and receiver cell types are in the same
+SingleCellExperiment object, which we will load here.
 
 In this case study, we want to study differences in cell-cell
 communication patterns between pEMT-high and pEMT-low tumors. The meta
@@ -103,32 +102,38 @@ sample is indicated by the ‘tumor’ column.
 
 ### Malignant cells as receiver
 
+If you start from a Seurat object, you can convert it easily to a
+SingleCellExperiment via
+`sce = Seurat::as.SingleCellExperiment(seurat_obj, assay = "RNA")`.
+
 **User adaptation required**
 
 ``` r
-getwd()
-## [1] "C:/Users/rbrowaey/work/Research/NicheNet/multinichenetr/vignettes"
-seurat_obj_receiver = readRDS(url("https://zenodo.org/record/4675430/files/seurat_obj_hnscc.rds")) %>% subset(subset = celltype == "Malignant")
-seurat_obj_receiver@meta.data$pEMT_fine = factor(seurat_obj_receiver@meta.data$pEMT_fine, levels = c("High","Medium","Low")) 
-DimPlot(seurat_obj_receiver, group.by = "celltype")
+sce = readRDS(url("https://zenodo.org/record/5196144/files/sce_hnscc.rds")) 
+sce$pEMT_fine = factor(sce$pEMT_fine, levels = c("High","Medium","Low")) 
+
+celltype_id_receiver = "celltype"
+sce_receiver = sce[, SummarizedExperiment::colData(sce)[,celltype_id_receiver] == "Malignant"]
+
+scater::plotReducedDim(sce_receiver, dimred = "UMAP", colour_by = "celltype")
 ```
 
 ![](basic_analysis_steps_separate_files/figure-gfm/unnamed-chunk-4-1.png)<!-- -->
 
 ``` r
-DimPlot(seurat_obj_receiver, group.by = "tumor")
+scater::plotReducedDim(sce_receiver, dimred = "UMAP", colour_by = "tumor")
 ```
 
 ![](basic_analysis_steps_separate_files/figure-gfm/unnamed-chunk-4-2.png)<!-- -->
 
 ``` r
-DimPlot(seurat_obj_receiver, group.by = "pEMT")
+scater::plotReducedDim(sce_receiver, dimred = "UMAP", colour_by = "pEMT")
 ```
 
 ![](basic_analysis_steps_separate_files/figure-gfm/unnamed-chunk-4-3.png)<!-- -->
 
 ``` r
-DimPlot(seurat_obj_receiver, group.by = "pEMT_fine")
+scater::plotReducedDim(sce_receiver, dimred = "UMAP", colour_by = "pEMT_fine")
 ```
 
 ![](basic_analysis_steps_separate_files/figure-gfm/unnamed-chunk-4-4.png)<!-- -->
@@ -139,15 +144,15 @@ combination, and the number of patients per condition.
 **User adaptation required**
 
 ``` r
-table(seurat_obj_receiver@meta.data$celltype, seurat_obj_receiver@meta.data$tumor) # cell types vs samples
+table(SummarizedExperiment::colData(sce_receiver)$celltype, SummarizedExperiment::colData(sce_receiver)$tumor) # cell types vs samples
 ##            
 ##             HN16 HN17 HN18 HN20 HN22 HN25 HN26 HN28 HN5 HN6
 ##   Malignant   82  353  263  331  123  153   61   49  70 157
-table(seurat_obj_receiver@meta.data$celltype, seurat_obj_receiver@meta.data$pEMT_fine) # cell types vs conditions
+table(SummarizedExperiment::colData(sce_receiver)$celltype, SummarizedExperiment::colData(sce_receiver)$pEMT_fine) # cell types vs conditions
 ##            
 ##             High Medium Low
 ##   Malignant  435    658 549
-table(seurat_obj_receiver@meta.data$tumor, seurat_obj_receiver@meta.data$pEMT_fine) # samples vs conditions
+table(SummarizedExperiment::colData(sce_receiver)$tumor, SummarizedExperiment::colData(sce_receiver)$pEMT_fine) # samples vs conditions
 ##       
 ##        High Medium Low
 ##   HN16   82      0   0
@@ -169,27 +174,29 @@ table(seurat_obj_receiver@meta.data$tumor, seurat_obj_receiver@meta.data$pEMT_fi
 ``` r
 getwd()
 ## [1] "C:/Users/rbrowaey/work/Research/NicheNet/multinichenetr/vignettes"
-seurat_obj_sender =readRDS(url("https://zenodo.org/record/4675430/files/seurat_obj_hnscc.rds")) %>% subset(subset = celltype != "Malignant")
-seurat_obj_sender@meta.data$pEMT_fine = factor(seurat_obj_sender@meta.data$pEMT_fine, levels = c("High","Medium","Low")) 
-DimPlot(seurat_obj_sender, group.by = "celltype")
+
+celltype_id_sender = "celltype"
+sce_sender = sce[, SummarizedExperiment::colData(sce)[,celltype_id_sender] != "Malignant"]
+
+scater::plotReducedDim(sce_sender, dimred = "UMAP", colour_by = "celltype")
 ```
 
 ![](basic_analysis_steps_separate_files/figure-gfm/unnamed-chunk-6-1.png)<!-- -->
 
 ``` r
-DimPlot(seurat_obj_sender, group.by = "tumor")
+scater::plotReducedDim(sce_sender, dimred = "UMAP", colour_by = "tumor")
 ```
 
 ![](basic_analysis_steps_separate_files/figure-gfm/unnamed-chunk-6-2.png)<!-- -->
 
 ``` r
-DimPlot(seurat_obj_sender, group.by = "pEMT")
+scater::plotReducedDim(sce_sender, dimred = "UMAP", colour_by = "pEMT")
 ```
 
 ![](basic_analysis_steps_separate_files/figure-gfm/unnamed-chunk-6-3.png)<!-- -->
 
 ``` r
-DimPlot(seurat_obj_sender, group.by = "pEMT_fine")
+scater::plotReducedDim(sce_sender, dimred = "UMAP", colour_by = "pEMT_fine")
 ```
 
 ![](basic_analysis_steps_separate_files/figure-gfm/unnamed-chunk-6-4.png)<!-- -->
@@ -200,7 +207,7 @@ combination, and the number of patients per condition.
 **User adaptation required**
 
 ``` r
-table(seurat_obj_sender@meta.data$celltype, seurat_obj_sender@meta.data$tumor) # cell types vs samples
+table(SummarizedExperiment::colData(sce_sender)$celltype, SummarizedExperiment::colData(sce_sender)$tumor) # cell types vs samples
 ##                
 ##                 HN16 HN17 HN18 HN20 HN22 HN25 HN26 HN28 HN5 HN6
 ##   CAF             47   37   36    3    9   73   19  157  37  82
@@ -208,7 +215,7 @@ table(seurat_obj_sender@meta.data$celltype, seurat_obj_sender@meta.data$tumor) #
 ##   Myeloid         15    2    7    0    1    8    1    1  58   6
 ##   myofibroblast   84    6   14   10   45   88   45  140   5   6
 ##   T.cell         300   61  207    0    0   93    3    0  28   0
-table(seurat_obj_sender@meta.data$celltype, seurat_obj_sender@meta.data$pEMT_fine) # cell types vs conditions
+table(SummarizedExperiment::colData(sce_sender)$celltype, SummarizedExperiment::colData(sce_sender)$pEMT_fine) # cell types vs conditions
 ##                
 ##                 High Medium Low
 ##   CAF             84    312 104
@@ -216,7 +223,7 @@ table(seurat_obj_sender@meta.data$celltype, seurat_obj_sender@meta.data$pEMT_fin
 ##   Myeloid         17     75   7
 ##   myofibroblast   90    292  61
 ##   T.cell         361    328   3
-table(seurat_obj_sender@meta.data$tumor, seurat_obj_sender@meta.data$pEMT_fine) # samples vs conditions
+table(SummarizedExperiment::colData(sce_sender)$tumor, SummarizedExperiment::colData(sce_sender)$pEMT_fine) # samples vs conditions
 ##       
 ##        High Medium Low
 ##   HN16  489      0   0
@@ -248,8 +255,6 @@ For the group\_id, we now choose for the ‘pEMT\_fine’ column instead of
 ``` r
 sample_id = "tumor"
 group_id = "pEMT_fine"
-celltype_id_receiver = "celltype"
-celltype_id_sender = "celltype"
 ```
 
 Sender and receiver cell types also need to be defined. Both are here
@@ -257,8 +262,8 @@ all cell types in the dataset because we are interested in an All-vs-All
 analysis.
 
 ``` r
-senders_oi = seurat_obj_sender@meta.data[,celltype_id_sender] %>% unique()
-receivers_oi = seurat_obj_receiver@meta.data[,celltype_id_receiver] %>% unique()
+senders_oi = SummarizedExperiment::colData(sce_sender)[,celltype_id_sender] %>% unique()
+receivers_oi = SummarizedExperiment::colData(sce_receiver)[,celltype_id_receiver] %>% unique()
 ```
 
 Now we will go to the first real step of the MultiNicheNet analysis
@@ -289,7 +294,7 @@ define your cell types in a more general way (use one level higher of
 the cell type ontology hierarchy) (eg TH17 CD4T cells –&gt; CD4T cells).
 
 ``` r
-abundance_expression_info = get_abundance_expression_info_separate(seurat_obj_receiver = seurat_obj_receiver, seurat_obj_sender = seurat_obj_sender, sample_id = sample_id, group_id = group_id, celltype_id_receiver = celltype_id_receiver, celltype_id_sender = celltype_id_sender, senders_oi = senders_oi, receivers_oi = receivers_oi, lr_network = lr_network, min_cells = min_cells)
+abundance_expression_info = get_abundance_expression_info_separate(sce_receiver = sce_receiver, sce_sender = sce_sender, sample_id = sample_id, group_id = group_id, celltype_id_receiver = celltype_id_receiver, celltype_id_sender = celltype_id_sender, senders_oi = senders_oi, receivers_oi = receivers_oi, lr_network = lr_network, covariates = covariates, min_cells = min_cells)
 ```
 
 First, check the cell type abundance diagnostic plots.
@@ -640,11 +645,11 @@ min_cells = 5 # here 5 for demonstration purposes - but recommended default is 1
 ### Perform the DE analysis for each cell type.
 
 ``` r
-DE_info_receiver = get_DE_info(seurat_obj = seurat_obj_receiver, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id_receiver, covariates = covariates, contrasts_oi = contrasts_oi, min_cells = min_cells)
+DE_info_receiver = get_DE_info(sce = sce_receiver, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id_receiver, covariates = covariates, contrasts_oi = contrasts_oi, min_cells = min_cells)
 ```
 
 ``` r
-DE_info_sender = get_DE_info(seurat_obj = seurat_obj_sender, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id_sender, covariates = covariates, contrasts_oi = contrasts_oi, min_cells = min_cells)
+DE_info_sender = get_DE_info(sce = sce_sender, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id_sender, covariates = covariates, contrasts_oi = contrasts_oi, min_cells = min_cells)
 ## [1] "excluded cell types are:"
 ## [1] "Endothelial" "Myeloid"     "T.cell"     
 ## [1] "These celltypes are not considered in the analysis. After removing samples that contain less cells than the required minimal, some groups don't have 2 or more samples anymore. As a result the analysis cannot be run. To solve this: decrease the number of min_cells or change your group_id and pool all samples that belong to groups that are not of interest! "
@@ -659,16 +664,16 @@ DE_info_receiver$celltype_de$de_output_tidy
 ## # A tibble: 44,481 x 9
 ##    gene         cluster_id   logFC logCPM       F  p_val p_adj.loc p_adj contrast           
 ##    <chr>        <chr>        <dbl>  <dbl>   <dbl>  <dbl>     <dbl> <dbl> <chr>              
-##  1 RPS11        Malignant  -0.0106   8.91 0.00475 0.946      0.992     1 High-(Medium+Low)/2
-##  2 ELMO2        Malignant   0.0411   5.81 0.0107  0.919      0.987     1 High-(Medium+Low)/2
-##  3 CREB3L1      Malignant  -6.2      2.78 4.77    0.0505     0.59      1 High-(Medium+Low)/2
-##  4 PNMA1        Malignant  -0.91     5.83 1.99    0.185      0.74      1 High-(Medium+Low)/2
-##  5 MMP2         Malignant   1.69     6.33 6.54    0.0258     0.536     1 High-(Medium+Low)/2
-##  6 TMEM216      Malignant  -0.393    5.9  0.607   0.452      0.869     1 High-(Medium+Low)/2
-##  7 TRAF3IP2-AS1 Malignant  -0.333    4.39 0.515   0.487      0.884     1 High-(Medium+Low)/2
-##  8 LOC653712    Malignant   0.839    2.79 1.13    0.309      0.808     1 High-(Medium+Low)/2
-##  9 ZHX3         Malignant   0.0272   3.75 0.0028  0.959      0.994     1 High-(Medium+Low)/2
-## 10 ERCC5        Malignant   0.385    5.6  1.11    0.313      0.809     1 High-(Medium+Low)/2
+##  1 RPS11        Malignant  -0.0106   8.91 0.00475 0.946      0.992 0.992 High-(Medium+Low)/2
+##  2 ELMO2        Malignant   0.0411   5.81 0.0107  0.919      0.987 0.987 High-(Medium+Low)/2
+##  3 CREB3L1      Malignant  -6.2      2.78 4.77    0.0505     0.59  0.59  High-(Medium+Low)/2
+##  4 PNMA1        Malignant  -0.91     5.83 1.99    0.185      0.74  0.74  High-(Medium+Low)/2
+##  5 MMP2         Malignant   1.69     6.33 6.54    0.0258     0.536 0.536 High-(Medium+Low)/2
+##  6 TMEM216      Malignant  -0.393    5.9  0.607   0.452      0.869 0.869 High-(Medium+Low)/2
+##  7 TRAF3IP2-AS1 Malignant  -0.333    4.39 0.515   0.487      0.884 0.884 High-(Medium+Low)/2
+##  8 LOC653712    Malignant   0.839    2.79 1.13    0.309      0.808 0.808 High-(Medium+Low)/2
+##  9 ZHX3         Malignant   0.0272   3.75 0.0028  0.959      0.994 0.994 High-(Medium+Low)/2
+## 10 ERCC5        Malignant   0.385    5.6  1.11    0.313      0.809 0.809 High-(Medium+Low)/2
 ## # ... with 44,471 more rows
 ```
 
@@ -677,16 +682,16 @@ DE_info_sender$celltype_de$de_output_tidy
 ## # A tibble: 58,119 x 9
 ##    gene         cluster_id   logFC logCPM       F p_val p_adj.loc p_adj contrast           
 ##    <chr>        <chr>        <dbl>  <dbl>   <dbl> <dbl>     <dbl> <dbl> <chr>              
-##  1 RPS11        CAF        -0.0696   9.29 0.0663  0.8       0.958     1 High-(Medium+Low)/2
-##  2 ELMO2        CAF         0.308    6.64 0.439   0.518     0.885     1 High-(Medium+Low)/2
-##  3 CREB3L1      CAF         0.319    5.45 0.0785  0.783     0.953     1 High-(Medium+Low)/2
-##  4 PNMA1        CAF        -0.947    6.51 2.59    0.13      0.676     1 High-(Medium+Low)/2
-##  5 MMP2         CAF         0.0535   9.28 0.0447  0.836     0.964     1 High-(Medium+Low)/2
-##  6 TMEM216      CAF        -0.203    6    0.11    0.745     0.943     1 High-(Medium+Low)/2
-##  7 TRAF3IP2-AS1 CAF        -0.625    5.54 0.888   0.362     0.826     1 High-(Medium+Low)/2
-##  8 ZHX3         CAF        -0.0565   5.47 0.00652 0.937     0.985     1 High-(Medium+Low)/2
-##  9 ERCC5        CAF        -0.0511   6.08 0.00536 0.943     0.987     1 High-(Medium+Low)/2
-## 10 APBB2        CAF         0.193    6.47 0.158   0.697     0.929     1 High-(Medium+Low)/2
+##  1 RPS11        CAF        -0.0696   9.29 0.0663  0.8       0.958 0.974 High-(Medium+Low)/2
+##  2 ELMO2        CAF         0.308    6.64 0.439   0.518     0.885 0.941 High-(Medium+Low)/2
+##  3 CREB3L1      CAF         0.319    5.45 0.0785  0.783     0.953 0.973 High-(Medium+Low)/2
+##  4 PNMA1        CAF        -0.947    6.51 2.59    0.13      0.676 0.876 High-(Medium+Low)/2
+##  5 MMP2         CAF         0.0535   9.28 0.0447  0.836     0.964 0.978 High-(Medium+Low)/2
+##  6 TMEM216      CAF        -0.203    6    0.11    0.745     0.943 0.966 High-(Medium+Low)/2
+##  7 TRAF3IP2-AS1 CAF        -0.625    5.54 0.888   0.362     0.826 0.931 High-(Medium+Low)/2
+##  8 ZHX3         CAF        -0.0565   5.47 0.00652 0.937     0.985 0.99  High-(Medium+Low)/2
+##  9 ERCC5        CAF        -0.0511   6.08 0.00536 0.943     0.987 0.991 High-(Medium+Low)/2
+## 10 APBB2        CAF         0.193    6.47 0.158   0.697     0.929 0.961 High-(Medium+Low)/2
 ## # ... with 58,109 more rows
 ```
 
@@ -747,16 +752,16 @@ DE_info_emp_receiver$de_output_tidy_emp
 ## # A tibble: 44,481 x 11
 ##    gene         cluster_id   logFC logCPM       F  p_val p_adj.loc p_adj contrast             p_emp p_adj_emp
 ##    <chr>        <chr>        <dbl>  <dbl>   <dbl>  <dbl>     <dbl> <dbl> <chr>                <dbl>     <dbl>
-##  1 RPS11        Malignant  -0.0106   8.91 0.00475 0.946      0.992     1 High-(Medium+Low)/2 0.870      0.994
-##  2 ELMO2        Malignant   0.0411   5.81 0.0107  0.919      0.987     1 High-(Medium+Low)/2 0.752      0.994
-##  3 CREB3L1      Malignant  -6.2      2.78 4.77    0.0505     0.59      1 High-(Medium+Low)/2 0.124      0.917
-##  4 PNMA1        Malignant  -0.91     5.83 1.99    0.185      0.74      1 High-(Medium+Low)/2 0.332      0.969
-##  5 MMP2         Malignant   1.69     6.33 6.54    0.0258     0.536     1 High-(Medium+Low)/2 0.0255     0.766
-##  6 TMEM216      Malignant  -0.393    5.9  0.607   0.452      0.869     1 High-(Medium+Low)/2 0.650      0.994
-##  7 TRAF3IP2-AS1 Malignant  -0.333    4.39 0.515   0.487      0.884     1 High-(Medium+Low)/2 0.687      0.994
-##  8 LOC653712    Malignant   0.839    2.79 1.13    0.309      0.808     1 High-(Medium+Low)/2 0.254      0.948
-##  9 ZHX3         Malignant   0.0272   3.75 0.0028  0.959      0.994     1 High-(Medium+Low)/2 0.787      0.994
-## 10 ERCC5        Malignant   0.385    5.6  1.11    0.313      0.809     1 High-(Medium+Low)/2 0.257      0.950
+##  1 RPS11        Malignant  -0.0106   8.91 0.00475 0.946      0.992 0.992 High-(Medium+Low)/2 0.870      0.994
+##  2 ELMO2        Malignant   0.0411   5.81 0.0107  0.919      0.987 0.987 High-(Medium+Low)/2 0.752      0.994
+##  3 CREB3L1      Malignant  -6.2      2.78 4.77    0.0505     0.59  0.59  High-(Medium+Low)/2 0.124      0.917
+##  4 PNMA1        Malignant  -0.91     5.83 1.99    0.185      0.74  0.74  High-(Medium+Low)/2 0.332      0.969
+##  5 MMP2         Malignant   1.69     6.33 6.54    0.0258     0.536 0.536 High-(Medium+Low)/2 0.0255     0.766
+##  6 TMEM216      Malignant  -0.393    5.9  0.607   0.452      0.869 0.869 High-(Medium+Low)/2 0.650      0.994
+##  7 TRAF3IP2-AS1 Malignant  -0.333    4.39 0.515   0.487      0.884 0.884 High-(Medium+Low)/2 0.687      0.994
+##  8 LOC653712    Malignant   0.839    2.79 1.13    0.309      0.808 0.808 High-(Medium+Low)/2 0.254      0.948
+##  9 ZHX3         Malignant   0.0272   3.75 0.0028  0.959      0.994 0.994 High-(Medium+Low)/2 0.787      0.994
+## 10 ERCC5        Malignant   0.385    5.6  1.11    0.313      0.809 0.809 High-(Medium+Low)/2 0.257      0.950
 ## # ... with 44,471 more rows
 ```
 
@@ -765,16 +770,16 @@ DE_info_emp_sender$de_output_tidy_emp
 ## # A tibble: 58,119 x 11
 ##    gene         cluster_id   logFC logCPM       F p_val p_adj.loc p_adj contrast            p_emp p_adj_emp
 ##    <chr>        <chr>        <dbl>  <dbl>   <dbl> <dbl>     <dbl> <dbl> <chr>               <dbl>     <dbl>
-##  1 RPS11        CAF        -0.0696   9.29 0.0663  0.8       0.958     1 High-(Medium+Low)/2 0.894     0.996
-##  2 ELMO2        CAF         0.308    6.64 0.439   0.518     0.885     1 High-(Medium+Low)/2 0.528     0.987
-##  3 CREB3L1      CAF         0.319    5.45 0.0785  0.783     0.953     1 High-(Medium+Low)/2 0.752     0.991
-##  4 PNMA1        CAF        -0.947    6.51 2.59    0.13      0.676     1 High-(Medium+Low)/2 0.229     0.987
-##  5 MMP2         CAF         0.0535   9.28 0.0447  0.836     0.964     1 High-(Medium+Low)/2 0.796     0.991
-##  6 TMEM216      CAF        -0.203    6    0.11    0.745     0.943     1 High-(Medium+Low)/2 0.846     0.994
-##  7 TRAF3IP2-AS1 CAF        -0.625    5.54 0.888   0.362     0.826     1 High-(Medium+Low)/2 0.489     0.987
-##  8 ZHX3         CAF        -0.0565   5.47 0.00652 0.937     0.985     1 High-(Medium+Low)/2 0.988     0.999
-##  9 ERCC5        CAF        -0.0511   6.08 0.00536 0.943     0.987     1 High-(Medium+Low)/2 0.983     0.999
-## 10 APBB2        CAF         0.193    6.47 0.158   0.697     0.929     1 High-(Medium+Low)/2 0.680     0.988
+##  1 RPS11        CAF        -0.0696   9.29 0.0663  0.8       0.958 0.974 High-(Medium+Low)/2 0.894     0.996
+##  2 ELMO2        CAF         0.308    6.64 0.439   0.518     0.885 0.941 High-(Medium+Low)/2 0.528     0.987
+##  3 CREB3L1      CAF         0.319    5.45 0.0785  0.783     0.953 0.973 High-(Medium+Low)/2 0.752     0.991
+##  4 PNMA1        CAF        -0.947    6.51 2.59    0.13      0.676 0.876 High-(Medium+Low)/2 0.229     0.987
+##  5 MMP2         CAF         0.0535   9.28 0.0447  0.836     0.964 0.978 High-(Medium+Low)/2 0.796     0.991
+##  6 TMEM216      CAF        -0.203    6    0.11    0.745     0.943 0.966 High-(Medium+Low)/2 0.846     0.994
+##  7 TRAF3IP2-AS1 CAF        -0.625    5.54 0.888   0.362     0.826 0.931 High-(Medium+Low)/2 0.489     0.987
+##  8 ZHX3         CAF        -0.0565   5.47 0.00652 0.937     0.985 0.99  High-(Medium+Low)/2 0.988     0.999
+##  9 ERCC5        CAF        -0.0511   6.08 0.00536 0.943     0.987 0.991 High-(Medium+Low)/2 0.983     0.999
+## 10 APBB2        CAF         0.193    6.47 0.158   0.697     0.929 0.961 High-(Medium+Low)/2 0.680     0.988
 ## # ... with 58,109 more rows
 ```
 
@@ -960,28 +965,28 @@ sender_receiver_de = combine_sender_receiver_de(
 ``` r
 sender_receiver_de %>% head(20)
 ## # A tibble: 20 x 12
-##    contrast     sender    receiver ligand receptor lfc_ligand lfc_receptor ligand_receptor_l~ p_val_ligand p_adj_ligand p_val_receptor p_adj_receptor
-##    <chr>        <chr>     <chr>    <chr>  <chr>         <dbl>        <dbl>              <dbl>        <dbl>        <dbl>          <dbl>          <dbl>
-##  1 Low-(Medium~ CAF       Maligna~ NTN4   DCC           1.12         7.14                4.13     0.218           0.999         0.0314          0.993
-##  2 Low-(Medium~ CAF       Maligna~ CD34   SELL          1.38         5.54                3.46     0.159           0.999         0.0611          0.993
-##  3 Low-(Medium~ myofibro~ Maligna~ NTN4   DCC          -0.225        7.14                3.46     0.680           0.991         0.0314          0.993
-##  4 Low-(Medium~ CAF       Maligna~ FGF13  FGFR1         3.22         3.19                3.20     0.0614          0.999         0.0436          0.993
-##  5 Low-(Medium~ myofibro~ Maligna~ CFH    SELL          0.834        5.54                3.19     0.259           0.986         0.0611          0.993
-##  6 Low-(Medium~ CAF       Maligna~ DLK1   NOTCH3        3.31         3.01                3.16     0.0611          0.999         0.0620          0.993
-##  7 Medium-(Hig~ CAF       Maligna~ CSF3   CSF1R         2.89         3.27                3.08     0.00876         0.700         0.0245          0.997
-##  8 High-(Mediu~ CAF       Maligna~ IL24   IL20RB        4.85         1.19                3.02     0.000526        0.987         0.0199          0.745
-##  9 Low-(Medium~ myofibro~ Maligna~ BMP2   ACVR2A        4.32         1.62                2.97     0.00476         0.699         0.0315          0.993
-## 10 Low-(Medium~ CAF       Maligna~ TNFSF~ TNFRSF1~      3.97         1.96                2.96     0.00953         0.999         0.355           0.993
-## 11 Low-(Medium~ CAF       Maligna~ CFH    SELL          0.377        5.54                2.96     0.209           0.999         0.0611          0.993
-## 12 Medium-(Hig~ CAF       Maligna~ DLK1   NOTCH3        5.2          0.68                2.94     0.000424        0.262         0.407           0.997
-## 13 Low-(Medium~ myofibro~ Maligna~ FN1    ITGA4         0.758        5                   2.88     0.0248          0.847         0.124           0.993
-## 14 Low-(Medium~ CAF       Maligna~ RSPO3  LGR6          2.79         2.94                2.86     0.0317          0.999         0.183           0.993
-## 15 Medium-(Hig~ CAF       Maligna~ DLK1   NOTCH4        5.2          0.529               2.86     0.000424        0.262         0.747           0.997
-## 16 Medium-(Hig~ CAF       Maligna~ DLK1   NOTCH1        5.2          0.514               2.86     0.000424        0.262         0.453           0.997
-## 17 Low-(Medium~ CAF       Maligna~ GAS6   MERTK         0.761        4.83                2.80     0.278           0.999         0.181           0.993
-## 18 Medium-(Hig~ CAF       Maligna~ DLK1   NOTCH2        5.2          0.223               2.71     0.000424        0.262         0.809           0.997
-## 19 High-(Mediu~ CAF       Maligna~ IL24   IL22RA1       4.85         0.562               2.71     0.000526        0.987         0.236           0.942
-## 20 Low-(Medium~ CAF       Maligna~ VCAM1  ITGA4         0.296        5                   2.65     0.574           0.999         0.124           0.993
+##    contrast            sender        receiver  ligand  receptor  lfc_ligand lfc_receptor ligand_receptor_lf~ p_val_ligand p_adj_ligand p_val_receptor p_adj_receptor
+##    <chr>               <chr>         <chr>     <chr>   <chr>          <dbl>        <dbl>               <dbl>        <dbl>        <dbl>          <dbl>          <dbl>
+##  1 Low-(Medium+High)/2 CAF           Malignant NTN4    DCC            1.12         7.14                 4.13     0.218           0.999         0.0314          0.993
+##  2 Low-(Medium+High)/2 CAF           Malignant CD34    SELL           1.38         5.54                 3.46     0.159           0.999         0.0611          0.993
+##  3 Low-(Medium+High)/2 myofibroblast Malignant NTN4    DCC           -0.225        7.14                 3.46     0.680           0.991         0.0314          0.993
+##  4 Low-(Medium+High)/2 CAF           Malignant FGF13   FGFR1          3.22         3.19                 3.20     0.0614          0.999         0.0436          0.993
+##  5 Low-(Medium+High)/2 myofibroblast Malignant CFH     SELL           0.834        5.54                 3.19     0.259           0.986         0.0611          0.993
+##  6 Low-(Medium+High)/2 CAF           Malignant DLK1    NOTCH3         3.31         3.01                 3.16     0.0611          0.999         0.0620          0.993
+##  7 Medium-(High+Low)/2 CAF           Malignant CSF3    CSF1R          2.89         3.27                 3.08     0.00876         0.700         0.0245          0.997
+##  8 High-(Medium+Low)/2 CAF           Malignant IL24    IL20RB         4.85         1.19                 3.02     0.000526        0.987         0.0199          0.745
+##  9 Low-(Medium+High)/2 myofibroblast Malignant BMP2    ACVR2A         4.32         1.62                 2.97     0.00476         0.699         0.0315          0.993
+## 10 Low-(Medium+High)/2 CAF           Malignant TNFSF11 TNFRSF11A      3.97         1.96                 2.96     0.00953         0.999         0.355           0.993
+## 11 Low-(Medium+High)/2 CAF           Malignant CFH     SELL           0.377        5.54                 2.96     0.209           0.999         0.0611          0.993
+## 12 Medium-(High+Low)/2 CAF           Malignant DLK1    NOTCH3         5.2          0.68                 2.94     0.000424        0.262         0.407           0.997
+## 13 Low-(Medium+High)/2 myofibroblast Malignant FN1     ITGA4          0.758        5                    2.88     0.0248          0.847         0.124           0.993
+## 14 Low-(Medium+High)/2 CAF           Malignant RSPO3   LGR6           2.79         2.94                 2.86     0.0317          0.999         0.183           0.993
+## 15 Medium-(High+Low)/2 CAF           Malignant DLK1    NOTCH4         5.2          0.529                2.86     0.000424        0.262         0.747           0.997
+## 16 Medium-(High+Low)/2 CAF           Malignant DLK1    NOTCH1         5.2          0.514                2.86     0.000424        0.262         0.453           0.997
+## 17 Low-(Medium+High)/2 CAF           Malignant GAS6    MERTK          0.761        4.83                 2.80     0.278           0.999         0.181           0.993
+## 18 Medium-(High+Low)/2 CAF           Malignant DLK1    NOTCH2         5.2          0.223                2.71     0.000424        0.262         0.809           0.997
+## 19 High-(Medium+Low)/2 CAF           Malignant IL24    IL22RA1        4.85         0.562                2.71     0.000526        0.987         0.236           0.942
+## 20 Low-(Medium+High)/2 CAF           Malignant VCAM1   ITGA4          0.296        5                    2.65     0.574           0.999         0.124           0.993
 ```
 
 # Step 3: Predict NicheNet ligand activities and NicheNet ligand-target links based on these differential expression results
@@ -1059,7 +1064,7 @@ ligand_activities_targets_DEgenes = suppressMessages(suppressWarnings(get_ligand
 ## [1] "contrast_oi:"
 ## [1] "High-(Medium+Low)/2"
 ## [1] "Number of DE genes (gene set of interest): "
-## [1] 575
+## [1] 576
 ## [1] "contrast_oi:"
 ## [1] "Medium-(High+Low)/2"
 ## [1] "Number of DE genes (gene set of interest): "
@@ -1107,26 +1112,26 @@ ligand_activities_targets_DEgenes$ligand_activities %>% head(20)
 ## # Groups:   receiver, contrast [1]
 ##    ligand activity contrast            target   ligand_target_weight receiver  activity_scaled
 ##    <chr>     <dbl> <chr>               <chr>                   <dbl> <chr>               <dbl>
-##  1 CXCL1    0.0737 High-(Medium+Low)/2 AJUBA                0.000876 Malignant           0.823
-##  2 CXCL1    0.0737 High-(Medium+Low)/2 ANGPTL4              0.000940 Malignant           0.823
-##  3 CXCL1    0.0737 High-(Medium+Low)/2 CAV1                 0.000897 Malignant           0.823
-##  4 CXCL1    0.0737 High-(Medium+Low)/2 COL18A1              0.000877 Malignant           0.823
-##  5 CXCL1    0.0737 High-(Medium+Low)/2 COL1A1               0.00383  Malignant           0.823
-##  6 CXCL1    0.0737 High-(Medium+Low)/2 DDIT4                0.00111  Malignant           0.823
-##  7 CXCL1    0.0737 High-(Medium+Low)/2 ETS2                 0.000867 Malignant           0.823
-##  8 CXCL1    0.0737 High-(Medium+Low)/2 IL1B                 0.000893 Malignant           0.823
-##  9 CXCL1    0.0737 High-(Medium+Low)/2 MYH9                 0.000920 Malignant           0.823
-## 10 CXCL1    0.0737 High-(Medium+Low)/2 NAV2                 0.000913 Malignant           0.823
-## 11 CXCL1    0.0737 High-(Medium+Low)/2 PML                  0.000850 Malignant           0.823
-## 12 CXCL1    0.0737 High-(Medium+Low)/2 PTGS2                0.000981 Malignant           0.823
-## 13 CXCL1    0.0737 High-(Medium+Low)/2 S100A10              0.000888 Malignant           0.823
-## 14 CXCL1    0.0737 High-(Medium+Low)/2 SEMA3B               0.000897 Malignant           0.823
-## 15 CXCL1    0.0737 High-(Medium+Low)/2 SERPINE1             0.00114  Malignant           0.823
-## 16 CXCL1    0.0737 High-(Medium+Low)/2 SLC2A1               0.000938 Malignant           0.823
-## 17 CXCL1    0.0737 High-(Medium+Low)/2 SULF2                0.000894 Malignant           0.823
-## 18 CXCL1    0.0737 High-(Medium+Low)/2 SYNPO                0.000949 Malignant           0.823
-## 19 CXCL1    0.0737 High-(Medium+Low)/2 ZFP36L2              0.000899 Malignant           0.823
-## 20 CXCL2    0.0718 High-(Medium+Low)/2 CAPN2                0.000953 Malignant           0.684
+##  1 CXCL1    0.0739 High-(Medium+Low)/2 AJUBA                0.000876 Malignant           0.822
+##  2 CXCL1    0.0739 High-(Medium+Low)/2 ANGPTL4              0.000940 Malignant           0.822
+##  3 CXCL1    0.0739 High-(Medium+Low)/2 CAV1                 0.000897 Malignant           0.822
+##  4 CXCL1    0.0739 High-(Medium+Low)/2 COL18A1              0.000877 Malignant           0.822
+##  5 CXCL1    0.0739 High-(Medium+Low)/2 COL1A1               0.00383  Malignant           0.822
+##  6 CXCL1    0.0739 High-(Medium+Low)/2 DDIT4                0.00111  Malignant           0.822
+##  7 CXCL1    0.0739 High-(Medium+Low)/2 ETS2                 0.000867 Malignant           0.822
+##  8 CXCL1    0.0739 High-(Medium+Low)/2 IL1B                 0.000893 Malignant           0.822
+##  9 CXCL1    0.0739 High-(Medium+Low)/2 MYH9                 0.000920 Malignant           0.822
+## 10 CXCL1    0.0739 High-(Medium+Low)/2 NAV2                 0.000913 Malignant           0.822
+## 11 CXCL1    0.0739 High-(Medium+Low)/2 PML                  0.000850 Malignant           0.822
+## 12 CXCL1    0.0739 High-(Medium+Low)/2 PTGS2                0.000981 Malignant           0.822
+## 13 CXCL1    0.0739 High-(Medium+Low)/2 S100A10              0.000888 Malignant           0.822
+## 14 CXCL1    0.0739 High-(Medium+Low)/2 SEMA3B               0.000897 Malignant           0.822
+## 15 CXCL1    0.0739 High-(Medium+Low)/2 SERPINE1             0.00114  Malignant           0.822
+## 16 CXCL1    0.0739 High-(Medium+Low)/2 SLC2A1               0.000938 Malignant           0.822
+## 17 CXCL1    0.0739 High-(Medium+Low)/2 SULF2                0.000894 Malignant           0.822
+## 18 CXCL1    0.0739 High-(Medium+Low)/2 SYNPO                0.000949 Malignant           0.822
+## 19 CXCL1    0.0739 High-(Medium+Low)/2 ZFP36L2              0.000899 Malignant           0.822
+## 20 CXCL2    0.0720 High-(Medium+Low)/2 CAPN2                0.000953 Malignant           0.677
 ```
 
 # Step 4: Use the information collected above to prioritize all sender-ligand—receiver-receptor pairs.
@@ -1174,22 +1179,17 @@ We will set our preference for this dataset as follows:
 **User adaptation recommended**
 
 ``` r
-prioritizing_weights_DE = c("scaled_lfc_ligand" = 1.5,
-                         "scaled_p_val_ligand" = 1.5,
-                         "scaled_lfc_receptor" = 1.5,
-                         "scaled_p_val_receptor" = 1.5)
-prioritizing_weights_activity = c("scaled_activity_scaled" = 2,
-                                  "scaled_activity" = 2)
+prioritizing_weights_DE = c("de_ligand" = 3,
+                         "de_receptor" = 3)
+prioritizing_weights_activity = c("activity_scaled" = 3)
 
-prioritizing_weights_expression_specificity = c("scaled_avg_exprs_ligand" = 1,
-                         "scaled_avg_frq_ligand" = 1,
-                         "scaled_avg_exprs_receptor" = 1,
-                         "scaled_avg_frq_receptor" = 1)
+prioritizing_weights_expression_specificity = c("exprs_ligand" = 1.5,
+                         "exprs_receptor" = 1.5)
 
-prioritizing_weights_expression_sufficiency = c("fraction_expressing_ligand_receptor" = 2)
+prioritizing_weights_expression_sufficiency = c("frac_exprs_ligand_receptor" = 2)
 
-prioritizing_weights_relative_abundance = c( "scaled_abundance_sender" = 0,
-                         "scaled_abundance_receiver" = 0)
+prioritizing_weights_relative_abundance = c( "abund_sender" = 0,
+                         "abund_receiver" = 0)
 ```
 
 ``` r
@@ -1205,7 +1205,7 @@ Make necessary grouping data frame
 ``` r
 sender_receiver_tbl = sender_receiver_de %>% dplyr::distinct(sender, receiver)
 
-metadata_combined = seurat_obj_receiver@meta.data %>% tibble::as_tibble()
+metadata_combined = SummarizedExperiment::colData(sce_receiver) %>% tibble::as_tibble()
 
 if(!is.na(covariates)){
   grouping_tbl = metadata_combined[,c(sample_id, group_id, covariates)] %>% tibble::as_tibble() %>% dplyr::distinct()
@@ -1239,35 +1239,36 @@ First: group-based summary table
 
 ``` r
 prioritization_tables$group_prioritization_tbl %>% head(20)
-## # A tibble: 20 x 38
-##    contrast   group sender  receiver ligand receptor lfc_ligand lfc_receptor ligand_receptor~ p_val_ligand p_adj_ligand p_val_receptor p_adj_receptor
-##    <chr>      <chr> <chr>   <chr>    <chr>  <chr>         <dbl>        <dbl>            <dbl>        <dbl>        <dbl>          <dbl>          <dbl>
-##  1 High-(Med~ High  CAF     Maligna~ IL24   IL20RB        4.85         1.19             3.02      0.000526        0.987      0.0199             0.745
-##  2 High-(Med~ High  CAF     Maligna~ TNC    ITGB6         1.01         2.03             1.52      0.138           0.987      0.000667           0.413
-##  3 High-(Med~ High  CAF     Maligna~ SEMA5A MET           1.75         0.903            1.33      0.0263          0.987      0.0206             0.745
-##  4 High-(Med~ High  CAF     Maligna~ TNC    ITGB1         1.01         0.93             0.97      0.138           0.987      0.0000236          0.117
-##  5 High-(Med~ High  CAF     Maligna~ TNC    ITGAV         1.01         1.05             1.03      0.138           0.987      0.0616             0.875
-##  6 High-(Med~ High  myofib~ Maligna~ ADAM17 ITGA5         0.987        1.49             1.24      0.0534          0.988      0.0117             0.693
-##  7 High-(Med~ High  myofib~ Maligna~ ADAM17 ITGB1         0.987        0.93             0.958     0.0534          0.988      0.0000236          0.117
-##  8 High-(Med~ High  CAF     Maligna~ IL24   IL22RA1       4.85         0.562            2.71      0.000526        0.987      0.236              0.942
-##  9 High-(Med~ High  CAF     Maligna~ ADAM17 ITGA5         0.598        1.49             1.04      0.225           0.987      0.0117             0.693
-## 10 High-(Med~ High  myofib~ Maligna~ TNC    ITGB6         0.648        2.03             1.34      0.180           0.988      0.000667           0.413
-## 11 High-(Med~ High  CAF     Maligna~ COL1A1 ITGA3         0.762        1.21             0.986     0.0590          0.987      0.000401           0.413
-## 12 High-(Med~ High  CAF     Maligna~ ADAM17 ITGB1         0.598        0.93             0.764     0.225           0.987      0.0000236          0.117
-## 13 High-(Med~ High  CAF     Maligna~ CALM2  MYLK          0.617        1.61             1.11      0.0598          0.987      0.0201             0.745
-## 14 High-(Med~ High  CAF     Maligna~ COL4A1 ITGB1         0.787        0.93             0.858     0.111           0.987      0.0000236          0.117
-## 15 High-(Med~ High  CAF     Maligna~ WNT5A  RYK           2.68         0.613            1.65      0.00947         0.987      0.169              0.927
-## 16 High-(Med~ High  CAF     Maligna~ COL1A1 ITGB1         0.762        0.93             0.846     0.0590          0.987      0.0000236          0.117
-## 17 High-(Med~ High  myofib~ Maligna~ TNC    ITGB1         0.648        0.93             0.789     0.180           0.988      0.0000236          0.117
-## 18 High-(Med~ High  CAF     Maligna~ COL1A1 ITGAV         0.762        1.05             0.906     0.0590          0.987      0.0616             0.875
-## 19 High-(Med~ High  myofib~ Maligna~ TNC    ITGAV         0.648        1.05             0.849     0.180           0.988      0.0616             0.875
-## 20 High-(Med~ High  CAF     Maligna~ LAMC3  ITGA3         1.06         1.21             1.14      0.258           0.987      0.000401           0.413
-## # ... with 25 more variables: activity <dbl>, activity_scaled <dbl>, lr_interaction <chr>, id <chr>, avg_ligand_group <dbl>,
-## #   avg_receptor_group <dbl>, ligand_receptor_prod_group <dbl>, fraction_ligand_group <dbl>, fraction_receptor_group <dbl>,
-## #   ligand_receptor_fraction_prod_group <dbl>, rel_abundance_scaled_sender <dbl>, rel_abundance_scaled_receiver <dbl>,
-## #   sender_receiver_rel_abundance_avg <dbl>, scaled_lfc_ligand <dbl>, scaled_p_val_ligand <dbl>, scaled_lfc_receptor <dbl>,
-## #   scaled_p_val_receptor <dbl>, scaled_activity_scaled <dbl>, scaled_activity <dbl>, scaled_avg_exprs_ligand <dbl>, scaled_avg_frq_ligand <dbl>,
-## #   scaled_avg_exprs_receptor <dbl>, scaled_avg_frq_receptor <dbl>, fraction_expressing_ligand_receptor <dbl>, prioritization_score <dbl>
+## # A tibble: 20 x 46
+##    contrast            group  sender receiver ligand receptor lfc_ligand lfc_receptor ligand_receptor~ p_val_ligand p_adj_ligand p_val_receptor p_adj_receptor activity
+##    <chr>               <chr>  <chr>  <chr>    <chr>  <chr>         <dbl>        <dbl>            <dbl>        <dbl>        <dbl>          <dbl>          <dbl>    <dbl>
+##  1 High-(Medium+Low)/2 High   CAF    Maligna~ IL24   IL20RB       4.85          1.19             3.02      0.000526        0.987      0.0199             0.745   0.0825
+##  2 Low-(Medium+High)/2 Low    myofi~ Maligna~ FGF1   FGFR1        0.764         3.19             1.98      0.418           0.991      0.0436             0.993   0.0185
+##  3 High-(Medium+Low)/2 High   CAF    Maligna~ TNC    ITGB6        1.01          2.03             1.52      0.138           0.987      0.000667           0.413   0.0875
+##  4 High-(Medium+Low)/2 High   CAF    Maligna~ IL24   IL22RA1      4.85          0.562            2.71      0.000526        0.987      0.236              0.942   0.0825
+##  5 Low-(Medium+High)/2 Low    myofi~ Maligna~ BMP2   ACVR2A       4.32          1.62             2.97      0.00476         0.699      0.0315             0.993  -0.0101
+##  6 High-(Medium+Low)/2 High   CAF    Maligna~ TNC    ITGB1        1.01          0.93             0.97      0.138           0.987      0.0000236          0.117   0.0875
+##  7 High-(Medium+Low)/2 High   myofi~ Maligna~ TNC    ITGB6        0.648         2.03             1.34      0.180           0.988      0.000667           0.413   0.0875
+##  8 High-(Medium+Low)/2 High   CAF    Maligna~ ADAM17 ITGB1        0.598         0.93             0.764     0.225           0.987      0.0000236          0.117   0.0799
+##  9 Low-(Medium+High)/2 Low    myofi~ Maligna~ FGF1   FGFR3        0.764         0.281            0.522     0.418           0.991      0.974              0.999   0.0185
+## 10 High-(Medium+Low)/2 High   myofi~ Maligna~ ADAM17 ITGB1        0.987         0.93             0.958     0.0534          0.988      0.0000236          0.117   0.0799
+## 11 High-(Medium+Low)/2 High   CAF    Maligna~ COL4A1 ITGB1        0.787         0.93             0.858     0.111           0.987      0.0000236          0.117   0.0759
+## 12 Low-(Medium+High)/2 Low    myofi~ Maligna~ BMP2   ACVR2B       4.32          0.789            2.55      0.00476         0.699      0.652              0.993  -0.0101
+## 13 High-(Medium+Low)/2 High   myofi~ Maligna~ VCAM1  ITGB1        0.701         0.93             0.816     0.257           0.988      0.0000236          0.117   0.0746
+## 14 Low-(Medium+High)/2 Low    myofi~ Maligna~ BMP2   BMPR2        4.32          0.335            2.33      0.00476         0.699      0.707              0.993  -0.0101
+## 15 Low-(Medium+High)/2 Low    myofi~ Maligna~ BMP2   BMPR1A       4.32          0.15             2.24      0.00476         0.699      0.942              0.997  -0.0101
+## 16 High-(Medium+Low)/2 High   CAF    Maligna~ FN1    ITGB6       -0.0324        2.03             0.999     0.984           0.999      0.000667           0.413   0.0823
+## 17 Medium-(High+Low)/2 Medium myofi~ Maligna~ PGF    NRP1         1.45          1.45             1.45      0.000722        0.331      0.00985            0.997   0.0297
+## 18 High-(Medium+Low)/2 High   CAF    Maligna~ ADAM12 ITGB1        0.784         0.93             0.857     0.369           0.987      0.0000236          0.117   0.0701
+## 19 High-(Medium+Low)/2 High   CAF    Maligna~ ADAM17 ITGA5        0.598         1.49             1.04      0.225           0.987      0.0117             0.693   0.0799
+## 20 High-(Medium+Low)/2 High   myofi~ Maligna~ TNC    ITGB1        0.648         0.93             0.789     0.180           0.988      0.0000236          0.117   0.0875
+## # ... with 32 more variables: activity_scaled <dbl>, lr_interaction <chr>, id <chr>, avg_ligand_group <dbl>, avg_receptor_group <dbl>,
+## #   ligand_receptor_prod_group <dbl>, fraction_ligand_group <dbl>, fraction_receptor_group <dbl>, ligand_receptor_fraction_prod_group <dbl>,
+## #   rel_abundance_scaled_sender <dbl>, rel_abundance_scaled_receiver <dbl>, sender_receiver_rel_abundance_avg <dbl>, lfc_pval_ligand <dbl>,
+## #   scaled_lfc_ligand <dbl>, scaled_p_val_ligand <dbl>, scaled_lfc_pval_ligand <dbl>, lfc_pval_receptor <dbl>, scaled_lfc_receptor <dbl>,
+## #   scaled_p_val_receptor <dbl>, scaled_lfc_pval_receptor <dbl>, scaled_activity_scaled <dbl>, scaled_activity <dbl>, scaled_avg_exprs_ligand <dbl>,
+## #   scaled_avg_frq_ligand <dbl>, pb_ligand_group <dbl>, scaled_pb_ligand <dbl>, scaled_avg_exprs_receptor <dbl>, scaled_avg_frq_receptor <dbl>,
+## #   pb_receptor_group <dbl>, scaled_pb_receptor <dbl>, fraction_expressing_ligand_receptor <dbl>, prioritization_score <dbl>
 ```
 
 Second: sample-based summary table: contains expression information of
@@ -1275,31 +1276,31 @@ each LR pair per sample
 
 ``` r
 prioritization_tables$sample_prioritization_tbl %>% head(20)
-## # A tibble: 20 x 22
-##    sample sender    receiver  ligand receptor avg_ligand avg_receptor ligand_receptor_p~ fraction_ligand fraction_recept~ ligand_receptor_frac~ group
-##    <chr>  <chr>     <chr>     <chr>  <chr>         <dbl>        <dbl>              <dbl>           <dbl>            <dbl>                 <dbl> <chr>
-##  1 HN17   CAF       Malignant COL1A1 ITGB1          3.43         2.72               9.34           1                0.994                 0.994 High 
-##  2 HN17   CAF       Malignant COL1A1 SDC1           3.43         2.53               8.69           1                0.994                 0.994 High 
-##  3 HN17   myofibro~ Malignant COL1A1 ITGB1          3.17         2.72               8.61           1                0.994                 0.994 High 
-##  4 HN17   CAF       Malignant COL1A1 CD44           3.43         2.34               8.02           1                0.992                 0.992 High 
-##  5 HN17   myofibro~ Malignant COL1A1 SDC1           3.17         2.53               8.01           1                0.994                 0.994 High 
-##  6 HN20   CAF       Malignant COL1A1 SDC1           3.22         2.42               7.78           1                0.967                 0.967 Low  
-##  7 HN17   myofibro~ Malignant COL1A1 CD44           3.17         2.34               7.39           1                0.992                 0.992 High 
-##  8 HN20   CAF       Malignant FN1    SDC1           2.85         2.42               6.89           1                0.967                 0.967 Low  
-##  9 HN16   CAF       Malignant COL1A1 ITGB1          2.60         2.63               6.83           0.915            0.963                 0.881 High 
-## 10 HN17   Myeloid   Malignant ADAM17 ITGB1          2.51         2.72               6.82           1                0.994                 0.994 High 
-## 11 HN5    CAF       Malignant COL1A1 CD44           2.79         2.41               6.72           0.973            0.971                 0.945 Medi~
-## 12 HN26   Myeloid   Malignant F11R   F11R           3.27         2.05               6.72           1                0.951                 0.951 Low  
-## 13 HN20   CAF       Malignant COL1A1 CD44           3.22         2.08               6.71           1                0.964                 0.964 Low  
-## 14 HN20   CAF       Malignant COL1A1 ITGB8          3.22         2.02               6.51           1                0.988                 0.988 Low  
-## 15 HN22   myofibro~ Malignant THBS1  SDC1           2.87         2.25               6.44           0.911            0.943                 0.859 Medi~
-## 16 HN28   Endothel~ Malignant CD99   CD99           2.63         2.44               6.40           0.929            0.959                 0.891 Medi~
-## 17 HN22   myofibro~ Malignant THBS1  CD47           2.87         2.20               6.32           0.911            0.984                 0.896 Medi~
-## 18 HN5    CAF       Malignant COL1A1 SDC1           2.79         2.23               6.23           0.973            0.971                 0.945 Medi~
-## 19 HN20   myofibro~ Malignant THBS1  SDC1           2.53         2.42               6.11           1                0.967                 0.967 Low  
-## 20 HN5    CAF       Malignant COL1A1 ITGB1          2.79         2.19               6.10           0.973            0.943                 0.917 Medi~
-## # ... with 10 more variables: prioritization_score <dbl>, lr_interaction <chr>, id <chr>, scaled_LR_prod <dbl>, scaled_LR_frac <dbl>,
-## #   n_cells_receiver <dbl>, keep_receiver <dbl>, n_cells_sender <dbl>, keep_sender <dbl>, keep_sender_receiver <fct>
+## # A tibble: 20 x 26
+##    sample sender        receiver  ligand receptor avg_ligand avg_receptor ligand_receptor_~ fraction_ligand fraction_recept~ ligand_receptor_~ pb_ligand pb_receptor
+##    <chr>  <chr>         <chr>     <chr>  <chr>         <dbl>        <dbl>             <dbl>           <dbl>            <dbl>             <dbl>     <dbl>       <dbl>
+##  1 HN17   CAF           Malignant COL1A1 ITGB1          3.43         2.72              9.34           1                0.994             0.994     10.2         8.93
+##  2 HN17   CAF           Malignant COL1A1 SDC1           3.43         2.53              8.69           1                0.994             0.994     10.2         8.72
+##  3 HN17   myofibroblast Malignant COL1A1 ITGB1          3.17         2.72              8.61           1                0.994             0.994      9.36        8.93
+##  4 HN17   CAF           Malignant COL1A1 CD44           3.43         2.34              8.02           1                0.992             0.992     10.2         8.51
+##  5 HN17   myofibroblast Malignant COL1A1 SDC1           3.17         2.53              8.01           1                0.994             0.994      9.36        8.72
+##  6 HN20   CAF           Malignant COL1A1 SDC1           3.22         2.42              7.78           1                0.967             0.967      9.67        8.40
+##  7 HN17   myofibroblast Malignant COL1A1 CD44           3.17         2.34              7.39           1                0.992             0.992      9.36        8.51
+##  8 HN20   CAF           Malignant FN1    SDC1           2.85         2.42              6.89           1                0.967             0.967      9.25        8.40
+##  9 HN16   CAF           Malignant COL1A1 ITGB1          2.60         2.63              6.83           0.915            0.963             0.881      9.50        8.70
+## 10 HN17   Myeloid       Malignant ADAM17 ITGB1          2.51         2.72              6.82           1                0.994             0.994      8.79        8.93
+## 11 HN5    CAF           Malignant COL1A1 CD44           2.79         2.41              6.72           0.973            0.971             0.945      9.58        8.37
+## 12 HN26   Myeloid       Malignant F11R   F11R           3.27         2.05              6.72           1                0.951             0.951      9.08        8.10
+## 13 HN20   CAF           Malignant COL1A1 CD44           3.22         2.08              6.71           1                0.964             0.964      9.67        7.99
+## 14 HN20   CAF           Malignant COL1A1 ITGB8          3.22         2.02              6.51           1                0.988             0.988      9.67        7.87
+## 15 HN22   myofibroblast Malignant THBS1  SDC1           2.87         2.25              6.44           0.911            0.943             0.859      9.92        8.36
+## 16 HN28   Endothelial   Malignant CD99   CD99           2.63         2.44              6.40           0.929            0.959             0.891      9.56        8.48
+## 17 HN22   myofibroblast Malignant THBS1  CD47           2.87         2.20              6.32           0.911            0.984             0.896      9.92        8.23
+## 18 HN5    CAF           Malignant COL1A1 SDC1           2.79         2.23              6.23           0.973            0.971             0.945      9.58        8.20
+## 19 HN20   myofibroblast Malignant THBS1  SDC1           2.53         2.42              6.11           1                0.967             0.967      9.41        8.40
+## 20 HN5    CAF           Malignant COL1A1 ITGB1          2.79         2.19              6.10           0.973            0.943             0.917      9.58        8.23
+## # ... with 13 more variables: ligand_receptor_pb_prod <dbl>, group <chr>, prioritization_score <dbl>, lr_interaction <chr>, id <chr>, scaled_LR_prod <dbl>,
+## #   scaled_LR_frac <dbl>, scaled_LR_pb_prod <dbl>, n_cells_receiver <dbl>, keep_receiver <dbl>, n_cells_sender <dbl>, keep_sender <dbl>, keep_sender_receiver <fct>
 ```
 
 # Step 5: Optional: unsupervised analysis of sender-ligand—receiver-receptor pair expression values per sample, to see heterogeneity in cell-cell communication.
@@ -1346,7 +1347,10 @@ multinichenet_output = list(
     prioritization_tables = prioritization_tables,
     lr_prod_mat = lr_prod_mat,
     grouping_tbl = grouping_tbl
-  ) 
+  )
+
+multinichenet_output = multinichenet_output %>% make_lite_output()
+
 save = FALSE
 if(save == TRUE){
   saveRDS(multinichenet_output, paste0(path, "multinichenet_output.rds"))
@@ -1379,9 +1383,9 @@ prioritized_tbl_oi %>% group_by(group) %>% count()
 ## # Groups:   group [3]
 ##   group      n
 ##   <chr>  <int>
-## 1 High      77
-## 2 Low        8
-## 3 Medium    15
+## 1 High      65
+## 2 Low       25
+## 3 Medium    10
 
 prioritized_tbl_oi = multinichenet_output$prioritization_tables$group_prioritization_tbl %>% 
   filter(id %in% prioritized_tbl_oi$id) %>% 
@@ -1566,9 +1570,9 @@ plot_oi
 
 ## Zoom in on specific ligand-receptor interactions: show their expression in the single-cell data!
 
-Single-cell-based Nebulosa, Feature, and Violin plots of ligand-receptor
-interaction of interest: `make_ligand_receptor_nebulosa_feature_plot`
-and `make_ligand_receptor_violin_plot`
+Single-cell-based Feature, and Violin plots of ligand-receptor
+interaction of interest: `make_ligand_receptor_feature_plot` and
+`make_ligand_receptor_violin_plot`
 
 It is often useful to zoom in on specific ligand-receptor interactions
 of interest by looking in more detail to their expression at the single
@@ -1585,23 +1589,23 @@ prioritized_tbl_oi = multinichenet_output$prioritization_tables$group_prioritiza
 prioritized_tbl_oi
 ## # A tibble: 15 x 7
 ## # Groups:   group, receiver [3]
-##    group  sender        receiver  ligand  receptor  id                                        prioritization_score
-##    <fct>  <chr>         <chr>     <chr>   <chr>     <chr>                                                    <dbl>
-##  1 High   CAF           Malignant IL24    IL20RB    IL24_IL20RB_CAF_Malignant                                1.08 
-##  2 High   CAF           Malignant TNC     ITGB6     TNC_ITGB6_CAF_Malignant                                  1.06 
-##  3 High   CAF           Malignant SEMA5A  MET       SEMA5A_MET_CAF_Malignant                                 1.06 
-##  4 High   CAF           Malignant TNC     ITGB1     TNC_ITGB1_CAF_Malignant                                  1.05 
-##  5 High   CAF           Malignant TNC     ITGAV     TNC_ITGAV_CAF_Malignant                                  1.05 
-##  6 Medium myofibroblast Malignant PGF     NRP1      PGF_NRP1_myofibroblast_Malignant                         0.996
-##  7 Low    myofibroblast Malignant FGF1    FGFR1     FGF1_FGFR1_myofibroblast_Malignant                       0.985
-##  8 Medium CAF           Malignant EFNA5   EPHB2     EFNA5_EPHB2_CAF_Malignant                                0.957
-##  9 Low    myofibroblast Malignant BMP2    ACVR2A    BMP2_ACVR2A_myofibroblast_Malignant                      0.942
-## 10 Medium CAF           Malignant IL15    IL15RA    IL15_IL15RA_CAF_Malignant                                0.941
-## 11 Medium myofibroblast Malignant TNFSF12 TNFRSF12A TNFSF12_TNFRSF12A_myofibroblast_Malignant                0.938
-## 12 Medium CAF           Malignant EFNA5   EPHA2     EFNA5_EPHA2_CAF_Malignant                                0.924
-## 13 Low    myofibroblast Malignant JAG1    NOTCH3    JAG1_NOTCH3_myofibroblast_Malignant                      0.906
-## 14 Low    myofibroblast Malignant FGF13   FGFR1     FGF13_FGFR1_myofibroblast_Malignant                      0.900
-## 15 Low    CAF           Malignant HSPG2   PTPRS     HSPG2_PTPRS_CAF_Malignant                                0.897
+##    group  sender        receiver  ligand receptor id                                  prioritization_score
+##    <fct>  <chr>         <chr>     <chr>  <chr>    <chr>                                              <dbl>
+##  1 High   CAF           Malignant IL24   IL20RB   IL24_IL20RB_CAF_Malignant                           1.44
+##  2 Low    myofibroblast Malignant FGF1   FGFR1    FGF1_FGFR1_myofibroblast_Malignant                  1.42
+##  3 High   CAF           Malignant TNC    ITGB6    TNC_ITGB6_CAF_Malignant                             1.41
+##  4 High   CAF           Malignant IL24   IL22RA1  IL24_IL22RA1_CAF_Malignant                          1.40
+##  5 Low    myofibroblast Malignant BMP2   ACVR2A   BMP2_ACVR2A_myofibroblast_Malignant                 1.38
+##  6 High   CAF           Malignant TNC    ITGB1    TNC_ITGB1_CAF_Malignant                             1.37
+##  7 High   myofibroblast Malignant TNC    ITGB6    TNC_ITGB6_myofibroblast_Malignant                   1.36
+##  8 Low    myofibroblast Malignant FGF1   FGFR3    FGF1_FGFR3_myofibroblast_Malignant                  1.35
+##  9 Low    myofibroblast Malignant BMP2   ACVR2B   BMP2_ACVR2B_myofibroblast_Malignant                 1.33
+## 10 Low    myofibroblast Malignant BMP2   BMPR2    BMP2_BMPR2_myofibroblast_Malignant                  1.33
+## 11 Medium myofibroblast Malignant PGF    NRP1     PGF_NRP1_myofibroblast_Malignant                    1.32
+## 12 Medium CAF           Malignant DLK1   NOTCH1   DLK1_NOTCH1_CAF_Malignant                           1.29
+## 13 Medium CAF           Malignant FN1    ITGB6    FN1_ITGB6_CAF_Malignant                             1.27
+## 14 Medium CAF           Malignant VEGFB  NRP1     VEGFB_NRP1_CAF_Malignant                            1.26
+## 15 Medium CAF           Malignant TGFB1  TGFBR2   TGFB1_TGFBR2_CAF_Malignant                          1.26
 ```
 
 ``` r
@@ -1612,41 +1616,29 @@ sender_oi = "CAF"
 receiver_oi = "Malignant"
 ```
 
-Nebulosa and Feature plot of the ligand in the sender cell type and the
-receptor in the receiver cell type (split per condition)
+Feature plot of the ligand in the sender cell type and the receptor in
+the receiver cell type (split per condition)
 
 ``` r
-plot_list = make_ligand_receptor_nebulosa_feature_plot(seurat_obj_sender = seurat_obj_sender, seurat_obj_receiver = seurat_obj_receiver, ligand_oi = ligand_oi, receptor_oi = receptor_oi, group_oi = group_oi, group_id = group_id, celltype_id_sender = celltype_id_sender, celltype_id_receiver = celltype_id_receiver, senders_oi = c("myofibroblast","CAF"), receivers_oi = c("Malignant"), prioritized_tbl_oi = prioritized_tbl_oi)
-plot_list$nebulosa # not recommended for Smart-seq data
+p_feature = make_ligand_receptor_feature_plot(sce_sender = sce_sender, sce_receiver = sce_receiver, ligand_oi = ligand_oi, receptor_oi = receptor_oi, group_oi = group_oi, group_id = group_id, celltype_id_sender = celltype_id_sender, celltype_id_receiver = celltype_id_receiver, senders_oi = c("myofibroblast","CAF"), receivers_oi = c("Malignant"))
+p_feature
 ```
 
 ![](basic_analysis_steps_separate_files/figure-gfm/unnamed-chunk-66-1.png)<!-- -->
-
-``` r
-plot_list$feature
-```
-
-![](basic_analysis_steps_separate_files/figure-gfm/unnamed-chunk-66-2.png)<!-- -->
 Pooled single-cell and sample-specific single-cell violin plots of
 ligand and receptor expression in respectively sender and receiver.
 
 ``` r
-plot_list2 = make_ligand_receptor_violin_plot(seurat_obj_sender = seurat_obj_sender, seurat_obj_receiver = seurat_obj_receiver, ligand_oi = ligand_oi, receptor_oi = receptor_oi, group_oi = group_oi, group_id = group_id, sender_oi = sender_oi, receiver_oi = receiver_oi, sample_id = sample_id, celltype_id_sender = celltype_id_sender, celltype_id_receiver = celltype_id_receiver, prioritized_tbl_oi = prioritized_tbl_oi)
-plot_list2$violin_group
+p_violin = make_ligand_receptor_violin_plot(sce_sender = sce_sender, sce_receiver = sce_receiver, ligand_oi = ligand_oi, receptor_oi = receptor_oi, group_oi = group_oi, group_id = group_id, sender_oi = sender_oi, receiver_oi = receiver_oi, sample_id = sample_id, celltype_id_sender = celltype_id_sender, celltype_id_receiver = celltype_id_receiver)
+p_violin
 ```
 
 ![](basic_analysis_steps_separate_files/figure-gfm/unnamed-chunk-67-1.png)<!-- -->
 
-``` r
-plot_list2$violin_sample
-```
-
-![](basic_analysis_steps_separate_files/figure-gfm/unnamed-chunk-67-2.png)<!-- -->
-
 ## Zoom in on specific ligand-target interactions: show their expression in the single-cell data!
 
-Make target gene violin and nebulosa plots: `make_target_violin_plot`
-and `make_target_nebulosa_feature_plot`
+Make target gene violin and feature plots: `make_target_violin_plot` and
+`make_target_feature_plot`
 
 ``` r
 receiver_oi = "Malignant"
@@ -1674,28 +1666,16 @@ RAB31: interesting gene
 ``` r
 target_oi = "MMP10"
 
-make_target_violin_plot(seurat_obj_receiver = seurat_obj_receiver, target_oi = target_oi, receiver_oi = receiver_oi, group_oi = group_oi, group_id = group_id, sample_id, celltype_id_receiver = celltype_id_receiver, multinichenet_output$prioritization_tables$group_prioritization_tbl)
-## $violin_group
+make_target_violin_plot(sce_receiver = sce_receiver, target_oi = target_oi, receiver_oi = receiver_oi, group_oi = group_oi, group_id = group_id, sample_id, celltype_id_receiver = celltype_id_receiver)
 ```
 
 ![](basic_analysis_steps_separate_files/figure-gfm/unnamed-chunk-69-1.png)<!-- -->
 
-    ## 
-    ## $violin_sample
-
-![](basic_analysis_steps_separate_files/figure-gfm/unnamed-chunk-69-2.png)<!-- -->
-
 ``` r
-make_target_nebulosa_feature_plot(seurat_obj_receiver = seurat_obj_receiver, target_oi = target_oi, group_oi = group_oi, group_id = group_id, celltype_id_receiver = celltype_id_receiver, receivers_oi = c("Malignant"), multinichenet_output$prioritization_tables$group_prioritization_tbl) 
-## $nebulosa
+make_target_feature_plot(sce_receiver = sce_receiver, target_oi = target_oi, group_oi = group_oi, group_id = group_id, celltype_id_receiver = celltype_id_receiver, receivers_oi = c("Malignant")) 
 ```
 
-![](basic_analysis_steps_separate_files/figure-gfm/unnamed-chunk-69-3.png)<!-- -->
-
-    ## 
-    ## $feature
-
-![](basic_analysis_steps_separate_files/figure-gfm/unnamed-chunk-69-4.png)<!-- -->
+![](basic_analysis_steps_separate_files/figure-gfm/unnamed-chunk-69-2.png)<!-- -->
 
 ## Make Dotplot for all DE genes/targets
 

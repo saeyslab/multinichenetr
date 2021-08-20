@@ -37,7 +37,34 @@ Plot object: UMAP showing ligand and receptor expression in groups and celltypes
 }
 \examples{
 \dontrun{
-print("XXXX")
+library(dplyr)
+lr_network = readRDS(url("https://zenodo.org/record/3260758/files/lr_network.rds"))
+lr_network = lr_network \%>\% dplyr::rename(ligand = from, receptor = to) \%>\% dplyr::distinct(ligand, receptor)
+ligand_target_matrix = readRDS(url("https://zenodo.org/record/3260758/files/ligand_target_matrix.rds"))
+sample_id = "tumor"
+group_id = "pEMT"
+celltype_id = "celltype"
+covariates = NA
+contrasts_oi = c("'High-Low','Low-High'")
+contrast_tbl = tibble(contrast = c("High-Low","Low-High"), group = c("High","Low"))
+output = multi_nichenet_analysis(
+     sce = sce, 
+     celltype_id = celltype_id, 
+     sample_id = sample_id, 
+     group_id = group_id,
+     covariates = covariates,
+     lr_network = lr_network, 
+     ligand_target_matrix = ligand_target_matrix, 
+     contrasts_oi = contrasts_oi, 
+     contrast_tbl = contrast_tbl, 
+     sender_receiver_separate = FALSE
+     )
+ligand_oi = "DLL1"
+receptor_oi = "NOTCH3"
+group_oi = "High"
+sender_oi = "Malignant"
+receiver_oi = "myofibroblast"
+p_feature = make_ligand_receptor_feature_plot(sce_sender = sce, sce_receiver = sce, ligand_oi = ligand_oi, receptor_oi = receptor_oi, group_oi = group_oi, group_id = group_id, celltype_id_sender = celltype_id, celltype_id_receiver = celltype_id, senders_oi = c("Malignant","myofibroblast","CAF"), receivers_oi = c("Malignant","myofibroblast","CAF"))
 }
 
 }

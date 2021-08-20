@@ -7,9 +7,9 @@
 make_sample_lr_prod_plots(prioritization_tables, prioritized_tbl_oi)
 }
 \arguments{
-\item{prioritization_tables}{XXX}
+\item{prioritization_tables}{Output of `generate_prioritization_tables` or sublist in the output of `multi_nichenet_analysis`}
 
-\item{prioritized_tbl_oi}{XXX}
+\item{prioritized_tbl_oi}{Subset of `prioritization_tables$group_prioritization_tbl`: the ligand-receptor interactions shown in this subset will be visualized: recommended to consider the top n LR interactions of a group of interest, based on the prioritization_score (eg n = 50; see vignettes for examples).}
 }
 \value{
 Ligand-Receptor Expression Product Dotplot/Heatmap
@@ -19,7 +19,32 @@ Ligand-Receptor Expression Product Dotplot/Heatmap
 }
 \examples{
 \dontrun{
-print("XXXX")
+library(dplyr)
+lr_network = readRDS(url("https://zenodo.org/record/3260758/files/lr_network.rds"))
+lr_network = lr_network \%>\% dplyr::rename(ligand = from, receptor = to) \%>\% dplyr::distinct(ligand, receptor)
+ligand_target_matrix = readRDS(url("https://zenodo.org/record/3260758/files/ligand_target_matrix.rds"))
+sample_id = "tumor"
+group_id = "pEMT"
+celltype_id = "celltype"
+covariates = NA
+contrasts_oi = c("'High-Low','Low-High'")
+contrast_tbl = tibble(contrast = c("High-Low","Low-High"), group = c("High","Low"))
+output = multi_nichenet_analysis(
+     sce = sce, 
+     celltype_id = celltype_id, 
+     sample_id = sample_id, 
+     group_id = group_id,
+     covariates = covariates,
+     lr_network = lr_network, 
+     ligand_target_matrix = ligand_target_matrix, 
+     contrasts_oi = contrasts_oi, 
+     contrast_tbl = contrast_tbl, 
+     sender_receiver_separate = FALSE
+     )
+group_oi = "High"
+prioritized_tbl_oi = output$prioritization_tables$group_prioritization_tbl \%>\% filter(fraction_expressing_ligand_receptor > 0) \%>\% filter(group == group_oi) \%>\% top_n(50, prioritization_score) 
+plot_oi = make_sample_lr_prod_plots(output$prioritization_tables, prioritized_tbl_oi)
+plot_oi
 }
 
 }

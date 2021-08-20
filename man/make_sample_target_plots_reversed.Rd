@@ -7,7 +7,7 @@
 make_sample_target_plots_reversed(receiver_info, targets_oi, receiver_oi, grouping_tbl)
 }
 \arguments{
-\item{receiver_info}{XXX}
+\item{receiver_info}{`receiver_info` or `celltype_info` slots from the output of `multi_nichenet_analysis`. Also: part of the output of `get_abundance_expression_info_separate`}
 
 \item{targets_oi}{Character vector of genes of which the expression should be visualized}
 
@@ -23,7 +23,32 @@ Heatmap/Dotplot of scaled target gene expression (samples in rows, genes in colu
 }
 \examples{
 \dontrun{
-print("XXXX")
+library(dplyr)
+lr_network = readRDS(url("https://zenodo.org/record/3260758/files/lr_network.rds"))
+lr_network = lr_network \%>\% dplyr::rename(ligand = from, receptor = to) \%>\% dplyr::distinct(ligand, receptor)
+ligand_target_matrix = readRDS(url("https://zenodo.org/record/3260758/files/ligand_target_matrix.rds"))
+sample_id = "tumor"
+group_id = "pEMT"
+celltype_id = "celltype"
+covariates = NA
+contrasts_oi = c("'High-Low','Low-High'")
+contrast_tbl = tibble(contrast = c("High-Low","Low-High"), group = c("High","Low"))
+output = multi_nichenet_analysis(
+     sce = sce, 
+     celltype_id = celltype_id, 
+     sample_id = sample_id, 
+     group_id = group_id,
+     covariates = covariates,
+     lr_network = lr_network, 
+     ligand_target_matrix = ligand_target_matrix, 
+     contrasts_oi = contrasts_oi, 
+     contrast_tbl = contrast_tbl, 
+     sender_receiver_separate = FALSE
+     )
+group_oi = "High"
+receiver_oi = "Malignant"
+targets_oi = output$ligand_activities_targets_DEgenes$de_genes_df \%>\% inner_join(contrast_tbl) \%>\% filter(group == group_oi) \%>\% arrange(p_val) \%>\% filter(receiver == receiver_oi) \%>\% pull(gene) \%>\% unique()
+p_target = make_sample_target_plots_reversed(receiver_info = output$celltype_info, targets_oi, receiver_oi, output$grouping_tbl)
 }
 
 }

@@ -3,8 +3,8 @@
 #' @description \code{make_sample_lr_prod_plots}  Visualize the scaled product of Ligand-Receptor (pseudobulk) expression per sample, and compare the different groups
 #' @usage make_sample_lr_prod_plots(prioritization_tables, prioritized_tbl_oi)
 #'
-#' @param prioritization_tables XXX
-#' @param prioritized_tbl_oi XXX
+#' @param prioritization_tables Output of `generate_prioritization_tables` or sublist in the output of `multi_nichenet_analysis`
+#' @param prioritized_tbl_oi Subset of `prioritization_tables$group_prioritization_tbl`: the ligand-receptor interactions shown in this subset will be visualized: recommended to consider the top n LR interactions of a group of interest, based on the prioritization_score (eg n = 50; see vignettes for examples). 
 #'
 #' @return Ligand-Receptor Expression Product Dotplot/Heatmap
 #'
@@ -14,8 +14,33 @@
 #'
 #' @examples
 #' \dontrun{
-#' print("XXXX")
-#' }
+#' library(dplyr)
+#' lr_network = readRDS(url("https://zenodo.org/record/3260758/files/lr_network.rds"))
+#' lr_network = lr_network %>% dplyr::rename(ligand = from, receptor = to) %>% dplyr::distinct(ligand, receptor)
+#' ligand_target_matrix = readRDS(url("https://zenodo.org/record/3260758/files/ligand_target_matrix.rds"))
+#' sample_id = "tumor"
+#' group_id = "pEMT"
+#' celltype_id = "celltype"
+#' covariates = NA
+#' contrasts_oi = c("'High-Low','Low-High'")
+#' contrast_tbl = tibble(contrast = c("High-Low","Low-High"), group = c("High","Low"))
+#' output = multi_nichenet_analysis(
+#'      sce = sce, 
+#'      celltype_id = celltype_id, 
+#'      sample_id = sample_id, 
+#'      group_id = group_id,
+#'      covariates = covariates,
+#'      lr_network = lr_network, 
+#'      ligand_target_matrix = ligand_target_matrix, 
+#'      contrasts_oi = contrasts_oi, 
+#'      contrast_tbl = contrast_tbl, 
+#'      sender_receiver_separate = FALSE
+#'      )
+#' group_oi = "High"
+#' prioritized_tbl_oi = output$prioritization_tables$group_prioritization_tbl %>% filter(fraction_expressing_ligand_receptor > 0) %>% filter(group == group_oi) %>% top_n(50, prioritization_score) 
+#' plot_oi = make_sample_lr_prod_plots(output$prioritization_tables, prioritized_tbl_oi)
+#' plot_oi
+#'}
 #'
 #' @export
 #'
@@ -24,7 +49,8 @@ make_sample_lr_prod_plots = function(prioritization_tables, prioritized_tbl_oi){
   requireNamespace("dplyr")
   requireNamespace("ggplot2")
   
-  filtered_data = prioritization_tables$sample_prioritization_tbl %>% dplyr::filter(id %in% prioritized_tbl_oi$id) %>% dplyr::mutate(sender_receiver = paste(sender, receiver, sep = " to ")) %>%  dplyr::arrange(sender) %>% dplyr::group_by(sender) %>%  dplyr::arrange(receiver)
+  filtered_data = prioritization_tables$sample_prioritization_tbl %>% dplyr::filter(id %in% prioritized_tbl_oi$id) %>% dplyr::mutate(sender_receiver = paste(sender, receiver, sep = " --> "))  %>%  dplyr::arrange(receiver) %>% dplyr::group_by(receiver) %>%  dplyr::arrange(sender, .by_group = TRUE)
+  filtered_data = filtered_data %>% dplyr::mutate(sender_receiver = factor(sender_receiver, levels = filtered_data$sender_receiver %>% unique()))
   
   keep_sender_receiver_values = c(0.25, 0.9, 1.75, 4.25)
   names(keep_sender_receiver_values) = levels(filtered_data$keep_sender_receiver)
@@ -66,8 +92,7 @@ make_sample_lr_prod_plots = function(prioritization_tables, prioritized_tbl_oi){
 #' @description \code{make_sample_lr_prod_activity_plots}  Visualize the scaled product of Ligand-Receptor (pseudobulk) expression per sample, and compare the different groups. In addition, show the NicheNet ligand activities in each receiver-celltype combination.
 #' @usage make_sample_lr_prod_activity_plots(prioritization_tables, prioritized_tbl_oi, widths = NULL)
 #'
-#' @param prioritization_tables XXX
-#' @param prioritized_tbl_oi XXX
+#' @inheritParams make_sample_lr_prod_plots
 #' @param widths Vector of 3 elements: Width of the LR exprs product panel,  width of the scaled ligand activity panel, width of the ligand activity panel. Default NULL: automatically defined based on nr of samples vs nr of group-receiver combinations. If manual change: example format: c(5,1,1) 
 #'
 #' @return Ligand-Receptor Expression Product & Ligand Activities Dotplot/Heatmap 
@@ -79,7 +104,32 @@ make_sample_lr_prod_plots = function(prioritization_tables, prioritized_tbl_oi){
 #'
 #' @examples
 #' \dontrun{
-#' print("XXXX")
+#' library(dplyr)
+#' lr_network = readRDS(url("https://zenodo.org/record/3260758/files/lr_network.rds"))
+#' lr_network = lr_network %>% dplyr::rename(ligand = from, receptor = to) %>% dplyr::distinct(ligand, receptor)
+#' ligand_target_matrix = readRDS(url("https://zenodo.org/record/3260758/files/ligand_target_matrix.rds"))
+#' sample_id = "tumor"
+#' group_id = "pEMT"
+#' celltype_id = "celltype"
+#' covariates = NA
+#' contrasts_oi = c("'High-Low','Low-High'")
+#' contrast_tbl = tibble(contrast = c("High-Low","Low-High"), group = c("High","Low"))
+#' output = multi_nichenet_analysis(
+#'      sce = sce, 
+#'      celltype_id = celltype_id, 
+#'      sample_id = sample_id, 
+#'      group_id = group_id,
+#'      covariates = covariates,
+#'      lr_network = lr_network, 
+#'      ligand_target_matrix = ligand_target_matrix, 
+#'      contrasts_oi = contrasts_oi, 
+#'      contrast_tbl = contrast_tbl, 
+#'      sender_receiver_separate = FALSE
+#'      )
+#' group_oi = "High"
+#' prioritized_tbl_oi = output$prioritization_tables$group_prioritization_tbl %>% filter(fraction_expressing_ligand_receptor > 0) %>% filter(group == group_oi) %>% top_n(50, prioritization_score) 
+#' plot_oi = make_sample_lr_prod_activity_plots(output$prioritization_tables, prioritized_tbl_oi)
+#' plot_oi
 #' }
 #'
 #' @export
@@ -87,13 +137,15 @@ make_sample_lr_prod_plots = function(prioritization_tables, prioritized_tbl_oi){
 make_sample_lr_prod_activity_plots = function(prioritization_tables, prioritized_tbl_oi, widths = NULL){
   requireNamespace("dplyr")
   requireNamespace("ggplot2")
-  sample_data = prioritization_tables$sample_prioritization_tbl %>% dplyr::filter(id %in% prioritized_tbl_oi$id) %>% dplyr::mutate(sender_receiver = paste(sender, receiver, sep = " to ")) %>%  dplyr::arrange(sender) %>% dplyr::group_by(sender) %>%  dplyr::arrange(receiver)
 
-  group_data = prioritization_tables$group_prioritization_tbl %>% dplyr::mutate(sender_receiver = paste(sender, receiver, sep = " to ")) %>% dplyr::distinct(id, sender, receiver, sender_receiver, lr_interaction, group, ligand_receptor_lfc_avg, activity, activity_scaled, fraction_ligand_group, prioritization_score, scaled_avg_exprs_ligand) %>% dplyr::filter(id %in% sample_data$id)
-
+  sample_data = prioritization_tables$sample_prioritization_tbl %>% dplyr::filter(id %in% prioritized_tbl_oi$id) %>% dplyr::mutate(sender_receiver = paste(sender, receiver, sep = " --> "))  %>%  dplyr::arrange(receiver) %>% dplyr::group_by(receiver) %>%  dplyr::arrange(sender, .by_group = TRUE)
+  sample_data = sample_data %>% dplyr::mutate(sender_receiver = factor(sender_receiver, levels = sample_data$sender_receiver %>% unique()))
+  
+  group_data = prioritization_tables$group_prioritization_tbl %>% dplyr::mutate(sender_receiver = paste(sender, receiver, sep = " --> ")) %>% dplyr::distinct(id, sender, receiver, sender_receiver, lr_interaction, group, ligand_receptor_lfc_avg, activity, activity_scaled, fraction_ligand_group, prioritization_score, scaled_avg_exprs_ligand) %>% dplyr::filter(id %in% sample_data$id) %>%  dplyr::arrange(receiver) %>% dplyr::group_by(receiver) %>%  dplyr::arrange(sender, .by_group = TRUE)
+  group_data = group_data %>% dplyr::mutate(sender_receiver = factor(sender_receiver, levels = group_data$sender_receiver %>% unique()))
+  
   keep_sender_receiver_values = c(0.25, 0.9, 1.75, 4)
   names(keep_sender_receiver_values) = levels(sample_data$keep_sender_receiver)
-  
   
   p1 = sample_data %>%
     ggplot(aes(sample, lr_interaction, color = scaled_LR_pb_prod, size = keep_sender_receiver)) +
@@ -202,21 +254,17 @@ make_sample_lr_prod_activity_plots = function(prioritization_tables, prioritized
 
 
 }
-
-
 #' @title make_sample_lr_prod_activity_covariate_plots
 #'
 #' @description \code{make_sample_lr_prod_activity_covariate_plots}  XXXX EXPERIMENTAL FEATURE!!!!!!!!!!!!!!!!!!!!NOT WORKINGN RIGHT NOW
 #' @usage make_sample_lr_prod_activity_covariate_plots(prioritization_tables, prioritized_tbl_oi, grouping_tbl, covariate_oi, widths = NULL, heights = NULL)
 #'
-#' @param prioritization_tables XXX
-#' @param prioritized_tbl_oi XXX
+#' @inheritParams make_sample_lr_prod_activity_plots
 #' @param grouping_tbl Data frame linking the sample_id, group_id and covariate_oi
 #' @param covariate_oi Name of the covariate/batch that needs to be visualized for each sample
-#' @param widths Vector of 3 elements: Width of the LR exprs product panel,  width of the scaled ligand activity panel, width of the ligand activity panel. Default NULL: automatically defined based on nr of samples vs nr of group-receiver combinations. If manual change: example format: c(5,1,1) 
 #' @param heights Vector of 2 elements: Height of the covariate panel and height of the ligand-receptor prod+activity panel. Default NULL: automatically defined based on the nr of Ligand-Receptor pairs. If manual change: example format: c(1,5) 
 #'
-#' @return XXXX
+#' @return Ligand-Receptor Expression Product & Ligand Activities Dotplot/Heatmap, complemented with a heatmap indicating the covariate/batch of interest
 #'
 #' @import ggplot2
 #' @import dplyr
@@ -233,9 +281,12 @@ make_sample_lr_prod_activity_plots = function(prioritization_tables, prioritized
 make_sample_lr_prod_activity_covariate_plots = function(prioritization_tables, prioritized_tbl_oi, grouping_tbl, covariate_oi, widths = NULL, heights = NULL){
   requireNamespace("dplyr")
   requireNamespace("ggplot2")
-  sample_data = prioritization_tables$sample_prioritization_tbl %>% dplyr::filter(id %in% prioritized_tbl_oi$id) %>% dplyr::mutate(sender_receiver = paste(sender, receiver, sep = " to ")) %>%  dplyr::arrange(sender) %>% dplyr::group_by(sender) %>%  dplyr::arrange(receiver)
+
+  sample_data = prioritization_tables$sample_prioritization_tbl %>% dplyr::filter(id %in% prioritized_tbl_oi$id) %>% dplyr::mutate(sender_receiver = paste(sender, receiver, sep = " --> "))  %>%  dplyr::arrange(receiver) %>% dplyr::group_by(receiver) %>%  dplyr::arrange(sender, .by_group = TRUE)
+  sample_data = sample_data %>% dplyr::mutate(sender_receiver = factor(sender_receiver, levels = sample_data$sender_receiver %>% unique()))
   
-  group_data = prioritization_tables$group_prioritization_tbl %>% dplyr::mutate(sender_receiver = paste(sender, receiver, sep = " to ")) %>% dplyr::distinct(id, sender, receiver, sender_receiver, lr_interaction, group, ligand_receptor_lfc_avg, activity, activity_scaled, fraction_ligand_group, prioritization_score, scaled_avg_exprs_ligand) %>% dplyr::filter(id %in% sample_data$id)
+  group_data = prioritization_tables$group_prioritization_tbl %>% dplyr::mutate(sender_receiver = paste(sender, receiver, sep = " --> ")) %>% dplyr::distinct(id, sender, receiver, sender_receiver, lr_interaction, group, ligand_receptor_lfc_avg, activity, activity_scaled, fraction_ligand_group, prioritization_score, scaled_avg_exprs_ligand) %>% dplyr::filter(id %in% sample_data$id) %>%  dplyr::arrange(receiver) %>% dplyr::group_by(receiver) %>%  dplyr::arrange(sender, .by_group = TRUE)
+  group_data = group_data %>% dplyr::mutate(sender_receiver = factor(sender_receiver, levels = group_data$sender_receiver %>% unique()))
   
   p1 = sample_data %>%
     ggplot(aes(sample, lr_interaction, color = scaled_LR_pb_prod, size = scaled_LR_frac)) +
@@ -367,11 +418,7 @@ make_sample_lr_prod_activity_covariate_plots = function(prioritization_tables, p
   }
   
   
-  # p = cowplot::plot_grid(p_covariate, NULL, NULL, p1, p2, p3, align = "vh", rel_widths = widths, rel_heights =  heights, axis = "tblr")
-  
-  
   return(p)
-  
   
 }
 
@@ -380,7 +427,7 @@ make_sample_lr_prod_activity_covariate_plots = function(prioritization_tables, p
 #' @description \code{make_ligand_activity_plots}  Visualize the ligand activities (normal and scaled) of each group-receiver combination
 #' @usage make_ligand_activity_plots(prioritization_tables, ligands_oi, contrast_tbl, widths = NULL)
 #'
-#' @param prioritization_tables XXX
+#' @inheritParams make_sample_lr_prod_plots
 #' @param ligands_oi Character vector of ligands for which the activities should be visualized
 #' @param contrast_tbl Table to link the contrast definitions to the group ids.
 #' @param widths Vector of 2 elements: Width of the scaled ligand activity panel, width of the ligand activity panel. Default NULL: automatically defined based number of group-receiver combinations. If manual change: example format: c(3,2) 
@@ -394,7 +441,32 @@ make_sample_lr_prod_activity_covariate_plots = function(prioritization_tables, p
 #'
 #' @examples
 #' \dontrun{
-#' print("XXXX")
+#' 
+#' library(dplyr)
+#' lr_network = readRDS(url("https://zenodo.org/record/3260758/files/lr_network.rds"))
+#' lr_network = lr_network %>% dplyr::rename(ligand = from, receptor = to) %>% dplyr::distinct(ligand, receptor)
+#' ligand_target_matrix = readRDS(url("https://zenodo.org/record/3260758/files/ligand_target_matrix.rds"))
+#' sample_id = "tumor"
+#' group_id = "pEMT"
+#' celltype_id = "celltype"
+#' covariates = NA
+#' contrasts_oi = c("'High-Low','Low-High'")
+#' contrast_tbl = tibble(contrast = c("High-Low","Low-High"), group = c("High","Low"))
+#' output = multi_nichenet_analysis(
+#'      sce = sce, 
+#'      celltype_id = celltype_id, 
+#'      sample_id = sample_id, 
+#'      group_id = group_id,
+#'      covariates = covariates,
+#'      lr_network = lr_network, 
+#'      ligand_target_matrix = ligand_target_matrix, 
+#'      contrasts_oi = contrasts_oi, 
+#'      contrast_tbl = contrast_tbl, 
+#'      sender_receiver_separate = FALSE
+#'      )
+#' ligands_oi = output$prioritization_tables$ligand_activities_target_de_tbl %>% inner_join(contrast_tbl) %>% group_by(group, receiver) %>% distinct(ligand, receiver, group, activity) %>% top_n(5, activity) %>% pull(ligand) %>% unique()
+#' plot_oi = make_ligand_activity_plots(output$prioritization_tables, ligands_oi, contrast_tbl)
+#' plot_oi
 #' }
 #'
 #' @export
@@ -490,7 +562,7 @@ make_ligand_activity_plots = function(prioritization_tables, ligands_oi, contras
 #' @description \code{make_sample_target_plots}  Heatmap/Dotplot of scaled target gene expression per sample, compared between the groups of interest. (samples in columns, genes in rows)
 #' @usage make_sample_target_plots(receiver_info, targets_oi, receiver_oi, grouping_tbl)
 #'
-#' @param receiver_info XXX
+#' @param receiver_info `receiver_info` or `celltype_info` slots from the output of `multi_nichenet_analysis`. Also: part of the output of `get_abundance_expression_info_separate`
 #' @param targets_oi Character vector of genes of which the expression should be visualized
 #' @param receiver_oi Name of the receiver cell type of interest for which expression of genes should be visualized
 #' @param grouping_tbl Data frame linking the sample_id, group_id and covariate_oi 
@@ -504,7 +576,32 @@ make_ligand_activity_plots = function(prioritization_tables, ligands_oi, contras
 #'
 #' @examples
 #' \dontrun{
-#' print("XXXX")
+#' library(dplyr)
+#' lr_network = readRDS(url("https://zenodo.org/record/3260758/files/lr_network.rds"))
+#' lr_network = lr_network %>% dplyr::rename(ligand = from, receptor = to) %>% dplyr::distinct(ligand, receptor)
+#' ligand_target_matrix = readRDS(url("https://zenodo.org/record/3260758/files/ligand_target_matrix.rds"))
+#' sample_id = "tumor"
+#' group_id = "pEMT"
+#' celltype_id = "celltype"
+#' covariates = NA
+#' contrasts_oi = c("'High-Low','Low-High'")
+#' contrast_tbl = tibble(contrast = c("High-Low","Low-High"), group = c("High","Low"))
+#' output = multi_nichenet_analysis(
+#'      sce = sce, 
+#'      celltype_id = celltype_id, 
+#'      sample_id = sample_id, 
+#'      group_id = group_id,
+#'      covariates = covariates,
+#'      lr_network = lr_network, 
+#'      ligand_target_matrix = ligand_target_matrix, 
+#'      contrasts_oi = contrasts_oi, 
+#'      contrast_tbl = contrast_tbl, 
+#'      sender_receiver_separate = FALSE
+#'      )
+#' group_oi = "High"
+#' receiver_oi = "Malignant"
+#' targets_oi = output$ligand_activities_targets_DEgenes$de_genes_df %>% inner_join(contrast_tbl) %>% filter(group == group_oi) %>% arrange(p_val) %>% filter(receiver == receiver_oi) %>% pull(gene) %>% unique()
+#' p_target = make_sample_target_plots(receiver_info = output$celltype_info, targets_oi, receiver_oi, output$grouping_tbl)
 #' }
 #'
 #' @export
@@ -563,7 +660,32 @@ make_sample_target_plots = function(receiver_info, targets_oi, receiver_oi, grou
 #'
 #' @examples
 #' \dontrun{
-#' print("XXXX")
+#' library(dplyr)
+#' lr_network = readRDS(url("https://zenodo.org/record/3260758/files/lr_network.rds"))
+#' lr_network = lr_network %>% dplyr::rename(ligand = from, receptor = to) %>% dplyr::distinct(ligand, receptor)
+#' ligand_target_matrix = readRDS(url("https://zenodo.org/record/3260758/files/ligand_target_matrix.rds"))
+#' sample_id = "tumor"
+#' group_id = "pEMT"
+#' celltype_id = "celltype"
+#' covariates = NA
+#' contrasts_oi = c("'High-Low','Low-High'")
+#' contrast_tbl = tibble(contrast = c("High-Low","Low-High"), group = c("High","Low"))
+#' output = multi_nichenet_analysis(
+#'      sce = sce, 
+#'      celltype_id = celltype_id, 
+#'      sample_id = sample_id, 
+#'      group_id = group_id,
+#'      covariates = covariates,
+#'      lr_network = lr_network, 
+#'      ligand_target_matrix = ligand_target_matrix, 
+#'      contrasts_oi = contrasts_oi, 
+#'      contrast_tbl = contrast_tbl, 
+#'      sender_receiver_separate = FALSE
+#'      )
+#' group_oi = "High"
+#' receiver_oi = "Malignant"
+#' targets_oi = output$ligand_activities_targets_DEgenes$de_genes_df %>% inner_join(contrast_tbl) %>% filter(group == group_oi) %>% arrange(p_val) %>% filter(receiver == receiver_oi) %>% pull(gene) %>% unique()
+#' p_target = make_sample_target_plots_reversed(receiver_info = output$celltype_info, targets_oi, receiver_oi, output$grouping_tbl)
 #' }
 #'
 #' @export
@@ -617,15 +739,14 @@ make_sample_target_plots_reversed = function(receiver_info, targets_oi, receiver
 
 #' @title make_group_lfc_exprs_activity_plot
 #'
-#' @description \code{make_group_lfc_exprs_activity_plot}  XXXX
+#' @description \code{make_group_lfc_exprs_activity_plot}  Summary plot showing the logFC of each ligand-receptor pair / group combination, complemented by the NicheNet scaled and normal ligand activities
 #' @usage make_group_lfc_exprs_activity_plot(prioritization_tables, prioritized_tbl_oi, receiver_oi, heights = NULL)
 #'
-#' @param prioritization_tables XXX
-#' @param prioritized_tbl_oi XXX
-#' @param receiver_oi XXX
-#' @param heights XXX
+#' @inheritParams make_sample_lr_prod_plots
+#' @param receiver_oi Name of the receiver cell type of interest for which ligand-receptor pair LFC and ligand activities should be shown
+#' @param heights Vector of 3 elements: Height of the LFC panel, normal ligand activity, and scaled ligand activity panel. Default NULL: automatically defined based on the nr of groups and sender-receiver combinations. If manual change: example format: c(5,1,1) 
 #'
-#' @return XXXX
+#' @return Summary plot showing the logFC of each ligand-receptor pair / group combination, complemented by the NicheNet scaled and normal ligand activities
 #'
 #' @import ggplot2
 #' @import dplyr
@@ -634,7 +755,33 @@ make_sample_target_plots_reversed = function(receiver_info, targets_oi, receiver
 #'
 #' @examples
 #' \dontrun{
-#' print("XXXX")
+#' library(dplyr)
+#' lr_network = readRDS(url("https://zenodo.org/record/3260758/files/lr_network.rds"))
+#' lr_network = lr_network %>% dplyr::rename(ligand = from, receptor = to) %>% dplyr::distinct(ligand, receptor)
+#' ligand_target_matrix = readRDS(url("https://zenodo.org/record/3260758/files/ligand_target_matrix.rds"))
+#' sample_id = "tumor"
+#' group_id = "pEMT"
+#' celltype_id = "celltype"
+#' covariates = NA
+#' contrasts_oi = c("'High-Low','Low-High'")
+#' contrast_tbl = tibble(contrast = c("High-Low","Low-High"), group = c("High","Low"))
+#' output = multi_nichenet_analysis(
+#'      sce = sce, 
+#'      celltype_id = celltype_id, 
+#'      sample_id = sample_id, 
+#'      group_id = group_id,
+#'      covariates = covariates,
+#'      lr_network = lr_network, 
+#'      ligand_target_matrix = ligand_target_matrix, 
+#'      contrasts_oi = contrasts_oi, 
+#'      contrast_tbl = contrast_tbl, 
+#'      sender_receiver_separate = FALSE
+#'      )
+#' group_oi = "High"
+#' receiver_oi = "Malignant"
+#' prioritized_tbl_oi = output$prioritization_tables$group_prioritization_tbl %>% filter(fraction_expressing_ligand_receptor > 0) %>% filter(group == group_oi) %>% top_n(50, prioritization_score) 
+#' plot_oi = make_group_lfc_exprs_activity_plot(output$prioritization_tables, prioritized_tbl_oi, receiver_oi = receiver_oi)
+#' plot_oi
 #' }
 #'
 #' @export
@@ -743,202 +890,6 @@ make_group_lfc_exprs_activity_plot = function(prioritization_tables, prioritized
 
   return(p)
 }
-
-#' @title make_circos_group_comparison
-#'
-#' @description \code{make_circos_group_comparison}  XXXX
-#' @usage make_circos_group_comparison(prioritized_tbl_oi, colors_sender, colors_receiver)
-#'
-#' @param prioritized_tbl_oi XXX
-#' @param colors_sender XXX
-#' @param colors_receiver XXX
-#'
-#' @return XXXX
-#'
-#' @import ggplot2
-#' @import dplyr
-#' @import circlize
-#' @importFrom tibble tibble
-#' @importFrom generics intersect
-#' @importFrom ComplexHeatmap draw Legend
-#' @importFrom magrittr set_names
-#' @importFrom grDevices recordPlot
-#' 
-#' @examples
-#' \dontrun{
-#' print("XXXX")
-#' }
-#'
-#' @export
-#'
-make_circos_group_comparison = function(prioritized_tbl_oi, colors_sender, colors_receiver){
-  
-  requireNamespace("dplyr")
-  requireNamespace("ggplot2")
-  requireNamespace("circlize")
-  
-  # Link each cell type to a color
-  grid_col_ligand = colors_sender
-
-  grid_col_receptor = colors_receiver
-
-  grid_col_tbl_ligand = tibble::tibble(sender = grid_col_ligand %>% names(), color_ligand_type = grid_col_ligand)
-  grid_col_tbl_receptor = tibble::tibble(receiver = grid_col_receptor %>% names(), color_receptor_type = grid_col_receptor)
-
-  # Make the plot for each condition
-  groups_oi = prioritized_tbl_oi$group %>% unique()
-  all_plots = groups_oi %>% lapply(function(group_oi){
-
-    # Make the plot for condition of interest - title of the plot
-    title = group_oi
-    circos_links_oi = prioritized_tbl_oi %>% dplyr::filter(group == group_oi)
-
-    # deal with duplicated sector names
-    # dplyr::rename the ligands so we can have the same ligand in multiple senders (and receptors in multiple receivers)
-    # only do it with duplicated ones!
-    circos_links = circos_links_oi %>% dplyr::rename(weight = prioritization_score)
-    #circos_links = circos_links_oi %>% dplyr::rename(weight = prioritization_score) %>% dplyr::mutate(ligand = paste(sender, ligand, sep = "_"), receptor = paste(receptor, receiver, sep = "_"))
-
-    df = circos_links
-
-    ligand.uni = unique(df$ligand)
-    for (i in 1:length(ligand.uni)) {
-      df.i = df[df$ligand == ligand.uni[i], ]
-      sender.uni = unique(df.i$sender)
-      for (j in 1:length(sender.uni)) {
-        df.i.j = df.i[df.i$sender == sender.uni[j], ]
-        df.i.j$ligand = paste0(df.i.j$ligand, paste(rep(' ',j-1),collapse = ''))
-        df$ligand[df$id %in% df.i.j$id] = df.i.j$ligand
-      }
-    }
-    receptor.uni = unique(df$receptor)
-    for (i in 1:length(receptor.uni)) {
-      df.i = df[df$receptor == receptor.uni[i], ]
-      receiver.uni = unique(df.i$receiver)
-      for (j in 1:length(receiver.uni)) {
-        df.i.j = df.i[df.i$receiver == receiver.uni[j], ]
-        df.i.j$receptor = paste0(df.i.j$receptor, paste(rep(' ',j-1),collapse = ''))
-        df$receptor[df$id %in% df.i.j$id] = df.i.j$receptor
-      }
-    }
-
-    intersecting_ligands_receptors = generics::intersect(unique(df$ligand),unique(df$receptor))
-
-    # print(intersecting_ligands_receptors)
-
-    while(length(intersecting_ligands_receptors) > 0){
-      df_unique = df %>% dplyr::filter(!receptor %in% intersecting_ligands_receptors)
-      df_duplicated = df %>% dplyr::filter(receptor %in% intersecting_ligands_receptors)
-      df_duplicated = df_duplicated %>% dplyr::mutate(receptor = paste(receptor, " ", sep = ""))
-      df = dplyr::bind_rows(df_unique, df_duplicated)
-      intersecting_ligands_receptors = generics::intersect(unique(df$ligand),unique(df$receptor))
-    }
-
-    circos_links = df
-
-    # Link ligands/Receptors to the colors of senders/receivers
-    circos_links = circos_links %>% dplyr::inner_join(grid_col_tbl_ligand) %>% dplyr::inner_join(grid_col_tbl_receptor)
-    links_circle = circos_links %>% dplyr::distinct(ligand,receptor, weight)
-    ligand_color = circos_links %>% dplyr::distinct(ligand,color_ligand_type)
-    grid_ligand_color = ligand_color$color_ligand_type %>% magrittr::set_names(ligand_color$ligand)
-    receptor_color = circos_links %>% dplyr::distinct(receptor,color_receptor_type)
-    grid_receptor_color = receptor_color$color_receptor_type %>% magrittr::set_names(receptor_color$receptor)
-    grid_col =c(grid_ligand_color,grid_receptor_color)
-
-    # give the option that links in the circos plot will be transparant ~ ligand-receptor potential score
-    transparency = circos_links %>% dplyr::mutate(weight =(weight-min(weight))/(max(weight)-min(weight))) %>% dplyr::mutate(transparency = 1-weight) %>% .$transparency
-
-    # Define order of the ligands and receptors and the gaps
-    ligand_order = prioritized_tbl_oi$sender %>% unique() %>% sort() %>% lapply(function(sender_oi){
-      ligands = circos_links %>% dplyr::filter(sender == sender_oi) %>%  dplyr::arrange(ligand) %>% dplyr::distinct(ligand)
-    }) %>% unlist()
-
-    receptor_order = prioritized_tbl_oi$receiver %>% unique() %>% sort() %>% lapply(function(receiver_oi){
-      receptors = circos_links %>% dplyr::filter(receiver == receiver_oi) %>%  dplyr::arrange(receptor) %>% dplyr::distinct(receptor)
-    }) %>% unlist()
-
-    order = c(ligand_order,receptor_order)
-
-    width_same_cell_same_ligand_type = 0.275
-    width_different_cell = 3
-    width_ligand_receptor = 9
-    width_same_cell_same_receptor_type = 0.275
-
-    sender_gaps = prioritized_tbl_oi$sender %>% unique() %>% sort() %>% lapply(function(sender_oi){
-      sector = rep(width_same_cell_same_ligand_type, times = (circos_links %>% dplyr::filter(sender == sender_oi) %>% dplyr::distinct(ligand) %>% nrow() -1))
-      gap = width_different_cell
-      return(c(sector,gap))
-    }) %>% unlist()
-    sender_gaps = sender_gaps[-length(sender_gaps)]
-
-    receiver_gaps = prioritized_tbl_oi$receiver %>% unique() %>% sort() %>% lapply(function(receiver_oi){
-      sector = rep(width_same_cell_same_receptor_type, times = (circos_links %>% dplyr::filter(receiver == receiver_oi) %>% dplyr::distinct(receptor) %>% nrow() -1))
-      gap = width_different_cell
-      return(c(sector,gap))
-    }) %>% unlist()
-    receiver_gaps = receiver_gaps[-length(receiver_gaps)]
-
-    gaps = c(sender_gaps, width_ligand_receptor, receiver_gaps, width_ligand_receptor)
-
-    # print(length(gaps))
-    # print(length(union(circos_links$ligand, circos_links$receptor) %>% unique()))
-    if(length(gaps) != length(union(circos_links$ligand, circos_links$receptor) %>% unique())){
-      warning("Specified gaps have different length than combined total of ligands and receptors - This is probably due to duplicates in ligand-receptor names")
-    }
-
-
-    links_circle$weight[links_circle$weight == 0] = 0.01
-    circos.clear()
-    circos.par(gap.degree = gaps)
-    chordDiagram(links_circle,
-                 directional = 1,
-                 order=order,
-                 link.sort = TRUE,
-                 link.decreasing = TRUE,
-                 grid.col = grid_col,
-                 transparency = transparency,
-                 diffHeight = 0.0075,
-                 direction.type = c("diffHeight", "arrows"),
-                 link.visible = links_circle$weight > 0.01,
-                 annotationTrack = "grid",
-                 preAllocateTracks = list(track.height = 0.175),
-                 grid.border = "gray35", link.arr.length = 0.05, link.arr.type = "big.arrow",  link.lwd = 1.25, link.lty = 1, link.border="gray35",
-                 reduce = 0,
-                 scale = TRUE)
-    circos.track(track.index = 1, panel.fun = function(x, y) {
-      circos.text(CELL_META$xcenter, CELL_META$ylim[1], CELL_META$sector.index,
-                  facing = "clockwise", niceFacing = TRUE, adj = c(0, 0.5), cex = 1)
-    }, bg.border = NA) #
-
-    title(title)
-    p_circos = recordPlot()
-    return(p_circos)
-
-  })
-  names(all_plots) = groups_oi
-
-  plot(NULL ,xaxt='n',yaxt='n',bty='n',ylab='',xlab='', xlim=0:1, ylim=0:1)
-  # grid_col_all = c(grid_col_receptor, grid_col_ligand)
-  legend = ComplexHeatmap::Legend(at = prioritized_tbl_oi$receiver %>% unique() %>% sort(),
-                                  type = "grid",
-                                  legend_gp = grid::gpar(fill = grid_col_receptor[prioritized_tbl_oi$receiver %>% unique() %>% sort()]),
-                                  title_position = "topleft",
-                                  title = "Receiver")
-  ComplexHeatmap::draw(legend, just = c("left", "bottom"))
-
-  legend = ComplexHeatmap::Legend(at = prioritized_tbl_oi$sender %>% unique() %>% sort(),
-                                  type = "grid",
-                                  legend_gp = grid::gpar(fill = grid_col_ligand[prioritized_tbl_oi$sender %>% unique() %>% sort()]),
-                                  title_position = "topleft",
-                                  title = "Sender")
-  ComplexHeatmap::draw(legend, just = c("left", "top"))
-
-  p_legend = grDevices::recordPlot()
-
-  all_plots$legend = p_legend
-
-  return(all_plots)
-}
 #' @title make_featureplot
 #'
 #' @description \code{make_featureplot}  Make a panel of UMAP plots showing the expression of a gene of interest in the group of interest vs other groups
@@ -962,7 +913,8 @@ make_circos_group_comparison = function(prioritized_tbl_oi, colors_sender, color
 #'
 #' @examples
 #' \dontrun{
-#' print("XXXX")
+#' library(dplyr)
+#' p = make_featureplot(sce, sce, title_umap = "title", gene_oi = "TNF", group_oi = "High", background_groups = "Low", group_id = "pEMT")
 #' }
 #'
 #' @export
@@ -1010,7 +962,34 @@ make_featureplot = function(sce_subset_oi, sce_subset_bg, title_umap, gene_oi, g
 #'
 #' @examples
 #' \dontrun{
-#' print("XXXX")
+#' library(dplyr)
+#' lr_network = readRDS(url("https://zenodo.org/record/3260758/files/lr_network.rds"))
+#' lr_network = lr_network %>% dplyr::rename(ligand = from, receptor = to) %>% dplyr::distinct(ligand, receptor)
+#' ligand_target_matrix = readRDS(url("https://zenodo.org/record/3260758/files/ligand_target_matrix.rds"))
+#' sample_id = "tumor"
+#' group_id = "pEMT"
+#' celltype_id = "celltype"
+#' covariates = NA
+#' contrasts_oi = c("'High-Low','Low-High'")
+#' contrast_tbl = tibble(contrast = c("High-Low","Low-High"), group = c("High","Low"))
+#' output = multi_nichenet_analysis(
+#'      sce = sce, 
+#'      celltype_id = celltype_id, 
+#'      sample_id = sample_id, 
+#'      group_id = group_id,
+#'      covariates = covariates,
+#'      lr_network = lr_network, 
+#'      ligand_target_matrix = ligand_target_matrix, 
+#'      contrasts_oi = contrasts_oi, 
+#'      contrast_tbl = contrast_tbl, 
+#'      sender_receiver_separate = FALSE
+#'      )
+#' ligand_oi = "DLL1"
+#' receptor_oi = "NOTCH3"
+#' group_oi = "High"
+#' sender_oi = "Malignant"
+#' receiver_oi = "myofibroblast"
+#' p_feature = make_ligand_receptor_feature_plot(sce_sender = sce, sce_receiver = sce, ligand_oi = ligand_oi, receptor_oi = receptor_oi, group_oi = group_oi, group_id = group_id, celltype_id_sender = celltype_id, celltype_id_receiver = celltype_id, senders_oi = c("Malignant","myofibroblast","CAF"), receivers_oi = c("Malignant","myofibroblast","CAF"))
 #' }
 #'
 #' @export
@@ -1074,7 +1053,35 @@ make_ligand_receptor_feature_plot = function(sce_sender, sce_receiver, ligand_oi
 #'
 #' @examples
 #' \dontrun{
-#' print("XXXX")
+#' library(dplyr)
+#' lr_network = readRDS(url("https://zenodo.org/record/3260758/files/lr_network.rds"))
+#' lr_network = lr_network %>% dplyr::rename(ligand = from, receptor = to) %>% dplyr::distinct(ligand, receptor)
+#' ligand_target_matrix = readRDS(url("https://zenodo.org/record/3260758/files/ligand_target_matrix.rds"))
+#' sample_id = "tumor"
+#' group_id = "pEMT"
+#' celltype_id = "celltype"
+#' covariates = NA
+#' contrasts_oi = c("'High-Low','Low-High'")
+#' contrast_tbl = tibble(contrast = c("High-Low","Low-High"), group = c("High","Low"))
+#' output = multi_nichenet_analysis(
+#'      sce = sce, 
+#'      celltype_id = celltype_id, 
+#'      sample_id = sample_id, 
+#'      group_id = group_id,
+#'      covariates = covariates,
+#'      lr_network = lr_network, 
+#'      ligand_target_matrix = ligand_target_matrix, 
+#'      contrasts_oi = contrasts_oi, 
+#'      contrast_tbl = contrast_tbl, 
+#'      sender_receiver_separate = FALSE
+#'      )
+#' ligand_oi = "DLL1"
+#' receptor_oi = "NOTCH3"
+#' group_oi = "High"
+#' sender_oi = "Malignant"
+#' receiver_oi = "myofibroblast"
+#' p_violin = make_ligand_receptor_violin_plot(sce_sender = sce, sce_receiver = sce, ligand_oi = ligand_oi, receptor_oi = receptor_oi, group_oi = group_oi, group_id = group_id, sender_oi = sender_oi, receiver_oi = receiver_oi, sample_id = sample_id, celltype_id_sender = celltype_id, celltype_id_receiver = celltype_id)
+#' 
 #' }
 #'
 #' @export
@@ -1153,7 +1160,7 @@ make_ligand_receptor_violin_plot = function(sce_sender, sce_receiver, ligand_oi,
 #' @title make_target_violin_plot
 #'
 #' @description \code{make_target_violin_plot}  Violin plot of a target gene of interest: per sample, and samples are grouped per group
-#' @usage make_target_violin_plot(sce_receiver, target_oi, receiver_oi, group_oi, group_id, sample_id, celltype_id_receiver, prioritized_tbl_oi, background_groups = NULL)
+#' @usage make_target_violin_plot(sce_receiver, target_oi, receiver_oi, group_oi, group_id, sample_id, celltype_id_receiver, background_groups = NULL)
 #'
 #' @param target_oi Name of the gene of interest
 #' @inheritParams make_ligand_receptor_violin_plot
@@ -1170,9 +1177,33 @@ make_ligand_receptor_violin_plot = function(sce_sender, sce_receiver, ligand_oi,
 #'
 #' @examples
 #' \dontrun{
-#' print("XXXX")
+#' library(dplyr)
+#' lr_network = readRDS(url("https://zenodo.org/record/3260758/files/lr_network.rds"))
+#' lr_network = lr_network %>% dplyr::rename(ligand = from, receptor = to) %>% dplyr::distinct(ligand, receptor)
+#' ligand_target_matrix = readRDS(url("https://zenodo.org/record/3260758/files/ligand_target_matrix.rds"))
+#' sample_id = "tumor"
+#' group_id = "pEMT"
+#' celltype_id = "celltype"
+#' covariates = NA
+#' contrasts_oi = c("'High-Low','Low-High'")
+#' contrast_tbl = tibble(contrast = c("High-Low","Low-High"), group = c("High","Low"))
+#' output = multi_nichenet_analysis(
+#'      sce = sce, 
+#'      celltype_id = celltype_id, 
+#'      sample_id = sample_id, 
+#'      group_id = group_id,
+#'      covariates = covariates,
+#'      lr_network = lr_network, 
+#'      ligand_target_matrix = ligand_target_matrix, 
+#'      contrasts_oi = contrasts_oi, 
+#'      contrast_tbl = contrast_tbl, 
+#'      sender_receiver_separate = FALSE
+#'      )
+#' receiver_oi = "Malignant"
+#' group_oi = "High"
+#' target_oi = "RAB31"
+#' p_violin_target = make_target_violin_plot(sce_receiver = sce, target_oi = target_oi, receiver_oi = receiver_oi, group_oi = group_oi, group_id = group_id, sample_id, celltype_id_receiver = celltype_id)
 #' }
-#'
 #' @export
 #'
 make_target_violin_plot = function(sce_receiver, target_oi, receiver_oi, group_oi, group_id, sample_id, celltype_id_receiver, background_groups = NULL){
@@ -1219,7 +1250,7 @@ make_target_violin_plot = function(sce_receiver, target_oi, receiver_oi, group_o
 #' @title make_target_feature_plot
 #'
 #' @description \code{make_target_feature_plot}  UMAP showing target gene expression in groups and celltypes of interest vs other groups and cell types.
-#' @usage make_target_feature_plot(sce_receiver, target_oi, group_oi, group_id, celltype_id_receiver, receivers_oi, prioritized_tbl_oi)
+#' @usage make_target_feature_plot(sce_receiver, target_oi, group_oi, group_id, celltype_id_receiver, receivers_oi, background_groups = NULL)
 #'
 #' @param target_oi Character vector of the name of the target gene of interest
 #' @inheritParams make_ligand_receptor_feature_plot
@@ -1234,12 +1265,37 @@ make_target_violin_plot = function(sce_receiver, target_oi, receiver_oi, group_o
 #'
 #' @examples
 #' \dontrun{
-#' print("XXXX")
+#' library(dplyr)
+#' lr_network = readRDS(url("https://zenodo.org/record/3260758/files/lr_network.rds"))
+#' lr_network = lr_network %>% dplyr::rename(ligand = from, receptor = to) %>% dplyr::distinct(ligand, receptor)
+#' ligand_target_matrix = readRDS(url("https://zenodo.org/record/3260758/files/ligand_target_matrix.rds"))
+#' sample_id = "tumor"
+#' group_id = "pEMT"
+#' celltype_id = "celltype"
+#' covariates = NA
+#' contrasts_oi = c("'High-Low','Low-High'")
+#' contrast_tbl = tibble(contrast = c("High-Low","Low-High"), group = c("High","Low"))
+#' output = multi_nichenet_analysis(
+#'      sce = sce, 
+#'      celltype_id = celltype_id, 
+#'      sample_id = sample_id, 
+#'      group_id = group_id,
+#'      covariates = covariates,
+#'      lr_network = lr_network, 
+#'      ligand_target_matrix = ligand_target_matrix, 
+#'      contrasts_oi = contrasts_oi, 
+#'      contrast_tbl = contrast_tbl, 
+#'      sender_receiver_separate = FALSE
+#'      )
+#' receiver_oi = "Malignant"
+#' group_oi = "High"
+#' target_oi = "RAB31"
+#' make_target_feature_plot(sce_receiver = sce, target_oi = target_oi, group_oi = group_oi, group_id = group_id, celltype_id_receiver = celltype_id, receivers_oi = c("Malignant","myofibroblast","CAF")) 
 #' }
 #'
 #' @export
 #'
-make_target_feature_plot = function(sce_receiver, target_oi, group_oi, group_id, celltype_id_receiver, receivers_oi, prioritized_tbl_oi, background_groups = NULL){
+make_target_feature_plot = function(sce_receiver, target_oi, group_oi, group_id, celltype_id_receiver, receivers_oi, background_groups = NULL){
   requireNamespace("dplyr")
   requireNamespace("ggplot2")
   
@@ -1263,21 +1319,18 @@ make_target_feature_plot = function(sce_receiver, target_oi, group_oi, group_id,
 
 #' @title make_ligand_activity_target_plot
 #'
-#' @description \code{make_ligand_activity_target_plot}  XXXX
+#' @description \code{make_ligand_activity_target_plot}  Summary plot showing the activity of prioritized ligands acting on a receiver cell type of interest, together with the predicted target genes and their sample-by-sample expression
 #' @usage make_ligand_activity_target_plot(group_oi, receiver_oi, prioritized_tbl_oi, ligand_activities_targets_DEgenes, contrast_tbl, grouping_tbl, receiver_info, plot_legend = TRUE, heights = NULL, widths = NULL)
 #'
-#' @param group_oi XXX
-#' @param receiver_oi XXX
-#' @param prioritized_tbl_oi XXX
-#' @param ligand_activities_targets_DEgenes XXX
-#' @param contrast_tbl XXX
-#' @param grouping_tbl XXX
-#' @param receiver_info XXX
-#' @param plot_legend XXX
-#' @param heights XXX
-#' @param widths XXX
-#'
-#' @return XXXX
+#' @param ligand_activities_targets_DEgenes Sublist in the output of `multi_nichenet_analysis`
+#' @param plot_legend if TRUE (default): show legend on the same figure, if FALSE (recommended): show legend in separate figure
+#' @param heights Vector of 2 elements: height of the ligand-activity-target panel, height of the target expression panel. Default NULL: automatically defined based on nr of ligands and samples. If manual change: example format: c(1,1) 
+#' @param widths Vector of 3 elements: Width of the scaled ligand activity panel, width of the ligand activity panel, width of the ligand-target heatmap panel. Default NULL: automatically defined based on nr of target genes and group-receiver combinations. If manual change: example format: c(1,1,10) 
+#' @inheritParams make_sample_target_plots
+#' @inheritParams make_ligand_activity_plots
+#' @inheritParams make_featureplot
+#' @inheritParams make_sample_lr_prod_plots
+#' @return Summary plot showing the activity of prioritized ligands acting on a receiver cell type of interest, together with the predicted target genes and their sample-by-sample expression
 #'
 #' @import ggplot2
 #' @import dplyr
@@ -1289,7 +1342,33 @@ make_target_feature_plot = function(sce_receiver, target_oi, group_oi, group_id,
 #'
 #' @examples
 #' \dontrun{
-#' print("XXXX")
+#' library(dplyr)
+#' lr_network = readRDS(url("https://zenodo.org/record/3260758/files/lr_network.rds"))
+#' lr_network = lr_network %>% dplyr::rename(ligand = from, receptor = to) %>% dplyr::distinct(ligand, receptor)
+#' ligand_target_matrix = readRDS(url("https://zenodo.org/record/3260758/files/ligand_target_matrix.rds"))
+#' sample_id = "tumor"
+#' group_id = "pEMT"
+#' celltype_id = "celltype"
+#' covariates = NA
+#' contrasts_oi = c("'High-Low','Low-High'")
+#' contrast_tbl = tibble(contrast = c("High-Low","Low-High"), group = c("High","Low"))
+#' output = multi_nichenet_analysis(
+#'      sce = sce, 
+#'      celltype_id = celltype_id, 
+#'      sample_id = sample_id, 
+#'      group_id = group_id,
+#'      covariates = covariates,
+#'      lr_network = lr_network, 
+#'      ligand_target_matrix = ligand_target_matrix, 
+#'      contrasts_oi = contrasts_oi, 
+#'      contrast_tbl = contrast_tbl, 
+#'      sender_receiver_separate = FALSE
+#'      )
+#' group_oi = "High"
+#' receiver_oi = "Malignant"
+#' prioritized_tbl_oi = output$prioritization_tables$group_prioritization_tbl %>% filter(fraction_expressing_ligand_receptor > 0) %>% filter(group == group_oi & receiver == receiver_oi) %>% top_n(50, prioritization_score) %>% top_n(25, activity_scaled) %>% arrange(-activity_scaled)
+#' combined_plot = make_ligand_activity_target_plot(group_oi, receiver_oi, prioritized_tbl_oi, output$ligand_activities_targets_DEgenes, contrast_tbl, output$grouping_tbl, output$celltype_info, plot_legend = FALSE)
+#' 
 #' }
 #'
 #' @export
@@ -1393,4 +1472,437 @@ make_ligand_activity_target_plot = function(group_oi, receiver_oi, prioritized_t
     return(list(combined_plot = combined_plot, legends = legends))
   }
 
+}
+#' @title make_circos_group_comparison
+#'
+#' @description \code{make_circos_group_comparison}  Make a circos plot with top prioritized ligand-receptor interactions for each group of interest. In each circos, all the possible LR pairs will be shown, but arrows will only be drawn between the ones belonging to the group of interest.
+#' @usage make_circos_group_comparison(prioritized_tbl_oi, colors_sender, colors_receiver)
+#'
+#' @inheritParams make_sample_lr_prod_plots
+#' @param colors_sender Named vector of colors associated to each sender cell type. Vector = color, names = sender names. If sender and receiver cell types are the same, recommended that this vector is the same as `colors_receiver`.
+#' @param colors_receiver Named vector of colors associated to each receiver cell type. Vector = color, names = sender names. Vector = color, names = sender names. If sender and receiver cell types are the same, recommended that this vector is the same as `colors_receiver`.
+#'
+#' @return a list with a circos plot for each group of interest, and a legend showing the color corresponding to each sender/receiver cell type.
+#'
+#' @import ggplot2
+#' @import dplyr
+#' @import circlize
+#' @importFrom tibble tibble
+#' @importFrom generics intersect
+#' @importFrom ComplexHeatmap draw Legend
+#' @importFrom magrittr set_names
+#' @importFrom grDevices recordPlot
+#' 
+#' @examples
+#' \dontrun{
+#' library(dplyr)
+#' lr_network = readRDS(url("https://zenodo.org/record/3260758/files/lr_network.rds"))
+#' lr_network = lr_network %>% dplyr::rename(ligand = from, receptor = to) %>% dplyr::distinct(ligand, receptor)
+#' ligand_target_matrix = readRDS(url("https://zenodo.org/record/3260758/files/ligand_target_matrix.rds"))
+#' sample_id = "tumor"
+#' group_id = "pEMT"
+#' celltype_id = "celltype"
+#' covariates = NA
+#' contrasts_oi = c("'High-Low','Low-High'")
+#' contrast_tbl = tibble(contrast = c("High-Low","Low-High"), group = c("High","Low"))
+#' output = multi_nichenet_analysis(
+#'      sce = sce, 
+#'      celltype_id = celltype_id, 
+#'      sample_id = sample_id, 
+#'      group_id = group_id,
+#'      covariates = covariates,
+#'      lr_network = lr_network, 
+#'      ligand_target_matrix = ligand_target_matrix, 
+#'      contrasts_oi = contrasts_oi, 
+#'      contrast_tbl = contrast_tbl, 
+#'      sender_receiver_separate = FALSE
+#'      )
+# prioritized_tbl_oi_prep = output$prioritization_tables$group_prioritization_tbl %>% 
+#   distinct(id, sender, receiver, ligand, receptor, group, prioritization_score, ligand_receptor_lfc_avg, fraction_expressing_ligand_receptor) %>% 
+#   filter(ligand_receptor_lfc_avg > 0 & fraction_expressing_ligand_receptor > 0) %>% top_n(30, prioritization_score) 
+# prioritized_tbl_oi = output$prioritization_tables$group_prioritization_tbl %>% 
+#   filter(id %in% prioritized_tbl_oi_prep$id) %>% 
+#   distinct(id, sender, receiver, ligand, receptor, group) %>% left_join(prioritized_tbl_oi_prep)
+# prioritized_tbl_oi$prioritization_score[is.na(prioritized_tbl_oi$prioritization_score)] = 0
+# senders_receivers = union(prioritized_tbl_oi$sender %>% unique(), prioritized_tbl_oi$receiver %>% unique())
+# colors_sender = RColorBrewer::brewer.pal(n = length(senders_receivers), name = 'Spectral') %>% magrittr::set_names(senders_receivers)
+# colors_receiver = RColorBrewer::brewer.pal(n = length(senders_receivers), name = 'Spectral') %>% magrittr::set_names(senders_receivers)
+# circos_list = make_circos_group_comparison(prioritized_tbl_oi, colors_sender, colors_receiver)
+#'}
+#' @export
+#'
+make_circos_group_comparison = function(prioritized_tbl_oi, colors_sender, colors_receiver){
+  
+  requireNamespace("dplyr")
+  requireNamespace("ggplot2")
+  requireNamespace("circlize")
+  
+  prioritized_tbl_oi = prioritized_tbl_oi %>% dplyr::ungroup() # if grouped: things will be messed up downstream
+  
+  # Link each cell type to a color
+  grid_col_tbl_ligand = tibble::tibble(sender = colors_sender %>% names(), color_ligand_type = colors_sender)
+  grid_col_tbl_receptor = tibble::tibble(receiver = colors_receiver %>% names(), color_receptor_type = colors_receiver)
+  
+  # Make the plot for each condition
+  groups_oi = prioritized_tbl_oi$group %>% unique()
+  all_plots = groups_oi %>% lapply(function(group_oi){
+    
+    # Make the plot for condition of interest - title of the plot
+    title = group_oi
+    circos_links_oi = prioritized_tbl_oi %>% dplyr::filter(group == group_oi)
+    
+    # deal with duplicated sector names
+    # dplyr::rename the ligands so we can have the same ligand in multiple senders (and receptors in multiple receivers)
+    # only do it with duplicated ones!
+    circos_links = circos_links_oi %>% dplyr::rename(weight = prioritization_score)
+
+    df = circos_links
+    
+    ligand.uni = unique(df$ligand)
+    for (i in 1:length(ligand.uni)) {
+      df.i = df[df$ligand == ligand.uni[i], ]
+      sender.uni = unique(df.i$sender)
+      for (j in 1:length(sender.uni)) {
+        df.i.j = df.i[df.i$sender == sender.uni[j], ]
+        df.i.j$ligand = paste0(df.i.j$ligand, paste(rep(' ',j-1),collapse = ''))
+        df$ligand[df$id %in% df.i.j$id] = df.i.j$ligand
+      }
+    }
+    receptor.uni = unique(df$receptor)
+    for (i in 1:length(receptor.uni)) {
+      df.i = df[df$receptor == receptor.uni[i], ]
+      receiver.uni = unique(df.i$receiver)
+      for (j in 1:length(receiver.uni)) {
+        df.i.j = df.i[df.i$receiver == receiver.uni[j], ]
+        df.i.j$receptor = paste0(df.i.j$receptor, paste(rep(' ',j-1),collapse = ''))
+        df$receptor[df$id %in% df.i.j$id] = df.i.j$receptor
+      }
+    }
+    
+    intersecting_ligands_receptors = generics::intersect(unique(df$ligand),unique(df$receptor))
+    
+    while(length(intersecting_ligands_receptors) > 0){
+      df_unique = df %>% dplyr::filter(!receptor %in% intersecting_ligands_receptors)
+      df_duplicated = df %>% dplyr::filter(receptor %in% intersecting_ligands_receptors)
+      df_duplicated = df_duplicated %>% dplyr::mutate(receptor = paste(receptor, " ", sep = ""))
+      df = dplyr::bind_rows(df_unique, df_duplicated)
+      intersecting_ligands_receptors = generics::intersect(unique(df$ligand),unique(df$receptor))
+    }
+    
+    circos_links = df
+    
+    # Link ligands/Receptors to the colors of senders/receivers
+    circos_links = circos_links %>% dplyr::inner_join(grid_col_tbl_ligand) %>% dplyr::inner_join(grid_col_tbl_receptor)
+    links_circle = circos_links %>% dplyr::distinct(ligand,receptor, weight)
+    ligand_color = circos_links %>% dplyr::distinct(ligand,color_ligand_type)
+    grid_ligand_color = ligand_color$color_ligand_type %>% magrittr::set_names(ligand_color$ligand)
+    receptor_color = circos_links %>% dplyr::distinct(receptor,color_receptor_type)
+    grid_receptor_color = receptor_color$color_receptor_type %>% magrittr::set_names(receptor_color$receptor)
+    grid_col =c(grid_ligand_color,grid_receptor_color)
+    
+    # give the option that links in the circos plot will be transparant ~ ligand-receptor potential score
+    transparency = circos_links %>% dplyr::mutate(weight =(weight-min(weight))/(max(weight)-min(weight))) %>% dplyr::mutate(transparency = 1-weight) %>% .$transparency
+    
+    # Define order of the ligands and receptors and the gaps
+    ligand_order = prioritized_tbl_oi$sender %>% unique() %>% sort() %>% lapply(function(sender_oi){
+      ligands = circos_links %>% dplyr::filter(sender == sender_oi) %>%  dplyr::arrange(ligand) %>% dplyr::distinct(ligand)
+    }) %>% unlist()
+    
+    receptor_order = prioritized_tbl_oi$receiver %>% unique() %>% sort() %>% lapply(function(receiver_oi){
+      receptors = circos_links %>% dplyr::filter(receiver == receiver_oi) %>%  dplyr::arrange(receptor) %>% dplyr::distinct(receptor)
+    }) %>% unlist()
+    
+    order = c(ligand_order,receptor_order)
+    
+    width_same_cell_same_ligand_type = 0.275
+    width_different_cell = 3
+    width_ligand_receptor = 9
+    width_same_cell_same_receptor_type = 0.275
+    
+    sender_gaps = prioritized_tbl_oi$sender %>% unique() %>% sort() %>% lapply(function(sender_oi){
+      sector = rep(width_same_cell_same_ligand_type, times = (circos_links %>% dplyr::filter(sender == sender_oi) %>% dplyr::distinct(ligand) %>% nrow() -1))
+      gap = width_different_cell
+      return(c(sector,gap))
+    }) %>% unlist()
+    sender_gaps = sender_gaps[-length(sender_gaps)]
+    
+    receiver_gaps = prioritized_tbl_oi$receiver %>% unique() %>% sort() %>% lapply(function(receiver_oi){
+      sector = rep(width_same_cell_same_receptor_type, times = (circos_links %>% dplyr::filter(receiver == receiver_oi) %>% dplyr::distinct(receptor) %>% nrow() -1))
+      gap = width_different_cell
+      return(c(sector,gap))
+    }) %>% unlist()
+    receiver_gaps = receiver_gaps[-length(receiver_gaps)]
+    
+    gaps = c(sender_gaps, width_ligand_receptor, receiver_gaps, width_ligand_receptor)
+    
+    # print(length(gaps))
+    # print(length(union(circos_links$ligand, circos_links$receptor) %>% unique()))
+    if(length(gaps) != length(union(circos_links$ligand, circos_links$receptor) %>% unique())){
+      warning("Specified gaps have different length than combined total of ligands and receptors - This is probably due to duplicates in ligand-receptor names")
+    }
+    
+    
+    links_circle$weight[links_circle$weight == 0] = 0.01
+    circos.clear()
+    circos.par(gap.degree = gaps)
+    chordDiagram(links_circle,
+                 directional = 1,
+                 order=order,
+                 link.sort = TRUE,
+                 link.decreasing = TRUE,
+                 grid.col = grid_col,
+                 transparency = transparency,
+                 diffHeight = 0.0075,
+                 direction.type = c("diffHeight", "arrows"),
+                 link.visible = links_circle$weight > 0.01,
+                 annotationTrack = "grid",
+                 preAllocateTracks = list(track.height = 0.175),
+                 grid.border = "gray35", link.arr.length = 0.05, link.arr.type = "big.arrow",  link.lwd = 1.25, link.lty = 1, link.border="gray35",
+                 reduce = 0,
+                 scale = TRUE)
+    circos.track(track.index = 1, panel.fun = function(x, y) {
+      circos.text(CELL_META$xcenter, CELL_META$ylim[1], CELL_META$sector.index,
+                  facing = "clockwise", niceFacing = TRUE, adj = c(0, 0.5), cex = 1)
+    }, bg.border = NA) #
+    
+    title(title)
+    p_circos = recordPlot()
+    return(p_circos)
+    
+  })
+  names(all_plots) = groups_oi
+  
+  plot(NULL ,xaxt='n',yaxt='n',bty='n',ylab='',xlab='', xlim=0:1, ylim=0:1)
+  # grid_col_all = c(colors_receiver, colors_sender)
+  legend = ComplexHeatmap::Legend(at = prioritized_tbl_oi$receiver %>% unique() %>% sort(),
+                                  type = "grid",
+                                  legend_gp = grid::gpar(fill = colors_receiver[prioritized_tbl_oi$receiver %>% unique() %>% sort()]),
+                                  title_position = "topleft",
+                                  title = "Receiver")
+  ComplexHeatmap::draw(legend, just = c("left", "bottom"))
+  
+  legend = ComplexHeatmap::Legend(at = prioritized_tbl_oi$sender %>% unique() %>% sort(),
+                                  type = "grid",
+                                  legend_gp = grid::gpar(fill = colors_sender[prioritized_tbl_oi$sender %>% unique() %>% sort()]),
+                                  title_position = "topleft",
+                                  title = "Sender")
+  ComplexHeatmap::draw(legend, just = c("left", "top"))
+  
+  p_legend = grDevices::recordPlot()
+  
+  all_plots$legend = p_legend
+  
+  return(all_plots)
+}
+#' @title make_circos_one_group
+#'
+#' @description \code{make_circos_one_group}  Make a circos plot with top prioritized ligand-receptor interactions for one group of interest. 
+#' @usage make_circos_one_group(prioritized_tbl_oi, colors_sender, colors_receiver)
+#'
+#' @inheritParams make_circos_group_comparison
+#'
+#' @return a list with a circos plot for one group of interest, and a legend showing the color corresponding to each sender/receiver cell type.
+#'
+#' @import ggplot2
+#' @import dplyr
+#' @import circlize
+#' @importFrom tibble tibble
+#' @importFrom generics intersect
+#' @importFrom ComplexHeatmap draw Legend
+#' @importFrom magrittr set_names
+#' @importFrom grDevices recordPlot
+#' 
+#' @examples
+#' \dontrun{
+#' library(dplyr)
+#' lr_network = readRDS(url("https://zenodo.org/record/3260758/files/lr_network.rds"))
+#' lr_network = lr_network %>% dplyr::rename(ligand = from, receptor = to) %>% dplyr::distinct(ligand, receptor)
+#' ligand_target_matrix = readRDS(url("https://zenodo.org/record/3260758/files/ligand_target_matrix.rds"))
+#' sample_id = "tumor"
+#' group_id = "pEMT"
+#' celltype_id = "celltype"
+#' covariates = NA
+#' contrasts_oi = c("'High-Low','Low-High'")
+#' contrast_tbl = tibble(contrast = c("High-Low","Low-High"), group = c("High","Low"))
+#' output = multi_nichenet_analysis(
+#'      sce = sce, 
+#'      celltype_id = celltype_id, 
+#'      sample_id = sample_id, 
+#'      group_id = group_id,
+#'      covariates = covariates,
+#'      lr_network = lr_network, 
+#'      ligand_target_matrix = ligand_target_matrix, 
+#'      contrasts_oi = contrasts_oi, 
+#'      contrast_tbl = contrast_tbl, 
+#'      sender_receiver_separate = FALSE
+#'      )
+#' 
+# group_oi = "High"
+# prioritized_tbl_oi = output$prioritization_tables$group_prioritization_tbl %>% filter(ligand_receptor_lfc_avg > 0 & fraction_expressing_ligand_receptor > 0 & group == group_oi) %>% top_n(25, prioritization_score)
+# senders_receivers = union(prioritized_tbl_oi$sender %>% unique(), prioritized_tbl_oi$receiver %>% unique())
+# colors_sender = RColorBrewer::brewer.pal(n = length(senders_receivers), name = 'Spectral') %>% magrittr::set_names(senders_receivers)
+# colors_receiver = RColorBrewer::brewer.pal(n = length(senders_receivers), name = 'Spectral') %>% magrittr::set_names(senders_receivers)
+# circos_list = make_circos_one_group(prioritized_tbl_oi, colors_sender, colors_receiver)
+#' }
+#' @export
+#'
+make_circos_one_group = function(prioritized_tbl_oi, colors_sender, colors_receiver){
+  
+  requireNamespace("dplyr")
+  requireNamespace("ggplot2")
+  requireNamespace("circlize")
+  
+  prioritized_tbl_oi = prioritized_tbl_oi %>% dplyr::ungroup() # if grouped: things will be messed up downstream
+  
+  # Link each cell type to a color
+  grid_col_tbl_ligand = tibble::tibble(sender = colors_sender %>% names(), color_ligand_type = colors_sender)
+  grid_col_tbl_receptor = tibble::tibble(receiver = colors_receiver %>% names(), color_receptor_type = colors_receiver)
+  
+  # Make the plot for each condition
+  groups_oi = prioritized_tbl_oi$group %>% unique()
+  all_plots = groups_oi %>% lapply(function(group_oi){
+    
+    # Make the plot for condition of interest - title of the plot
+    title = group_oi
+    circos_links_oi = prioritized_tbl_oi %>% dplyr::filter(group == group_oi)
+    
+    # deal with duplicated sector names
+    # dplyr::rename the ligands so we can have the same ligand in multiple senders (and receptors in multiple receivers)
+    # only do it with duplicated ones!
+    circos_links = circos_links_oi %>% dplyr::rename(weight = prioritization_score)
+    
+    df = circos_links
+    
+    ligand.uni = unique(df$ligand)
+    for (i in 1:length(ligand.uni)) {
+      df.i = df[df$ligand == ligand.uni[i], ]
+      sender.uni = unique(df.i$sender)
+      for (j in 1:length(sender.uni)) {
+        df.i.j = df.i[df.i$sender == sender.uni[j], ]
+        df.i.j$ligand = paste0(df.i.j$ligand, paste(rep(' ',j-1),collapse = ''))
+        df$ligand[df$id %in% df.i.j$id] = df.i.j$ligand
+      }
+    }
+    receptor.uni = unique(df$receptor)
+    for (i in 1:length(receptor.uni)) {
+      df.i = df[df$receptor == receptor.uni[i], ]
+      receiver.uni = unique(df.i$receiver)
+      for (j in 1:length(receiver.uni)) {
+        df.i.j = df.i[df.i$receiver == receiver.uni[j], ]
+        df.i.j$receptor = paste0(df.i.j$receptor, paste(rep(' ',j-1),collapse = ''))
+        df$receptor[df$id %in% df.i.j$id] = df.i.j$receptor
+      }
+    }
+    
+    intersecting_ligands_receptors = generics::intersect(unique(df$ligand),unique(df$receptor))
+    
+    while(length(intersecting_ligands_receptors) > 0){
+      df_unique = df %>% dplyr::filter(!receptor %in% intersecting_ligands_receptors)
+      df_duplicated = df %>% dplyr::filter(receptor %in% intersecting_ligands_receptors)
+      df_duplicated = df_duplicated %>% dplyr::mutate(receptor = paste(receptor, " ", sep = ""))
+      df = dplyr::bind_rows(df_unique, df_duplicated)
+      intersecting_ligands_receptors = generics::intersect(unique(df$ligand),unique(df$receptor))
+    }
+    
+    circos_links = df
+    
+    # Link ligands/Receptors to the colors of senders/receivers
+    circos_links = circos_links %>% dplyr::inner_join(grid_col_tbl_ligand) %>% dplyr::inner_join(grid_col_tbl_receptor)
+    links_circle = circos_links %>% dplyr::distinct(ligand,receptor, weight)
+    ligand_color = circos_links %>% dplyr::distinct(ligand,color_ligand_type)
+    grid_ligand_color = ligand_color$color_ligand_type %>% magrittr::set_names(ligand_color$ligand)
+    receptor_color = circos_links %>% dplyr::distinct(receptor,color_receptor_type)
+    grid_receptor_color = receptor_color$color_receptor_type %>% magrittr::set_names(receptor_color$receptor)
+    grid_col =c(grid_ligand_color,grid_receptor_color)
+    
+    # Define order of the ligands and receptors and the gaps
+    ligand_order = prioritized_tbl_oi$sender %>% unique() %>% sort() %>% lapply(function(sender_oi){
+      ligands = circos_links %>% dplyr::filter(sender == sender_oi) %>%  dplyr::arrange(ligand) %>% dplyr::distinct(ligand)
+    }) %>% unlist()
+    
+    receptor_order = prioritized_tbl_oi$receiver %>% unique() %>% sort() %>% lapply(function(receiver_oi){
+      receptors = circos_links %>% dplyr::filter(receiver == receiver_oi) %>%  dplyr::arrange(receptor) %>% dplyr::distinct(receptor)
+    }) %>% unlist()
+    
+    order = c(ligand_order,receptor_order)
+    
+    width_same_cell_same_ligand_type = 0.275
+    width_different_cell = 3
+    width_ligand_receptor = 9
+    width_same_cell_same_receptor_type = 0.275
+    
+    sender_gaps = prioritized_tbl_oi$sender %>% unique() %>% sort() %>% lapply(function(sender_oi){
+      sector = rep(width_same_cell_same_ligand_type, times = (circos_links %>% dplyr::filter(sender == sender_oi) %>% dplyr::distinct(ligand) %>% nrow() -1))
+      gap = width_different_cell
+      return(c(sector,gap))
+    }) %>% unlist()
+    sender_gaps = sender_gaps[-length(sender_gaps)]
+    
+    receiver_gaps = prioritized_tbl_oi$receiver %>% unique() %>% sort() %>% lapply(function(receiver_oi){
+      sector = rep(width_same_cell_same_receptor_type, times = (circos_links %>% dplyr::filter(receiver == receiver_oi) %>% dplyr::distinct(receptor) %>% nrow() -1))
+      gap = width_different_cell
+      return(c(sector,gap))
+    }) %>% unlist()
+    receiver_gaps = receiver_gaps[-length(receiver_gaps)]
+    
+    gaps = c(sender_gaps, width_ligand_receptor, receiver_gaps, width_ligand_receptor)
+    
+    # print(length(gaps))
+    # print(length(union(circos_links$ligand, circos_links$receptor) %>% unique()))
+    if(length(gaps) != length(union(circos_links$ligand, circos_links$receptor) %>% unique())){
+      warning("Specified gaps have different length than combined total of ligands and receptors - This is probably due to duplicates in ligand-receptor names")
+    }
+    
+    
+    links_circle$weight[links_circle$weight == 0] = 0.01
+    circos.clear()
+    circos.par(gap.degree = gaps)
+    chordDiagram(links_circle,
+                 directional = 1,
+                 order=order,
+                 link.sort = TRUE,
+                 link.decreasing = TRUE,
+                 grid.col = grid_col,
+                 # transparency = transparency,
+                 diffHeight = 0.0075,
+                 direction.type = c("diffHeight", "arrows"),
+                 link.visible = links_circle$weight > 0.01,
+                 annotationTrack = "grid",
+                 preAllocateTracks = list(track.height = 0.175),
+                 grid.border = "gray35", link.arr.length = 0.05, link.arr.type = "big.arrow",  link.lwd = 1.25, link.lty = 1, link.border="gray35",
+                 reduce = 0,
+                 scale = TRUE)
+    circos.track(track.index = 1, panel.fun = function(x, y) {
+      circos.text(CELL_META$xcenter, CELL_META$ylim[1], CELL_META$sector.index,
+                  facing = "clockwise", niceFacing = TRUE, adj = c(0, 0.5), cex = 1)
+    }, bg.border = NA) #
+    
+    title(title)
+    p_circos = recordPlot()
+    return(p_circos)
+    
+  })
+  names(all_plots) = groups_oi
+  
+  plot(NULL ,xaxt='n',yaxt='n',bty='n',ylab='',xlab='', xlim=0:1, ylim=0:1)
+  # grid_col_all = c(colors_receiver, colors_sender)
+  legend = ComplexHeatmap::Legend(at = prioritized_tbl_oi$receiver %>% unique() %>% sort(),
+                                  type = "grid",
+                                  legend_gp = grid::gpar(fill = colors_receiver[prioritized_tbl_oi$receiver %>% unique() %>% sort()]),
+                                  title_position = "topleft",
+                                  title = "Receiver")
+  ComplexHeatmap::draw(legend, just = c("left", "bottom"))
+  
+  legend = ComplexHeatmap::Legend(at = prioritized_tbl_oi$sender %>% unique() %>% sort(),
+                                  type = "grid",
+                                  legend_gp = grid::gpar(fill = colors_sender[prioritized_tbl_oi$sender %>% unique() %>% sort()]),
+                                  title_position = "topleft",
+                                  title = "Sender")
+  ComplexHeatmap::draw(legend, just = c("left", "top"))
+  
+  p_legend = grDevices::recordPlot()
+  
+  all_plots$legend = p_legend
+  
+  return(all_plots)
 }

@@ -40,11 +40,14 @@ In this vignette, we will demonstrate all these steps in detail.
 
 # Step 0: Preparation of the analysis: load packages, read in the single-cell expression data, and define the main settings of the muscat analysis
 
-The current implementation of the muscat wrapper starts from a Seurat
-object, therefore we will need to load the Seurat library.
+The current implementation of the muscat wrapper starts from a
+SingleCellExperiment object, therefore we will need to load the
+SingleCellExperiment library. If you start from a Seurat object, you can
+convert it easily to a SingleCellExperiment via
+`sce = Seurat::as.SingleCellExperiment(seurat_obj, assay = "RNA")`.
 
 ``` r
-library(Seurat)
+library(SingleCellExperiment)
 library(dplyr)
 library(ggplot2)
 library(multinichenetr)
@@ -59,26 +62,26 @@ indicated in the ‘celltype’ column, and the sample is indicated by the
 **User adaptation required**
 
 ``` r
-seurat_obj = readRDS(url("https://zenodo.org/record/4675430/files/seurat_obj_hnscc.rds"))
-DimPlot(seurat_obj, group.by = "celltype") # celltype_id
+sce = readRDS(url("https://zenodo.org/record/5196144/files/sce_hnscc.rds"))
+scater::plotReducedDim(sce, dimred = "UMAP", colour_by = "celltype")
 ```
 
 ![](muscat_wrapper_vignette_final_files/figure-gfm/unnamed-chunk-2-1.png)<!-- -->
 
 ``` r
-DimPlot(seurat_obj, group.by = "tumor") # sample_id
+scater::plotReducedDim(sce, dimred = "UMAP", colour_by = "tumor")
 ```
 
 ![](muscat_wrapper_vignette_final_files/figure-gfm/unnamed-chunk-2-2.png)<!-- -->
 
 ``` r
-DimPlot(seurat_obj, group.by = "pEMT") # group_id (option 1)
+scater::plotReducedDim(sce, dimred = "UMAP", colour_by = "pEMT")
 ```
 
 ![](muscat_wrapper_vignette_final_files/figure-gfm/unnamed-chunk-2-3.png)<!-- -->
 
 ``` r
-DimPlot(seurat_obj, group.by = "pEMT_fine") # group_id (option 2)
+scater::plotReducedDim(sce, dimred = "UMAP", colour_by = "pEMT_fine")
 ```
 
 ![](muscat_wrapper_vignette_final_files/figure-gfm/unnamed-chunk-2-4.png)<!-- -->
@@ -114,7 +117,7 @@ aggregated expression measure will be.
 **User adaptation required**
 
 ``` r
-table(seurat_obj@meta.data$celltype, seurat_obj@meta.data$tumor) # cell types vs samples
+table(SummarizedExperiment::colData(sce)$celltype, SummarizedExperiment::colData(sce)$tumor) # cell types vs samples
 ##                
 ##                 HN16 HN17 HN18 HN20 HN22 HN25 HN26 HN28 HN5 HN6
 ##   CAF             47   37   36    3    9   73   19  157  37  82
@@ -123,7 +126,7 @@ table(seurat_obj@meta.data$celltype, seurat_obj@meta.data$tumor) # cell types vs
 ##   Myeloid         15    2    7    0    1    8    1    1  58   6
 ##   myofibroblast   84    6   14   10   45   88   45  140   5   6
 ##   T.cell         300   61  207    0    0   93    3    0  28   0
-table(seurat_obj@meta.data$celltype, seurat_obj@meta.data$pEMT) # cell types vs conditions
+table(SummarizedExperiment::colData(sce)$celltype, SummarizedExperiment::colData(sce)$pEMT) # cell types vs conditions
 ##                
 ##                 High  Low
 ##   CAF            396  104
@@ -132,7 +135,7 @@ table(seurat_obj@meta.data$celltype, seurat_obj@meta.data$pEMT) # cell types vs 
 ##   Myeloid         92    7
 ##   myofibroblast  382   61
 ##   T.cell         689    3
-table(seurat_obj@meta.data$tumor, seurat_obj@meta.data$pEMT) # samples vs conditions
+table(SummarizedExperiment::colData(sce)$tumor, SummarizedExperiment::colData(sce)$pEMT) # samples vs conditions
 ##       
 ##        High Low
 ##   HN16  571   0
@@ -169,7 +172,7 @@ To visually see which celltype-sample combinations won’t be considered,
 you can run the following code:
 
 ``` r
-metadata_abundance = seurat_obj@meta.data[,c(sample_id, group_id, celltype_id)]
+metadata_abundance = SummarizedExperiment::colData(sce) %>% tibble::as_tibble() %>% .[,c(sample_id, group_id, celltype_id)]
 colnames(metadata_abundance) =c("sample_id", "group_id", "celltype_id")
   
 abundance_data = metadata_abundance %>% tibble::as_tibble() %>% dplyr::group_by(sample_id , celltype_id) %>% dplyr::count() %>% dplyr::inner_join(metadata_abundance %>% dplyr::distinct(sample_id , group_id ), by = "sample_id")
@@ -292,7 +295,7 @@ contrast_tbl = tibble(contrast =
 ### Perform the DE analysis for each cell type.
 
 ``` r
-DE_info = get_DE_info(seurat_obj = seurat_obj, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id, covariates = covariates, contrasts_oi = contrasts_oi, min_cells = min_cells)
+DE_info = get_DE_info(sce = sce, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id, covariates = covariates, contrasts_oi = contrasts_oi, min_cells = min_cells)
 ## [1] "excluded cell types are:"
 ## [1] "Endothelial" "Myeloid"     "T.cell"     
 ## [1] "These celltypes are not considered in the analysis. After removing samples that contain less cells than the required minimal, some groups don't have 2 or more samples anymore. As a result the analysis cannot be run. To solve this: decrease the number of min_cells or change your group_id and pool all samples that belong to groups that are not of interest! "
@@ -515,5 +518,36 @@ covariates in the model, or use the `pEMT_fine` group definition instead
 # Step 3: Downstream analysis and visualization
 
 ``` r
+receiver_oi = "Malignant"
 group_oi = "High"
+
+targets_oi = DE_info$celltype_de$de_output_tidy %>% inner_join(contrast_tbl) %>% filter(group == group_oi) %>% filter(cluster_id == receiver_oi) %>% filter(p_adj <= 0.05) %>% arrange(p_adj) %>% pull(gene) %>% unique()
+```
+
+First, make a violin plot
+
+``` r
+target_oi = targets_oi[1]
+
+make_target_violin_plot(sce_receiver = sce, target_oi = target_oi, receiver_oi = receiver_oi, group_oi = group_oi, group_id = group_id, sample_id, celltype_id_receiver = celltype_id)
+```
+
+![](muscat_wrapper_vignette_final_files/figure-gfm/unnamed-chunk-18-1.png)<!-- -->
+
+Then a feature plot
+
+``` r
+target_oi = targets_oi[1]
+
+make_target_feature_plot(sce_receiver = sce, target_oi = target_oi, group_oi = group_oi, group_id = group_id, celltype_id_receiver = celltype_id, receivers_oi = c("Malignant","myofibroblast","CAF")) 
+```
+
+![](muscat_wrapper_vignette_final_files/figure-gfm/unnamed-chunk-19-1.png)<!-- -->
+
+Then, a dotplot THE FOLLOWING REQUIRES THE PSEUDOBULKED COUNTS
+INFORMATION ETC
+
+``` r
+# p_dotplot = make_sample_target_plots(receiver_info = multinichenet_output$celltype_info, targets_oi, receiver_oi, output$grouping_tbl)
+#p_dotplot + ggtitle(paste0("DE genes in ",group_oi, " in celltype ",receiver_oi))
 ```

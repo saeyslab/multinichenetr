@@ -8,12 +8,14 @@ library(tidyverse)
 # sce = Seurat::as.SingleCellExperiment(seurat_obj, assay = "RNA")
 sce = readRDS("C:/Users/rbrowaey/work/Research/NicheNet/sce_hnscc.rds")
 set.seed(1919)
+sample_id = "tumor"
 extra_metadata = SummarizedExperiment::colData(sce)  %>% tibble::as_tibble()  %>% dplyr::select(all_of(sample_id)) %>% dplyr::distinct() %>% mutate(batch = sample(c("A","B"),nrow(.), replace = TRUE))
 new_metadata = SummarizedExperiment::colData(sce)  %>% tibble::as_tibble()  %>% inner_join(extra_metadata)
 new_metadata = new_metadata %>% data.frame()
 rownames(new_metadata) = new_metadata$cell
 
-sce = SingleCellExperiment::SingleCellExperiment(list(counts=SingleCellExperiment::counts(sce)),
+sce = SingleCellExperiment::SingleCellExperiment(list(counts=SingleCellExperiment::counts(sce), logcounts=SingleCellExperiment::logcounts(sce)),
+                                                 reducedDims = SingleCellExperiment::reducedDims(sce), 
                                                  colData=new_metadata,
                                                  rowData=SingleCellExperiment::rowData(sce),
                                                  metadata=sce@metadata
