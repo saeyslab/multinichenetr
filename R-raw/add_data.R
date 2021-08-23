@@ -2,11 +2,11 @@ library(tidyverse)
 
 # in the past, we used seurat objects as input
 # now this was changed to single-cell experiment
-# seurat_obj = readRDS("C:/Users/rbrowaey/work/Research/NicheNet/current_projects/CRC_NicheNet/data/seurat_obj_lite_hnscc.rds")
+seurat_obj = readRDS("C:/Users/rbrowaey/work/Research/NicheNet/seurat_obj_lite_hnscc.rds")
 # usethis::use_data(seurat_obj,overwrite = T, compress = "bzip2")
 # convert seurat to SCE object
-# sce = Seurat::as.SingleCellExperiment(seurat_obj, assay = "RNA")
-sce = readRDS("C:/Users/rbrowaey/work/Research/NicheNet/sce_hnscc.rds")
+sce = Seurat::as.SingleCellExperiment(seurat_obj, assay = "RNA")
+# sce = readRDS("C:/Users/rbrowaey/work/Research/NicheNet/sce_hnscc.rds")
 set.seed(1919)
 sample_id = "tumor"
 extra_metadata = SummarizedExperiment::colData(sce)  %>% tibble::as_tibble()  %>% dplyr::select(all_of(sample_id)) %>% dplyr::distinct() %>% mutate(batch = sample(c("A","B"),nrow(.), replace = TRUE))

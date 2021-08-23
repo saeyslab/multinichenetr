@@ -108,17 +108,17 @@ get_muscat_exprs_avg = function(sce, sample_id, celltype_id, group_id){
                         gid = group_id,  # group IDs (ctrl/stim)
                         sid = "id",   # sample IDs (ctrl/stim.1234)
                         drop = FALSE)  #
+  if(! "logcounts" %in% SummarizedExperiment::assayNames(sce)){
+    sce = scater::computeLibraryFactors(sce)
+    sce = scater::logNormCounts(sce)
+    # if wanting to use scran: --- uncomment this --> add this to the description file again (via add_data.R + add this to this import file)
+    # set.seed(1919) # seed for reproducibility of the scran::quickCluster function (see https://bioconductor.org/books/release/OSCA/normalization.html)
+    # 
+    # clusters = suppressWarnings(scran::quickCluster(sce)) # why suppressWarnings --> on the lite dataset input ":regularize.values(x, y, ties, missing(ties), na.rm = na.rm)" pops always up, not on the entire dataset. Avoid these types of warnings for checks + anyway: logcounts assay are not much used anyway in the prioritizaton and visualization.
+    # sce = suppressWarnings(scran::computeSumFactors(sce, clusters=clusters))
+    # sce = suppressWarnings(scater::logNormCounts(sce))
+  }
 
-  sce = scater::computeLibraryFactors(sce)
-  sce = scater::logNormCounts(sce)
-
-  # if wanting to use scran: --- uncomment this --> add this to the description file again (via add_data.R + add this to this import file)
-  # set.seed(1919) # seed for reproducibility of the scran::quickCluster function (see https://bioconductor.org/books/release/OSCA/normalization.html)
-  # 
-  # clusters = suppressWarnings(scran::quickCluster(sce)) # why suppressWarnings --> on the lite dataset input ":regularize.values(x, y, ties, missing(ties), na.rm = na.rm)" pops always up, not on the entire dataset. Avoid these types of warnings for checks + anyway: logcounts assay are not much used anyway in the prioritizaton and visualization.
-  # sce = suppressWarnings(scran::computeSumFactors(sce, clusters=clusters))
-  # sce = suppressWarnings(scater::logNormCounts(sce))
-  
   avg = muscat::aggregateData(sce, assay = "logcounts", fun = "mean", by = c("cluster_id", "sample_id"))
 
   avg_df = sce$cluster_id %>% unique() %>% lapply(function(celltype_oi, avg){

@@ -42,7 +42,7 @@ test_that("Pipeline for all-vs-all analysis works & plotting functions work", {
   receiver_oi = "Malignant"
   
   prioritized_tbl_oi = output$prioritization_tables$group_prioritization_tbl %>% filter(fraction_expressing_ligand_receptor > 0) %>% filter(group == group_oi & receiver == receiver_oi) %>% top_n(50, prioritization_score) %>% top_n(25, activity_scaled) %>% arrange(-activity_scaled)
-  ligand_activity_target_plot = make_ligand_activity_target_plot(group_oi, receiver_oi, prioritized_tbl_oi, output$ligand_activities_targets_DEgenes, contrast_tbl, output$grouping_tbl, output$celltype_info, plot_legend = FALSE)
+  ligand_activity_target_plot = make_ligand_activity_target_plot(group_oi, receiver_oi, prioritized_tbl_oi, output$ligand_activities_targets_DEgenes, contrast_tbl, output$grouping_tbl, output$celltype_info, ligand_target_matrix, plot_legend = FALSE)
   expect_true("ggplot" %in% class(ligand_activity_target_plot$combined_plot))
   expect_true("ggplot" %in% class(ligand_activity_target_plot$legends))
   
@@ -55,16 +55,16 @@ test_that("Pipeline for all-vs-all analysis works & plotting functions work", {
   group_lfc_exprs_activity_plot = make_group_lfc_exprs_activity_plot(output$prioritization_tables, prioritized_tbl_oi, receiver_oi = receiver_oi)
   expect_true("ggplot" %in% class(group_lfc_exprs_activity_plot))
   
-  target_oi = "RAB31"
+  target_oi = "PTHLH"
   target_violin_plot = make_target_violin_plot(sce_receiver = sce, target_oi = target_oi, receiver_oi = receiver_oi, group_oi = group_oi, group_id = group_id, sample_id, celltype_id_receiver = celltype_id)
   expect_true("ggplot" %in% class(target_violin_plot))
   target_feature_plot = make_target_feature_plot(sce_receiver = sce, target_oi = target_oi, group_oi = group_oi, group_id = group_id, celltype_id_receiver = celltype_id, receivers_oi = c("Malignant","myofibroblast","CAF"))
   expect_true("ggplot" %in% class(target_feature_plot))
   
-  ligand_oi = "DLL1"
-  receptor_oi = "NOTCH3"
-  sender_oi = "Malignant"
-  receiver_oi = "myofibroblast"
+  ligand_oi = "TNC"
+  receptor_oi = "ITGA5"
+  sender_oi = "CAF"
+  receiver_oi = "Malignant"
   
   ligand_receptor_feature_plot = make_ligand_receptor_feature_plot(sce_sender = sce, sce_receiver = sce, ligand_oi = ligand_oi, receptor_oi = receptor_oi, group_oi = group_oi, group_id = group_id, celltype_id_sender = celltype_id, celltype_id_receiver = celltype_id, senders_oi = c("Malignant","myofibroblast","CAF"), receivers_oi = c("Malignant","myofibroblast","CAF"))
   expect_true("ggplot" %in% class(ligand_receptor_feature_plot))
@@ -982,6 +982,22 @@ test_that("Pipeline with wrapper function works - while correcting for batch eff
   expect_type(output,"list")
   expect_type(output$prioritization_tables,"list")
   
+  # test batch effect indicated plots
+  ligand_oi = "TNC"
+  receptor_oi = "ITGA5"
+  group_oi = "High"
+  sender_oi = "CAF"
+  receiver_oi = "Malignant"
+  p_violin = make_ligand_receptor_violin_plot(sce_sender = sce, sce_receiver = sce, ligand_oi = ligand_oi, receptor_oi = receptor_oi, group_oi = group_oi, group_id = group_id, sender_oi = sender_oi, receiver_oi = receiver_oi, sample_id = sample_id, celltype_id_sender = celltype_id, celltype_id_receiver = celltype_id, covariate_oi = covariates)
+  expect_true("ggplot" %in% class(p_violin))
+  
+  target_oi = "PTHLH"
+  target_violin_plot = make_target_violin_plot(sce_receiver = sce, target_oi = target_oi, receiver_oi = receiver_oi, group_oi = group_oi, group_id = group_id, sample_id, celltype_id_receiver = celltype_id, covariate_oi = covariates)
+  expect_true("ggplot" %in% class(target_violin_plot))
+  
+  prioritized_tbl_oi = output$prioritization_tables$group_prioritization_tbl %>% filter(fraction_expressing_ligand_receptor > 0) %>% filter(group == group_oi) %>% top_n(50, prioritization_score)
+  p_sample_lr_prod_activity_covariate = make_sample_lr_prod_activity_covariate_plots(output$prioritization_tables, prioritized_tbl_oi, output$grouping_tbl, covariate_oi = covariates)
+  expect_true("ggplot" %in% class(p_sample_lr_prod_activity_covariate))
   
 })
 test_that("Pipeline for separate analysis works - while correcting for batch effects", {

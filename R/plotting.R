@@ -256,7 +256,7 @@ make_sample_lr_prod_activity_plots = function(prioritization_tables, prioritized
 }
 #' @title make_sample_lr_prod_activity_covariate_plots
 #'
-#' @description \code{make_sample_lr_prod_activity_covariate_plots}  XXXX EXPERIMENTAL FEATURE!!!!!!!!!!!!!!!!!!!!NOT WORKINGN RIGHT NOW
+#' @description \code{make_sample_lr_prod_activity_covariate_plots}  Visualize the scaled product of Ligand-Receptor (pseudobulk) expression per sample, and compare the different groups. In addition, show the NicheNet ligand activities in each receiver-celltype combination. On top of this summary plot, a heatmap indicates the covariate value for each displayed sample.
 #' @usage make_sample_lr_prod_activity_covariate_plots(prioritization_tables, prioritized_tbl_oi, grouping_tbl, covariate_oi, widths = NULL, heights = NULL)
 #'
 #' @inheritParams make_sample_lr_prod_activity_plots
@@ -273,7 +273,33 @@ make_sample_lr_prod_activity_plots = function(prioritization_tables, prioritized
 #'
 #' @examples
 #' \dontrun{
-#' print("XXXX")
+#' library(dplyr)
+#' lr_network = readRDS(url("https://zenodo.org/record/3260758/files/lr_network.rds"))
+#' lr_network = lr_network %>% dplyr::rename(ligand = from, receptor = to) %>% dplyr::distinct(ligand, receptor)
+#' ligand_target_matrix = readRDS(url("https://zenodo.org/record/3260758/files/ligand_target_matrix.rds"))
+#' sample_id = "tumor"
+#' group_id = "pEMT"
+#' celltype_id = "celltype"
+#' covariates = NA
+#' contrasts_oi = c("'High-Low','Low-High'")
+#' contrast_tbl = tibble(contrast = c("High-Low","Low-High"), group = c("High","Low"))
+#' output = multi_nichenet_analysis(
+#'      sce = sce, 
+#'      celltype_id = celltype_id, 
+#'      sample_id = sample_id, 
+#'      group_id = group_id,
+#'      covariates = covariates,
+#'      lr_network = lr_network, 
+#'      ligand_target_matrix = ligand_target_matrix, 
+#'      contrasts_oi = contrasts_oi, 
+#'      contrast_tbl = contrast_tbl, 
+#'      sender_receiver_separate = FALSE
+#'      )
+#' group_oi = "High"
+#' covariate_oi = "batch"
+#' prioritized_tbl_oi = output$prioritization_tables$group_prioritization_tbl %>% filter(fraction_expressing_ligand_receptor > 0) %>% filter(group == group_oi) %>% top_n(50, prioritization_score) 
+#' plot_oi = make_sample_lr_prod_activity_covariate_plots(output$prioritization_tables, prioritized_tbl_oi, output$grouping_tbl, covariate_oi = covariate_oi)
+#' plot_oi
 #' }
 #'
 #' @export
@@ -390,12 +416,12 @@ make_sample_lr_prod_activity_covariate_plots = function(prioritization_tables, p
       strip.text.x.top = element_text(angle = 0),
       panel.grid.major = element_blank(),
       panel.grid.minor = element_blank(),
-      panel.spacing.x = unit(2.5, "lines"),
+      panel.spacing.x = unit(0.20, "lines"),
       panel.spacing.y = unit(0.25, "lines"),
       strip.text.x = element_text(size = 11, color = "black", face = "bold"),
       strip.text.y.left = element_text(size = 9, color = "black", face = "bold", angle = 0),
       strip.background = element_rect(color="darkgrey", fill="whitesmoke", size=1.5, linetype="solid")
-    ) + scale_fill_brewer(palette = "Set2")
+    ) + scale_fill_brewer(palette = "Set2") + xlab("")
   
   if(!is.null(widths)){
     design <- "D##
@@ -413,7 +439,7 @@ make_sample_lr_prod_activity_covariate_plots = function(prioritization_tables, p
       A = p1, B = p2, C= p3, D = p_covariate,
       guides = "collect", design = design,
       widths = c(sample_data$sample %>% unique() %>% length(), sample_data$receiver %>% unique() %>% length(), sample_data$receiver %>% unique() %>% length()),
-      heights = c(1, group_data$lr_interaction %>% unique() %>% length(), )
+      heights = c(1, group_data$lr_interaction %>% unique() %>% length())
     ) + patchwork::plot_layout(design = design)
   }
   
@@ -1030,11 +1056,12 @@ make_ligand_receptor_feature_plot = function(sce_sender, sce_receiver, ligand_oi
 #'
 #' @description \code{make_ligand_receptor_violin_plot}  Plot combining a violin plot of of the ligand of interest in the sender cell type of interest, and a violin plot of the receptor of interest in the receiver cell type of interest.
 #
-#' @usage make_ligand_receptor_violin_plot(sce_sender, sce_receiver, ligand_oi, receptor_oi, sender_oi, receiver_oi, group_oi, group_id, sample_id, celltype_id_sender, celltype_id_receiver, background_groups = NULL)
+#' @usage make_ligand_receptor_violin_plot(sce_sender, sce_receiver, ligand_oi, receptor_oi, sender_oi, receiver_oi, group_oi, group_id, sample_id, celltype_id_sender, celltype_id_receiver, covariate_oi = NA, background_groups = NULL)
 #'
 #' @param sample_id Name of the colData(sce) column in which the id of the sample is defined
 #' @param sender_oi Character vector with the names of the sender cell type of interest
 #' @param receiver_oi  Character vector with the names of the receiver cell type of interest
+#' @param covariate_oi Name of a covariate of interest based on which the visualization will be split. Default: NA: no covariate.
 #' @inheritParams make_ligand_receptor_feature_plot
 #'
 #' @return Plot combining a violin plot of of the ligand of interest in the sender cell type of interest, and a violin plot of the receptor of interest in the receiver cell type of interest.
@@ -1086,7 +1113,7 @@ make_ligand_receptor_feature_plot = function(sce_sender, sce_receiver, ligand_oi
 #'
 #' @export
 #'
-make_ligand_receptor_violin_plot = function(sce_sender, sce_receiver, ligand_oi, receptor_oi, sender_oi, receiver_oi, group_oi, group_id, sample_id, celltype_id_sender, celltype_id_receiver, background_groups = NULL){
+make_ligand_receptor_violin_plot = function(sce_sender, sce_receiver, ligand_oi, receptor_oi, sender_oi, receiver_oi, group_oi, group_id, sample_id, celltype_id_sender, celltype_id_receiver, covariate_oi = NA, background_groups = NULL){
   
   requireNamespace("dplyr")
   requireNamespace("ggplot2")
@@ -1105,24 +1132,48 @@ make_ligand_receptor_violin_plot = function(sce_sender, sce_receiver, ligand_oi,
                                gid = group_id,  # group IDs (ctrl/stim)
                                sid = "id",   # sample IDs (ctrl/stim.1234)
                                drop = FALSE)  #
-  
   exprs_df = tibble::tibble(expression = SingleCellExperiment::logcounts(sce_subset)[ligand_oi,], cell = names(SingleCellExperiment::logcounts(sce_subset)[ligand_oi,])) %>% dplyr::inner_join(SummarizedExperiment::colData(sce_subset) %>% tibble::as_tibble())
   
-  p_sender = exprs_df %>% ggplot(aes(sample_id, expression, group = sample_id, color = group_id)) + geom_violin(color = "grey10") + ggbeeswarm::geom_quasirandom(bandwidth = 1.25, varwidth = TRUE)  + 
-    facet_grid(.~ group_id, scales = "free", space = "free") +
-    scale_x_discrete(position = "bottom") +
-    theme_light() +
-    theme(
-      axis.text.x = element_text(size = 9,  angle = 90,hjust = 0),
-      strip.text.x.top = element_text(angle = 0),
-      panel.grid.major = element_blank(),
-      panel.grid.minor = element_blank(),
-      panel.spacing.x = unit(2.5, "lines"),
-      panel.spacing.y = unit(0.25, "lines"),
-      strip.text.x = element_text(size = 11, color = "black", face = "bold"),
-      strip.text.y = element_text(size = 9, color = "black", face = "bold", angle = 0),
-      strip.background = element_rect(color="darkgrey", fill="whitesmoke", size=1.5, linetype="solid")
-    ) + scale_color_brewer(palette = "Set2") + ggtitle(paste("Expression of the ligand ",ligand_oi, " in sender cell type ", sender_oi, sep = ""))
+  if(is.na(covariate_oi)){
+    
+    p_sender = exprs_df %>% ggplot(aes(sample_id, expression, group = sample_id, color = group_id)) + geom_violin(color = "grey10") + ggbeeswarm::geom_quasirandom(bandwidth = 1.25, varwidth = TRUE)  + 
+      facet_grid(.~ group_id, scales = "free", space = "free") +
+      scale_x_discrete(position = "bottom") +
+      theme_light() +
+      theme(
+        axis.text.x = element_text(size = 9,  angle = 90,hjust = 0),
+        strip.text.x.top = element_text(angle = 0),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.spacing.x = unit(2.5, "lines"),
+        panel.spacing.y = unit(0.25, "lines"),
+        strip.text.x = element_text(size = 11, color = "black", face = "bold"),
+        strip.text.y = element_text(size = 9, color = "black", face = "bold", angle = 0),
+        strip.background = element_rect(color="darkgrey", fill="whitesmoke", size=1.5, linetype="solid")
+      ) + scale_color_brewer(palette = "Set2") + ggtitle(paste("Expression of the ligand ",ligand_oi, " in sender cell type ", sender_oi, sep = ""))
+    
+  } else {
+    extra_metadata = SummarizedExperiment::colData(sce_subset) %>% tibble::as_tibble() %>% dplyr::select(all_of(sample_id), all_of(covariate_oi)) %>% dplyr::distinct() %>% dplyr::mutate_all(factor)
+    colnames(extra_metadata) = c("sample_id","covariate_oi")
+    exprs_df = exprs_df %>% dplyr::inner_join(extra_metadata)
+    
+    p_sender = exprs_df %>% ggplot(aes(sample_id, expression, group = sample_id, color = group_id)) + geom_violin(color = "grey10") + ggbeeswarm::geom_quasirandom(bandwidth = 1.25, varwidth = TRUE)  + 
+      facet_grid(covariate_oi ~ group_id, scales = "free", space = "free") +
+      scale_x_discrete(position = "bottom") +
+      theme_light() +
+      theme(
+        axis.text.x = element_text(size = 9,  angle = 90,hjust = 0),
+        strip.text.x.top = element_text(angle = 0),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.spacing.x = unit(2.5, "lines"),
+        panel.spacing.y = unit(0.25, "lines"),
+        strip.text.x = element_text(size = 11, color = "black", face = "bold"),
+        strip.text.y = element_text(size = 9, color = "black", face = "bold", angle = 0),
+        strip.background = element_rect(color="darkgrey", fill="whitesmoke", size=1.5, linetype="solid")
+      ) + scale_color_brewer(palette = "Set2") + ggtitle(paste("Expression of the ligand ",ligand_oi, " in sender cell type ", sender_oi, sep = ""))
+    
+  }
   
   # receptor plot
   sce_subset =  sce_receiver[, SummarizedExperiment::colData(sce_receiver)[,celltype_id_receiver] %in% receiver_oi]
@@ -1137,30 +1188,53 @@ make_ligand_receptor_violin_plot = function(sce_sender, sce_receiver, ligand_oi,
   
   exprs_df = tibble::tibble(expression = SingleCellExperiment::logcounts(sce_subset)[receptor_oi,], cell = names(SingleCellExperiment::logcounts(sce_subset)[receptor_oi,])) %>% dplyr::inner_join(SummarizedExperiment::colData(sce_subset) %>% tibble::as_tibble())
   
-  p_receiver = exprs_df %>% ggplot(aes(sample_id, expression, group = sample_id, color = group_id)) + geom_violin(color = "grey10") + ggbeeswarm::geom_quasirandom(bandwidth = 1.25, varwidth = TRUE)  + 
-    facet_grid(.~ group_id, scales = "free", space = "free") +
-    scale_x_discrete(position = "bottom") +
-    theme_light() +
-    theme(
-      axis.text.x = element_text(size = 9,  angle = 90,hjust = 0),
-      strip.text.x.top = element_text(angle = 0),
-      panel.grid.major = element_blank(),
-      panel.grid.minor = element_blank(),
-      panel.spacing.x = unit(2.5, "lines"),
-      panel.spacing.y = unit(0.25, "lines"),
-      strip.text.x = element_text(size = 11, color = "black", face = "bold"),
-      strip.text.y = element_text(size = 9, color = "black", face = "bold", angle = 0),
-      strip.background = element_rect(color="darkgrey", fill="whitesmoke", size=1.5, linetype="solid")
-    ) + scale_color_brewer(palette = "Set2") + ggtitle(paste("Expression of the receptor ",receptor_oi, " in receiver cell type ", receiver_oi, sep = ""))
+  if(is.na(covariate_oi)){
+    p_receiver = exprs_df %>% ggplot(aes(sample_id, expression, group = sample_id, color = group_id)) + geom_violin(color = "grey10") + ggbeeswarm::geom_quasirandom(bandwidth = 1.25, varwidth = TRUE)  + 
+      facet_grid(.~ group_id, scales = "free", space = "free") +
+      scale_x_discrete(position = "bottom") +
+      theme_light() +
+      theme(
+        axis.text.x = element_text(size = 9,  angle = 90,hjust = 0),
+        strip.text.x.top = element_text(angle = 0),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.spacing.x = unit(2.5, "lines"),
+        panel.spacing.y = unit(0.25, "lines"),
+        strip.text.x = element_text(size = 11, color = "black", face = "bold"),
+        strip.text.y = element_text(size = 9, color = "black", face = "bold", angle = 0),
+        strip.background = element_rect(color="darkgrey", fill="whitesmoke", size=1.5, linetype="solid")
+      ) + scale_color_brewer(palette = "Set2") + ggtitle(paste("Expression of the receptor ",receptor_oi, " in receiver cell type ", receiver_oi, sep = ""))
+    
+  } else {
+    extra_metadata = SummarizedExperiment::colData(sce_subset) %>% tibble::as_tibble() %>% dplyr::select(all_of(sample_id), all_of(covariate_oi)) %>% dplyr::distinct() %>% dplyr::mutate_all(factor)
+    colnames(extra_metadata) = c("sample_id","covariate_oi")
+    exprs_df = exprs_df %>% dplyr::inner_join(extra_metadata)
+    
+    p_receiver = exprs_df %>% ggplot(aes(sample_id, expression, group = sample_id, color = group_id)) + geom_violin(color = "grey10") + ggbeeswarm::geom_quasirandom(bandwidth = 1.25, varwidth = TRUE)  + 
+      facet_grid(covariate_oi~ group_id, scales = "free", space = "free") +
+      scale_x_discrete(position = "bottom") +
+      theme_light() +
+      theme(
+        axis.text.x = element_text(size = 9,  angle = 90,hjust = 0),
+        strip.text.x.top = element_text(angle = 0),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.spacing.x = unit(2.5, "lines"),
+        panel.spacing.y = unit(0.25, "lines"),
+        strip.text.x = element_text(size = 11, color = "black", face = "bold"),
+        strip.text.y = element_text(size = 9, color = "black", face = "bold", angle = 0),
+        strip.background = element_rect(color="darkgrey", fill="whitesmoke", size=1.5, linetype="solid")
+      ) + scale_color_brewer(palette = "Set2") + ggtitle(paste("Expression of the receptor ",receptor_oi, " in receiver cell type ", receiver_oi, sep = ""))
+    
+  }
   
   return(patchwork::wrap_plots(p_sender, p_receiver, nrow = 2))
 
 }
-
 #' @title make_target_violin_plot
 #'
 #' @description \code{make_target_violin_plot}  Violin plot of a target gene of interest: per sample, and samples are grouped per group
-#' @usage make_target_violin_plot(sce_receiver, target_oi, receiver_oi, group_oi, group_id, sample_id, celltype_id_receiver, background_groups = NULL)
+#' @usage make_target_violin_plot(sce_receiver, target_oi, receiver_oi, group_oi, group_id, sample_id, celltype_id_receiver, covariate_oi = NA, background_groups = NULL)
 #'
 #' @param target_oi Name of the gene of interest
 #' @inheritParams make_ligand_receptor_violin_plot
@@ -1206,7 +1280,7 @@ make_ligand_receptor_violin_plot = function(sce_sender, sce_receiver, ligand_oi,
 #' }
 #' @export
 #'
-make_target_violin_plot = function(sce_receiver, target_oi, receiver_oi, group_oi, group_id, sample_id, celltype_id_receiver, background_groups = NULL){
+make_target_violin_plot = function(sce_receiver, target_oi, receiver_oi, group_oi, group_id, sample_id, celltype_id_receiver, covariate_oi = NA, background_groups = NULL){
   requireNamespace("dplyr")
   requireNamespace("ggplot2")
   
@@ -1226,23 +1300,45 @@ make_target_violin_plot = function(sce_receiver, target_oi, receiver_oi, group_o
   
   exprs_df = tibble::tibble(expression = SingleCellExperiment::logcounts(sce_subset)[target_oi,], cell = names(SingleCellExperiment::logcounts(sce_subset)[target_oi,])) %>% dplyr::inner_join(SummarizedExperiment::colData(sce_subset) %>% tibble::as_tibble())
   
-  p_violin = exprs_df %>% ggplot(aes(sample_id, expression, group = sample_id, color = group_id)) + geom_violin(color = "grey10") + ggbeeswarm::geom_quasirandom(bandwidth = 1.25, varwidth = TRUE)  + 
-    facet_grid(.~ group_id, scales = "free", space = "free") +
-    scale_x_discrete(position = "bottom") +
-    theme_light() +
-    theme(
-      axis.text.x = element_text(size = 9,  angle = 90,hjust = 0),
-      strip.text.x.top = element_text(angle = 0),
-      panel.grid.major = element_blank(),
-      panel.grid.minor = element_blank(),
-      panel.spacing.x = unit(2.5, "lines"),
-      panel.spacing.y = unit(0.25, "lines"),
-      strip.text.x = element_text(size = 11, color = "black", face = "bold"),
-      strip.text.y = element_text(size = 9, color = "black", face = "bold", angle = 0),
-      strip.background = element_rect(color="darkgrey", fill="whitesmoke", size=1.5, linetype="solid")
-    ) + scale_color_brewer(palette = "Set2") + ggtitle(paste("Expression of the target ",target_oi, " in receiver cell type ", receiver_oi, sep = ""))
+  if(is.na(covariate_oi)){
+    p_violin = exprs_df %>% ggplot(aes(sample_id, expression, group = sample_id, color = group_id)) + geom_violin(color = "grey10") + ggbeeswarm::geom_quasirandom(bandwidth = 1.25, varwidth = TRUE)  + 
+      facet_grid(.~ group_id, scales = "free", space = "free") +
+      scale_x_discrete(position = "bottom") +
+      theme_light() +
+      theme(
+        axis.text.x = element_text(size = 9,  angle = 90,hjust = 0),
+        strip.text.x.top = element_text(angle = 0),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.spacing.x = unit(2.5, "lines"),
+        panel.spacing.y = unit(0.25, "lines"),
+        strip.text.x = element_text(size = 11, color = "black", face = "bold"),
+        strip.text.y = element_text(size = 9, color = "black", face = "bold", angle = 0),
+        strip.background = element_rect(color="darkgrey", fill="whitesmoke", size=1.5, linetype="solid")
+      ) + scale_color_brewer(palette = "Set2") + ggtitle(paste("Expression of the target ",target_oi, " in receiver cell type ", receiver_oi, sep = ""))
+  } else {
+    
+    extra_metadata = SummarizedExperiment::colData(sce_subset) %>% tibble::as_tibble() %>% dplyr::select(all_of(sample_id), all_of(covariate_oi)) %>% dplyr::distinct() %>% dplyr::mutate_all(factor)
+    colnames(extra_metadata) = c("sample_id","covariate_oi")
+    exprs_df = exprs_df %>% dplyr::inner_join(extra_metadata)
+    
+    p_violin = exprs_df %>% ggplot(aes(sample_id, expression, group = sample_id, color = group_id)) + geom_violin(color = "grey10") + ggbeeswarm::geom_quasirandom(bandwidth = 1.25, varwidth = TRUE)  + 
+      facet_grid(covariate_oi~ group_id, scales = "free", space = "free") +
+      scale_x_discrete(position = "bottom") +
+      theme_light() +
+      theme(
+        axis.text.x = element_text(size = 9,  angle = 90,hjust = 0),
+        strip.text.x.top = element_text(angle = 0),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.spacing.x = unit(2.5, "lines"),
+        panel.spacing.y = unit(0.25, "lines"),
+        strip.text.x = element_text(size = 11, color = "black", face = "bold"),
+        strip.text.y = element_text(size = 9, color = "black", face = "bold", angle = 0),
+        strip.background = element_rect(color="darkgrey", fill="whitesmoke", size=1.5, linetype="solid")
+      ) + scale_color_brewer(palette = "Set2") + ggtitle(paste("Expression of the target ",target_oi, " in receiver cell type ", receiver_oi, sep = ""))
+  }
   
-
   return(p_violin)
 
 }
@@ -1320,7 +1416,7 @@ make_target_feature_plot = function(sce_receiver, target_oi, group_oi, group_id,
 #' @title make_ligand_activity_target_plot
 #'
 #' @description \code{make_ligand_activity_target_plot}  Summary plot showing the activity of prioritized ligands acting on a receiver cell type of interest, together with the predicted target genes and their sample-by-sample expression
-#' @usage make_ligand_activity_target_plot(group_oi, receiver_oi, prioritized_tbl_oi, ligand_activities_targets_DEgenes, contrast_tbl, grouping_tbl, receiver_info, plot_legend = TRUE, heights = NULL, widths = NULL)
+#' @usage make_ligand_activity_target_plot(group_oi, receiver_oi, prioritized_tbl_oi, ligand_activities_targets_DEgenes, contrast_tbl, grouping_tbl, receiver_info, ligand_target_matrix, plot_legend = TRUE, heights = NULL, widths = NULL)
 #'
 #' @param ligand_activities_targets_DEgenes Sublist in the output of `multi_nichenet_analysis`
 #' @param plot_legend if TRUE (default): show legend on the same figure, if FALSE (recommended): show legend in separate figure
@@ -1330,6 +1426,7 @@ make_target_feature_plot = function(sce_receiver, target_oi, group_oi, group_id,
 #' @inheritParams make_ligand_activity_plots
 #' @inheritParams make_featureplot
 #' @inheritParams make_sample_lr_prod_plots
+#' @inheritParams multi_nichenet_analysis
 #' @return Summary plot showing the activity of prioritized ligands acting on a receiver cell type of interest, together with the predicted target genes and their sample-by-sample expression
 #'
 #' @import ggplot2
@@ -1367,13 +1464,13 @@ make_target_feature_plot = function(sce_receiver, target_oi, group_oi, group_id,
 #' group_oi = "High"
 #' receiver_oi = "Malignant"
 #' prioritized_tbl_oi = output$prioritization_tables$group_prioritization_tbl %>% filter(fraction_expressing_ligand_receptor > 0) %>% filter(group == group_oi & receiver == receiver_oi) %>% top_n(50, prioritization_score) %>% top_n(25, activity_scaled) %>% arrange(-activity_scaled)
-#' combined_plot = make_ligand_activity_target_plot(group_oi, receiver_oi, prioritized_tbl_oi, output$ligand_activities_targets_DEgenes, contrast_tbl, output$grouping_tbl, output$celltype_info, plot_legend = FALSE)
+#' combined_plot = make_ligand_activity_target_plot(group_oi, receiver_oi, prioritized_tbl_oi, output$ligand_activities_targets_DEgenes, contrast_tbl, output$grouping_tbl, output$celltype_info,ligand_target_matrix, plot_legend = FALSE)
 #' 
 #' }
 #'
 #' @export
 #'
-make_ligand_activity_target_plot = function(group_oi, receiver_oi, prioritized_tbl_oi, ligand_activities_targets_DEgenes, contrast_tbl, grouping_tbl, receiver_info, plot_legend = TRUE, heights = NULL, widths = NULL){
+make_ligand_activity_target_plot = function(group_oi, receiver_oi, prioritized_tbl_oi, ligand_activities_targets_DEgenes, contrast_tbl, grouping_tbl, receiver_info, ligand_target_matrix, plot_legend = TRUE, heights = NULL, widths = NULL){
   requireNamespace("dplyr")
   requireNamespace("ggplot2")
   

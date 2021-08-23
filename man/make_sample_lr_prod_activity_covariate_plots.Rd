@@ -23,11 +23,37 @@ make_sample_lr_prod_activity_covariate_plots(prioritization_tables, prioritized_
 Ligand-Receptor Expression Product & Ligand Activities Dotplot/Heatmap, complemented with a heatmap indicating the covariate/batch of interest
 }
 \description{
-\code{make_sample_lr_prod_activity_covariate_plots}  XXXX EXPERIMENTAL FEATURE!!!!!!!!!!!!!!!!!!!!NOT WORKINGN RIGHT NOW
+\code{make_sample_lr_prod_activity_covariate_plots}  Visualize the scaled product of Ligand-Receptor (pseudobulk) expression per sample, and compare the different groups. In addition, show the NicheNet ligand activities in each receiver-celltype combination. On top of this summary plot, a heatmap indicates the covariate value for each displayed sample.
 }
 \examples{
 \dontrun{
-print("XXXX")
+library(dplyr)
+lr_network = readRDS(url("https://zenodo.org/record/3260758/files/lr_network.rds"))
+lr_network = lr_network \%>\% dplyr::rename(ligand = from, receptor = to) \%>\% dplyr::distinct(ligand, receptor)
+ligand_target_matrix = readRDS(url("https://zenodo.org/record/3260758/files/ligand_target_matrix.rds"))
+sample_id = "tumor"
+group_id = "pEMT"
+celltype_id = "celltype"
+covariates = NA
+contrasts_oi = c("'High-Low','Low-High'")
+contrast_tbl = tibble(contrast = c("High-Low","Low-High"), group = c("High","Low"))
+output = multi_nichenet_analysis(
+     sce = sce, 
+     celltype_id = celltype_id, 
+     sample_id = sample_id, 
+     group_id = group_id,
+     covariates = covariates,
+     lr_network = lr_network, 
+     ligand_target_matrix = ligand_target_matrix, 
+     contrasts_oi = contrasts_oi, 
+     contrast_tbl = contrast_tbl, 
+     sender_receiver_separate = FALSE
+     )
+group_oi = "High"
+covariate_oi = "batch"
+prioritized_tbl_oi = output$prioritization_tables$group_prioritization_tbl \%>\% filter(fraction_expressing_ligand_receptor > 0) \%>\% filter(group == group_oi) \%>\% top_n(50, prioritization_score) 
+plot_oi = make_sample_lr_prod_activity_covariate_plots(output$prioritization_tables, prioritized_tbl_oi, output$grouping_tbl, covariate_oi = covariate_oi)
+plot_oi
 }
 
 }

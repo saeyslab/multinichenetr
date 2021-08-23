@@ -4,7 +4,7 @@
 \alias{make_ligand_activity_target_plot}
 \title{make_ligand_activity_target_plot}
 \usage{
-make_ligand_activity_target_plot(group_oi, receiver_oi, prioritized_tbl_oi, ligand_activities_targets_DEgenes, contrast_tbl, grouping_tbl, receiver_info, plot_legend = TRUE, heights = NULL, widths = NULL)
+make_ligand_activity_target_plot(group_oi, receiver_oi, prioritized_tbl_oi, ligand_activities_targets_DEgenes, contrast_tbl, grouping_tbl, receiver_info, ligand_target_matrix, plot_legend = TRUE, heights = NULL, widths = NULL)
 }
 \arguments{
 \item{group_oi}{Character vector: name of the group of interest}
@@ -60,7 +60,7 @@ output = multi_nichenet_analysis(
 group_oi = "High"
 receiver_oi = "Malignant"
 prioritized_tbl_oi = output$prioritization_tables$group_prioritization_tbl \%>\% filter(fraction_expressing_ligand_receptor > 0) \%>\% filter(group == group_oi & receiver == receiver_oi) \%>\% top_n(50, prioritization_score) \%>\% top_n(25, activity_scaled) \%>\% arrange(-activity_scaled)
-combined_plot = make_ligand_activity_target_plot(group_oi, receiver_oi, prioritized_tbl_oi, output$ligand_activities_targets_DEgenes, contrast_tbl, output$grouping_tbl, output$celltype_info, plot_legend = FALSE)
+combined_plot = make_ligand_activity_target_plot(group_oi, receiver_oi, prioritized_tbl_oi, output$ligand_activities_targets_DEgenes, contrast_tbl, output$grouping_tbl, output$celltype_info,ligand_target_matrix, plot_legend = FALSE)
 
 }
 

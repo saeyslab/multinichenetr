@@ -4,7 +4,7 @@
 \alias{make_target_violin_plot}
 \title{make_target_violin_plot}
 \usage{
-make_target_violin_plot(sce_receiver, target_oi, receiver_oi, group_oi, group_id, sample_id, celltype_id_receiver, background_groups = NULL)
+make_target_violin_plot(sce_receiver, target_oi, receiver_oi, group_oi, group_id, sample_id, celltype_id_receiver, covariate_oi = NA, background_groups = NULL)
 }
 \arguments{
 \item{sce_receiver}{SingleCellExperiment object containing the receiver cell types of interest}
@@ -20,6 +20,8 @@ make_target_violin_plot(sce_receiver, target_oi, receiver_oi, group_oi, group_id
 \item{sample_id}{Name of the colData(sce) column in which the id of the sample is defined}
 
 \item{celltype_id_receiver}{Name of the meta data column that indicates the cell type of a cell (in sce_receiver).}
+
+\item{covariate_oi}{Name of a covariate of interest based on which the visualization will be split. Default: NA: no covariate.}
 
 \item{background_groups}{Default NULL: all groups in the group_id metadata column will be chosen. But user can fill in a character vector with the names of all gruops of interest.}
 }
