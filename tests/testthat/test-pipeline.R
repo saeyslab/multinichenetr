@@ -62,7 +62,7 @@ test_that("Pipeline for all-vs-all analysis works & plotting functions work", {
   expect_true("ggplot" %in% class(target_feature_plot))
   
   ligand_oi = "TNC"
-  receptor_oi = "ITGA5"
+  receptor_oi = "ITGB1"
   sender_oi = "CAF"
   receiver_oi = "Malignant"
   
@@ -74,7 +74,7 @@ test_that("Pipeline for all-vs-all analysis works & plotting functions work", {
   
   prioritized_tbl_oi_prep = output$prioritization_tables$group_prioritization_tbl %>% 
     distinct(id, sender, receiver, ligand, receptor, group, prioritization_score, ligand_receptor_lfc_avg, fraction_expressing_ligand_receptor) %>% 
-    filter(ligand_receptor_lfc_avg > 0 & fraction_expressing_ligand_receptor > 0) %>% top_n(30, prioritization_score) 
+    filter(ligand_receptor_lfc_avg > 0 & fraction_expressing_ligand_receptor > 0) %>% top_n(40, prioritization_score) 
   prioritized_tbl_oi = output$prioritization_tables$group_prioritization_tbl %>% 
     filter(id %in% prioritized_tbl_oi_prep$id) %>% 
     distinct(id, sender, receiver, ligand, receptor, group) %>% left_join(prioritized_tbl_oi_prep)
@@ -92,6 +92,31 @@ test_that("Pipeline for all-vs-all analysis works & plotting functions work", {
   colors_receiver = RColorBrewer::brewer.pal(n = length(senders_receivers), name = 'Spectral') %>% magrittr::set_names(senders_receivers)
   circos_list = make_circos_one_group(prioritized_tbl_oi, colors_sender, colors_receiver)
   expect_type(circos_list,"list")
+  
+  # the correlation plotting functions
+  lr_target_prior_cor_filtered = output$lr_target_prior_cor %>% filter(scaled_prior_score > 0.50 & (pearson > 0.66 | spearman > 0.66))
+  
+  group_oi = "High"
+  receiver_oi = "Malignant"
+  prioritized_tbl_oi = output$prioritization_tables$group_prioritization_tbl %>% distinct(id, ligand, receptor, sender, receiver, lr_interaction, group, ligand_receptor_lfc_avg, activity_scaled, fraction_expressing_ligand_receptor,  prioritization_score) %>% filter(fraction_expressing_ligand_receptor > 0 & ligand_receptor_lfc_avg > 0) %>% filter(group == group_oi & receiver == receiver_oi) %>% top_n(250, prioritization_score)
+  prioritized_tbl_oi = prioritized_tbl_oi %>% filter(id %in% lr_target_prior_cor_filtered$id)
+  prioritized_tbl_oi = prioritized_tbl_oi %>% group_by(ligand, sender, group) %>% top_n(2, prioritization_score)
+  
+  lr_target_correlation_plot = make_lr_target_correlation_plot(output$prioritization_tables, prioritized_tbl_oi, lr_target_prior_cor_filtered, output$grouping_tbl, output$celltype_info, receiver_oi)
+  expect_type(lr_target_correlation_plot,"list")
+  
+  graph_plot = make_ggraph_ligand_target_links(lr_target_prior_cor_filtered = lr_target_prior_cor_filtered, colors = c("blue","red"))
+  expect_type(graph_plot,"list")
+  
+  ligand_oi ="COL1A1"
+  receptor_oi = "ITGB1"
+  sender_oi = "CAF"
+  receiver_oi ="Malignant"
+  lr_target_scatter_plot = make_lr_target_scatter_plot(output$prioritization_tables, ligand_oi, receptor_oi, sender_oi, receiver_oi, output$celltype_info, output$grouping_tbl, lr_target_prior_cor_filtered)
+  expect_type(lr_target_scatter_plot,"list")
+  
+  lr_target_prior_cor_heatmap = make_lr_target_prior_cor_heatmap(lr_target_prior_cor_filtered)
+  expect_type(lr_target_prior_cor_heatmap,"list")
   
   # for coming calculations: reduce running time by having only one contrast of interest
   contrasts_oi = c("'High-Low'")
@@ -253,7 +278,7 @@ test_that("Pipeline for all-vs-all analysis works & plotting functions work", {
     contrasts_oi = contrasts_oi,
     contrast_tbl = tibble(contrast = c("High-Medium","Low-High"), group = c("High","Low"))
   ))
-  expect_warning(multi_nichenet_analysis_combined(
+  expect_error(multi_nichenet_analysis_combined(
     sce = sce,
     celltype_id = celltype_id,
     sample_id = sample_id,
@@ -704,7 +729,7 @@ test_that("Pipeline for separate analysis works", {
     contrasts_oi = contrasts_oi,
     contrast_tbl = tibble(contrast = c("High-Medium","Low-High"), group = c("High","Low"))
   ))
-  expect_warning(multi_nichenet_analysis_separate(
+  expect_error(multi_nichenet_analysis_separate(
     sce_receiver = sce_receiver,
     sce_sender = sce_sender,
     celltype_id_receiver = celltype_id_receiver,
@@ -984,7 +1009,7 @@ test_that("Pipeline with wrapper function works - while correcting for batch eff
   
   # test batch effect indicated plots
   ligand_oi = "TNC"
-  receptor_oi = "ITGA5"
+  receptor_oi = "ITGB1"
   group_oi = "High"
   sender_oi = "CAF"
   receiver_oi = "Malignant"

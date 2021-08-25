@@ -78,22 +78,7 @@ In this case study, we want to study differences in cell-cell communication patt
 __User adaptation required__
 ```{r}
 sce = readRDS(url("https://zenodo.org/record/5196144/files/sce_hnscc.rds"))
-DimPlot(seurat_obj, group.by = "celltype")
-DimPlot(seurat_obj, group.by = "tumor")
-DimPlot(seurat_obj, group.by = "pEMT")
-DimPlot(seurat_obj, group.by = "pEMT_fine")
 ```
-
-We will now also check the number of cells per cell type condition combination, and the number of patients per condition.
-
-__User adaptation required__
-```{r}
-table(SummarizedExperiment::colData(sce)$celltype, SummarizedExperiment::colData(sce)$tumor) # cell types vs samples
-table(SummarizedExperiment::colData(sce)$celltype, SummarizedExperiment::colData(sce)$pEMT) # cell types vs conditions
-table(SummarizedExperiment::colData(sce)$tumor, SummarizedExperiment::colData(sce)$pEMT) # samples vs conditions
-```
-
-As you can see, some Celltype-Sample combinations have 0 cells. It is possible that during DE analysis, some cell types will be removed from the analysis if there is not enough information to do a DE analysis. (More info later)
 
 ## Step 0.3: Prepare settings of the MultiNicheNet cell-cell communication analysis
 
@@ -108,160 +93,6 @@ group_id = "pEMT"
 celltype_id = "celltype"
 ```
 
-trying to experiment with counts, logscounts, and SCT residuals -- abandon this, and don't use SCT --- REMOVE THIS LATER
-```{r}
-# convert seurat to SCE object
-sce = Seurat::as.SingleCellExperiment(Seurat::DietSeurat(seurat_obj), assay = "RNA")
-SummarizedExperiment::assays(sce)$counts %>% .[1:5,1:5]
-SummarizedExperiment::assays(sce)$logcounts %>% .[1:5,1:5]
-
-sce = scater::computeLibraryFactors(sce)
-sce = scater::logNormCounts(sce)
-SummarizedExperiment::assays(sce)$counts %>% .[1:5,1:5]
-SummarizedExperiment::assays(sce)$logcounts %>% .[1:5,1:5]
-
-sce2 = Seurat::as.SingleCellExperiment(Seurat::DietSeurat(seurat_obj), assay = "RNA")
-clusters <- scran::quickCluster(sce2)
-sce2 <- scran::computeSumFactors(sce2, clusters=clusters)
-sce2 <- scater::logNormCounts(sce2)
-SummarizedExperiment::assays(sce)$logcounts %>% .[1:5,1:5]
-SummarizedExperiment::assays(sce2)$logcounts %>% .[1:5,1:5]
-
-sce1 = Seurat::as.SingleCellExperiment(Seurat::DietSeurat(seurat_obj), assay = "SCT")
-SummarizedExperiment::assays(sce1)$counts %>% .[1:5,1:5]
-SummarizedExperiment::assays(sce1)$logcounts %>% .[1:5,1:5]
-seurat_obj@assays$SCT@counts %>% .[1:5,1:5]
-seurat_obj@assays$SCT@data %>% .[1:5,1:5]
-
-# sce2 = Seurat::as.SingleCellExperiment(Seurat::DietSeurat(seurat_obj), assay = c("RNA","SCT")) # not OK
-# SummarizedExperiment::assays(sce2)
-# SummarizedExperiment::assays(sce1)$counts %>% .[1:5,1:5]
-# SummarizedExperiment::assays(sce1)$logcounts %>% .[1:5,1:5]
-# 
-sct = sctransform::vst(SingleCellExperiment::counts(sce), verbosity = FALSE)$y
-SummarizedExperiment::assays(sce, withDimnames=FALSE)$vstresiduals <- y ## will error --> filter out the assay in advance, to contain only necessary genes...
-## I should once try out myself which visualization best accords to the DE results
-genes_kept = rownames(sct)
-cells_kept = colnames(sct)
-
-sce = sce[genes_kept, cells_kept]
-SummarizedExperiment::assays(sce, withDimnames=FALSE)$vstresiduals = sct
-
-SummarizedExperiment::assays(sce)$counts %>% .[1:5,1:5]
-SummarizedExperiment::assays(sce)$logcounts %>% .[1:5,1:5]
-SummarizedExperiment::assays(sce)$vstresiduals %>% .[1:5,1:5]
-
-# test scran
-
-``` 
-  
-trying to experiment with normalized pseudobulked counts --- REMOVE THIS LATER
-```{r}
-## get pseudobulk sum counts
-# convert seurat to SCE object
-sce = Seurat::as.SingleCellExperiment(Seurat::DietSeurat(seurat_obj), assay = "RNA")
-sample_id = "tumor"
-group_id = "pEMT"
-celltype_id = "celltype"
-# prepare SCE for the muscat pseudobulk analysis
-sce$id = sce[[sample_id]]
-sce = muscat::prepSCE(sce,
-                        kid = celltype_id, # subpopulation assignments
-                        gid = group_id,  # group IDs (ctrl/stim)
-                        sid = "id",   # sample IDs (ctrl/stim.1234)
-                        drop = FALSE)  # drop all other SummarizedExperiment::colData columns ----------------- change to false
-
-pb = muscat::aggregateData(sce,assay = "counts", fun = "sum", by = c("cluster_id", "sample_id"))
-
-pb_df_old = sce$cluster_id %>% unique() %>% lapply(function(celltype_oi, pb){
-    pseudobulk_counts_celltype = pb@assays@data[[celltype_oi]] + 1 # add a pseudocount
-    pseudobulk_counts_celltype_sample_sum = pseudobulk_counts_celltype %>% apply(2, sum)
-    pseudobulk_counts_celltype_normalized = pseudobulk_counts_celltype/pseudobulk_counts_celltype_sample_sum
-    logCPM_pseudobulk_counts_celltype_normalized = log2(pseudobulk_counts_celltype_normalized*1000000)
-    logCPM_pseudobulk_counts_celltype_normalized_df = logCPM_pseudobulk_counts_celltype_normalized %>% data.frame() %>% tibble::rownames_to_column("gene") %>% tidyr::gather(sample, pb_sample, -gene) %>% tibble::as_tibble() %>% dplyr::mutate(celltype = celltype_oi)
-
-  },pb) %>% dplyr::bind_rows()
-
-
-# now: normalize pb myself
-# This is done by dividing the count for each gene/spike-in transcript with the appropriate size factor for that cell. The function also log-transforms the normalized values, creating a new assay called "logcounts"
-# effective library size = product of the original library size and the scaling factor 
-pb_df = sce$cluster_id %>% unique() %>% lapply(function(celltype_oi, pb){
-    pseudobulk_counts_celltype = edgeR::DGEList(pb@assays@data[[celltype_oi]]) 
-    non_zero_samples = pseudobulk_counts_celltype %>% apply(2,sum) %>% .[. > 0] %>% names()
-    pseudobulk_counts_celltype = pseudobulk_counts_celltype[,non_zero_samples]
-    pseudobulk_counts_celltype = edgeR::calcNormFactors(pseudobulk_counts_celltype)
-
-    pseudobulk_counts_celltype_df = inner_join(
-      pseudobulk_counts_celltype$sample %>% data.frame() %>% tibble::rownames_to_column("sample") %>% mutate(effective_library_size  = lib.size * norm.factors), 
-      pseudobulk_counts_celltype$counts %>% data.frame() %>% tibble::rownames_to_column("gene") %>% tidyr::gather(sample, pb_raw, -gene)
-    )
-    
-    pseudobulk_counts_celltype_df = pseudobulk_counts_celltype_df %>% mutate(pb_norm = pb_raw / effective_library_size) %>% mutate(pb_sample = log2( (pb_norm * 1000000) + 1)) %>% tibble::as_tibble() %>% dplyr::mutate(celltype = celltype_oi) # +1: pseudocount - should be introduced after library size correction, otherwise: we think some samples have a higher expression even though it was zero!
-
-  },pb) %>% dplyr::bind_rows() %>% select(gene, sample, pb_sample, celltype) %>% distinct()
-
-
-# y = scater::logNormCounts(y)
-
-#### compare to the averages:
-  clusters = scran::quickCluster(sce)
-  sce = scran::computeSumFactors(sce, clusters=clusters)
-  sce = scater::logNormCounts(sce)
-  
-  avg = muscat::aggregateData(sce, assay = "logcounts", fun = "mean", by = c("cluster_id", "sample_id"))
-
-  avg_df = sce$cluster_id %>% unique() %>% lapply(function(celltype_oi, avg){
-    avg_celltype = avg@assays@data[[celltype_oi]]
-
-    avg_celltype_samples = avg_celltype[,sce$sample_id %>% unique()]
-    avg_celltype_samples = avg_celltype_samples %>% data.frame() %>% tibble::rownames_to_column("gene") %>% tidyr::gather(sample, average_sample, -gene) %>% tibble::as_tibble() %>% dplyr::mutate(celltype = celltype_oi)
-
-  },avg) %>% dplyr::bind_rows()
-
-avg_df %>% filter(gene == "TSLP" & celltype == "Malignant") %>% arrange(-average_sample) #HN17/HN5 in malignant to CAF
-avg_df %>% filter(gene == "TSLP" & celltype == "Malignant") %>% arrange(-average_sample) #HN17/HN5 in malignant to CAF
-pb_df_old %>% filter(gene == "TSLP" & celltype == "Malignant") %>% arrange(-pb_sample)
-pb_df %>% filter(gene == "TSLP" & celltype == "Malignant") %>% arrange(-pb_sample)
-
-``` 
-  
-### Test out the covariate correction step things....
-
-
-```{r}
-# convert seurat to SCE object
-sce = Seurat::as.SingleCellExperiment(seurat_obj, assay = "RNA")
-  
-# prepare SCE for the muscat pseudobulk analysis
-sce$id = sce[[sample_id]]
-sce = muscat::prepSCE(sce,
-                        kid = celltype_id, # subpopulation assignments
-                        gid = group_id,  # group IDs (ctrl/stim)
-                        sid = "id",   # sample IDs (ctrl/stim.1234)
-                        drop = FALSE)  #
-  
-pb = muscat::aggregateData(sce, assay = "counts", fun = "sum", by = c("cluster_id", "sample_id"))
-celltype_oi = "Malignant"
-pseudobulk_counts_celltype = edgeR::DGEList(pb@assays@data[[celltype_oi]])
-
-# try to correct these counts here and now
-set.seed(1919)
-extra_metadata = SummarizedExperiment::colData(sce) %>% dplyr::select(all_of(sample_id)) %>% dplyr::distinct() %>% mutate(batch = sample(c("A","B"),nrow(.), replace = TRUE)) %>% tibble::as_tibble() 
-new_metadata = SummarizedExperiment::colData(sce) %>% inner_join(extra_metadata)
-new_metadata = new_metadata %>% data.frame()
-rownames(new_metadata) = new_metadata$cell
-SummarizedExperiment::colData(sce) = new_metadata
-SummarizedExperiment::colData(sce)[1:50,]
-## really add a toy covariate to the seurat object!
-
-non_corrected = get_pseudobulk_logCPM_exprs(seurat_obj, sample_id, celltype_id, group_id, covariates = NA, assay_oi_sce = "RNA", assay_oi_pb = "counts", fun_oi_pb = "sum")
-corrected = get_pseudobulk_logCPM_exprs(seurat_obj, sample_id, celltype_id, group_id, covariates = "batch", assay_oi_sce = "RNA", assay_oi_pb = "counts", fun_oi_pb = "sum")
-
-non_corrected %>% inner_join(corrected %>% rename(cor_pb_sample = pb_sample)) %>% mutate(diff = cor_pb_sample-pb_sample) %>% arrange(diff)
-
-
-```  
 Sender and receiver cell types also need to be defined. Both are here all cell types in the dataset because we are interested in an All-vs-All analysis.
 
 ```{r}
@@ -568,7 +399,7 @@ MultiNicheNet allows the user to define the weights of the following criteria to
 
 * Upregulation of the ligand in a sender cell type and/or upregulation of the receptor in a receiver cell type - in the condition of interest. : `scaled_lfc_ligand`, `scaled_p_val_ligand`, `scaled_lfc_receptor`, and `scaled_p_val_receptor`
 * Sufficiently high expression levels of ligand and receptor in many samples of the same group (to mitigate the influence of outlier samples). : `fraction_expressing_ligand_receptor`
-* Cell-type and condition specific expression of the ligand in the sender cell type and receptor in the receiver cell type (to mitigate the influence of upregulated but still relatively weakly expressed ligands/receptors) : `scaled_avg_exprs_ligand`,  `scaled_avg_frq_ligand`,  `scaled_avg_exprs_receptor`,  and `scaled_avg_frq_receptor`
+* Cell-type and condition specific expression of the ligand in the sender cell type and receptor in the receiver cell type (to mitigate the influence of upregulated but still relatively weakly expressed ligands/receptors) : `scaled_pb_ligand `,  `scaled_avg_frq_ligand`,  `scaled_avg_exprs_receptor`,  and `scaled_avg_frq_receptor`
 * High NicheNet ligand activity, to further prioritize ligand-receptor pairs based on their predicted effect of the ligand-receptor interaction on the gene expression in the receiver cell type : `scaled_activity` and `scaled_activity_scaled` (scaled_activity=absolute value of ligand activity; scaled_activity_scaled=scaled ligand activity value that is comparable between different receiver settings - recommended to put more weight on this)
 * High relative abundance of sender and/or receiver in the condition of interest: `scaled_abundance_sender` and `scaled_abundance_receiver`
 
@@ -659,19 +490,19 @@ __User adaptation recommended__
 ```{r}
 return_lr_prod_matrix = TRUE
 if(return_lr_prod_matrix == TRUE){
-
+    
   ids_oi = prioritization_tables$group_prioritization_tbl %>% dplyr::filter(fraction_expressing_ligand_receptor > 0)  %>% dplyr::pull(id) %>% unique()
-  
-  lr_prod_df = abundance_expression_info$sender_receiver_info$avg_df %>% dplyr::inner_join(grouping_tbl, by = "sample") %>% dplyr::mutate(lr_interaction = paste(ligand, receptor, sep = "_")) %>% dplyr::mutate(id = paste(lr_interaction, sender, receiver, sep = "_")) %>% dplyr::select(sample, id, ligand_receptor_prod) %>% dplyr::filter(id %in% ids_oi) %>% dplyr::distinct() %>% tidyr::spread(id, ligand_receptor_prod)
-  lr_prod_mat = lr_prod_df %>% dplyr::select(-sample) %>% data.frame() %>% as.matrix()
-  rownames(lr_prod_mat) = lr_prod_df$sample
-  
-  col_remove = lr_prod_mat %>% apply(2,function(x)sum(x != 0)) %>% .[. == 0] %>% names()
-  row_remove = lr_prod_mat %>% apply(1,function(x)sum(x != 0)) %>% .[. == 0] %>% names()
-  
-  lr_prod_mat = lr_prod_mat %>% .[rownames(.) %>% generics::setdiff(col_remove),colnames(.) %>% generics::setdiff(col_remove)]
-} else {
-  lr_prod_mat = NULL
+    
+  lr_prod_df = abundance_expression_info$sender_receiver_info$pb_df %>% dplyr::inner_join(grouping_tbl, by = "sample") %>% dplyr::mutate(lr_interaction = paste(ligand, receptor, sep = "_")) %>% dplyr::mutate(id = paste(lr_interaction, sender, receiver, sep = "_")) %>% dplyr::select(sample, id, ligand_receptor_pb_prod) %>% dplyr::filter(id %in% ids_oi) %>% dplyr::distinct() %>% tidyr::spread(id, ligand_receptor_pb_prod)
+    lr_prod_mat = lr_prod_df %>% dplyr::select(-sample) %>% data.frame() %>% as.matrix()
+    rownames(lr_prod_mat) = lr_prod_df$sample
+    
+    col_remove = lr_prod_mat %>% apply(2,function(x)sum(x != 0)) %>% .[. == 0] %>% names()
+    row_remove = lr_prod_mat %>% apply(1,function(x)sum(x != 0)) %>% .[. == 0] %>% names()
+    
+    lr_prod_mat = lr_prod_mat %>% .[rownames(.) %>% generics::setdiff(col_remove),colnames(.) %>% generics::setdiff(col_remove)]
+  } else {
+    lr_prod_mat = NULL
 }
 
 ```
@@ -705,284 +536,8 @@ if(save == TRUE){
 }
 ```
 
-# Visualization of the results of the cell-cell communication analysis
-
-In a first instance, we will look at the broad overview of prioritized interactions via condition-specific Circos plots.
-We will filter on the prioritization score after removing interactions that are not upregulated in the condition of interest, and that are in no patient expressed in more than 5% of cells of a cell type (cf `fraction_cutoff`).
-
-We will look here at the top100 predictions across all contrasts (high vs low; and low vs high), senders, and receivers of interest.
-
-## Circos plot of top-prioritized links
-
-(remark: there are still some bugs in the automatic circos plot function)
-
-```{r, fig.width=15, fig.height=12}
-prioritized_tbl_oi = multinichenet_output$prioritization_tables$group_prioritization_tbl %>% 
-  filter(fraction_ligand_group > fraction_cutoff & fraction_receptor_group > fraction_cutoff) %>% 
-  distinct(id, sender, receiver, ligand, receptor, group, prioritization_score, ligand_receptor_lfc_avg, fraction_expressing_ligand_receptor) %>% 
-  filter(ligand_receptor_lfc_avg > 0 & fraction_expressing_ligand_receptor > 0) %>% top_n(100, prioritization_score) 
-
-prioritized_tbl_oi %>% group_by(group) %>% count()
-
-prioritized_tbl_oi = multinichenet_output$prioritization_tables$group_prioritization_tbl %>% 
-  filter(id %in% prioritized_tbl_oi$id) %>% 
-  distinct(id, sender, receiver, ligand, receptor, group) %>% left_join(prioritized_tbl_oi)
-prioritized_tbl_oi$prioritization_score[is.na(prioritized_tbl_oi$prioritization_score)] = 0
-
-
-n_senders = prioritized_tbl_oi$sender %>% unique() %>% length()
-n_receivers = prioritized_tbl_oi$receiver %>% unique() %>% length()
-
-colors_sender = c("red", "orange", "royalblue") %>% magrittr::set_names(prioritized_tbl_oi$sender %>% unique())
-colors_receiver = c("red", "orange", "royalblue") %>% magrittr::set_names(prioritized_tbl_oi$receiver %>% unique())
-
-circos_list = make_circos_group_comparison(prioritized_tbl_oi, colors_sender, colors_receiver)
-
-```
-
-## Visualization of scaled_LR_prod per sample
-
-Now we will visualize per sample the scaled product of ligand and receptor expression. Samples that were left out of the DE analysis are indicated with a smaller dot (this helps to indicate the samples that did not contribute to the calculation of the logFC, and thus not contributed to the final prioritization)
-
-We will now check the top75 interactions specific for the pEMT high group
-
-```{r}
-group_oi = "High"
-```
-
-```{r, fig.height=18, fig.width=12}
-prioritized_tbl_oi = multinichenet_output$prioritization_tables$group_prioritization_tbl %>% 
-  distinct(id, sender, receiver, lr_interaction, group, ligand_receptor_lfc_avg, activity_scaled, fraction_expressing_ligand_receptor,  prioritization_score) %>% 
-  filter(fraction_expressing_ligand_receptor > 0) %>% 
-  filter(group == group_oi) %>% group_by(group) %>% top_n(75, prioritization_score) 
-
-plot_oi = make_sample_lr_prod_plots(multinichenet_output$prioritization_tables, prioritized_tbl_oi)
-plot_oi
-```
-
-Next to these LR expression products, we can also plot the NicheNet ligand activities of the ligand in the receiver.
-
-```{r, fig.height=18, fig.width=18}
-prioritized_tbl_oi = multinichenet_output$prioritization_tables$group_prioritization_tbl %>% 
-  distinct(id, sender, receiver, lr_interaction, group, ligand_receptor_lfc_avg, activity_scaled, fraction_expressing_ligand_receptor,  prioritization_score) %>% 
-  filter(fraction_expressing_ligand_receptor > 0) %>% 
-  filter(group == group_oi) %>% group_by(group) %>% top_n(75, prioritization_score) 
-
-plot_oi = make_sample_lr_prod_activity_plots(multinichenet_output$prioritization_tables, prioritized_tbl_oi, widths = c(5,1,1))
-plot_oi
-```
-
-## Visualization of expression-logFC per group and ligand activity
-
-Next type of plots will show the logFC of LR pairs across all sender-receiver pairs that are selected, and add the ligand activity next to it.
-
-```{r}
-receiver_oi = "Malignant"
-group_oi = "High"
-```
-
-```{r, fig.width=18, fig.height=9}
-
-prioritized_tbl_oi = multinichenet_output$prioritization_tables$group_prioritization_tbl %>% 
-  filter(fraction_ligand_group > fraction_cutoff & fraction_receptor_group > fraction_cutoff) %>% 
-  distinct(id, sender, receiver, lr_interaction, group, ligand_receptor_lfc_avg, activity_scaled, fraction_ligand_group, fraction_expressing_ligand_receptor, scaled_avg_exprs_ligand, prioritization_score) %>% 
-  filter(fraction_expressing_ligand_receptor > 0) %>% 
-  filter(group == group_oi & receiver == receiver_oi) %>% top_n(75, prioritization_score) 
-
-plot_oi = make_group_lfc_exprs_activity_plot(multinichenet_output$prioritization_tables, prioritized_tbl_oi, receiver_oi, heights = c(5,1,1))
-plot_oi
-
-```
-
-## Visualization of ligand-activity, ligand-target links, and target gene expression
-
-In another type of plot, we can visualize the ligand activities for a group-receiver combination, and show the predicted ligand-target links, and also the expression of the predicted target genes across samples.
-
-First: show this for a selection of ligands with high ligand activities:
-
-```{r}
-group_oi = "High"
-receiver_oi = "Malignant"
-prioritized_tbl_oi = multinichenet_output$prioritization_tables$group_prioritization_tbl %>% 
-  filter(fraction_ligand_group > fraction_cutoff & fraction_receptor_group > fraction_cutoff) %>% 
-  distinct(id, sender, receiver, ligand, receptor, group, prioritization_score, ligand_receptor_lfc_avg, fraction_expressing_ligand_receptor, activity_scaled) %>% 
-  filter(fraction_expressing_ligand_receptor > 0) %>% 
-  filter(group == group_oi & receiver == receiver_oi) %>% 
-  group_by(group) %>% top_n(50, prioritization_score) %>% top_n(25, activity_scaled) %>% arrange(-activity_scaled)
-```
-
-```{r, fig.width=18, fig.height=10}
-combined_plot = make_ligand_activity_target_plot(group_oi, receiver_oi, prioritized_tbl_oi, multinichenet_output$ligand_activities_targets_DEgenes, contrast_tbl, multinichenet_output$grouping_tbl, multinichenet_output$celltype_info, plot_legend = FALSE)
-combined_plot
-```
-
-Now: show this for a selection of ligands with high general prioritization scores, not necessarily high ligand activities.
-
-```{r}
-group_oi = "High"
-receiver_oi = "Malignant"
-prioritized_tbl_oi = multinichenet_output$prioritization_tables$group_prioritization_tbl %>% 
-  filter(fraction_ligand_group > fraction_cutoff & fraction_receptor_group > fraction_cutoff) %>% 
-  distinct(id, sender, receiver, ligand, receptor, group, prioritization_score, ligand_receptor_lfc_avg, fraction_expressing_ligand_receptor, activity_scaled) %>% 
-  filter(fraction_expressing_ligand_receptor > 0) %>% 
-  filter(group == group_oi & receiver == receiver_oi) %>% 
-  group_by(group) %>% top_n(25, prioritization_score) %>% arrange(-activity_scaled)
-```
-
-```{r, fig.width=18, fig.height=10}
-combined_plot = make_ligand_activity_target_plot(group_oi, receiver_oi, prioritized_tbl_oi, multinichenet_output$ligand_activities_targets_DEgenes, contrast_tbl, multinichenet_output$grouping_tbl, multinichenet_output$celltype_info, plot_legend = FALSE)
-combined_plot
-```
-
-Of course you can look at other receivers as well:
-
-```{r}
-group_oi = "High"
-receiver_oi = "myofibroblast"
-prioritized_tbl_oi = multinichenet_output$prioritization_tables$group_prioritization_tbl %>% 
-  filter(fraction_ligand_group > fraction_cutoff & fraction_receptor_group > fraction_cutoff) %>% 
-  distinct(id, sender, receiver, ligand, receptor, group, prioritization_score, ligand_receptor_lfc_avg, fraction_expressing_ligand_receptor, activity_scaled) %>% 
-  filter(fraction_expressing_ligand_receptor > 0) %>% 
-  filter(group == group_oi & receiver == receiver_oi) %>% 
-  group_by(group) %>% top_n(25, prioritization_score) %>% arrange(-activity_scaled)
-```
-
-```{r, fig.width=18, fig.height=10}
-combined_plot = make_ligand_activity_target_plot(group_oi, receiver_oi, prioritized_tbl_oi, multinichenet_output$ligand_activities_targets_DEgenes, contrast_tbl, multinichenet_output$grouping_tbl, multinichenet_output$celltype_info, plot_legend = FALSE)
-combined_plot
-```
-
-
-## Show ligand activities for each receiver-group combination
-
-In the next type of plot, we plot all the ligand activities (Both scaled and absolute activities) of each receiver-group combination. This can give us some insights in active signaling pathways across groups. Note that we can thus show top ligands based on ligand activity - agnostic of expression in sender. 
-
-```{r, fig.width=5, fig.height=8}
-
-ligands_oi = multinichenet_output$prioritization_tables$ligand_activities_target_de_tbl %>% inner_join(contrast_tbl) %>% 
-  group_by(group, receiver) %>% distinct(ligand, receiver, group, activity) %>% 
-  top_n(5, activity) %>% pull(ligand) %>% unique()
-
-plot_oi = make_ligand_activity_plots(multinichenet_output$prioritization_tables, ligands_oi, contrast_tbl, widths = NULL)
-plot_oi
-
-```
-
-Or we can do this plot for ligands, while considering the general priorization score (which considers expression information etc)
-
-Show top ligands based on prioritization scores
-
-```{r, fig.width=5, fig.height=8}
-
-ligands_oi = multinichenet_output$prioritization_tables$group_prioritization_tbl %>% 
-  group_by(group, receiver) %>% distinct(ligand, receiver, group, prioritization_score) %>% 
-  top_n(5, prioritization_score) %>% pull(ligand) %>% unique()
-
-plot_oi = make_ligand_activity_plots(multinichenet_output$prioritization_tables, ligands_oi, contrast_tbl, widths = NULL)
-plot_oi
-
-```
-
-## Zoom in on specific ligand-receptor interactions: show their expression in the single-cell data!
-
-Single-cell-based Nebulosa, Feature, and Violin plots of ligand-receptor interaction of interest: `make_ligand_receptor_nebulosa_feature_plot` and `make_ligand_receptor_violin_plot`
-
-It is often useful to zoom in on specific ligand-receptor interactions of interest by looking in more detail to their expression at the single cell level 
-
-Check the highest scoring links based on the general prioritization score. Here we will pick one of those to visualize.
-
-```{r}
-prioritized_tbl_oi = multinichenet_output$prioritization_tables$group_prioritization_tbl %>% 
-  filter(fraction_ligand_group > fraction_cutoff & fraction_receptor_group > fraction_cutoff) %>% 
-  distinct(id, sender, receiver, ligand, receptor, group, prioritization_score) %>% 
-  group_by(group, receiver) %>% top_n(5, prioritization_score) 
-prioritized_tbl_oi
-```
-
-```{r}
-ligand_oi = "DLL1"
-receptor_oi = "NOTCH3"
-group_oi = "High"
-sender_oi = "Malignant"
-receiver_oi = "myofibroblast"
-```
-
-Nebulosa and Feature plot of the ligand in the sender cell type and the receptor in the receiver cell type (split per condition)
-
-```{r, fig.width=15, fig.height=15}
-plot_list = make_ligand_receptor_nebulosa_feature_plot(seurat_obj_sender = seurat_obj, seurat_obj_receiver = seurat_obj, ligand_oi = ligand_oi, receptor_oi = receptor_oi, group_oi = group_oi, group_id = group_id, celltype_id_sender = celltype_id, celltype_id_receiver = celltype_id, senders_oi = c("Malignant","myofibroblast","CAF"), receivers_oi = c("Malignant","myofibroblast","CAF"), prioritized_tbl_oi = prioritized_tbl_oi)
-# plot_list$nebulosa # not recommended for Smart-seq data
-plot_list$feature
-```
-Pooled single-cell and sample-specific single-cell violin plots of ligand and receptor expression in respectively sender and receiver.
-
-
-```{r, fig.width=13, fig.height=8}
-plot_list2 = make_ligand_receptor_violin_plot(seurat_obj_sender = seurat_obj, seurat_obj_receiver = seurat_obj, ligand_oi = ligand_oi, receptor_oi = receptor_oi, group_oi = group_oi, group_id = group_id, sender_oi = sender_oi, receiver_oi = receiver_oi, sample_id = sample_id, celltype_id_sender = celltype_id, celltype_id_receiver = celltype_id, prioritized_tbl_oi = prioritized_tbl_oi)
-plot_list2$violin_group
-plot_list2$violin_sample
-```
-
-## Zoom in on specific ligand-target interactions: show their expression in the single-cell data!
-
-Make target gene violin and nebulosa plots: `make_target_violin_plot` and `make_target_nebulosa_feature_plot`
-
-```{r}
-receiver_oi = "Malignant"
-group_oi = "High"
-
-multinichenet_output$ligand_activities_targets_DEgenes$de_genes_df %>% inner_join(contrast_tbl) %>% filter(p_val <= 0.05) %>% filter(group == group_oi) %>% filter(receiver == receiver_oi) %>% arrange(p_val) %>% top_n(100, logFC)  
-```
-
-RAB31: interesting gene  
-
-```{r, fig.width=18, fig.height=8}
-target_oi = "RAB31"
-
-make_target_violin_plot(seurat_obj_receiver = seurat_obj, target_oi = target_oi, receiver_oi = receiver_oi, group_oi = group_oi, group_id = group_id, sample_id, celltype_id_receiver = celltype_id, multinichenet_output$prioritization_tables$group_prioritization_tbl)
-make_target_nebulosa_feature_plot(seurat_obj_receiver = seurat_obj, target_oi = target_oi, group_oi = group_oi, group_id = group_id, celltype_id_receiver = celltype_id, receivers_oi = c("Malignant","myofibroblast","CAF"), multinichenet_output$prioritization_tables$group_prioritization_tbl) 
-
-```
-
-## Make Dotplot for all DE genes/targets
-
-Note: DE here determined based on the parameters used for the MultiNicheNet analysis (cf above): this means that DE genes are here not based on the p-value corrected for multiple testing!
-
-```{r}
-receiver_oi = "Malignant"
-group_oi = "High"
-
-targets_oi = multinichenet_output$ligand_activities_targets_DEgenes$de_genes_df %>% inner_join(contrast_tbl) %>% filter(group == group_oi) %>% arrange(p_val) %>% filter(receiver == receiver_oi) %>% pull(gene) %>% unique()
-
-```
-
-```{r, fig.width=8, fig.height=30}
-p_target = make_sample_target_plots(receiver_info = multinichenet_output$celltype_info, targets_oi, receiver_oi, multinichenet_output$grouping_tbl)
-p_target + ggtitle(paste0("DE genes in ",group_oi, " in celltype ",receiver_oi))
-```
 
 # Ligand-Target inference based on correlation and prior information
-
-```{r}
-return_lr_prod_matrix = TRUE
-if(return_lr_prod_matrix == TRUE){
-
-  ids_oi = prioritization_tables$group_prioritization_tbl %>% dplyr::filter(fraction_expressing_ligand_receptor > 0)  %>% dplyr::pull(id) %>% unique()
-  
-  lr_prod_df = abundance_expression_info$sender_receiver_info$avg_df %>% dplyr::inner_join(grouping_tbl, by = "sample") %>% dplyr::mutate(lr_interaction = paste(ligand, receptor, sep = "_")) %>% dplyr::mutate(id = paste(lr_interaction, sender, receiver, sep = "_")) %>% dplyr::select(sample, id, ligand_receptor_prod) %>% dplyr::filter(id %in% ids_oi) %>% dplyr::distinct() %>% tidyr::spread(id, ligand_receptor_prod)
-  lr_prod_mat = lr_prod_df %>% dplyr::select(-sample) %>% data.frame() %>% as.matrix()
-  rownames(lr_prod_mat) = lr_prod_df$sample
-  
-  col_remove = lr_prod_mat %>% apply(2,function(x)sum(x != 0)) %>% .[. == 0] %>% names()
-  row_remove = lr_prod_mat %>% apply(1,function(x)sum(x != 0)) %>% .[. == 0] %>% names()
-  
-  lr_prod_mat = lr_prod_mat %>% .[rownames(.) %>% generics::setdiff(col_remove),colnames(.) %>% generics::setdiff(col_remove)]
-} else {
-  lr_prod_mat = NULL
-}
-
-
-```
 
 # function
 # per receiver --> table as output
@@ -990,199 +545,40 @@ if(return_lr_prod_matrix == TRUE){
 # non-significant correlation --> set cor score to 0 --> prior score can still be shown as before, but with circle size of 0: no significant correlation
 
 ```{r}
-lr_target_pior_cor_inference = function(receivers_oi, abundance_expression_info, celltype_de, grouping_tbl, prioritization_tables, p_val_adj, p_val_threshold, logFC_threshold, ligand_target_matrix){
-    
-  # Step1: calculate LR prod matrix
-  ids_oi = prioritization_tables$group_prioritization_tbl %>% dplyr::filter(fraction_expressing_ligand_receptor > 0)  %>% dplyr::pull(id) %>% unique()
-
-  # make ligand-receptor-id mapping
-  lig_rec_send_rec_mapping = abundance_expression_info$sender_receiver_info$avg_df %>% dplyr::inner_join(grouping_tbl, by = "sample") %>% dplyr::mutate(lr_interaction = paste(ligand, receptor, sep = "_")) %>% dplyr::mutate(id = paste(lr_interaction, sender, receiver, sep = "_")) %>% dplyr::select(sender, receiver, ligand, receptor, id) %>% dplyr::distinct()
-  
-  # make receiver-id mapping to filter later on
-  receiver_lr_id_mapping = abundance_expression_info$sender_receiver_info$avg_df %>% dplyr::inner_join(grouping_tbl, by = "sample") %>% dplyr::mutate(lr_interaction = paste(ligand, receptor, sep = "_")) %>% dplyr::mutate(id = paste(lr_interaction, sender, receiver, sep = "_")) %>% dplyr::select(receiver, sample, id, ligand_receptor_prod) %>% dplyr::filter(id %in% ids_oi) %>% dplyr::distinct(receiver, id) 
-  
-  # make LR prod matrix
-  lr_prod_df = abundance_expression_info$sender_receiver_info$avg_df %>% dplyr::inner_join(grouping_tbl, by = "sample") %>% dplyr::mutate(lr_interaction = paste(ligand, receptor, sep = "_")) %>% dplyr::mutate(id = paste(lr_interaction, sender, receiver, sep = "_")) %>% dplyr::select(sample, id, ligand_receptor_prod) %>% dplyr::filter(id %in% ids_oi) %>% dplyr::distinct() %>% tidyr::spread(sample, ligand_receptor_prod)
-  lr_prod_mat = lr_prod_df %>% dplyr::select(-id) %>% data.frame() %>% as.matrix()
-  
-  rownames(lr_prod_mat) = lr_prod_df$id
-    
-  col_remove = lr_prod_mat %>% apply(2,function(x)sum(x != 0)) %>% .[. == 0] %>% names()
-  row_remove = lr_prod_mat %>% apply(1,function(x)sum(x != 0)) %>% .[. == 0] %>% names()
-    
-  lr_prod_mat = lr_prod_mat %>% .[rownames(.) %>% generics::setdiff(col_remove),colnames(.) %>% generics::setdiff(col_remove)]
-  
-  lr_prod_mat = lr_prod_mat[receiver_lr_id_mapping$id, ]
-  
-  # Step2: per receiver: subset lr_prod_mat, get DE genes, calculate correlation between LR and Target expression
-  lr_target_cor = receivers_oi %>% lapply(function(receiver_oi){
-    
-    # subset lr_prod_mat
-    lr_prod_mat_oi = lr_prod_mat[receiver_lr_id_mapping %>% dplyr::filter(receiver == receiver_oi) %>% dplyr::pull(id) %>% generics::intersect(rownames(lr_prod_mat)),]
-
-    # get DE genes
-    if(p_val_adj == FALSE){
-      targets_oi = celltype_de %>% dplyr::filter(cluster_id == receiver_oi) %>% dplyr::filter(p_val <= p_val_threshold & logFC >= logFC_threshold) %>% dplyr::pull(gene)
-    } else {
-      targets_oi = celltype_de %>% dplyr::filter(cluster_id == receiver_oi) %>% dplyr::filter(p_adj <= p_val_threshold & logFC >= logFC_threshold) %>% dplyr::pull(gene)
-    }
-    
-    avg_df =  abundance_expression_info$celltype_info$avg_df %>% dplyr::filter(gene %in% targets_oi & celltype %in% receiver_oi)
-    
-    target_df = avg_df %>% dplyr::select(sample, gene, average_sample) %>% dplyr::distinct() %>% tidyr::spread(sample, average_sample)
-    target_mat = target_df %>% dplyr::select(-gene) %>% data.frame() %>% as.matrix()
-    
-    rownames(target_mat) = target_df$gene
-      
-    col_remove = target_mat %>% apply(2,function(x)sum(x != 0)) %>% .[. == 0] %>% names()
-    row_remove = target_mat %>% apply(1,function(x)sum(x != 0)) %>% .[. == 0] %>% names()
-      
-    target_mat = target_mat %>% .[rownames(.) %>% generics::setdiff(col_remove),colnames(.) %>% generics::setdiff(col_remove)]
-    
-    target_mat = target_mat[targets_oi, ]
-    
-    #  calculate correlation between LR and Target expression
-    
-    # pearson
-    cor_mat = Hmisc::rcorr(lr_prod_mat_oi %>% t(), target_mat %>% t())
-    
-    cor_df_pearson = cor_mat$r %>% .[,rownames(target_mat)] %>% data.frame() %>% tibble::rownames_to_column("id") %>% tidyr::gather(target, pearson, -id) %>% tibble::as_tibble()
-    cor_df_pearson_pval = cor_mat$P %>% .[,rownames(target_mat)] %>% data.frame() %>% tibble::rownames_to_column("id") %>% tidyr::gather(target, pearson_pval, -id) %>% tibble::as_tibble()
-
-    # spearman
-    cor_mat = Hmisc::rcorr(lr_prod_mat_oi %>% t(), target_mat %>% t(), type = "spearman")
-    
-    cor_df_spearman = cor_mat$r %>% .[,rownames(target_mat)] %>% data.frame() %>% tibble::rownames_to_column("id") %>% tidyr::gather(target, spearman, -id) %>% tibble::as_tibble()
-    cor_df_spearman_pval = cor_mat$P %>% .[,rownames(target_mat)] %>% data.frame() %>% tibble::rownames_to_column("id") %>% tidyr::gather(target, spearman_pval, -id) %>% tibble::as_tibble()
-    
-    
-    cor_df = lig_rec_send_rec_mapping %>% dplyr::inner_join(cor_df_pearson) %>% dplyr::inner_join(cor_df_pearson_pval) %>% dplyr::inner_join(cor_df_spearman) %>% dplyr::inner_join(cor_df_spearman_pval)
-
-    # scaling of the correlation metric
-    # cor_df = cor_df %>% group_by(id) %>% mutate(scaled_pearson = nichenetr::scale_quantile(pearson, 0.05)) %>% group_by(target) %>% mutate(scaled_target_pearson = nichenetr::scale_quantile(pearson, 0.05)) # is this double scaling necessary? I could use this later
-    cor_df = cor_df %>% dplyr::ungroup() %>% dplyr::mutate(scaled_pearson = nichenetr::scale_quantile(pearson, 0.05), scaled_spearman = nichenetr::scale_quantile(spearman, 0.05))  # is this double scaling necessary? I could use this later
-
-  }) %>% bind_rows()
-  
-  # Step3: Scale the ligand-target prior information scores 
-  ligand_target_df = ligand_target_matrix %>% data.frame() %>% tibble::rownames_to_column("target") %>% tidyr::gather(ligand, prior_score, -target) %>% tibble::as_tibble()
-  ligand_target_df = ligand_target_df %>% dplyr::group_by(ligand) %>% dplyr::mutate(scaled_ligand = nichenetr::scale_quantile(prior_score, 0.0005)) %>% dplyr::group_by(target) %>% dplyr::mutate(scaled_target = nichenetr::scale_quantile(prior_score, 0.0005))
-  ligand_target_df = ligand_target_df %>% dplyr::mutate(scaled_prior_score = 0.5*(scaled_ligand + scaled_target))
-
-  # Step4: Combine the ligand-target prior information scores and combine with the correlation based ones!
-  cor_prior_df = lr_target_cor %>% dplyr::inner_join(ligand_target_df) %>% dplyr::mutate(id_target = paste(id, target, sep = "_")) %>% dplyr::ungroup() 
-  # cor_prior_df = cor_prior_df %>% mutate(scaled_cor_score = 0.5*(scaled_pearson + scaled_target_pearson ))
-  # cor_prior_df = cor_prior_df %>% mutate(final_score = 0.50*(2*scaled_prior_score + scaled_cor_score)) %>% arrange(-final_score)
-  cor_prior_df = cor_prior_df %>% dplyr::mutate(final_score = (scaled_prior_score + 0.50*scaled_pearson + 0.50*scaled_spearman)/2) %>% dplyr::arrange(-final_score) # I could give more weight to the prior information? - but maybe do not do this for the moment?
-
-}
-
-lr_target_prior_cor = lr_target_pior_cor_inference(receivers_oi = prioritization_tables$group_prioritization_tbl$receiver %>% unique(), abundance_expression_info, celltype_de, grouping_tbl, prioritization_tables, p_val_adj , p_val_threshold, logFC_threshold, ligand_target_matrix)
+lr_target_prior_cor = lr_target_pior_cor_inference(prioritization_tables$group_prioritization_tbl$receiver %>% unique(), abundance_expression_info, celltype_de, grouping_tbl, prioritization_tables, ligand_target_matrix, logFC_threshold = logFC_threshold, p_val_threshold = p_val_threshold, p_val_adj = p_val_adj)
 ```
 
-```{r}
-# only add multiple testing correction later
-# add multiple testing correction on the correlation values - put the correlation to zero if the adjusted p-value is not significant - # maybe not necessary - open to change for later on!
-# lr_target_cor = lr_target_cor %>% mutate(padj_pearson = p.adjust(pearson_pval, "BH"))
-# lr_target_cor$pearson[lr_target_cor$padj_pearson > 0.05] = 0
-# lr_target_cor$scaled_pearson[lr_target_cor$padj_pearson > 0.05] = 0
-```
+Visualize top LR pairs and their prior knowledge supported correlated target genes
 
-
-```{r}
+```{r, fig.height=12, fig.width=12}
 group_oi = "High"
-receiver_oi = "Malignant"
-```
-
-```{r, fig.height=10, fig.width=15}
-prioritized_tbl_oi = multinichenet_output$prioritization_tables$group_prioritization_tbl %>% 
-  distinct(id, ligand, receptor, sender, receiver, lr_interaction, group, ligand_receptor_lfc_avg, activity_scaled, fraction_expressing_ligand_receptor,  prioritization_score) %>% 
-  filter(fraction_expressing_ligand_receptor > 0) %>% 
-  filter(group == group_oi) %>% group_by(group) %>% top_n(250, prioritization_score) 
-
 if(p_val_adj == FALSE){
     targets_oi = grouping_tbl %>% inner_join(contrast_tbl) %>% inner_join(celltype_de) %>% filter(cluster_id == receiver_oi) %>% filter(p_val <= p_val_threshold & logFC >= logFC_threshold) %>% filter(group == group_oi) %>% pull(gene)
   } else {
     targets_oi = grouping_tbl %>% inner_join(contrast_tbl) %>% inner_join(celltype_de) %>% filter(cluster_id == receiver_oi) %>% filter(p_adj <= p_val_threshold & logFC >= logFC_threshold) %>% filter(group == group_oi) %>% pull(gene)
   }
-  
-lr_target_pior_cor_filtered = lr_target_prior_cor %>% filter(id %in% prioritized_tbl_oi$id & target %in% targets_oi) %>% mutate(padj_pearson = p.adjust(pearson_pval, "BH"), padj_spearman = p.adjust(spearman_pval, "BH"))
-
-lr_target_pior_cor_filtered %>% filter(padj_pearson <= 0.10 & scaled_prior_score > 0.45 & pearson > 0) %>% ggplot(aes(target, id, fill = scaled_prior_score)) + geom_tile() 
-
-lr_target_pior_cor_filtered %>% filter(padj_pearson <= 0.10 | padj_spearman <= 0.10) %>% filter(scaled_prior_score > 0.50 & pearson > 0 & spearman > 0) %>% ggplot(aes(target, id, fill = scaled_prior_score)) + geom_tile() 
-
-
-lr_target_pior_cor_filtered %>% filter(scaled_prior_score > 0.50 & (pearson > 0.25 | spearman > 0.25) ) %>% 
-  ggplot(aes(target, id, color = scaled_prior_score, size = pearson)) + geom_point() 
-
-lr_target_pior_cor_filtered %>% filter(padj_pearson <= 0.10 & scaled_prior_score > 0.45 & pearson > 0) %>% 
-  ggplot(aes(target, id, fill = prior_score)) + geom_tile() 
-
-
-
-# lr_target_pior_cor %>% filter(scaled_pearson > 0.66 & scaled_prior_score > 0.66) %>% filter(id %in% prioritized_tbl_oi$id & target %in% targets_oi) %>% 
-#   ggplot(aes(target, id, color = scaled_prior_score, size = pearson)) + geom_point() 
-# lr_target_pior_cor %>% filter(padj_pearson <= 0.10) %>% filter(id %in% prioritized_tbl_oi$id & target %in% targets_oi) %>% 
-#   ggplot(aes(target, id, color = scaled_prior_score, size = pearson)) + geom_point() 
-# 
-# lr_target_pior_cor %>% filter(id %in% prioritized_tbl_oi$id & target %in% targets_oi) %>% 
-#   ggplot(aes(target, id, color = pearson, size = scaled_prior_score)) + geom_point() # by changing the color and size mappings, a beautiful figure might be coming out...
-
-```
-
-
-```{r, fig.height=12, fig.width=12}
-group_oi = "High"
 
 prioritized_tbl_oi = multinichenet_output$prioritization_tables$group_prioritization_tbl %>% 
   distinct(id, ligand, receptor, sender, receiver, lr_interaction, group, ligand_receptor_lfc_avg, activity_scaled, fraction_expressing_ligand_receptor,  prioritization_score) %>% 
   filter(fraction_expressing_ligand_receptor > 0 & ligand_receptor_lfc_avg > 0) %>% 
   filter(group == group_oi) %>% group_by(group) %>% top_n(250, prioritization_score) 
-# lr_target_pior_cor_oi = lr_target_pior_cor %>% filter(scaled_pearson > 0.66 & scaled_prior_score > 0.66) 
-# lr_target_pior_cor_oi = lr_target_pior_cor %>% filter(scaled_pearson > 0.66 & scaled_prior_score > 0.66) %>% filter(id %in% prioritized_tbl_oi$id)
+
 lr_target_prior_cor = lr_target_prior_cor %>% filter(id %in% prioritized_tbl_oi$id & target %in% targets_oi) %>% mutate(padj_pearson = p.adjust(pearson_pval, "BH"), padj_spearman = p.adjust(spearman_pval, "BH"))
 
-lr_target_pior_cor_filtered = lr_target_prior_cor %>% filter(scaled_prior_score > 0.60 & (pearson > 0.50 & spearman > 0.50))
-# lr_target_pior_cor_oi = lr_target_pior_cor_oi %>% filter(scaled_prior_score > 0.50 & padj_pearson <= 0.10)
+lr_target_prior_cor_filtered = lr_target_prior_cor %>% filter(scaled_prior_score > 0.50 & (pearson > 0.66 | spearman > 0.66))
+make_lr_target_prior_cor_heatmap(lr_target_prior_cor_filtered)
+```
 
-# lr_target_pior_cor_oi = lr_target_pior_cor_filtered %>% filter(scaled_prior_score > 0.60 & (padj_pearson <= 0.10 | padj_spearman < 0.10))
 
-make_ggraph_ligand_target_links = function(lr_target_pior_cor_filtered, colors){
-    source_df = lr_target_pior_cor_oi %>% mutate(celltype_ligand = paste(sender, ligand, sep = "_"), celltype_target = paste(receiver, target, sep = "_"), celltype_receptor = paste(receiver, receptor, sep = "_")) %>% select(sender, receiver, celltype_ligand, celltype_receptor, celltype_target, ligand, target, receptor) 
-  
-  lr_gr_network = source_df %>% filter(celltype_target %in% c(source_df$celltype_ligand, source_df$celltype_receptor)) 
-  ligand_receptor_network = lr_gr_network %>% filter(celltype_receptor %in% celltype_target) %>% select(celltype_ligand, celltype_receptor) %>% distinct() %>% rename(sender = celltype_ligand, receiver = celltype_receptor) %>% mutate(type = "Ligand-Receptor", weight = 1)
-  ligand_target_network = lr_gr_network %>% select(celltype_ligand, celltype_target) %>% distinct() %>% rename(sender = celltype_ligand, receiver = celltype_target) %>% mutate(type = "Ligand-Target", weight = 1)
-  
-  links = ligand_target_network %>% bind_rows(ligand_receptor_network) 
-  nodes = lr_gr_network %>% select(celltype_ligand, sender, ligand) %>% rename(celltype = sender, node = celltype_ligand, gene = ligand)  %>% bind_rows(
-    lr_gr_network %>% select(celltype_receptor, receiver, receptor) %>% rename(celltype = receiver, node = celltype_receptor, gene = receptor)
-  ) %>% bind_rows(
-    lr_gr_network %>% select(celltype_target, receiver, target) %>% rename(celltype = receiver, node = celltype_target, gene = target)
-  ) %>% distinct() %>% filter(node %in% c(links$sender, links$receiver))
-  nodes = nodes %>% data.frame() %>% magrittr::set_rownames(nodes$node)
-  
-  # create the network object
-  network <- igraph::graph_from_data_frame(d=links %>% filter(type == "Ligand-Target"), vertices = nodes, directed=T)
-  graph <- tidygraph::as_tbl_graph(network) 
-  set.seed(1919)
-  plot = suppressWarnings(ggraph::ggraph(graph, layout = 'dh') + 
-      geom_edge_elbow(edge_width = 1.15, color = "gray25", arrow = arrow(length = unit(4, 'mm')), end_cap = circle(4.5, 'mm'), start_cap = circle(3.5, 'mm')) +
-      geom_edge_loop(edge_width = 1, alpha = 0.70, color = "gray25") + 
-      # geom_node_point(aes(color = celltype), size = 3.5, alpha = 0.50) +
-      geom_node_label(aes(label = gene, color = celltype), fontface = "bold", size = 3.5, nudge.x = 0, nudge.y = 0) +
-      # geom_node_text(aes(label = gene, color = celltype), fontface = "bold", size = 4) +
-      theme_graph(foreground = 'black', fg_text_colour = 'white') + scale_color_manual(values = colors))
-  
-  return(list(plot = plot, graph = graph))
-}
+```{r, fig.height=12, fig.width=12}
 
-graph_plot = make_ggraph_ligand_target_links(lr_target_pior_cor_filtered = lr_target_pior_cor_filtered, colors = colors_sender)
+senders_receivers = union(prioritized_tbl_oi$sender %>% unique(), prioritized_tbl_oi$receiver %>% unique())
+
+colors_sender = RColorBrewer::brewer.pal(n = length(senders_receivers), name = 'Spectral') %>% magrittr::set_names(senders_receivers)
+colors_receiver = RColorBrewer::brewer.pal(n = length(senders_receivers), name = 'Spectral') %>% magrittr::set_names(senders_receivers)
+colors_sender["myofibroblast"] = "steelblue2"
+graph_plot = make_ggraph_ligand_target_links(lr_target_prior_cor_filtered = lr_target_prior_cor_filtered, colors = colors_sender)
 graph_plot$plot
-
-
-
 ```
 
 New visualization of ligand-receptor links, and then the ligand-target matrix, and then the target expression
@@ -1193,137 +589,38 @@ receiver_oi = "Malignant"
 prioritized_tbl_oi = multinichenet_output$prioritization_tables$group_prioritization_tbl %>% 
   distinct(id, ligand, receptor, sender, receiver, lr_interaction, group, ligand_receptor_lfc_avg, activity_scaled, fraction_expressing_ligand_receptor,  prioritization_score) %>% 
   filter(fraction_expressing_ligand_receptor > 0 & ligand_receptor_lfc_avg > 0) %>% 
-  filter(group == group_oi & receiver == receiver_oi) %>% group_by(group) %>% top_n(250, prioritization_score) 
-# lr_target_pior_cor_oi = lr_target_pior_cor %>% filter(scaled_pearson > 0.66 & scaled_prior_score > 0.66) 
-# lr_target_pior_cor_oi = lr_target_pior_cor %>% filter(scaled_pearson > 0.66 & scaled_prior_score > 0.66) %>% filter(id %in% prioritized_tbl_oi$id)
+  filter(group == group_oi & receiver == receiver_oi) %>% top_n(250, prioritization_score) 
+
 lr_target_prior_cor = lr_target_prior_cor %>% filter(id %in% prioritized_tbl_oi$id & target %in% targets_oi) %>% mutate(padj_pearson = p.adjust(pearson_pval, "BH"), padj_spearman = p.adjust(spearman_pval, "BH"))
 
-lr_target_pior_cor_filtered = lr_target_prior_cor %>% filter(scaled_prior_score > 0.60 & (pearson > 0.50 & spearman > 0.50))
+lr_target_prior_cor_filtered = lr_target_prior_cor %>% filter(scaled_prior_score > 0.50 & (pearson > 0.66 | spearman > 0.66))
+lr_target_prior_cor_filtered %>% 
+  ggplot(aes(target, id, color = scaled_prior_score, size = pearson)) + geom_point() 
+```
 
-prioritized_tbl_oi = prioritized_tbl_oi %>% filter(id %in% lr_target_pior_cor_filtered$id)
+```{r}
+prioritized_tbl_oi = prioritized_tbl_oi %>% filter(id %in% lr_target_prior_cor_filtered$id)
+prioritized_tbl_oi = prioritized_tbl_oi %>% group_by(ligand, sender, group) %>% top_n(2, prioritization_score)
 
 # multinichenet_output$ligand_activities_targets_DEgenes
 # contrast_tbl, multinichenet_output$grouping_tbl, 
 receiver_info = multinichenet_output$celltype_info
 
-make_lr_target_correlation_plot = function(prioritization_tables, prioritized_tbl_oi, contrast_tbl, grouping_tbl, receiver_info, plot_legend = TRUE, heights = NULL, widths = NULL){
-  
-  ##### LR product plot
-  sample_data = prioritization_tables$sample_prioritization_tbl %>% dplyr::filter(id %in% prioritized_tbl_oi$id) %>% dplyr::mutate(sender_receiver = paste(sender, receiver, sep = " to ")) %>%  dplyr::arrange(sender) %>% dplyr::group_by(sender) %>%  dplyr::arrange(receiver)
-  
-    group_data = prioritization_tables$group_prioritization_tbl %>% dplyr::mutate(sender_receiver = paste(sender, receiver, sep = " to ")) %>% dplyr::distinct(id, sender, receiver, sender_receiver, lr_interaction, group, ligand_receptor_lfc_avg, activity, activity_scaled, fraction_ligand_group, prioritization_score, scaled_avg_exprs_ligand) %>% dplyr::filter(id %in% sample_data$id)
-  
-    keep_sender_receiver_values = c(0.25, 0.9, 1.75, 4)
-    names(keep_sender_receiver_values) = levels(sample_data$keep_sender_receiver)
-    
-    sample_data = sample_data %>% mutate(sample = factor(sample)) %>% mutate(sample = factor(sample, levels = rev(levels(sample)))) # reverse - to have the same order as used for the targets
-    
-    p1 = sample_data %>%
-      ggplot(aes(sample, lr_interaction, color = scaled_LR_prod, size = keep_sender_receiver)) +
-      geom_point() +
-      facet_grid(sender_receiver~group, scales = "free", space = "free", switch = "y") +
-      scale_x_discrete(position = "top") +
-      # xlab("Ligand-Receptor expression in samples\n\n") +
-      theme_light() +
-      theme(
-        axis.ticks = element_blank(),
-        axis.title = element_blank(),
-        # axis.title.x = element_text(face = "bold", size = 11),       axis.title.y = element_blank(),
-        axis.text.y = element_text(face = "bold.italic", size = 9),
-        axis.text.x = element_text(size = 9,  angle = 90,hjust = 0),
-        panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        panel.spacing.x = unit(0.40, "lines"),
-        panel.spacing.y = unit(0.25, "lines"),
-        strip.text.x.top = element_text(size = 10, color = "black", face = "bold", angle = 0),
-        strip.text.y.left = element_text(size = 9, color = "black", face = "bold", angle = 0),
-        strip.background = element_rect(color="darkgrey", fill="whitesmoke", size=1.5, linetype="solid")
-      ) + labs(color = "Scaled L-R\navg expression product", size= "Sufficient presence\nof sender & receiver") + 
-      scale_size_manual(values = keep_sender_receiver_values)
-    max_lfc = abs(sample_data$scaled_LR_prod) %>% max()
-    custom_scale_color = scale_color_gradientn(colours = RColorBrewer::brewer.pal(n = 7, name = "RdBu") %>% rev(),values = c(0, 0.350, 0.4850, 0.5, 0.5150, 0.65, 1),  limits = c(-1*max_lfc, max_lfc))
-  
-    p_lr_exprs = p1 + custom_scale_color
-  
-##### LR-->Target plot
-  
-  lr_target_data = lr_target_pior_cor_filtered %>% inner_join(sample_data) %>% select(id, lr_interaction, sender_receiver, group, target, scaled_prior_score, final_score, prior_score, pearson) %>% distinct()
-  lr_target_data = lr_target_data %>% mutate(target = factor(target))
-  order_targets = lr_target_data$target %>% levels()
-  lr_target_data_filled = lr_target_data %>% distinct(id, target, scaled_prior_score) %>% tidyr::spread(target, scaled_prior_score, fill = 0) %>% tidyr::gather(target, score, -id)
-  lr_target_data = lr_target_data_filled %>% inner_join(lr_target_data %>% select(id, lr_interaction, sender_receiver, group))
-
-  p2 = lr_target_data %>%
-    ggplot(aes(target, lr_interaction, fill = score)) +
-    geom_tile(color = "gray75") +
-    facet_grid(sender_receiver~., scales = "free", space = "free", switch = "y") +
-    scale_x_discrete(position = "top") +
-    # xlab("Ligand-Receptor expression in samples\n\n") +
-    theme_light() +
-    theme(
-      axis.ticks = element_blank(),
-      axis.title = element_blank(),
-      # axis.title.x = element_text(face = "bold", size = 11),       axis.title.y = element_blank(),
-      axis.text.y = element_text(face = "bold.italic", size = 9),
-      axis.text.x = element_text(size = 9,  angle = 90,hjust = 0),
-      panel.grid.major = element_blank(),
-      panel.grid.minor = element_blank(),
-      panel.spacing.x = unit(0.40, "lines"),
-      panel.spacing.y = unit(0.25, "lines"),
-      strip.text.x.top = element_text(size = 10, color = "black", face = "bold", angle = 0),
-      strip.text.y.left = element_text(size = 9, color = "black", face = "bold", angle = 0),
-      strip.background = element_rect(color="darkgrey", fill="whitesmoke", size=1.5, linetype="solid")
-    ) + labs(fill = "Prior knowledge score\nof correlated targets") 
-  custom_scale_fill = scale_fill_gradientn(colours = c("white", RColorBrewer::brewer.pal(n = 7, name = "BuPu")) ,values = c(0, 0.40, 0.50, 0.60, 0.70, 0.80, 0.90, 1),  limits = c(0, 1))
-
-  p_lr_target = p2 + custom_scale_fill
-
-##### Target expression plot
-  # Target expression
-  groups_oi = group_data %>% dplyr::pull(group) %>% unique()
-  p_target_exprs = make_sample_target_plots_reversed(receiver_info, order_targets, receiver_oi, grouping_tbl %>% dplyr::filter(group %in% groups_oi))
-
-  #### now combine all three plots
-   # Combine the plots
-  n_targets = length(order_targets)
-  n_ligands = length(lr_target_data$id %>% unique())
-  n_samples = grouping_tbl %>% dplyr::filter(group %in% groups_oi) %>% dplyr::pull(sample) %>% length()
-
-  legends = patchwork::wrap_plots(ggpubr::as_ggplot(ggpubr::get_legend(p_lr_exprs)), ggpubr::as_ggplot(ggpubr::get_legend(p_lr_target)), nrow = 2) %>%
-    patchwork::wrap_plots(ggpubr::as_ggplot(ggpubr::get_legend(p_target_exprs)))
-
-  if(is.null(heights)){
-    heights = c(n_ligands, n_samples)
-  }
-  if(is.null(widths)){
-    widths = c(n_samples, n_targets)
-  }
-
-  if(plot_legend == FALSE){
-    design <- "AB
-               #C"
-    combined_plot = patchwork::wrap_plots(A = p_lr_exprs + theme(legend.position = "none", axis.ticks = element_blank()) + theme(axis.title.x = element_text()),
-                                          B = p_lr_target + theme(legend.position = "none", axis.ticks = element_blank()) + ylab(""),
-                                          C = p_target_exprs + theme(legend.position = "none"),
-                                          nrow = 2, design = design, widths = widths, heights = heights)
-    return(list(combined_plot = combined_plot, legends = legends))
-
-  } else {
-    design <- "AB
-               LC"
-
-    combined_plot = patchwork::wrap_plots(A = p_lr_exprs + theme(legend.position = "none", axis.ticks = element_blank()) + theme(axis.title.x = element_text()),
-                                          
-                                          B = p_lr_target + theme(legend.position = "none", axis.ticks = element_blank()) + ylab(""),
-                                          C = p_target_exprs + theme(legend.position = "none"),
-                                          L = legends, nrow = 2, design = design, widths = widths, heights = heights)
-    return(list(combined_plot = combined_plot, legends = legends))
-  }
-
-  
-}  
 
 lr_target_cor_plot = make_lr_target_correlation_plot(multinichenet_output$prioritization_tables, prioritized_tbl_oi, contrast_tbl, multinichenet_output$grouping_tbl, multinichenet_output$celltype_info, plot_legend = FALSE)
+
+```
+
+```{r}
+ligand_oi ="IL24"
+receptor_oi = "IL22RA1" 
+sender_oi = "CAF"
+receiver_oi ="Malignant"
+
+receiver_info = multinichenet_output$celltype_info
+
+
+lr_target_scatter_plot = make_lr_target_scatter_plot(multinichenet_output$prioritization_tables, ligand_oi, receptor_oi, sender_oi, receiver_oi, receiver_info)
 
 ```
 

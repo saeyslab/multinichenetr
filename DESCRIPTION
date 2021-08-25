@@ -45,7 +45,11 @@ Imports:
     edgeR,
     sva,
     SingleCellExperiment,
-    ggbeeswarm
+    ggbeeswarm,
+    Hmisc,
+    igraph,
+    tidygraph,
+    ggraph
 Suggests: 
     knitr,
     testthat,

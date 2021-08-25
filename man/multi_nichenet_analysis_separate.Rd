@@ -90,14 +90,7 @@ ligand_activities_targets_DEgenes: contains the output of the NicheNet ligand ac
 prioritization_tables: contains the tables with the final prioritization scores
 lr_prod_mat: matrix of the ligand-receptor expression product of the expressed senderLigand-receiverReceptor pairs,
 grouping_tbl: data frame showing the group per sample 
-hist_pvals_receiver: histogram of p-values from the DE analysis on the receiver cell types.
-hist_pvals_sender: histogram of p-values from the DE analysis on the sender cell types.
-hist_pvals_emp_receiver: histogram of empirical p-values from the DE analysis on the receiver cell types.
-hist_pvals_emp_sender: histogram of empirical p-values from the DE analysis on the sender cell types.
-abund_plot_sample_sender: barplot showing cell number per sample-celltype combination for the sender cell types.
-abund_plot_group_sender: boxplot showing cell number per sample-celltype combination for the sender cell types across the different conditions.
-abund_plot_sample_receiver: barplot showing cell number per sample-celltype combination for the receiver cell types.
-abund_plot_group_receiver: boxplot showing cell number per sample-celltype combination for the receiver cell types across the different conditions.
+lr_target_prior_cor: data frame showing the expression correlation between ligand-receptor pairs and DE genes + NicheNet regulatory potential scores indicating the amount of prior knowledge supporting a LR-target regulatory link
 }
 \description{
 \code{multi_nichenet_analysis_separate}  Perform a MultiNicheNet analysis between sender cell types and receiver cell types of interest.

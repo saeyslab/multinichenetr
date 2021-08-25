@@ -22,7 +22,6 @@ sce = SingleCellExperiment::SingleCellExperiment(list(counts=SingleCellExperimen
 )
 usethis::use_data(sce,overwrite = T, compress = "bzip2")
 
-
 # usethis::use_package("Seurat") # not used anymore
 usethis::use_package("dplyr")
 usethis::use_package("ggplot2")
@@ -44,7 +43,7 @@ usethis::use_package("generics")
 usethis::use_package("ComplexHeatmap")
 usethis::use_package("grid")
 usethis::use_package("Nebulosa")
-
+usethis::use_package("Hmisc")
 
 usethis::use_package("muscat")
 usethis::use_package("limma")
@@ -59,7 +58,9 @@ usethis::use_package("ggpubr")
 usethis::use_package("edgeR")
 usethis::use_package("sva")
 
-
+usethis::use_package("igraph")
+usethis::use_package("tidygraph")
+usethis::use_package("ggraph")
 
 usethis::use_package("knitr", type = "Suggests")
 usethis::use_package("testthat", type = "Suggests")

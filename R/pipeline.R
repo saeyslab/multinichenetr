@@ -116,14 +116,7 @@ multi_nichenet_analysis = function(sender_receiver_separate = TRUE, ...){
 #' prioritization_tables: contains the tables with the final prioritization scores
 #' lr_prod_mat: matrix of the ligand-receptor expression product of the expressed senderLigand-receiverReceptor pairs,
 #' grouping_tbl: data frame showing the group per sample 
-#' hist_pvals_receiver: histogram of p-values from the DE analysis on the receiver cell types.
-#' hist_pvals_sender: histogram of p-values from the DE analysis on the sender cell types.
-#' hist_pvals_emp_receiver: histogram of empirical p-values from the DE analysis on the receiver cell types.
-#' hist_pvals_emp_sender: histogram of empirical p-values from the DE analysis on the sender cell types.
-#' abund_plot_sample_sender: barplot showing cell number per sample-celltype combination for the sender cell types.
-#' abund_plot_group_sender: boxplot showing cell number per sample-celltype combination for the sender cell types across the different conditions.
-#' abund_plot_sample_receiver: barplot showing cell number per sample-celltype combination for the receiver cell types.
-#' abund_plot_group_receiver: boxplot showing cell number per sample-celltype combination for the receiver cell types across the different conditions.
+#' lr_target_prior_cor: data frame showing the expression correlation between ligand-receptor pairs and DE genes + NicheNet regulatory potential scores indicating the amount of prior knowledge supporting a LR-target regulatory link
 #' @import dplyr
 #' @import ggplot2
 #' @importFrom generics setdiff intersect union
@@ -330,7 +323,7 @@ multi_nichenet_analysis_separate = function(sce_receiver,
   # 
   groups_oi_contrast_tbl = contrast_tbl$group %>% unique()
   if(sum(groups_oi_contrast_tbl %in% groups_oi) != length(groups_oi_contrast_tbl)){
-    warning("You have defined some groups in contrast_tbl$group that are not present SummarizedExperiment::colData(sce)[,group_id]. This will result in lack of information downstream. We recommend to change your metadata or this contrast_tbl appropriately.")
+    stop("You have defined some groups in contrast_tbl$group that are not present SummarizedExperiment::colData(sce)[,group_id]. This will result in lack of information downstream. We recommend to change your metadata or this contrast_tbl appropriately.")
   }
   if(length(groups_oi_contrast_tbl) != length(contrast_tbl$group)){
     warning("According to your contrast_tbl, some of your contrasts will be assigned to the same group. This should not be a problem if this was intended, but be aware not to make mistakes in the further interpretation and plotting of the results.")
@@ -595,7 +588,7 @@ multi_nichenet_analysis_separate = function(sce_receiver,
     
     ids_oi = prioritization_tables$group_prioritization_tbl %>% dplyr::filter(fraction_expressing_ligand_receptor > 0)  %>% dplyr::pull(id) %>% unique()
     
-    lr_prod_df = abundance_expression_info$sender_receiver_info$avg_df %>% dplyr::inner_join(grouping_tbl, by = "sample") %>% dplyr::mutate(lr_interaction = paste(ligand, receptor, sep = "_")) %>% dplyr::mutate(id = paste(lr_interaction, sender, receiver, sep = "_")) %>% dplyr::select(sample, id, ligand_receptor_prod) %>% dplyr::filter(id %in% ids_oi) %>% dplyr::distinct() %>% tidyr::spread(id, ligand_receptor_prod)
+    lr_prod_df = abundance_expression_info$sender_receiver_info$pb_df %>% dplyr::inner_join(grouping_tbl, by = "sample") %>% dplyr::mutate(lr_interaction = paste(ligand, receptor, sep = "_")) %>% dplyr::mutate(id = paste(lr_interaction, sender, receiver, sep = "_")) %>% dplyr::select(sample, id, ligand_receptor_pb_prod) %>% dplyr::filter(id %in% ids_oi) %>% dplyr::distinct() %>% tidyr::spread(id, ligand_receptor_pb_prod)
     lr_prod_mat = lr_prod_df %>% dplyr::select(-sample) %>% data.frame() %>% as.matrix()
     rownames(lr_prod_mat) = lr_prod_df$sample
     
@@ -607,6 +600,11 @@ multi_nichenet_analysis_separate = function(sce_receiver,
     lr_prod_mat = NULL
   }
   
+  
+  # Add information on prior knowledge and expression correlation between LR and target expression ------------------------------------------------------------------------------------------------------------
+  lr_target_prior_cor = lr_target_prior_cor_inference(prioritization_tables$group_prioritization_tbl$receiver %>% unique(), abundance_expression_info, celltype_de_receiver, grouping_tbl, prioritization_tables, ligand_target_matrix, logFC_threshold = logFC_threshold, p_val_threshold = p_val_threshold, p_val_adj = p_val_adj)
+  
+  
   multinichenet_output = list(
     receiver_info = abundance_expression_info$receiver_info,
     receiver_de = celltype_de_receiver,
@@ -617,7 +615,8 @@ multi_nichenet_analysis_separate = function(sce_receiver,
     ligand_activities_targets_DEgenes = ligand_activities_targets_DEgenes,
     prioritization_tables = prioritization_tables,
     lr_prod_mat = lr_prod_mat,
-    grouping_tbl = grouping_tbl
+    grouping_tbl = grouping_tbl,
+    lr_target_prior_cor = lr_target_prior_cor
   ) 
   multinichenet_output = multinichenet_output %>% make_lite_output()
   return(multinichenet_output)
@@ -645,6 +644,7 @@ multi_nichenet_analysis_separate = function(sce_receiver,
 #' prioritization_tables: contains the tables with the final prioritization scores
 #' lr_prod_mat: matrix of the ligand-receptor expression product of the expressed senderLigand-receiverReceptor pairs,
 #' grouping_tbl: data frame showing the group per sample 
+#' lr_target_prior_cor: data frame showing the expression correlation between ligand-receptor pairs and DE genes + NicheNet regulatory potential scores indicating the amount of prior knowledge supporting a LR-target regulatory link
 #' 
 #' @import dplyr
 #' @import ggplot2
@@ -798,7 +798,7 @@ multi_nichenet_analysis_combined = function(sce,
   #
   groups_oi_contrast_tbl = contrast_tbl$group %>% unique()
   if(sum(groups_oi_contrast_tbl %in% groups_oi) != length(groups_oi_contrast_tbl)){
-    warning("You have defined some groups in contrast_tbl$group that are not present SummarizedExperiment::colData(sce)[,group_id]. This will result in lack of information downstream. We recommend to change your metadata or this contrast_tbl appropriately.")
+    stop("You have defined some groups in contrast_tbl$group that are not present SummarizedExperiment::colData(sce)[,group_id]. This will result in lack of information downstream. We recommend to change your metadata or this contrast_tbl appropriately.")
   }
   
   if(length(groups_oi_contrast_tbl) != length(contrast_tbl$group)){
@@ -1040,7 +1040,7 @@ multi_nichenet_analysis_combined = function(sce,
     
     ids_oi = prioritization_tables$group_prioritization_tbl %>% dplyr::filter(fraction_expressing_ligand_receptor > 0)  %>% dplyr::pull(id) %>% unique()
     
-    lr_prod_df = abundance_expression_info$sender_receiver_info$avg_df %>% dplyr::inner_join(grouping_tbl, by = "sample") %>% dplyr::mutate(lr_interaction = paste(ligand, receptor, sep = "_")) %>% dplyr::mutate(id = paste(lr_interaction, sender, receiver, sep = "_")) %>% dplyr::select(sample, id, ligand_receptor_prod) %>% dplyr::filter(id %in% ids_oi) %>% dplyr::distinct() %>% tidyr::spread(id, ligand_receptor_prod)
+    lr_prod_df = abundance_expression_info$sender_receiver_info$pb_df %>% dplyr::inner_join(grouping_tbl, by = "sample") %>% dplyr::mutate(lr_interaction = paste(ligand, receptor, sep = "_")) %>% dplyr::mutate(id = paste(lr_interaction, sender, receiver, sep = "_")) %>% dplyr::select(sample, id, ligand_receptor_pb_prod) %>% dplyr::filter(id %in% ids_oi) %>% dplyr::distinct() %>% tidyr::spread(id, ligand_receptor_pb_prod)
     lr_prod_mat = lr_prod_df %>% dplyr::select(-sample) %>% data.frame() %>% as.matrix()
     rownames(lr_prod_mat) = lr_prod_df$sample
     
@@ -1052,6 +1052,9 @@ multi_nichenet_analysis_combined = function(sce,
     lr_prod_mat = NULL
   }
 
+  # Add information on prior knowledge and expression correlation between LR and target expression ------------------------------------------------------------------------------------------------------------
+  lr_target_prior_cor = lr_target_prior_cor_inference(prioritization_tables$group_prioritization_tbl$receiver %>% unique(), abundance_expression_info, celltype_de, grouping_tbl, prioritization_tables, ligand_target_matrix, logFC_threshold = logFC_threshold, p_val_threshold = p_val_threshold, p_val_adj = p_val_adj)
+  
   multinichenet_output = list(
     celltype_info = abundance_expression_info$celltype_info,
     celltype_de = celltype_de,
@@ -1060,7 +1063,8 @@ multi_nichenet_analysis_combined = function(sce,
     ligand_activities_targets_DEgenes = ligand_activities_targets_DEgenes,
     prioritization_tables = prioritization_tables,
     lr_prod_mat = lr_prod_mat,
-    grouping_tbl = grouping_tbl
+    grouping_tbl = grouping_tbl,
+    lr_target_prior_cor = lr_target_prior_cor
   ) 
   
   multinichenet_output = multinichenet_output %>% make_lite_output()

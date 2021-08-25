@@ -21,6 +21,8 @@ make_ligand_activity_target_plot(group_oi, receiver_oi, prioritized_tbl_oi, liga
 
 \item{receiver_info}{`receiver_info` or `celltype_info` slots from the output of `multi_nichenet_analysis`. Also: part of the output of `get_abundance_expression_info_separate`}
 
+\item{ligand_target_matrix}{Prior knowledge model of ligand-target regulatory potential (matrix with ligands in columns and targets in rows). See https://github.com/saeyslab/nichenetr.}
+
 \item{plot_legend}{if TRUE (default): show legend on the same figure, if FALSE (recommended): show legend in separate figure}
 
 \item{heights}{Vector of 2 elements: height of the ligand-activity-target panel, height of the target expression panel. Default NULL: automatically defined based on nr of ligands and samples. If manual change: example format: c(1,1)}
