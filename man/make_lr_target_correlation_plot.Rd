@@ -4,7 +4,7 @@
 \alias{make_lr_target_correlation_plot}
 \title{make_lr_target_correlation_plot}
 \usage{
-make_lr_target_correlation_plot(prioritization_tables, prioritized_tbl_oi, lr_target_prior_cor_filtered, grouping_tbl, receiver_info, receiver_oi, plot_legend = TRUE, heights = NULL, widths = NULL)
+make_lr_target_correlation_plot(prioritization_tables, prioritized_tbl_oi, lr_target_prior_cor_filtered, grouping_tbl, receiver_info, receiver_oi, show_cor = FALSE, plot_legend = TRUE, heights = NULL, widths = NULL)
 }
 \arguments{
 \item{prioritization_tables}{Output of `generate_prioritization_tables` or sublist in the output of `multi_nichenet_analysis`}
@@ -18,6 +18,8 @@ make_lr_target_correlation_plot(prioritization_tables, prioritized_tbl_oi, lr_ta
 \item{receiver_info}{`receiver_info` or `celltype_info` slots from the output of `multi_nichenet_analysis`. Also: part of the output of `get_abundance_expression_info_separate`}
 
 \item{receiver_oi}{Character vector with the names of the receiver cell type of interest}
+
+\item{show_cor}{Default FALSE: do not show dot-based LR-target heatmap with correlation indication. TRUE: do use dot-posed LR-target links with correlation indication.}
 
 \item{plot_legend}{if TRUE (default): show legend on the same figure, if FALSE (recommended): show legend in separate figure}
 

@@ -4,10 +4,12 @@
 \alias{make_ggraph_ligand_target_links}
 \title{make_ggraph_ligand_target_links}
 \usage{
-make_ggraph_ligand_target_links(lr_target_prior_cor_filtered, colors)
+make_ggraph_ligand_target_links(lr_target_prior_cor_filtered, prioritized_tbl_oi, colors)
 }
 \arguments{
 \item{lr_target_prior_cor_filtered}{Data frame filtered from `lr_target_prior_cor` (= output of `multi_nichenet_analysis` or `lr_target_prior_cor_inference`). Filter should be done to keep onl LR-->Target links that are both supported by prior knowledge and correlation in terms of expression.}
+
+\item{prioritized_tbl_oi}{Subset of `prioritization_tables$group_prioritization_tbl`: the ligand-receptor interactions shown in this subset will be visualized: recommended to consider the top n LR interactions of a group of interest, based on the prioritization_score (eg n = 50; see vignettes for examples).}
 
 \item{colors}{Named vector of colors associated to each sender cell type. Vector = color, names = sender names.}
 }
@@ -42,7 +44,10 @@ output = multi_nichenet_analysis(
      sender_receiver_separate = FALSE
      )
 lr_target_prior_cor_filtered = output$lr_target_prior_cor \%>\% filter(scaled_prior_score > 0.50 & (pearson > 0.66 | spearman > 0.66))
-graph_plot = make_ggraph_ligand_target_links(lr_target_prior_cor_filtered = lr_target_prior_cor_filtered, colors = c("blue","red"))
+ prioritized_tbl_oi = output$prioritization_tables$group_prioritization_tbl \%>\% distinct(id, ligand, receptor, sender, receiver, lr_interaction, group, ligand_receptor_lfc_avg, activity_scaled, fraction_expressing_ligand_receptor,  prioritization_score) \%>\% filter(fraction_expressing_ligand_receptor > 0 & ligand_receptor_lfc_avg > 0) \%>\% filter(group == group_oi & receiver == receiver_oi) \%>\% top_n(250, prioritization_score)
+ prioritized_tbl_oi = prioritized_tbl_oi \%>\% filter(id \%in\% lr_target_prior_cor_filtered$id)
+ prioritized_tbl_oi = prioritized_tbl_oi \%>\% group_by(ligand, sender, group) \%>\% top_n(2, prioritization_score)
+graph_plot = make_ggraph_ligand_target_links(lr_target_prior_cor_filtered = lr_target_prior_cor_filtered, prioritized_tbl_oi = prioritized_tbl_oi, colors = c("blue","red"))
 graph_plot$plot
 }
 

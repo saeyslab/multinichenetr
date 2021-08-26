@@ -4,10 +4,12 @@
 \alias{make_lr_target_prior_cor_heatmap}
 \title{make_lr_target_prior_cor_heatmap}
 \usage{
-make_lr_target_prior_cor_heatmap(lr_target_prior_cor_filtered)
+make_lr_target_prior_cor_heatmap(lr_target_prior_cor_filtered, add_grid = TRUE)
 }
 \arguments{
 \item{lr_target_prior_cor_filtered}{Data frame filtered from `lr_target_prior_cor` (= output of `multi_nichenet_analysis` or `lr_target_prior_cor_inference`). Filter should be done to keep onl LR-->Target links that are both supported by prior knowledge and correlation in terms of expression.}
+
+\item{add_grid}{add a ggplot-facet grid to easier link LR pairs to target genes. Default: TRUE.}
 }
 \value{
 ggplot object with plot of LR-->Target links

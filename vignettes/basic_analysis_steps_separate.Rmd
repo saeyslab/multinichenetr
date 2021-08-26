@@ -606,7 +606,7 @@ if(return_lr_prod_matrix == TRUE){
 # Step 6: Add information on prior knowledge and expression correlation between LR and target expression. 
 
 ```{r}
-lr_target_prior_cor = lr_target_pior_cor_inference(prioritization_tables$group_prioritization_tbl$receiver %>% unique(), abundance_expression_info, celltype_de_receiver, grouping_tbl, prioritization_tables, ligand_target_matrix, logFC_threshold = logFC_threshold, p_val_threshold = p_val_threshold, p_val_adj = p_val_adj)
+lr_target_prior_cor = lr_target_prior_cor_inference(prioritization_tables$group_prioritization_tbl$receiver %>% unique(), abundance_expression_info, celltype_de_receiver, grouping_tbl, prioritization_tables, ligand_target_matrix, logFC_threshold = logFC_threshold, p_val_threshold = p_val_threshold, p_val_adj = p_val_adj)
 ```
 
 # Save all the output of MultiNicheNet 

@@ -61,9 +61,9 @@ test_that("Pipeline for all-vs-all analysis works & plotting functions work", {
   target_feature_plot = make_target_feature_plot(sce_receiver = sce, target_oi = target_oi, group_oi = group_oi, group_id = group_id, celltype_id_receiver = celltype_id, receivers_oi = c("Malignant","myofibroblast","CAF"))
   expect_true("ggplot" %in% class(target_feature_plot))
   
-  ligand_oi = "TNC"
-  receptor_oi = "ITGB1"
-  sender_oi = "CAF"
+  ligand_oi = "APP"
+  receptor_oi = "TNFRSF21"
+  sender_oi = "Malignant"
   receiver_oi = "Malignant"
   
   ligand_receptor_feature_plot = make_ligand_receptor_feature_plot(sce_sender = sce, sce_receiver = sce, ligand_oi = ligand_oi, receptor_oi = receptor_oi, group_oi = group_oi, group_id = group_id, celltype_id_sender = celltype_id, celltype_id_receiver = celltype_id, senders_oi = c("Malignant","myofibroblast","CAF"), receivers_oi = c("Malignant","myofibroblast","CAF"))
@@ -94,10 +94,12 @@ test_that("Pipeline for all-vs-all analysis works & plotting functions work", {
   expect_type(circos_list,"list")
   
   # the correlation plotting functions
-  lr_target_prior_cor_filtered = output$lr_target_prior_cor %>% filter(scaled_prior_score > 0.50 & (pearson > 0.66 | spearman > 0.66))
   
   group_oi = "High"
   receiver_oi = "Malignant"
+  lr_target_prior_cor_filtered = output$lr_target_prior_cor %>% filter(scaled_prior_score > 0.50 & (pearson > 0.66 | spearman > 0.66))
+  # lr_target_prior_cor_filtered = output$lr_target_prior_cor %>% dplyr::inner_join(output$ligand_activities_targets_DEgenes$ligand_activities %>% dplyr::inner_join(contrast_tbl) %>% dplyr::filter(group == group_oi) %>% dplyr::ungroup() %>% dplyr::distinct(ligand, target), by = c("ligand", "target")) %>% dplyr::filter(pearson > 0.66 | spearman > 0.66)
+  
   prioritized_tbl_oi = output$prioritization_tables$group_prioritization_tbl %>% distinct(id, ligand, receptor, sender, receiver, lr_interaction, group, ligand_receptor_lfc_avg, activity_scaled, fraction_expressing_ligand_receptor,  prioritization_score) %>% filter(fraction_expressing_ligand_receptor > 0 & ligand_receptor_lfc_avg > 0) %>% filter(group == group_oi & receiver == receiver_oi) %>% top_n(250, prioritization_score)
   prioritized_tbl_oi = prioritized_tbl_oi %>% filter(id %in% lr_target_prior_cor_filtered$id)
   prioritized_tbl_oi = prioritized_tbl_oi %>% group_by(ligand, sender, group) %>% top_n(2, prioritization_score)
@@ -105,18 +107,38 @@ test_that("Pipeline for all-vs-all analysis works & plotting functions work", {
   lr_target_correlation_plot = make_lr_target_correlation_plot(output$prioritization_tables, prioritized_tbl_oi, lr_target_prior_cor_filtered, output$grouping_tbl, output$celltype_info, receiver_oi)
   expect_type(lr_target_correlation_plot,"list")
   
-  graph_plot = make_ggraph_ligand_target_links(lr_target_prior_cor_filtered = lr_target_prior_cor_filtered, colors = c("blue","red"))
+  graph_plot = make_ggraph_ligand_target_links(lr_target_prior_cor_filtered = lr_target_prior_cor_filtered, prioritized_tbl_oi = prioritized_tbl_oi, colors = c("blue","red"))
   expect_type(graph_plot,"list")
   
-  ligand_oi ="COL1A1"
-  receptor_oi = "ITGB1"
-  sender_oi = "CAF"
-  receiver_oi ="Malignant"
+  ligand_oi = "APP"
+  receptor_oi = "TNFRSF21"
+  sender_oi = "Malignant"
+  receiver_oi = "Malignant"
   lr_target_scatter_plot = make_lr_target_scatter_plot(output$prioritization_tables, ligand_oi, receptor_oi, sender_oi, receiver_oi, output$celltype_info, output$grouping_tbl, lr_target_prior_cor_filtered)
   expect_type(lr_target_scatter_plot,"list")
   
   lr_target_prior_cor_heatmap = make_lr_target_prior_cor_heatmap(lr_target_prior_cor_filtered)
   expect_type(lr_target_prior_cor_heatmap,"list")
+  
+  # check the signaling pathways of these target genes
+  weighted_networks = readRDS(url("https://zenodo.org/record/3260758/files/weighted_networks.rds"))
+  ligand_tf_matrix = readRDS(url("https://zenodo.org/record/3260758/files/ligand_tf_matrix.rds"))
+  
+  lr_network = readRDS(url("https://zenodo.org/record/3260758/files/lr_network.rds"))
+  sig_network = readRDS(url("https://zenodo.org/record/3260758/files/signaling_network.rds"))
+  gr_network = readRDS(url("https://zenodo.org/record/3260758/files/gr_network.rds"))
+  
+  targets_all = lr_target_prior_cor_filtered %>% filter(ligand == ligand_oi & receiver == receiver_oi & sender == sender_oi & receptor == receptor_oi)  %>% pull(target) %>% unique()
+  
+  active_signaling_network = nichenetr::get_ligand_signaling_path_with_receptor(ligand_tf_matrix = ligand_tf_matrix, ligands_all = ligand_oi, receptors_all = receptor_oi, targets_all = targets_all, weighted_networks = weighted_networks)
+  data_source_network = nichenetr::infer_supporting_datasources(signaling_graph_list = active_signaling_network,lr_network = lr_network, sig_network = sig_network, gr_network = gr_network)
+  
+  active_signaling_network_min_max = active_signaling_network
+  active_signaling_network_min_max$sig = active_signaling_network_min_max$sig %>% mutate(weight = ((weight-min(weight))/(max(weight)-min(weight))) + 0.75)
+  active_signaling_network_min_max$gr = active_signaling_network_min_max$gr %>% mutate(weight = ((weight-min(weight))/(max(weight)-min(weight))) + 0.75)
+  colors = c("ligand" = "darkred", "receptor" = "orange", "target" = "royalblue", "mediator" = "grey60")
+  ggraph_signaling_path = suppressWarnings(make_ggraph_signaling_path(active_signaling_network_min_max, colors, ligand_oi, receptor_oi, targets_all))
+  expect_type(ggraph_signaling_path,"list")
   
   # for coming calculations: reduce running time by having only one contrast of interest
   contrasts_oi = c("'High-Low'")

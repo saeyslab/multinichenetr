@@ -1466,11 +1466,13 @@ make_lr_target_scatter_plot = function(prioritization_tables, ligand_oi, recepto
   requireNamespace("dplyr")
   requireNamespace("ggplot2")
   
-  ligand_receptor_pb_prod_df = prioritization_tables$sample_prioritization_tbl %>% dplyr::filter(ligand == ligand_oi, receptor == receptor_oi, sender == sender_oi, receiver == receiver_oi) %>% dplyr::distinct(sample, ligand_receptor_pb_prod, id)
+  grouping_tbl = grouping_tbl %>% dplyr::inner_join(prioritization_tables$sample_prioritization_tbl %>% dplyr::distinct(sample, keep_receiver, keep_sender))
+  
+  ligand_receptor_pb_prod_df = prioritization_tables$sample_prioritization_tbl %>% dplyr::filter(keep_receiver == 1 & keep_sender == 1) %>% dplyr::filter(ligand == ligand_oi, receptor == receptor_oi, sender == sender_oi, receiver == receiver_oi) %>% dplyr::distinct(sample, ligand_receptor_pb_prod, id)
   
   targets_oi = ligand_receptor_pb_prod_df %>% dplyr::inner_join(lr_target_prior_cor_filtered, by = "id") %>% dplyr::pull(target) %>% unique()
   
-  target_pb_df = receiver_info$pb_df %>% dplyr::filter(gene %in% targets_oi & celltype == receiver_oi) %>% dplyr::distinct(gene, sample, pb_sample) %>% dplyr::rename(target_pb = pb_sample)
+  target_pb_df = receiver_info$pb_df %>% dplyr::inner_join(grouping_tbl, by = "sample") %>% dplyr::filter(keep_receiver == 1 & keep_sender == 1) %>% dplyr::filter(gene %in% targets_oi & celltype == receiver_oi) %>% dplyr::distinct(gene, sample, pb_sample) %>% dplyr::rename(target_pb = pb_sample)
   
   ligand_receptor_target_pb_df = grouping_tbl %>% dplyr::inner_join(ligand_receptor_pb_prod_df, by = "sample") %>% dplyr::inner_join(target_pb_df, by = "sample")
   
@@ -1486,9 +1488,10 @@ make_lr_target_scatter_plot = function(prioritization_tables, ligand_oi, recepto
 #' @title make_lr_target_prior_cor_heatmap
 #'
 #' @description \code{make_lr_target_prior_cor_heatmap}  Plot Ligand-Receptor-->Target gene links that are both supported by prior knowledge and have correlation in expression
-#' @usage make_lr_target_prior_cor_heatmap(lr_target_prior_cor_filtered)
+#' @usage make_lr_target_prior_cor_heatmap(lr_target_prior_cor_filtered, add_grid = TRUE)
 #'
 #' @inheritParams make_lr_target_scatter_plot
+#' @param add_grid add a ggplot-facet grid to easier link LR pairs to target genes. Default: TRUE.
 #' 
 #' @return ggplot object with plot of LR-->Target links
 #'
@@ -1525,32 +1528,59 @@ make_lr_target_scatter_plot = function(prioritization_tables, ligand_oi, recepto
 #'
 #' @export
 #'
-make_lr_target_prior_cor_heatmap = function(lr_target_prior_cor_filtered){
+make_lr_target_prior_cor_heatmap = function(lr_target_prior_cor_filtered, add_grid = TRUE){
   
   requireNamespace("dplyr")
   requireNamespace("ggplot2")
   
-  p_lr_target = lr_target_prior_cor_filtered %>% dplyr::mutate(sender_receiver = paste(sender, receiver, sep = " --> "), lr_interaction = paste(ligand, receptor, sep = " - ")) %>% 
-    ggplot(aes(target, lr_interaction, color = scaled_prior_score, size = pearson)) +
-    geom_point() +
-    facet_grid(sender_receiver~., scales = "free", space = "free") +
-    scale_x_discrete(position = "top") +
-    theme_light() +
-    theme(
-      axis.ticks = element_blank(),
-      # axis.title = element_blank(),
-      # axis.title.x = element_text(face = "bold", size = 11),       axis.title.y = element_blank(),
-      axis.text.y = element_text(face = "bold.italic", size = 9),
-      axis.text.x = element_text(size = 9,  angle = 90,hjust = 0, face = "bold.italic"),
-      panel.grid.major = element_blank(),
-      panel.grid.minor = element_blank(),
-      panel.spacing.x = unit(0.40, "lines"),
-      panel.spacing.y = unit(0.25, "lines"),
-      strip.text.x.top = element_text(size = 10, color = "black", face = "bold", angle = 0),
-      strip.text.y.right = element_text(size = 9, color = "black", face = "bold", angle = 0),
-      strip.background = element_rect(color="darkgrey", fill="whitesmoke", size=1.5, linetype="solid")
-    ) + labs(color = "Prior knowledge score\nof correlated targets")  + labs(size = "Pearson correlation LR and target\npseudobulk expression")
-  custom_scale_color = scale_color_gradientn(colours = c("white", RColorBrewer::brewer.pal(n = 7, name = "BuPu")) ,values = c(0, 0.40, 0.50, 0.60, 0.70, 0.80, 0.90, 1),  limits = c(0, 1))
+  if(add_grid == TRUE){
+    p_lr_target = lr_target_prior_cor_filtered %>% dplyr::mutate(sender_receiver = paste(sender, receiver, sep = " --> "), lr_interaction = paste(ligand, receptor, sep = " - ")) %>% 
+      ggplot(aes(target, lr_interaction, color = scaled_prior_score, size = pearson)) + # alternative to scaled_prior_score: scaled_ligand or prior_score
+      geom_point() +
+      facet_grid(sender_receiver~target, scales = "free", space = "free") +
+      scale_x_discrete(position = "top") +
+      theme_light() +
+      theme(
+        axis.ticks = element_blank(),
+        # axis.title = element_blank(),
+        # axis.title.x = element_text(face = "bold", size = 11),       axis.title.y = element_blank(),
+        axis.text.y = element_text(face = "bold.italic", size = 9),
+        axis.text.x = element_text(size = 9,  angle = 90,hjust = 0, face = "bold.italic"),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.spacing.x = unit(0.175, "lines"),
+        panel.spacing.y = unit(0.25, "lines"),
+        strip.text.x.top = element_text(size = 0, color = "black", face = "bold", angle = 0),
+        strip.text.y.right = element_text(size = 9, color = "black", face = "bold", angle = 0),
+        strip.background.y = element_rect(color="darkgrey", fill="whitesmoke", size=1.5, linetype="solid"),
+        strip.background.x = element_rect(color="darkgrey", fill="whitesmoke", size=0, linetype="solid")
+        ) + labs(color = "Prior knowledge score\nof correlated targets")  + labs(size = "Pearson correlation LR and target\npseudobulk expression")
+  } else {
+    p_lr_target = lr_target_prior_cor_filtered %>% dplyr::mutate(sender_receiver = paste(sender, receiver, sep = " --> "), lr_interaction = paste(ligand, receptor, sep = " - ")) %>% 
+      ggplot(aes(target, lr_interaction, color = scaled_prior_score, size = pearson)) + # alternative to scaled_prior_score: scaled_ligand or prior_score
+      geom_point() +
+      facet_grid(sender_receiver~., scales = "free", space = "free") +
+      scale_x_discrete(position = "top") +
+      theme_light() +
+      theme(
+        axis.ticks = element_blank(),
+        # axis.title = element_blank(),
+        # axis.title.x = element_text(face = "bold", size = 11),       axis.title.y = element_blank(),
+        axis.text.y = element_text(face = "bold.italic", size = 9),
+        axis.text.x = element_text(size = 9,  angle = 90,hjust = 0, face = "bold.italic"),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.spacing.x = unit(0.175, "lines"),
+        panel.spacing.y = unit(0.25, "lines"),
+        strip.text.x.top = element_text(size = 0, color = "black", face = "bold", angle = 0),
+        strip.text.y.right = element_text(size = 9, color = "black", face = "bold", angle = 0),
+        strip.background.y = element_rect(color="darkgrey", fill="whitesmoke", size=1.5, linetype="solid"),
+        strip.background.x = element_rect(color="darkgrey", fill="whitesmoke", size=0, linetype="solid")
+      ) + labs(color = "Prior knowledge score\nof correlated targets")  + labs(size = "Pearson correlation LR and target\npseudobulk expression")
+  }
+  
+  custom_scale_color = scale_color_gradientn(colours = c("white", RColorBrewer::brewer.pal(n = 7, name = "BuPu")) ,values = c(0, 0.25, 0.40, 0.50, 0.65, 0.775, 0.90, 1),  limits = c(0, 1))
+  # custom_scale_color = scale_color_gradientn(colours = c("white", RColorBrewer::brewer.pal(n = 7, name = "BuPu")) ,values = c(0, 0.40, 0.50, 0.60, 0.70, 0.80, 0.90, 1),  limits = c(0, 1))
   
   p_lr_target = p_lr_target + custom_scale_color + xlab("Correlated target genes\nsupported by prior knowledge") + ylab("Prioritzed LR pairs")
   p_lr_target
@@ -1558,11 +1588,12 @@ make_lr_target_prior_cor_heatmap = function(lr_target_prior_cor_filtered){
 #' @title make_lr_target_correlation_plot
 #'
 #' @description \code{make_lr_target_correlation_plot}  Plot Ligand-Receptor expression, Ligand-Receptor-->Target gene links that are both supported by prior knowledge and have correlation in expression, and Target expression
-#' @usage make_lr_target_correlation_plot(prioritization_tables, prioritized_tbl_oi, lr_target_prior_cor_filtered, grouping_tbl, receiver_info, receiver_oi, plot_legend = TRUE, heights = NULL, widths = NULL)
+#' @usage make_lr_target_correlation_plot(prioritization_tables, prioritized_tbl_oi, lr_target_prior_cor_filtered, grouping_tbl, receiver_info, receiver_oi, show_cor = FALSE, plot_legend = TRUE, heights = NULL, widths = NULL)
 #'
 #' @inheritParams make_lr_target_scatter_plot
 #' @inheritParams make_sample_lr_prod_plots
 #' @inheritParams make_ligand_activity_target_plot
+#' @param show_cor Default FALSE: do not show dot-based LR-target heatmap with correlation indication. TRUE: do use dot-posed LR-target links with correlation indication.
 #' 
 #' @return ggplot object with a combined plot of LR expression vs target expression
 #'
@@ -1607,7 +1638,7 @@ make_lr_target_prior_cor_heatmap = function(lr_target_prior_cor_filtered){
 #'
 #' @export
 #'
-make_lr_target_correlation_plot = function(prioritization_tables, prioritized_tbl_oi, lr_target_prior_cor_filtered, grouping_tbl, receiver_info, receiver_oi, plot_legend = TRUE, heights = NULL, widths = NULL){
+make_lr_target_correlation_plot = function(prioritization_tables, prioritized_tbl_oi, lr_target_prior_cor_filtered, grouping_tbl, receiver_info, receiver_oi, show_cor = FALSE, plot_legend = TRUE, heights = NULL, widths = NULL){
   
   requireNamespace("dplyr")
   requireNamespace("ggplot2")
@@ -1648,35 +1679,70 @@ make_lr_target_correlation_plot = function(prioritization_tables, prioritized_tb
   
   ##### LR-->Target plot
   
-  lr_target_data = lr_target_prior_cor_filtered %>% dplyr::inner_join(sample_data, by = c("sender", "receiver", "ligand", "receptor", "id")) %>% dplyr::select(id, lr_interaction, sender, receiver, sender_receiver, group, target, scaled_prior_score, prior_score, pearson) %>% dplyr::distinct() %>% dplyr::mutate(sender_receiver = paste(sender, receiver, sep = " --> "))
-  lr_target_data = lr_target_data %>% dplyr::mutate(target = factor(target))
-  order_targets = lr_target_data$target %>% levels()
-  lr_target_data_filled = lr_target_data %>% dplyr::distinct(id, target, scaled_prior_score) %>% tidyr::spread(target, scaled_prior_score, fill = 0) %>% tidyr::gather(target, score, -id)
-  lr_target_data = lr_target_data_filled %>% dplyr::inner_join(lr_target_data %>% dplyr::select(id, lr_interaction, sender_receiver, group), by = "id")
-  
-  p2 = lr_target_data %>%
-    ggplot(aes(target, lr_interaction, fill = score)) +
-    geom_tile(color = "gray75") +
-    facet_grid(sender_receiver~., scales = "free", space = "free") +
-    scale_x_discrete(position = "top") +
-    theme_light() +
-    theme(
-      axis.ticks = element_blank(),
-      # axis.title = element_blank(),
-      # axis.title.x = element_text(face = "bold", size = 11),       axis.title.y = element_blank(),
-      axis.text.y = element_text(face = "bold.italic", size = 9),
-      axis.text.x = element_text(size = 9,  angle = 90,hjust = 0, face = "italic"),
-      panel.grid.major = element_blank(),
-      panel.grid.minor = element_blank(),
-      panel.spacing.x = unit(0.40, "lines"),
-      panel.spacing.y = unit(0.25, "lines"),
-      strip.text.x.top = element_text(size = 10, color = "black", face = "bold", angle = 0),
-      strip.text.y.right = element_text(size = 9, color = "black", face = "bold", angle = 0),
-      strip.background = element_rect(color="darkgrey", fill="whitesmoke", size=1.5, linetype="solid")
-    ) + labs(fill = "Prior knowledge score\nof correlated targets") 
-  custom_scale_fill = scale_fill_gradientn(colours = c("white", RColorBrewer::brewer.pal(n = 7, name = "BuPu")) ,values = c(0, 0.40, 0.50, 0.60, 0.70, 0.80, 0.90, 1),  limits = c(0, 1))
-  
-  p_lr_target = p2 + custom_scale_fill + xlab("Correlated target genes\nsupported by prior knowledge") + ylab("")
+  if(show_cor == FALSE){
+    lr_target_data = lr_target_prior_cor_filtered %>% dplyr::inner_join(sample_data, by = c("sender", "receiver", "ligand", "receptor", "id")) %>% dplyr::select(id, lr_interaction, sender, receiver, sender_receiver, group, target, scaled_prior_score, prior_score, pearson) %>% dplyr::distinct() %>% dplyr::mutate(sender_receiver = paste(sender, receiver, sep = " --> "))
+    lr_target_data = lr_target_data %>% dplyr::mutate(target = factor(target))
+    order_targets = lr_target_data$target %>% levels()
+    lr_target_data_filled = lr_target_data %>% dplyr::distinct(id, target, scaled_prior_score) %>% tidyr::spread(target, scaled_prior_score, fill = 0) %>% tidyr::gather(target, score, -id) # alternative to scaled_prior_score: scaled_ligand or prior_score
+    lr_target_data = lr_target_data_filled %>% dplyr::inner_join(lr_target_data %>% dplyr::select(id, lr_interaction, sender_receiver, group), by = "id")
+    
+    p2 = lr_target_data %>%
+      ggplot(aes(target, lr_interaction, fill = score)) +
+      geom_tile(color = "gray75") +
+      facet_grid(sender_receiver~., scales = "free", space = "free") +
+      scale_x_discrete(position = "top") +
+      theme_light() +
+      theme(
+        axis.ticks = element_blank(),
+        # axis.title = element_blank(),
+        # axis.title.x = element_text(face = "bold", size = 11),       axis.title.y = element_blank(),
+        axis.text.y = element_text(face = "bold.italic", size = 9),
+        axis.text.x = element_text(size = 9,  angle = 90,hjust = 0, face = "italic"),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.spacing.x = unit(0.40, "lines"),
+        panel.spacing.y = unit(0.25, "lines"),
+        strip.text.x.top = element_text(size = 10, color = "black", face = "bold", angle = 0),
+        strip.text.y.right = element_text(size = 9, color = "black", face = "bold", angle = 0),
+        strip.background = element_rect(color="darkgrey", fill="whitesmoke", size=1.5, linetype="solid")
+      ) + labs(fill = "Prior knowledge score\nof correlated targets") 
+    custom_scale_fill = scale_fill_gradientn(colours = c("white", RColorBrewer::brewer.pal(n = 7, name = "BuPu")) ,values = c(0, 0.25, 0.40, 0.50, 0.65, 0.775, 0.90, 1),  limits = c(0, 1))
+    # custom_scale_fill = scale_fill_gradientn(colours = c("white", RColorBrewer::brewer.pal(n = 7, name = "BuPu")) ,values = c(0, 0.40, 0.50, 0.60, 0.70, 0.80, 0.90, 1),  limits = c(0, 1))
+    
+    p_lr_target = p2 + custom_scale_fill + xlab("Correlated target genes\nsupported by prior knowledge") + ylab("")
+  } else {
+    lr_target_data = lr_target_prior_cor_filtered %>% dplyr::inner_join(sample_data, by = c("sender", "receiver", "ligand", "receptor", "id")) %>% dplyr::select(id, lr_interaction, sender, receiver, sender_receiver, group, target, scaled_prior_score, prior_score, pearson) %>% dplyr::distinct() %>% dplyr::mutate(sender_receiver = paste(sender, receiver, sep = " --> "))
+    lr_target_data = lr_target_data %>% dplyr::mutate(target = factor(target))
+    order_targets = lr_target_data$target %>% levels()
+    # lr_target_data_filled = lr_target_data %>% dplyr::distinct(id, target, scaled_prior_score) %>% tidyr::spread(target, scaled_prior_score, fill = 0) %>% tidyr::gather(target, score, -id) # alternative to scaled_prior_score: scaled_ligand or prior_score
+    # lr_target_data = lr_target_data_filled %>% dplyr::inner_join(lr_target_data %>% dplyr::select(id, lr_interaction, sender_receiver, group, pearson), by = "id")
+    
+    p2 = lr_target_data %>%
+      ggplot(aes(target, lr_interaction, color = scaled_prior_score, size = pearson)) +
+      geom_point() +
+      facet_grid(sender_receiver~target, scales = "free", space = "free") +
+      scale_x_discrete(position = "top") +
+      theme_light() +
+      theme(
+        axis.ticks = element_blank(),
+        # axis.title = element_blank(),
+        # axis.title.x = element_text(face = "bold", size = 11),       axis.title.y = element_blank(),
+        axis.text.y = element_text(face = "bold.italic", size = 9),
+        axis.text.x = element_text(size = 9,  angle = 90,hjust = 0, face = "italic"),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.spacing.x = unit(0.175, "lines"),
+        panel.spacing.y = unit(0.25, "lines"),
+        strip.text.x.top = element_text(size = 0, color = "black", face = "bold", angle = 0),
+        strip.text.y.right = element_text(size = 9, color = "black", face = "bold", angle = 0),
+        strip.background = element_rect(color="darkgrey", fill="whitesmoke", size=1.5, linetype="solid")
+      ) + labs(fill = "Prior knowledge score\nof correlated targets", size= "Sufficient presence\nof sender & receiver") 
+    custom_scale_color = scale_color_gradientn(colours = c("white", RColorBrewer::brewer.pal(n = 7, name = "BuPu")) ,values = c(0, 0.25, 0.40, 0.50, 0.65, 0.775, 0.90, 1),  limits = c(0, 1))
+    # custom_scale_fill = scale_fill_gradientn(colours = c("white", RColorBrewer::brewer.pal(n = 7, name = "BuPu")) ,values = c(0, 0.40, 0.50, 0.60, 0.70, 0.80, 0.90, 1),  limits = c(0, 1))
+    
+    p_lr_target = p2 + custom_scale_color + xlab("Correlated target genes\nsupported by prior knowledge") + ylab("")
+  }
+
   
   ##### Target expression plot
   # Target expression
@@ -1725,9 +1791,10 @@ make_lr_target_correlation_plot = function(prioritization_tables, prioritized_tb
 #' @title make_ggraph_ligand_target_links
 #'
 #' @description \code{make_ggraph_ligand_target_links} Make a network showing the gene regulatory links between ligands from sender cell types to their induced ligands/receptors in receiver cell types. Lins are only drawn if the ligand/receptor in the receiver is a potential downstream target of the ligand based on prior knowledge and sufficient correlation in expression across the different samples.
-#' @usage make_ggraph_ligand_target_links(lr_target_prior_cor_filtered, colors)
+#' @usage make_ggraph_ligand_target_links(lr_target_prior_cor_filtered, prioritized_tbl_oi, colors)
 #'
 #' @inheritParams make_lr_target_scatter_plot
+#' @inheritParams make_sample_lr_prod_plots
 #' @param colors Named vector of colors associated to each sender cell type. Vector = color, names = sender names. 
 #' 
 #' @return ggplot object with plot of LR-->Target links
@@ -1764,20 +1831,24 @@ make_lr_target_correlation_plot = function(prioritization_tables, prioritized_tb
 #'      sender_receiver_separate = FALSE
 #'      )
 #' lr_target_prior_cor_filtered = output$lr_target_prior_cor %>% filter(scaled_prior_score > 0.50 & (pearson > 0.66 | spearman > 0.66))
-#' graph_plot = make_ggraph_ligand_target_links(lr_target_prior_cor_filtered = lr_target_prior_cor_filtered, colors = c("blue","red"))
+#'  prioritized_tbl_oi = output$prioritization_tables$group_prioritization_tbl %>% distinct(id, ligand, receptor, sender, receiver, lr_interaction, group, ligand_receptor_lfc_avg, activity_scaled, fraction_expressing_ligand_receptor,  prioritization_score) %>% filter(fraction_expressing_ligand_receptor > 0 & ligand_receptor_lfc_avg > 0) %>% filter(group == group_oi & receiver == receiver_oi) %>% top_n(250, prioritization_score)
+#'  prioritized_tbl_oi = prioritized_tbl_oi %>% filter(id %in% lr_target_prior_cor_filtered$id)
+#'  prioritized_tbl_oi = prioritized_tbl_oi %>% group_by(ligand, sender, group) %>% top_n(2, prioritization_score)
+#' graph_plot = make_ggraph_ligand_target_links(lr_target_prior_cor_filtered = lr_target_prior_cor_filtered, prioritized_tbl_oi = prioritized_tbl_oi, colors = c("blue","red"))
 #' graph_plot$plot
 #' }
 #'
 #' @export
 #'
-make_ggraph_ligand_target_links = function(lr_target_prior_cor_filtered, colors){
+make_ggraph_ligand_target_links = function(lr_target_prior_cor_filtered, prioritized_tbl_oi, colors){
   
   requireNamespace("dplyr")
   requireNamespace("ggplot2")
+  lr_target_prior_cor_filtered = lr_target_prior_cor_filtered %>% filter(id %in% prioritized_tbl_oi$id)
+  source_df_lr = prioritized_tbl_oi %>% dplyr::mutate(celltype_ligand = paste(sender, ligand, sep = "_"), celltype_receptor = paste(receiver, receptor, sep = "_")) %>% dplyr::select(sender, receiver, celltype_ligand, celltype_receptor, ligand, receptor) 
+  source_df_lrt = lr_target_prior_cor_filtered %>% dplyr::mutate(celltype_ligand = paste(sender, ligand, sep = "_"), celltype_target = paste(receiver, target, sep = "_"), celltype_receptor = paste(receiver, receptor, sep = "_")) %>% dplyr::select(sender, receiver, celltype_ligand, celltype_receptor, celltype_target, ligand, target, receptor) 
   
-  source_df = lr_target_prior_cor_filtered %>% dplyr::mutate(celltype_ligand = paste(sender, ligand, sep = "_"), celltype_target = paste(receiver, target, sep = "_"), celltype_receptor = paste(receiver, receptor, sep = "_")) %>% dplyr::select(sender, receiver, celltype_ligand, celltype_receptor, celltype_target, ligand, target, receptor) 
-  
-  lr_gr_network = source_df %>% dplyr::filter(celltype_target %in% c(source_df$celltype_ligand, source_df$celltype_receptor)) 
+  lr_gr_network = source_df_lrt %>% dplyr::filter(celltype_target %in% c(source_df_lr$celltype_ligand, source_df_lr$celltype_receptor)) 
   ligand_receptor_network = lr_gr_network %>% dplyr::filter(celltype_receptor %in% celltype_target) %>% dplyr::select(celltype_ligand, celltype_receptor) %>% dplyr::distinct() %>% dplyr::rename(sender = celltype_ligand, receiver = celltype_receptor) %>% dplyr::mutate(type = "Ligand-Receptor", weight = 1)
   ligand_target_network = lr_gr_network %>% dplyr::select(celltype_ligand, celltype_target) %>% dplyr::distinct() %>% dplyr::rename(sender = celltype_ligand, receiver = celltype_target) %>% dplyr::mutate(type = "Ligand-Target", weight = 1)
   
@@ -1800,6 +1871,79 @@ make_ggraph_ligand_target_links = function(lr_target_prior_cor_filtered, colors)
                             ggraph::theme_graph(foreground = 'black', fg_text_colour = 'white') + scale_color_manual(values = colors)
   
   return(list(plot = plot, graph = graph))
+}
+#' @title make_ggraph_signaling_path
+#'
+#' @description \code{make_ggraph_signaling_path} Visualize the Ligand-Receptor to target signaling paths
+#' @usage make_ggraph_signaling_path(signaling_graph_list, colors, ligands_all, receptors_all, targets_all)
+#'
+#' @param signaling_graph_list Output of `nichenetr::get_ligand_signaling_path_with_receptor`
+#' @param colors Named vector of colors associated to each node type: Example: colors <- c("ligand" = "indianred2", "receptor" = "orange", "target" = "steelblue2", "mediator" = "grey25"). 
+#' @param ligands_all Name of the ligand(s)
+#' @param receptors_all Name of the receptor(s)
+#' @param targets_all Name of the target(s)
+#' 
+#' @return ggraph and tidygraph objec of signaling paths between predefined LR-->Target links
+#'
+#' @import ggplot2
+#' @import dplyr
+#' @importFrom magrittr set_rownames set_names
+#' @importFrom igraph graph_from_data_frame
+#' @importFrom tidygraph as_tbl_graph
+#' @importFrom tibble tibble
+#' @importFrom ggraph theme_graph geom_node_label geom_edge_link ggraph circle
+#'
+#' @examples
+#' \dontrun{
+#' library(dplyr)
+#' weighted_networks = readRDS(url("https://zenodo.org/record/3260758/files/weighted_networks.rds"))
+#' ligand_tf_matrix = readRDS(url("https://zenodo.org/record/3260758/files/ligand_tf_matrix.rds"))
+
+#' lr_network = readRDS(url("https://zenodo.org/record/3260758/files/lr_network.rds"))
+#' sig_network = readRDS(url("https://zenodo.org/record/3260758/files/signaling_network.rds"))
+#' gr_network = readRDS(url("https://zenodo.org/record/3260758/files/gr_network.rds"))
+
+#' ligands_all = "COL1A1" # this can be a list of multiple ligands if required
+#' receptors_all = "ITGB1"
+#' targets_all = c("S100A1","SERPINE1")
+
+#' active_signaling_network = nichenetr::get_ligand_signaling_path_with_receptor(ligand_tf_matrix = ligand_tf_matrix, ligands_all = ligands_all, receptors_all = receptors_all, targets_all = targets_all, weighted_networks = weighted_networks, top_n_regulators = 2)
+#' data_source_network = nichenetr::infer_supporting_datasources(signaling_graph_list = active_signaling_network,lr_network = lr_network, sig_network = sig_network, gr_network = gr_network)
+
+#' active_signaling_network_min_max = active_signaling_network
+#' active_signaling_network_min_max$sig = active_signaling_network_min_max$sig %>% mutate(weight = ((weight-min(weight))/(max(weight)-min(weight))) + 0.75)
+#' active_signaling_network_min_max$gr = active_signaling_network_min_max$gr %>% mutate(weight = ((weight-min(weight))/(max(weight)-min(weight))) + 0.75)
+#' colors = c("ligand" = "indianred2", "receptor" = "orange", "target" = "steelblue2", "mediator" = "grey75")
+#' ggraph_signaling_path = make_ggraph_signaling_path(active_signaling_network_min_max, colors)#' colors = c("ligand" = "indianred2", "receptor" = "orange", "target" = "steelblue2", "mediator" = "grey25")
+#' 
+#' }
+#'
+#' @export
+#'
+make_ggraph_signaling_path = function(signaling_graph_list, colors, ligands_all, receptors_all, targets_all){
+  
+  requireNamespace("dplyr")
+  requireNamespace("ggplot2")
+  
+  edge_df = dplyr::bind_rows(signaling_graph_list$sig %>% dplyr::mutate(interaction_type = "indianred"), 
+                      signaling_graph_list$gr %>% dplyr::mutate(interaction_type = "steelblue"))
+  
+  nodes = union(edge_df$from, edge_df$to)
+  node2type = rep("mediator", times = length(nodes)) %>% magrittr::set_names(nodes)
+  node2type[which(nodes %in% ligands_all)] = "ligand"
+  node2type[which(nodes %in% receptors_all)] = "receptor"
+  node2type[which(nodes %in% targets_all)] = "target"
+  nodes_df = tibble::tibble(node = nodes) %>% dplyr::mutate(node_type = node2type[node])
+  nodes_df = data.frame(nodes_df) %>% magrittr::set_rownames(nodes_df$node)
+  network = igraph::graph_from_data_frame(d = edge_df, vertices = nodes_df, directed=T)
+  graph = tidygraph::as_tbl_graph(network) 
+  set.seed(1919)
+  plot = suppressWarnings(ggraph::ggraph(graph,layout = "nicely") + 
+    ggraph::geom_edge_link(aes(edge_colour = interaction_type, edge_width = weight), arrow = arrow(length = unit(4, 'mm')), end_cap = ggraph::circle(4.5, 'mm'), start_cap = ggraph::circle(3.5, 'mm')) +
+    ggraph::geom_node_label(aes(label = name, color = node_type), fontface = "bold", size = 4.5, nudge_x = 0, nudge_y = 0, family= "Serif") +
+    ggraph::theme_graph(foreground = 'black', fg_text_colour = 'white') + scale_color_manual(values = colors))
+  return(list(plot = plot, graph = graph))
+  
 }
 #' @title make_ligand_activity_target_plot
 #'
