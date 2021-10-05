@@ -4,7 +4,7 @@
 \alias{get_DE_info}
 \title{get_DE_info}
 \usage{
-get_DE_info(sce, sample_id, group_id, celltype_id, covariates, contrasts_oi, min_cells = 10, assay_oi_pb = "counts", fun_oi_pb = "sum", de_method_oi = "edgeR")
+get_DE_info(sce, sample_id, group_id, celltype_id, covariates, contrasts_oi, min_cells = 10, assay_oi_pb = "counts", fun_oi_pb = "sum", de_method_oi = "edgeR", findMarkers = FALSE)
 }
 \arguments{
 \item{sce}{SingleCellExperiment object of the scRNAseq data of interest. Contains both sender and receiver cell types.}
@@ -34,6 +34,8 @@ Note that the groups A, B, ... should be present in the meta data column 'group_
 \item{fun_oi_pb}{Indicates way of doing the pseudobulking. Default: "sum". See `muscat::aggregateData`.}
 
 \item{de_method_oi}{Indicates the DE method that will be used after pseudobulking. Default: "edgeR". See `muscat::pbDS`.}
+
+\item{findMarkers}{Indicate whether we should also calculate DE results with the classic scran::findMarkers approach. Default (recommended): FALSE.}
 }
 \value{
 List with output of the differential expression analysis in 1) default format(`muscat::pbDS()`), and 2) in a tidy table format (`muscat::resDS()`) (both in the `celltype_de` slot); Histogram plot of the p-values is also returned.

@@ -288,7 +288,7 @@ get_abundance_expression_info_separate = function(sce_receiver, sce_sender, samp
 #' @title get_DE_info
 #'
 #' @description \code{get_DE_info} Perform differential expression analysis via Muscat - Pseudobulking approach. Also visualize the p-value distribution. Under the hood, the following function is used: `perform_muscat_de_analysis`.
-#' @usage get_DE_info(sce, sample_id, group_id, celltype_id, covariates, contrasts_oi, min_cells = 10, assay_oi_pb = "counts", fun_oi_pb = "sum", de_method_oi = "edgeR")
+#' @usage get_DE_info(sce, sample_id, group_id, celltype_id, covariates, contrasts_oi, min_cells = 10, assay_oi_pb = "counts", fun_oi_pb = "sum", de_method_oi = "edgeR", findMarkers = FALSE)
 #'
 #' @inheritParams multi_nichenet_analysis_combined
 #' @inheritParams perform_muscat_de_analysis
@@ -298,6 +298,7 @@ get_abundance_expression_info_separate = function(sce_receiver, sce_sender, samp
 #' @import dplyr
 #' @import muscat
 #' @import ggplot2
+#' @importFrom scran findMarkers
 #'
 #' @examples
 #' \dontrun{
@@ -319,7 +320,7 @@ get_abundance_expression_info_separate = function(sce_receiver, sce_sender, samp
 #' @export
 #'
 #'
-get_DE_info = function(sce, sample_id, group_id, celltype_id, covariates, contrasts_oi, min_cells = 10, assay_oi_pb = "counts", fun_oi_pb = "sum", de_method_oi = "edgeR"){
+get_DE_info = function(sce, sample_id, group_id, celltype_id, covariates, contrasts_oi, min_cells = 10, assay_oi_pb = "counts", fun_oi_pb = "sum", de_method_oi = "edgeR", findMarkers = FALSE){
   
   requireNamespace("dplyr")
   requireNamespace("ggplot2")
@@ -336,12 +337,42 @@ get_DE_info = function(sce, sample_id, group_id, celltype_id, covariates, contra
     de_method_oi = de_method_oi,
     min_cells = min_cells)
   
-  hist_pvals = celltype_de$de_output_tidy %>% inner_join(celltype_de$de_output_tidy %>% group_by(contrast,cluster_id) %>% count(), by = c("cluster_id","contrast")) %>% 
-    mutate(cluster_id = paste0(cluster_id, "\nnr of genes: ", n))%>% mutate(`p-value <= 0.05` = p_val <= 0.05) %>% 
+  hist_pvals = celltype_de$de_output_tidy %>% dplyr::inner_join(celltype_de$de_output_tidy %>% dplyr::group_by(contrast,cluster_id) %>% dplyr::count(), by = c("cluster_id","contrast")) %>% 
+    dplyr::mutate(cluster_id = paste0(cluster_id, "\nnr of genes: ", n)) %>% dplyr::mutate(`p-value <= 0.05` = p_val <= 0.05) %>% 
     ggplot(aes(x = p_val, fill = `p-value <= 0.05`)) + 
     geom_histogram(binwidth = 0.05,boundary=0, color = "grey35") + scale_fill_manual(values = c("grey90", "lightsteelblue1")) + 
     facet_grid(contrast~cluster_id) + ggtitle("P-value histograms") + theme_bw() 
-  return(list(celltype_de = celltype_de, hist_pvals = hist_pvals))
+  
+  if(findMarkers == TRUE){
+
+    genes_filtered = celltype_de$de_output_tidy %>% dplyr::pull(gene) %>% unique()
+    celltypes = celltype_de$de_output_tidy %>% dplyr::pull(cluster_id) %>% unique()
+    
+    celltype_de_findmarkers = celltypes %>% lapply(function(celltype_oi, sce){
+      sce_oi = sce[genes_filtered, SummarizedExperiment::colData(sce)[,celltype_id] == celltype_oi]
+      DE_tables_list = scran::findMarkers(sce_oi, test.type="t", groups = SummarizedExperiment::colData(sce_oi)[,group_id])
+      
+      conditions = names(DE_tables_list)
+      DE_tables_df = conditions %>% lapply(function(condition_oi, DE_tables_list){
+        DE_table_oi = DE_tables_list[[condition_oi]]
+        DE_table_oi = DE_table_oi %>% data.frame() %>% tibble::rownames_to_column("gene") %>% tibble::as_tibble() %>% dplyr::mutate(cluster_id = celltype_oi, group = condition_oi) %>% dplyr::select(gene, p.value, FDR, summary.logFC, cluster_id, group)  
+      }, DE_tables_list) %>% dplyr::bind_rows()
+    }, sce) %>% dplyr::bind_rows() %>% dplyr::rename(logFC = summary.logFC, p_val = p.value, p_adj = FDR) %>% dplyr::inner_join(contrast_tbl) %>% dplyr::select(gene, cluster_id, logFC, p_val, p_adj, contrast)
+    
+    hist_pvals_findmarkers = celltype_de_findmarkers %>% dplyr::inner_join(celltype_de_findmarkers %>% dplyr::group_by(contrast,cluster_id) %>% dplyr::count(), by = c("cluster_id","contrast")) %>% 
+      dplyr::mutate(cluster_id = paste0(cluster_id, "\nnr of genes: ", n)) %>% dplyr::mutate(`p-value <= 0.05` = p_val <= 0.05) %>% 
+      ggplot(aes(x = p_val, fill = `p-value <= 0.05`)) + 
+      geom_histogram(binwidth = 0.05,boundary=0, color = "grey35") + scale_fill_manual(values = c("grey90", "lightsteelblue1")) + 
+      facet_grid(contrast~cluster_id) + ggtitle("findMarker P-value histograms") + theme_bw() 
+    
+    
+  } else {
+    celltype_de_findmarkers = NA
+    hist_pvals_findmarkers = NA
+    
+  }
+  return(list(celltype_de = celltype_de, hist_pvals = hist_pvals, celltype_de_findmarkers = celltype_de_findmarkers, hist_pvals_findmarkers = hist_pvals_findmarkers))
+  
 }
 #' @title get_empirical_pvals
 #'

@@ -14,7 +14,7 @@ make_ggraph_ligand_target_links(lr_target_prior_cor_filtered, prioritized_tbl_oi
 \item{colors}{Named vector of colors associated to each sender cell type. Vector = color, names = sender names.}
 }
 \value{
-ggplot object with plot of LR-->Target links
+ggplot object with plot of LR-->Target links, the graph object itself, and the prioritized LR links
 }
 \description{
 \code{make_ggraph_ligand_target_links} Make a network showing the gene regulatory links between ligands from sender cell types to their induced ligands/receptors in receiver cell types. Lins are only drawn if the ligand/receptor in the receiver is a potential downstream target of the ligand based on prior knowledge and sufficient correlation in expression across the different samples.

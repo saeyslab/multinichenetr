@@ -59,7 +59,7 @@ multi_nichenet_analysis = function(sender_receiver_separate = TRUE, ...){
 #' @usage multi_nichenet_analysis_separate(
 #' sce_receiver, sce_sender,celltype_id_receiver,celltype_id_sender,sample_id,group_id, covariates, lr_network,ligand_target_matrix,contrasts_oi,contrast_tbl, fraction_cutoff = 0.05,
 #' prioritizing_weights = c("de_ligand" = 1,"de_receptor" = 1,"activity_scaled" = 1,"exprs_ligand" = 1,"exprs_receptor" = 1, "frac_exprs_ligand_receptor" = 1,"abund_sender" = 0,"abund_receiver" = 0),
-#' assay_oi_pb ="counts",fun_oi_pb = "sum",de_method_oi = "edgeR",min_cells = 10,logFC_threshold = 0.25,p_val_threshold = 0.05, p_val_adj = FALSE, empirical_pval = TRUE, top_n_target = 250, verbose = FALSE, n.cores = 1, return_lr_prod_matrix = FALSE)
+#' assay_oi_pb ="counts",fun_oi_pb = "sum",de_method_oi = "edgeR",min_cells = 10,logFC_threshold = 0.25,p_val_threshold = 0.05, p_val_adj = FALSE, empirical_pval = TRUE, top_n_target = 250, verbose = FALSE, n.cores = 1, return_lr_prod_matrix = FALSE, findMarkers = FALSE)
 #'
 #' @param sce_receiver SingleCellExperiment object containing the receiver cell types of interest
 #' @param sce_sender SingleCellExperiment object containing the sender cell types of interest
@@ -106,7 +106,8 @@ multi_nichenet_analysis = function(sender_receiver_separate = TRUE, ...){
 #' @param verbose Indicate which different steps of the pipeline are running or not. Default: FALSE.
 #' @param n.cores The number of cores used for parallel computation of the ligand activities per receiver cell type. Default: 1 - no parallel computation.
 #' @param return_lr_prod_matrix Indicate whether to calculate a senderLigand-receiverReceptor matrix, which could be used for unsupervised analysis of the cell-cell communication. Default FALSE. Setting to FALSE might be beneficial to avoid memory issues.
-#' 
+#' @param findMarkers Indicate whether we should also calculate DE results with the classic scran::findMarkers approach. Default (recommended): FALSE.
+
 #' @return List containing information and output of the MultiNicheNet analysis.
 #' celltype_info: contains average expression value and fraction of each cell type - sample combination,
 #' celltype_de: contains output of the differential expression analysis, 
@@ -178,7 +179,7 @@ multi_nichenet_analysis_separate = function(sce_receiver,
                                             p_val_threshold = 0.05,
                                             p_val_adj = FALSE,
                                             empirical_pval = TRUE,
-                                            top_n_target = 250, verbose = FALSE, n.cores = 1, return_lr_prod_matrix = FALSE){
+                                            top_n_target = 250, verbose = FALSE, n.cores = 1, return_lr_prod_matrix = FALSE, findMarkers = FALSE){
 
 
   requireNamespace("dplyr")
@@ -492,35 +493,49 @@ multi_nichenet_analysis_separate = function(sce_receiver,
   DE_info_receiver = get_DE_info(sce = sce_receiver, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id_receiver, covariates = covariates, contrasts_oi = contrasts_oi, min_cells = min_cells, 
                                  assay_oi_pb = assay_oi_pb,
                                  fun_oi_pb = fun_oi_pb,
-                                 de_method_oi = de_method_oi)
+                                 de_method_oi = de_method_oi, 
+                                 findMarkers = findMarkers)
   
   DE_info_sender = get_DE_info(sce = sce_sender, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id_sender, covariates = covariates, contrasts_oi = contrasts_oi, min_cells = min_cells, 
                                assay_oi_pb = assay_oi_pb,
                                fun_oi_pb = fun_oi_pb,
-                               de_method_oi = de_method_oi)
+                               de_method_oi = de_method_oi,
+                               findMarkers = findMarkers)
   
   
   empirical_pval_receiver = empirical_pval
   empirical_pval_sender = empirical_pval
     
-  empirical_pval_receiver = TRUE
   if(empirical_pval_receiver == TRUE){
-    DE_info_emp_receiver = get_empirical_pvals(DE_info_receiver$celltype_de$de_output_tidy)
+    if(findMarkers == TRUE){
+      DE_info_emp_receiver = get_empirical_pvals(DE_info_receiver$celltype_de_findmarkers)
+    } else {
+      DE_info_emp_receiver = get_empirical_pvals(DE_info_receiver$celltype_de$de_output_tidy)
+    }
   } 
-  empirical_pval_sender = TRUE
   if(empirical_pval_sender == TRUE){
-    DE_info_emp_sender = get_empirical_pvals(DE_info_sender$celltype_de$de_output_tidy)
+    if(findMarkers == TRUE){
+      DE_info_emp_sender = get_empirical_pvals(DE_info_sender$celltype_de_findmarkers)
+    } else {
+      DE_info_emp_sender = get_empirical_pvals(DE_info_sender$celltype_de$de_output_tidy)
+    }
   } 
   
-  empirical_pval_receiver = TRUE
   if(empirical_pval_receiver == FALSE){
-    celltype_de_receiver = DE_info_receiver$celltype_de$de_output_tidy
+    if(findMarkers == TRUE){
+      celltype_de_receiver = DE_info_receiver$celltype_de_findmarkers
+    } else {
+      celltype_de_receiver = DE_info_receiver$celltype_de$de_output_tidy
+    }
   } else {
     celltype_de_receiver = DE_info_emp_receiver$de_output_tidy_emp %>% dplyr::select(-p_val, -p_adj) %>% dplyr::rename(p_val = p_emp, p_adj = p_adj_emp)
   }
-  empirical_pval_sender = TRUE
   if(empirical_pval_sender == FALSE){
-    celltype_de_sender = DE_info_sender$celltype_de$de_output_tidy
+    if(findMarkers == TRUE){
+      celltype_de_sender = DE_info_sender$celltype_de_findmarkers
+    } else {
+      celltype_de_sender = DE_info_sender$celltype_de$de_output_tidy
+    }
   } else {
     celltype_de_sender = DE_info_emp_sender$de_output_tidy_emp %>% dplyr::select(-p_val, -p_adj) %>% dplyr::rename(p_val = p_emp, p_adj = p_adj_emp)
   }
@@ -628,7 +643,7 @@ multi_nichenet_analysis_separate = function(sce_receiver,
 #' @usage multi_nichenet_analysis_combined(
 #' sce, celltype_id, sample_id,group_id, covariates, lr_network,ligand_target_matrix,contrasts_oi,contrast_tbl,  fraction_cutoff = 0.05,
 #' prioritizing_weights = c("de_ligand" = 1,"de_receptor" = 1,"activity_scaled" = 1,"exprs_ligand" = 1,"exprs_receptor" = 1, "frac_exprs_ligand_receptor" = 1,"abund_sender" = 0,"abund_receiver" = 0),
-#' assay_oi_pb ="counts",fun_oi_pb = "sum",de_method_oi = "edgeR",min_cells = 10,logFC_threshold = 0.25,p_val_threshold = 0.05,p_val_adj = FALSE, empirical_pval = TRUE, top_n_target = 250, verbose = FALSE, n.cores = 1, return_lr_prod_matrix = FALSE)
+#' assay_oi_pb ="counts",fun_oi_pb = "sum",de_method_oi = "edgeR",min_cells = 10,logFC_threshold = 0.25,p_val_threshold = 0.05,p_val_adj = FALSE, empirical_pval = TRUE, top_n_target = 250, verbose = FALSE, n.cores = 1, return_lr_prod_matrix = FALSE, findMarkers = FALSE)
 #'
 #' @param sce SingleCellExperiment object of the scRNAseq data of interest. Contains both sender and receiver cell types.
 #' @param celltype_id Name of the column in the meta data of sce that indicates the cell type of a cell.
@@ -699,7 +714,7 @@ multi_nichenet_analysis_combined = function(sce,
                                             p_val_threshold = 0.05,
                                             p_val_adj = FALSE,
                                             empirical_pval = TRUE,
-                                            top_n_target = 250, verbose = FALSE, n.cores = 1, return_lr_prod_matrix = FALSE){
+                                            top_n_target = 250, verbose = FALSE, n.cores = 1, return_lr_prod_matrix = FALSE, findMarkers = FALSE){
 
 
   requireNamespace("dplyr")
@@ -965,14 +980,23 @@ multi_nichenet_analysis_combined = function(sce,
   DE_info = get_DE_info(sce = sce, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id, covariates = covariates, contrasts_oi = contrasts_oi, min_cells = min_cells,
                         assay_oi_pb = assay_oi_pb,
                         fun_oi_pb = fun_oi_pb,
-                        de_method_oi = de_method_oi)
+                        de_method_oi = de_method_oi,
+                        findMarkers = findMarkers)
   
   if(empirical_pval == TRUE){
-    DE_info_emp = get_empirical_pvals(DE_info$celltype_de$de_output_tidy)
+    if(findMarkers == TRUE){
+      DE_info_emp = get_empirical_pvals(DE_info$celltype_de_findmarkers)
+    } else {
+      DE_info_emp = get_empirical_pvals(DE_info$celltype_de$de_output_tidy)
+    }
   } 
 
   if(empirical_pval == FALSE){
-    celltype_de = DE_info$celltype_de$de_output_tidy
+    if(findMarkers == TRUE){
+      celltype_de = DE_info$celltype_de_findmarkers
+    } else {
+      celltype_de = DE_info$celltype_de$de_output_tidy
+    }
   } else {
     celltype_de = DE_info_emp$de_output_tidy_emp %>% dplyr::select(-p_val, -p_adj) %>% dplyr::rename(p_val = p_emp, p_adj = p_adj_emp)
   }
