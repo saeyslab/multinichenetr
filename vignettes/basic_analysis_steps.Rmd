@@ -636,19 +636,6 @@ prioritized_tbl_oi = multinichenet_output$prioritization_tables$group_prioritiza
 plot_oi = make_sample_lr_prod_plots(multinichenet_output$prioritization_tables, prioritized_tbl_oi)
 plot_oi
 ```
-Visualize now the scaled LR prod based on pseudobulk!
-```{r, fig.height=18, fig.width=12}
-prioritized_tbl_oi = multinichenet_output$prioritization_tables$group_prioritization_tbl %>% 
-  distinct(id, sender, receiver, lr_interaction, group, ligand_receptor_lfc_avg, activity_scaled, fraction_expressing_ligand_receptor,  prioritization_score) %>% 
-  filter(fraction_expressing_ligand_receptor > 0) %>% 
-  filter(group == group_oi) %>% group_by(group) %>% top_n(75, prioritization_score) 
-
-prior_tables_adapated = multinichenet_output$prioritization_tables
-prior_tables_adapated$sample_prioritization_tbl = prior_tables_adapated$sample_prioritization_tbl %>% mutate(scaled_LR_prod = scaled_LR_pb_prod )
-
-plot_oi = make_sample_lr_prod_plots(prior_tables_adapated, prioritized_tbl_oi)
-plot_oi
-```
 
 Next to these LR expression products, we can also plot the NicheNet ligand activities of the ligand in the receiver.
 
@@ -931,7 +918,7 @@ graph_plot$plot
 ## Unsupervised analysis
 
 Perform PCA on the pseudobulk LR-prod matrix of each sample. Can we see patterns of heterogeneity between the patients, in addition to the expect group differences?
-
+This can be useful to get insights into important sources of variation in your data, which you could consider using as a covariate in the MultiNicheNet analysis.
 
 
 

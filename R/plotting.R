@@ -1797,7 +1797,7 @@ make_lr_target_correlation_plot = function(prioritization_tables, prioritized_tb
 #' @inheritParams make_sample_lr_prod_plots
 #' @param colors Named vector of colors associated to each sender cell type. Vector = color, names = sender names. 
 #' 
-#' @return ggplot object with plot of LR-->Target links
+#' @return ggplot object with plot of LR-->Target links, the graph object itself, and the prioritized LR links
 #'
 #' @import ggplot2
 #' @import dplyr
@@ -1860,17 +1860,20 @@ make_ggraph_ligand_target_links = function(lr_target_prior_cor_filtered, priorit
   ) %>% dplyr::distinct() %>% dplyr::filter(node %in% c(links$sender, links$receiver))
   nodes = nodes %>% data.frame() %>% magrittr::set_rownames(nodes$node)
   
+  colors = colors[nodes$celltype %>% unique()]
+  # colors = c(RColorBrewer::brewer.pal(n = min(11,length(senders_receivers)), name = 'Spectral'), "steelblue1", "steelblue2", "steelblue3", "steelblue4","indianred2", "indianred1","indianred3") %>% magrittr::set_names(nodes$celltype %>% unique())
+  
   # create the network object
   network = igraph::graph_from_data_frame(d=links %>% filter(type == "Ligand-Target"), vertices = nodes, directed=T)
   graph = tidygraph::as_tbl_graph(network) 
   set.seed(1919)
   plot = ggraph::ggraph(graph, layout = 'dh') + 
-                            ggraph::geom_edge_elbow(edge_width = 1.15, color = "gray25", arrow = arrow(length = unit(4, 'mm')), end_cap = ggraph::circle(4.5, 'mm'), start_cap = ggraph::circle(3.5, 'mm')) +
-                            ggraph::geom_edge_loop(edge_width = 1, alpha = 0.70, color = "gray25") + 
-                            ggraph::geom_node_label(aes(label = gene, color = celltype), fontface = "bold", size = 3.5, nudge_x = 0, nudge_y = 0, family= "Serif") +
-                            ggraph::theme_graph(foreground = 'black', fg_text_colour = 'white') + scale_color_manual(values = colors)
+    ggraph::geom_edge_elbow(edge_width = 1.15, color = "gray25", arrow = arrow(length = unit(4, 'mm')), end_cap = ggraph::circle(4.5, 'mm'), start_cap = ggraph::circle(3.5, 'mm')) +
+    ggraph::geom_edge_loop(edge_width = 1, alpha = 0.70, color = "gray25") + 
+    ggraph::geom_node_label(aes(label = gene, color = celltype), fontface = "bold", size = 3.5, nudge_x = 0, nudge_y = 0) +
+    ggraph::theme_graph(foreground = 'black', fg_text_colour = 'white', base_family = 'Helvetica') + scale_color_manual(values = colors)
   
-  return(list(plot = plot, graph = graph))
+  return(list(plot = plot, graph = graph, source_df_lr = source_df_lr))
 }
 #' @title make_ggraph_signaling_path
 #'

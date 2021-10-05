@@ -384,7 +384,7 @@ multi_nichenet_analysis_separate = function(sce_receiver,
   }
 
   if(length(prioritizing_weights) != 8 | !is.double(prioritizing_weights)) {
-    stop("prioritizing_weights should be a numeric vector with length 13")
+    stop("prioritizing_weights should be a numeric vector with length 8")
   }
   names_prioritizing_weights = c("de_ligand",
                                  "de_receptor",
@@ -857,7 +857,7 @@ multi_nichenet_analysis_combined = function(sce,
   }
 
   if(length(prioritizing_weights) != 8 | !is.double(prioritizing_weights)) {
-    stop("prioritizing_weights should be a numeric vector with length 13")
+    stop("prioritizing_weights should be a numeric vector with length 8")
   }
   names_prioritizing_weights = c("de_ligand",
                                  "de_receptor",
