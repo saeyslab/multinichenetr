@@ -36,6 +36,8 @@ Note that the groups A, B, ... should be present in the meta data column 'group_
 \item{de_method_oi}{Indicates the DE method that will be used after pseudobulking. Default: "edgeR". See `muscat::pbDS`.}
 
 \item{findMarkers}{Indicate whether we should also calculate DE results with the classic scran::findMarkers approach. Default (recommended): FALSE.}
+
+\item{contrast_tbl}{see explanation in multi_nichenet_analysis function -- here: only required to give as input if findMarkers = TRUE.}
 }
 \value{
 List with output of the differential expression analysis in 1) default format(`muscat::pbDS()`), and 2) in a tidy table format (`muscat::resDS()`) (both in the `celltype_de` slot); Histogram plot of the p-values is also returned.

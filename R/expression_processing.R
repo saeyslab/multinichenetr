@@ -191,6 +191,7 @@ get_pseudobulk_logCPM_exprs = function(sce, sample_id, celltype_id, group_id, co
     colnames(extra_metadata) = c("sample_id","covariates")
     ei = S4Vectors::metadata(sce)$experiment_info
     ei = ei %>%  dplyr::inner_join(extra_metadata, by = "sample_id")
+    
     # do a check: will we able to correct for the covariates on a group-by-group basis?
     n_combinations_observed = ei %>% dplyr::select(group_id, covariates) %>% dplyr::distinct() %>% nrow()
     n_combinations_possible = length(levels(ei$group_id)) * length(levels(ei$covariates))
@@ -198,39 +199,63 @@ get_pseudobulk_logCPM_exprs = function(sce, sample_id, celltype_id, group_id, co
       warning("Not all possible group-batch/covariate combinations are present in your data. This will result in errors during the batch effect correction process of Combat and/or Muscat DE analysis. Please reconsider the groups and batches you defined.")
     } 
     
-    pb_df = sce$cluster_id %>% unique() %>% lapply(function(celltype_oi, pb, ei){
-      # print(celltype_oi)
-      # get the count matrix
-      count_matrix = pb@assays@data[[celltype_oi]] %>% .[,ei$sample_id]
-      non_zero_samples = count_matrix %>% apply(2,sum) %>% .[. > 0] %>% names()
-
-      count_matrix = count_matrix[,non_zero_samples]
-
-      # adjust the count matrix
-      ei = ei %>% dplyr::filter(sample_id %in% non_zero_samples)
-      quiet <- function(x) { 
-        sink(tempfile()) 
-        on.exit(sink()) 
-        invisible(force(x)) 
-      } 
-      adj_count_matrix = quiet(sva::ComBat_seq(count_matrix, batch=ei$covariates, group=ei$group_id, full_mod=TRUE)) # to suppress its output
-      # print("pseudobulk count matrix was succesfully corrected: ")
-      # print(adj_count_matrix[1:15, 1:5])
-      # print("compared to non-adjusted matrix:")
-      # print(count_matrix[1:15, 1:5])
+    # do another necessary check: each batch-group combinations should have at least one or preferably two observations
+    minimal_covariategroup_combo = ei %>% dplyr::select(sample_id, group_id, covariates) %>% dplyr::distinct() %>% dplyr::group_by(group_id, covariates) %>% dplyr::count() %>% dplyr::pull(n) %>% min()
+    if(minimal_covariategroup_combo < 2){
+      warning("For some group-batch/covariate combinations, only one sample is present in your data. While Muscat DE analysis can handle this, Combat correction of the expression for downstream visualization cannot.")
+      pb_df = sce$cluster_id %>% unique() %>% lapply(function(celltype_oi, pb){ # no correction of the pseudobulk counts
+        
+        pseudobulk_counts_celltype = edgeR::DGEList(pb@assays@data[[celltype_oi]])
+        
+        non_zero_samples = pseudobulk_counts_celltype %>% apply(2,sum) %>% .[. > 0] %>% names()
+        pseudobulk_counts_celltype = pseudobulk_counts_celltype[,non_zero_samples]
+        
+        pseudobulk_counts_celltype = edgeR::calcNormFactors(pseudobulk_counts_celltype)
+        
+        pseudobulk_counts_celltype_df = dplyr::inner_join(
+          pseudobulk_counts_celltype$sample %>% data.frame() %>% tibble::rownames_to_column("sample") %>% dplyr::mutate(effective_library_size  = lib.size * norm.factors),
+          pseudobulk_counts_celltype$counts %>% data.frame() %>% tibble::rownames_to_column("gene") %>% tidyr::gather(sample, pb_raw, -gene)
+        )
+        
+        pseudobulk_counts_celltype_df = pseudobulk_counts_celltype_df %>% dplyr::mutate(pb_norm = pb_raw / effective_library_size) %>% dplyr::mutate(pb_sample = log2( (pb_norm * 1000000) + 1)) %>% tibble::as_tibble() %>% dplyr::mutate(celltype = celltype_oi) # +1: pseudocount - should be introduced after library size correction, otherwise: we think some samples have a higher expression even though it was zero!
+        
+      },pb) %>% dplyr::bind_rows() %>% dplyr::select(gene, sample, pb_sample, celltype) %>% dplyr::distinct()
       
-      # normalize the adjusted count matrix, just like we do for the non-adjusted one
-      pseudobulk_counts_celltype = edgeR::DGEList(adj_count_matrix)
-      pseudobulk_counts_celltype = edgeR::calcNormFactors(pseudobulk_counts_celltype)
-      
-      pseudobulk_counts_celltype_df = dplyr::inner_join(
-        pseudobulk_counts_celltype$sample %>% data.frame() %>% tibble::rownames_to_column("sample") %>% dplyr::mutate(effective_library_size  = lib.size * norm.factors),
-        pseudobulk_counts_celltype$counts %>% data.frame() %>% tibble::rownames_to_column("gene") %>% tidyr::gather(sample, pb_raw, -gene)
-      )
-      
-      pseudobulk_counts_celltype_df = pseudobulk_counts_celltype_df %>% dplyr::mutate(pb_norm = pb_raw / effective_library_size) %>% dplyr::mutate(pb_sample = log2( (pb_norm * 1000000) + 1)) %>% tibble::as_tibble() %>% dplyr::mutate(celltype = celltype_oi) # +1: pseudocount - should be introduced after library size correction, otherwise: we think some samples have a higher expression even though it was zero!
-      
-    },pb, ei) %>% dplyr::bind_rows() %>% dplyr::select(gene, sample, pb_sample, celltype) %>% dplyr::distinct()
+    } else {
+      pb_df = sce$cluster_id %>% unique() %>% lapply(function(celltype_oi, pb, ei){
+        # print(celltype_oi)
+        # get the count matrix
+        count_matrix = pb@assays@data[[celltype_oi]] %>% .[,ei$sample_id]
+        non_zero_samples = count_matrix %>% apply(2,sum) %>% .[. > 0] %>% names()
+        
+        count_matrix = count_matrix[,non_zero_samples]
+        
+        # adjust the count matrix
+        ei = ei %>% dplyr::filter(sample_id %in% non_zero_samples)
+        quiet <- function(x) { 
+          sink(tempfile()) 
+          on.exit(sink()) 
+          invisible(force(x)) 
+        } 
+        adj_count_matrix = quiet(sva::ComBat_seq(count_matrix, batch=ei$covariates, group=ei$group_id, full_mod=TRUE)) # to suppress its output
+        # print("pseudobulk count matrix was succesfully corrected: ")
+        # print(adj_count_matrix[1:15, 1:5])
+        # print("compared to non-adjusted matrix:")
+        # print(count_matrix[1:15, 1:5])
+        
+        # normalize the adjusted count matrix, just like we do for the non-adjusted one
+        pseudobulk_counts_celltype = edgeR::DGEList(adj_count_matrix)
+        pseudobulk_counts_celltype = edgeR::calcNormFactors(pseudobulk_counts_celltype)
+        
+        pseudobulk_counts_celltype_df = dplyr::inner_join(
+          pseudobulk_counts_celltype$sample %>% data.frame() %>% tibble::rownames_to_column("sample") %>% dplyr::mutate(effective_library_size  = lib.size * norm.factors),
+          pseudobulk_counts_celltype$counts %>% data.frame() %>% tibble::rownames_to_column("gene") %>% tidyr::gather(sample, pb_raw, -gene)
+        )
+        
+        pseudobulk_counts_celltype_df = pseudobulk_counts_celltype_df %>% dplyr::mutate(pb_norm = pb_raw / effective_library_size) %>% dplyr::mutate(pb_sample = log2( (pb_norm * 1000000) + 1)) %>% tibble::as_tibble() %>% dplyr::mutate(celltype = celltype_oi) # +1: pseudocount - should be introduced after library size correction, otherwise: we think some samples have a higher expression even though it was zero!
+        
+      },pb, ei) %>% dplyr::bind_rows() %>% dplyr::select(gene, sample, pb_sample, celltype) %>% dplyr::distinct()
+    }
     
   } else { # no correction of the pseudobulk counts
     pb_df = sce$cluster_id %>% unique() %>% lapply(function(celltype_oi, pb){

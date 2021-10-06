@@ -100,7 +100,7 @@ lr_target_prior_cor_inference = function(receivers_oi, abundance_expression_info
   requireNamespace("dplyr")
   
   # add sender-receiver presence to grouping_tbl
-  grouping_tbl = grouping_tbl %>% dplyr::inner_join(prioritization_tables$sample_prioritization_tbl %>% dplyr::distinct(sample, keep_receiver, keep_sender))
+  grouping_tbl = grouping_tbl %>% dplyr::inner_join(prioritization_tables$sample_prioritization_tbl %>% dplyr::distinct(sample, keep_receiver, keep_sender), by = "sample")
   
   # Step1: calculate LR prod matrix
   ids_oi = prioritization_tables$group_prioritization_tbl %>% dplyr::filter(fraction_expressing_ligand_receptor > 0)  %>% dplyr::pull(id) %>% unique()
@@ -113,6 +113,8 @@ lr_target_prior_cor_inference = function(receivers_oi, abundance_expression_info
   
   # make LR prod matrix
   lr_prod_df = abundance_expression_info$sender_receiver_info$pb_df %>% dplyr::inner_join(grouping_tbl, by = "sample") %>% dplyr::mutate(lr_interaction = paste(ligand, receptor, sep = "_")) %>% dplyr::mutate(id = paste(lr_interaction, sender, receiver, sep = "_")) %>% dplyr::filter(keep_receiver == 1 & keep_sender == 1) %>% dplyr::select(sample, id, ligand_receptor_pb_prod) %>% dplyr::filter(id %in% ids_oi) %>% dplyr::distinct() %>% tidyr::spread(sample, ligand_receptor_pb_prod)
+  print(lr_prod_df %>% head()) ## TOREMOVE
+  
   lr_prod_mat = lr_prod_df %>% dplyr::select(-id) %>% data.frame() %>% as.matrix()
   
   rownames(lr_prod_mat) = lr_prod_df$id
@@ -124,6 +126,7 @@ lr_target_prior_cor_inference = function(receivers_oi, abundance_expression_info
   
   lr_prod_mat = lr_prod_mat[receiver_lr_id_mapping$id, ]
   
+  print(lr_prod_mat[1:2,1:2]) ## TOREMOVE
   # Step2: per receiver: subset lr_prod_mat, get DE genes, calculate correlation between LR and Target expression
   lr_target_cor = receivers_oi %>% lapply(function(receiver_oi){
     
@@ -176,6 +179,7 @@ lr_target_prior_cor_inference = function(receivers_oi, abundance_expression_info
   # scaling of the correlation metric -- Don't do this for now
   #   cor_df = cor_df %>% dplyr::ungroup() %>% dplyr::mutate(scaled_pearson = nichenetr::scale_quantile(pearson, 0.05), scaled_spearman = nichenetr::scale_quantile(spearman, 0.05))  # is this  scaling necessary? 
   }) %>% bind_rows()
+  print(lr_target_cor %>% head()) ## TOREMOVE
   
   # Step3: Scale the ligand-target prior information scores 
   ligand_target_df = ligand_target_matrix %>% data.frame() %>% tibble::rownames_to_column("target") %>% tidyr::gather(ligand, prior_score, -target) %>% tibble::as_tibble()

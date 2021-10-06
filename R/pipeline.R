@@ -489,20 +489,35 @@ multi_nichenet_analysis_separate = function(sce_receiver,
   if(verbose == TRUE){
     print("Calculate differential expression for all cell types")
   }
-  
-  DE_info_receiver = get_DE_info(sce = sce_receiver, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id_receiver, covariates = covariates, contrasts_oi = contrasts_oi, min_cells = min_cells, 
+  if(findMarkers == FALSE){
+    DE_info_receiver = get_DE_info(sce = sce_receiver, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id_receiver, covariates = covariates, contrasts_oi = contrasts_oi, min_cells = min_cells, 
+                                   assay_oi_pb = assay_oi_pb,
+                                   fun_oi_pb = fun_oi_pb,
+                                   de_method_oi = de_method_oi, 
+                                   findMarkers = findMarkers)
+    
+    DE_info_sender = get_DE_info(sce = sce_sender, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id_sender, covariates = covariates, contrasts_oi = contrasts_oi, min_cells = min_cells, 
                                  assay_oi_pb = assay_oi_pb,
                                  fun_oi_pb = fun_oi_pb,
-                                 de_method_oi = de_method_oi, 
+                                 de_method_oi = de_method_oi,
                                  findMarkers = findMarkers)
-  
-  DE_info_sender = get_DE_info(sce = sce_sender, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id_sender, covariates = covariates, contrasts_oi = contrasts_oi, min_cells = min_cells, 
-                               assay_oi_pb = assay_oi_pb,
-                               fun_oi_pb = fun_oi_pb,
-                               de_method_oi = de_method_oi,
-                               findMarkers = findMarkers)
-  
-  
+  } else {
+    DE_info_receiver = get_DE_info(sce = sce_receiver, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id_receiver, covariates = covariates, contrasts_oi = contrasts_oi, min_cells = min_cells, 
+                                   assay_oi_pb = assay_oi_pb,
+                                   fun_oi_pb = fun_oi_pb,
+                                   de_method_oi = de_method_oi, 
+                                   findMarkers = findMarkers,
+                                   contrast_tbl = contrast_tbl)
+    
+    DE_info_sender = get_DE_info(sce = sce_sender, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id_sender, covariates = covariates, contrasts_oi = contrasts_oi, min_cells = min_cells, 
+                                 assay_oi_pb = assay_oi_pb,
+                                 fun_oi_pb = fun_oi_pb,
+                                 de_method_oi = de_method_oi,
+                                 findMarkers = findMarkers,
+                                 contrast_tbl = contrast_tbl)
+
+  }
+
   empirical_pval_receiver = empirical_pval
   empirical_pval_sender = empirical_pval
     
@@ -977,12 +992,21 @@ multi_nichenet_analysis_combined = function(sce,
     print("Calculate differential expression for all cell types")
   }
   
-  DE_info = get_DE_info(sce = sce, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id, covariates = covariates, contrasts_oi = contrasts_oi, min_cells = min_cells,
-                        assay_oi_pb = assay_oi_pb,
-                        fun_oi_pb = fun_oi_pb,
-                        de_method_oi = de_method_oi,
-                        findMarkers = findMarkers)
-  
+  if(findMarkers == FALSE){
+    DE_info = get_DE_info(sce = sce, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id, covariates = covariates, contrasts_oi = contrasts_oi, min_cells = min_cells,
+                          assay_oi_pb = assay_oi_pb,
+                          fun_oi_pb = fun_oi_pb,
+                          de_method_oi = de_method_oi,
+                          findMarkers = findMarkers)
+  } else {
+    DE_info = get_DE_info(sce = sce, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id, covariates = covariates, contrasts_oi = contrasts_oi, min_cells = min_cells,
+                          assay_oi_pb = assay_oi_pb,
+                          fun_oi_pb = fun_oi_pb,
+                          de_method_oi = de_method_oi,
+                          findMarkers = findMarkers,
+                          contrast_tbl = contrast_tbl)
+  }
+
   if(empirical_pval == TRUE){
     if(findMarkers == TRUE){
       DE_info_emp = get_empirical_pvals(DE_info$celltype_de_findmarkers)

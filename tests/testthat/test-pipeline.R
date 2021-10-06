@@ -9,6 +9,18 @@ test_that("Pipeline for all-vs-all analysis works & plotting functions work", {
   covariates = NA
   contrasts_oi = c("'High-Low','Low-High'")
   contrast_tbl = tibble(contrast = c("High-Low","Low-High"), group = c("High","Low"))
+  output_naive = multi_nichenet_analysis_combined(
+    sce = sce,
+    celltype_id = celltype_id,
+    sample_id = sample_id,
+    group_id = group_id,
+    covariates = covariates,
+    lr_network = lr_network,
+    ligand_target_matrix = ligand_target_matrix,
+    contrasts_oi = contrasts_oi,
+    contrast_tbl = contrast_tbl,
+    findMarkers = TRUE)
+  expect_type(output_naive,"list")
   output = multi_nichenet_analysis_combined(
        sce = sce,
        celltype_id = celltype_id,
@@ -495,6 +507,7 @@ test_that("Pipeline for all-vs-all analysis works & plotting functions work", {
   #   n.cores = 4)
   # expect_type(output,"list")
   # expect_type(output$prioritization_tables,"list")
+
   
 })
 test_that("Pipeline for separate analysis works", {
@@ -510,6 +523,23 @@ test_that("Pipeline for separate analysis works", {
   covariates = NA
   contrasts_oi = c("'High-Low','Low-High'")
   contrast_tbl = tibble(contrast = c("High-Low","Low-High"), group = c("High","Low"))
+  
+  output_naive = multi_nichenet_analysis_separate(
+    sce_receiver = sce_receiver,
+    sce_sender = sce_sender,
+    celltype_id_receiver = celltype_id_receiver,
+    celltype_id_sender = celltype_id_sender,
+    sample_id = sample_id,
+    group_id = group_id,
+    covariates = covariates,
+    lr_network = lr_network,
+    ligand_target_matrix = ligand_target_matrix,
+    contrasts_oi = contrasts_oi,
+    contrast_tbl = contrast_tbl, 
+    findMarkers = TRUE
+  )
+  expect_type(output_naive,"list")
+  
   output = multi_nichenet_analysis_separate(
        sce_receiver = sce_receiver,
        sce_sender = sce_sender,

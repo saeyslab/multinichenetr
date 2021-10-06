@@ -169,6 +169,7 @@ jobs:
           message(paste('****', Sys.time(), 'pass number 1 at installing dependencies: local dependencies ****'))
           BiocManager::install("limma", update = FALSE)
           BiocManager::install("sva", update = FALSE)
+          BiocManager::install("scran", update = FALSE)
           remotes::install_cran("tidyverse")
           remotes::install_cran("covr") #### remove this later? this to currently fix the Ubuntu error
           remotes::install_cran("ggraph") 
