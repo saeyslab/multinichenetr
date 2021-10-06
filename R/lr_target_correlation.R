@@ -127,12 +127,13 @@ lr_target_prior_cor_inference = function(receivers_oi, abundance_expression_info
   lr_prod_mat = lr_prod_mat[receiver_lr_id_mapping$id, ]
   
   print(lr_prod_mat[1:2,1:2]) ## TOREMOVE
+  print(receivers_oi)
   # Step2: per receiver: subset lr_prod_mat, get DE genes, calculate correlation between LR and Target expression
   lr_target_cor = receivers_oi %>% lapply(function(receiver_oi){
     
     # subset lr_prod_mat
     lr_prod_mat_oi = lr_prod_mat[receiver_lr_id_mapping %>% dplyr::filter(receiver == receiver_oi) %>% dplyr::pull(id) %>% generics::intersect(rownames(lr_prod_mat)),]
-    
+    print(dim(lr_prod_mat_oi))
     # get DE genes
     if(p_val_adj == FALSE){
       targets_oi = celltype_de %>% dplyr::filter(cluster_id == receiver_oi) %>% dplyr::filter(p_val <= p_val_threshold & logFC >= logFC_threshold) %>% dplyr::pull(gene)
@@ -140,12 +141,15 @@ lr_target_prior_cor_inference = function(receivers_oi, abundance_expression_info
       targets_oi = celltype_de %>% dplyr::filter(cluster_id == receiver_oi) %>% dplyr::filter(p_adj <= p_val_threshold & logFC >= logFC_threshold) %>% dplyr::pull(gene)
     }
     
+    print(length(targets_oi))
+    
     if("celltype_info" %in% names(abundance_expression_info)){
       pb_df =  abundance_expression_info$celltype_info$pb_df %>% dplyr::filter(gene %in% targets_oi & celltype %in% receiver_oi) %>% dplyr::inner_join(grouping_tbl, by = "sample") %>% dplyr::filter(keep_receiver == 1 & keep_sender == 1)
     }
     if("receiver_info" %in% names(abundance_expression_info)){
       pb_df =  abundance_expression_info$receiver_info$pb_df %>% dplyr::filter(gene %in% targets_oi & celltype %in% receiver_oi) %>% dplyr::inner_join(grouping_tbl, by = "sample") %>% dplyr::filter(keep_receiver == 1 & keep_sender == 1)
     }
+    print(pb_df)
     
     target_df = pb_df %>% dplyr::select(sample, gene, pb_sample) %>% dplyr::distinct() %>% tidyr::spread(sample, pb_sample)
     target_mat = target_df %>% dplyr::select(-gene) %>% data.frame() %>% as.matrix()
@@ -158,6 +162,7 @@ lr_target_prior_cor_inference = function(receivers_oi, abundance_expression_info
     target_mat = target_mat %>% .[rownames(.) %>% generics::setdiff(col_remove),colnames(.) %>% generics::setdiff(col_remove)]
     
     target_mat = target_mat[targets_oi, ]
+    print(dim(target_mat))
     
     #  calculate correlation between LR and Target expression
     
@@ -175,7 +180,7 @@ lr_target_prior_cor_inference = function(receivers_oi, abundance_expression_info
     
     
     cor_df = lig_rec_send_rec_mapping %>% dplyr::inner_join(cor_df_pearson, by = "id") %>% dplyr::inner_join(cor_df_pearson_pval, by = c("id", "target")) %>% dplyr::inner_join(cor_df_spearman, by = c("id", "target")) %>% dplyr::inner_join(cor_df_spearman_pval, by = c("id", "target"))
-    
+    print(cor_df)
   # scaling of the correlation metric -- Don't do this for now
   #   cor_df = cor_df %>% dplyr::ungroup() %>% dplyr::mutate(scaled_pearson = nichenetr::scale_quantile(pearson, 0.05), scaled_spearman = nichenetr::scale_quantile(spearman, 0.05))  # is this  scaling necessary? 
   }) %>% bind_rows()

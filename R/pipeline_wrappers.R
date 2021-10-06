@@ -71,15 +71,15 @@ get_abundance_expression_info = function(sce, sample_id, group_id, celltype_id, 
     covariate_oi = covariates[1]
     extra_metadata = SummarizedExperiment::colData(sce) %>% tibble::as_tibble() %>% dplyr::select(all_of(sample_id), all_of(covariate_oi)) %>% dplyr::distinct() %>% dplyr::mutate_all(factor)
     colnames(extra_metadata) = c("sample_id","covariate_oi")
-    metadata_abundance = metadata_abundance %>% dplyr::inner_join(extra_metadata) %>% mutate(group_covariate_id = paste(group_id, covariate_oi, sep = "_"))
+    metadata_abundance = metadata_abundance %>% dplyr::inner_join(extra_metadata, by = "sample_id") %>% mutate(group_covariate_id = paste(group_id, covariate_oi, sep = "_"))
     
     abundance_data = metadata_abundance %>% tibble::as_tibble() %>% dplyr::group_by(sample_id , celltype_id) %>% dplyr::count() %>% dplyr::inner_join(metadata_abundance %>% tibble::as_tibble() %>% dplyr::distinct(sample_id , group_covariate_id), by = "sample_id")
     abundance_data = abundance_data %>% dplyr::mutate(keep = n >= min_cells) %>% dplyr::mutate(keep = factor(keep, levels = c(TRUE,FALSE)))
     
     for(celltype_oi in abundance_data$celltype_id %>% unique()){
       n_group_covariate_id = abundance_data %>% dplyr::filter(keep == TRUE & celltype_id == celltype_oi) %>% pull(group_covariate_id) %>% unique() %>% length()
-      n_groups = abundance_data %>% dplyr::inner_join(metadata_abundance %>% dplyr::distinct(sample_id, group_id, covariate_oi)) %>% dplyr::filter(keep == TRUE) %>% pull(group_id) %>% unique() %>% length()
-      n_covariates = abundance_data %>% dplyr::inner_join(metadata_abundance %>% dplyr::distinct(sample_id, group_id, covariate_oi)) %>% dplyr::filter(keep == TRUE) %>% pull(covariate_oi) %>% unique() %>% length()
+      n_groups = abundance_data %>% dplyr::inner_join(metadata_abundance %>% dplyr::distinct(sample_id, group_id, covariate_oi), by = "sample_id") %>% dplyr::filter(keep == TRUE) %>% pull(group_id) %>% unique() %>% length()
+      n_covariates = abundance_data %>% dplyr::inner_join(metadata_abundance %>% dplyr::distinct(sample_id, group_id, covariate_oi), by = "sample_id") %>% dplyr::filter(keep == TRUE) %>% pull(covariate_oi) %>% unique() %>% length()
       
       if(n_group_covariate_id < n_groups*n_covariates){
         warning(paste("For celltype",celltype_oi,"not all group-covariate combinations exist - this will likely lead to errors downstream in batch correction and DE analysis"))

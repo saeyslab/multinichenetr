@@ -200,9 +200,12 @@ get_pseudobulk_logCPM_exprs = function(sce, sample_id, celltype_id, group_id, co
     } 
     
     # do another necessary check: each batch-group combinations should have at least one or preferably two observations
-    minimal_covariategroup_combo = ei %>% dplyr::select(sample_id, group_id, covariates) %>% dplyr::distinct() %>% dplyr::group_by(group_id, covariates) %>% dplyr::count() %>% dplyr::pull(n) %>% min()
-    if(minimal_covariategroup_combo < 2){
-      warning("For some group-batch/covariate combinations, only one sample is present in your data. While Muscat DE analysis can handle this, Combat correction of the expression for downstream visualization cannot.")
+    # print(ei %>% dplyr::select(sample_id, group_id, covariates) %>% dplyr::distinct() %>% dplyr::group_by(group_id, covariates) %>% dplyr::count() %>% arrange(n))
+    # print(ei %>% dplyr::select(sample_id, covariates) %>% dplyr::distinct() %>% dplyr::group_by(covariates) %>% dplyr::count() %>% arrange(n))
+    
+    minimal_covariate = ei %>% dplyr::select(sample_id, covariates) %>% dplyr::distinct() %>% dplyr::group_by(covariates) %>% dplyr::count() %>% dplyr::pull(n) %>% min()
+    if(minimal_covariate < 2){
+      warning("For some covariate values, only one sample is present in your data. Combat correction of the expression for downstream visualization cannot handle this.")
       pb_df = sce$cluster_id %>% unique() %>% lapply(function(celltype_oi, pb){ # no correction of the pseudobulk counts
         
         pseudobulk_counts_celltype = edgeR::DGEList(pb@assays@data[[celltype_oi]])
