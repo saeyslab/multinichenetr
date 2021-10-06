@@ -202,17 +202,8 @@ get_pseudobulk_logCPM_exprs = function(sce, sample_id, celltype_id, group_id, co
     # do another necessary check: each batch-group combinations should have at least one or preferably two observations
     # print(ei %>% dplyr::select(sample_id, group_id, covariates) %>% dplyr::distinct() %>% dplyr::group_by(group_id, covariates) %>% dplyr::count() %>% arrange(n))
     # print(ei %>% dplyr::select(sample_id, covariates) %>% dplyr::distinct() %>% dplyr::group_by(covariates) %>% dplyr::count() %>% arrange(n))
-    
-    minimal_covariate = ei %>% dplyr::select(sample_id, covariates) %>% dplyr::distinct() %>% dplyr::group_by(covariates) %>% dplyr::count() %>% dplyr::pull(n) %>% min()
-    
     batch = as.factor(ei$covariates)
-    print(minimal_covariate)
-    print(table(batch))
-    
     if (any(table(batch) <= 1)) {
-    #   warning("ComBat-seq doesn't support 1 sample per batch yet")
-    # }
-    # if(minimal_covariate < 2){
       warning("For some covariate values, only one sample is present in your data. Combat correction of the expression for downstream visualization cannot handle this.")
       pb_df = sce$cluster_id %>% unique() %>% lapply(function(celltype_oi, pb){ # no correction of the pseudobulk counts
         
@@ -234,26 +225,24 @@ get_pseudobulk_logCPM_exprs = function(sce, sample_id, celltype_id, group_id, co
       
     } else {
       pb_df = sce$cluster_id %>% unique() %>% lapply(function(celltype_oi, pb, ei){
-        # print(celltype_oi)
         # get the count matrix
         count_matrix = pb@assays@data[[celltype_oi]] %>% .[,ei$sample_id]
         non_zero_samples = count_matrix %>% apply(2,sum) %>% .[. > 0] %>% names()
-        
         count_matrix = count_matrix[,non_zero_samples]
-        
         # adjust the count matrix
         ei = ei %>% dplyr::filter(sample_id %in% non_zero_samples)
-        quiet <- function(x) { 
-          sink(tempfile()) 
-          on.exit(sink()) 
-          invisible(force(x)) 
-        } 
-        adj_count_matrix = quiet(sva::ComBat_seq(count_matrix, batch=ei$covariates, group=ei$group_id, full_mod=TRUE)) # to suppress its output
-        # print("pseudobulk count matrix was succesfully corrected: ")
-        # print(adj_count_matrix[1:15, 1:5])
-        # print("compared to non-adjusted matrix:")
-        # print(count_matrix[1:15, 1:5])
-        
+        batch = as.factor(ei$covariates) # still check whether we have enough samples for each celltype to correct for!!
+        if (any(table(batch) <= 1)) {
+          warning(paste0("For some covariate values for celltype ",celltype_oi, " only one sample is present in your data. Combat correction of the expression for downstream visualization cannot handle this. Therefore we continue with non-corrected pseudobulk expression values here."))
+          adj_count_matrix = count_matrix 
+        } else {
+          quiet <- function(x) { # to suppress sva-combat output
+            sink(tempfile()) 
+            on.exit(sink()) 
+            invisible(force(x)) 
+          } 
+          adj_count_matrix = quiet(sva::ComBat_seq(count_matrix, batch=ei$covariates, group=ei$group_id, full_mod=TRUE)) # to suppress its output
+        }
         # normalize the adjusted count matrix, just like we do for the non-adjusted one
         pseudobulk_counts_celltype = edgeR::DGEList(adj_count_matrix)
         pseudobulk_counts_celltype = edgeR::calcNormFactors(pseudobulk_counts_celltype)
