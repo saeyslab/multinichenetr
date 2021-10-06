@@ -113,10 +113,8 @@ lr_target_prior_cor_inference = function(receivers_oi, abundance_expression_info
   
   # make LR prod matrix
   lr_prod_df = abundance_expression_info$sender_receiver_info$pb_df %>% dplyr::inner_join(grouping_tbl, by = "sample") %>% dplyr::mutate(lr_interaction = paste(ligand, receptor, sep = "_")) %>% dplyr::mutate(id = paste(lr_interaction, sender, receiver, sep = "_")) %>% dplyr::filter(keep_receiver == 1 & keep_sender == 1) %>% dplyr::select(sample, id, ligand_receptor_pb_prod) %>% dplyr::filter(id %in% ids_oi) %>% dplyr::distinct() %>% tidyr::spread(sample, ligand_receptor_pb_prod)
-  print(lr_prod_df %>% head()) ## TOREMOVE
-  
+
   lr_prod_mat = lr_prod_df %>% dplyr::select(-id) %>% data.frame() %>% as.matrix()
-  
   rownames(lr_prod_mat) = lr_prod_df$id
   
   col_remove = lr_prod_mat %>% apply(2,function(x)sum(x != 0)) %>% .[. == 0] %>% names()
@@ -126,8 +124,6 @@ lr_target_prior_cor_inference = function(receivers_oi, abundance_expression_info
   
   lr_prod_mat = lr_prod_mat[receiver_lr_id_mapping$id, ]
   
-  print(lr_prod_mat[1:2,1:2]) ## TOREMOVE
-  print(receivers_oi)
   # Step2: per receiver: subset lr_prod_mat, get DE genes, calculate correlation between LR and Target expression
   lr_target_cor = receivers_oi %>% lapply(function(receiver_oi){
     
@@ -141,25 +137,23 @@ lr_target_prior_cor_inference = function(receivers_oi, abundance_expression_info
       targets_oi = celltype_de %>% dplyr::filter(cluster_id == receiver_oi) %>% dplyr::filter(p_adj <= p_val_threshold & logFC >= logFC_threshold) %>% dplyr::pull(gene)
     }
     
-    print(length(targets_oi))
-    
     if("celltype_info" %in% names(abundance_expression_info)){
       pb_df =  abundance_expression_info$celltype_info$pb_df %>% dplyr::filter(gene %in% targets_oi & celltype %in% receiver_oi) %>% dplyr::inner_join(grouping_tbl, by = "sample") %>% dplyr::filter(keep_receiver == 1 & keep_sender == 1)
     }
     if("receiver_info" %in% names(abundance_expression_info)){
       pb_df =  abundance_expression_info$receiver_info$pb_df %>% dplyr::filter(gene %in% targets_oi & celltype %in% receiver_oi) %>% dplyr::inner_join(grouping_tbl, by = "sample") %>% dplyr::filter(keep_receiver == 1 & keep_sender == 1)
     }
-    print(pb_df)
-    
+
     target_df = pb_df %>% dplyr::select(sample, gene, pb_sample) %>% dplyr::distinct() %>% tidyr::spread(sample, pb_sample)
     target_mat = target_df %>% dplyr::select(-gene) %>% data.frame() %>% as.matrix()
     
     rownames(target_mat) = target_df$gene
     
-    col_remove = target_mat %>% apply(2,function(x)sum(x != 0)) %>% .[. == 0] %>% names()
+    # col_remove = target_mat %>% apply(2,function(x)sum(x != 0)) %>% .[. == 0] %>% names()
     row_remove = target_mat %>% apply(1,function(x)sum(x != 0)) %>% .[. == 0] %>% names()
     
-    target_mat = target_mat %>% .[rownames(.) %>% generics::setdiff(col_remove),colnames(.) %>% generics::setdiff(col_remove)]
+    # target_mat = target_mat %>% .[rownames(.) %>% generics::setdiff(col_remove),colnames(.) %>% generics::setdiff(col_remove)]
+    target_mat = target_mat %>% .[rownames(.) %>% generics::setdiff(col_remove),]
     
     target_mat = target_mat[targets_oi, ]
     print(dim(target_mat))
