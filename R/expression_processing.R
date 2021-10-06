@@ -204,7 +204,15 @@ get_pseudobulk_logCPM_exprs = function(sce, sample_id, celltype_id, group_id, co
     # print(ei %>% dplyr::select(sample_id, covariates) %>% dplyr::distinct() %>% dplyr::group_by(covariates) %>% dplyr::count() %>% arrange(n))
     
     minimal_covariate = ei %>% dplyr::select(sample_id, covariates) %>% dplyr::distinct() %>% dplyr::group_by(covariates) %>% dplyr::count() %>% dplyr::pull(n) %>% min()
-    if(minimal_covariate < 2){
+    
+    batch = as.factor(ei$covariates)
+    print(minimal_covariate)
+    print(table(batch))
+    
+    if (any(table(batch) <= 1)) {
+    #   warning("ComBat-seq doesn't support 1 sample per batch yet")
+    # }
+    # if(minimal_covariate < 2){
       warning("For some covariate values, only one sample is present in your data. Combat correction of the expression for downstream visualization cannot handle this.")
       pb_df = sce$cluster_id %>% unique() %>% lapply(function(celltype_oi, pb){ # no correction of the pseudobulk counts
         
