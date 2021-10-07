@@ -120,7 +120,7 @@ lr_target_prior_cor_inference = function(receivers_oi, abundance_expression_info
   col_remove = lr_prod_mat %>% apply(2,function(x)sum(x != 0)) %>% .[. == 0] %>% names()
   row_remove = lr_prod_mat %>% apply(1,function(x)sum(x != 0)) %>% .[. == 0] %>% names()
   
-  lr_prod_mat = lr_prod_mat %>% .[rownames(.) %>% generics::setdiff(col_remove),colnames(.) %>% generics::setdiff(col_remove)]
+  lr_prod_mat = lr_prod_mat %>% .[rownames(.) %>% generics::setdiff(row_remove),colnames(.) %>% generics::setdiff(col_remove)]
   
   lr_prod_mat = lr_prod_mat[receiver_lr_id_mapping$id, ]
   
@@ -146,19 +146,25 @@ lr_target_prior_cor_inference = function(receivers_oi, abundance_expression_info
 
     target_df = pb_df %>% dplyr::select(sample, gene, pb_sample) %>% dplyr::distinct() %>% tidyr::spread(sample, pb_sample)
     target_mat = target_df %>% dplyr::select(-gene) %>% data.frame() %>% as.matrix()
+    print(dim(target_mat))
     
     rownames(target_mat) = target_df$gene
     
-    # col_remove = target_mat %>% apply(2,function(x)sum(x != 0)) %>% .[. == 0] %>% names()
+    col_remove = target_mat %>% apply(2,function(x)sum(x != 0)) %>% .[. == 0] %>% names()
     row_remove = target_mat %>% apply(1,function(x)sum(x != 0)) %>% .[. == 0] %>% names()
+    print(col_remove)
+    print(row_remove)
     
     # target_mat = target_mat %>% .[rownames(.) %>% generics::setdiff(col_remove),colnames(.) %>% generics::setdiff(col_remove)]
-    target_mat = target_mat %>% .[rownames(.) %>% generics::setdiff(col_remove),]
-    
-    target_mat = target_mat[targets_oi, ]
+    target_mat = target_mat %>% .[rownames(.) %>% generics::setdiff(row_remove) %>% generics::intersect(targets_oi),]
+    # target_mat = target_mat[targets_oi, ]
     print(dim(target_mat))
     
     #  calculate correlation between LR and Target expression
+    # make sure the dimensions of both matrices are the same
+    common_samples = intersect(colnames(lr_prod_mat), colnames(target_mat))
+    lr_prod_mat = lr_prod_mat[,common_samples]
+    target_mat = target_mat[,common_samples]
     
     # pearson
     cor_mat = Hmisc::rcorr(lr_prod_mat_oi %>% t(), target_mat %>% t())
