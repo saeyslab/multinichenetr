@@ -41,8 +41,11 @@ get_muscat_exprs_frac = function(sce, sample_id, celltype_id, group_id){
   groups = sce$group_id  %>% unique() %>% as.character()
 
   frq = muscat::calcExprFreqs(sce, assay = "counts", th = 0) # gives NaN sometimes...
-  all_genes = rownames(frq)
-  
+  if(is.null(rownames(frq))){
+    all_genes = rownames(sce) # eg in case the first cell type in frq is absent in one sample -- then the rownames of frq will be NULL
+  } else {
+    all_genes = rownames(frq)
+  }  
   celltypes = sce$cluster_id %>% unique() %>% as.character()
   
   frq_lists = celltypes %>% lapply(function(celltype_oi, frq, all_genes){
@@ -734,8 +737,8 @@ combine_sender_receiver_de = function(sender_de, receiver_de, senders_oi, receiv
 
   requireNamespace("dplyr")
   
-  de_output_tidy_sender = sender_de %>% filter(cluster_id %in% senders_oi)
-  de_output_tidy_receiver = receiver_de %>% filter(cluster_id %in% receivers_oi)
+  de_output_tidy_sender = sender_de %>% dplyr::filter(cluster_id %in% senders_oi)
+  de_output_tidy_receiver = receiver_de %>% dplyr::filter(cluster_id %in% receivers_oi)
   
   de_output_tidy_sender = de_output_tidy_sender %>% dplyr::select(gene, cluster_id, logFC, p_val, p_adj, contrast) %>% dplyr::filter(cluster_id %in% senders_oi) %>% dplyr::rename(ligand = gene, lfc_ligand = logFC, p_val_ligand = p_val,  p_adj_ligand = p_adj, sender = cluster_id)
   de_output_tidy_receiver =  de_output_tidy_receiver %>% dplyr::select(gene, cluster_id, logFC, p_val, p_adj, contrast) %>% dplyr::filter(cluster_id %in% receivers_oi) %>% dplyr::rename(receptor = gene, lfc_receptor = logFC, p_val_receptor = p_val,  p_adj_receptor = p_adj, receiver = cluster_id)

@@ -100,25 +100,25 @@ lr_target_prior_cor_inference = function(receivers_oi, abundance_expression_info
   requireNamespace("dplyr")
   
   # add sender-receiver presence to grouping_tbl
-  grouping_tbl = grouping_tbl %>% dplyr::inner_join(prioritization_tables$sample_prioritization_tbl %>% dplyr::distinct(sample, keep_receiver, keep_sender), by = "sample")
+  grouping_tbl = grouping_tbl %>% dplyr::inner_join(prioritization_tables$sample_prioritization_tbl %>% dplyr::distinct(sample, sender, receiver, keep_receiver, keep_sender), by = "sample")
   
   # Step1: calculate LR prod matrix
   ids_oi = prioritization_tables$group_prioritization_tbl %>% dplyr::filter(fraction_expressing_ligand_receptor > 0)  %>% dplyr::pull(id) %>% unique()
   
   # make ligand-receptor-id mapping
-  lig_rec_send_rec_mapping = abundance_expression_info$sender_receiver_info$pb_df %>% dplyr::inner_join(grouping_tbl, by = "sample") %>% dplyr::mutate(lr_interaction = paste(ligand, receptor, sep = "_")) %>% dplyr::mutate(id = paste(lr_interaction, sender, receiver, sep = "_")) %>% dplyr::select(sender, receiver, ligand, receptor, id) %>% dplyr::distinct()
+  lig_rec_send_rec_mapping = abundance_expression_info$sender_receiver_info$pb_df %>% dplyr::inner_join(grouping_tbl, by = c("sample","sender","receiver")) %>% dplyr::mutate(lr_interaction = paste(ligand, receptor, sep = "_")) %>% dplyr::mutate(id = paste(lr_interaction, sender, receiver, sep = "_")) %>% dplyr::select(sender, receiver, ligand, receptor, id) %>% dplyr::distinct()
   
   # make receiver-id mapping to filter later on
-  receiver_lr_id_mapping = abundance_expression_info$sender_receiver_info$pb_df %>% dplyr::inner_join(grouping_tbl, by = "sample") %>% dplyr::mutate(lr_interaction = paste(ligand, receptor, sep = "_")) %>% dplyr::mutate(id = paste(lr_interaction, sender, receiver, sep = "_")) %>% dplyr::select(receiver, sample, id, ligand_receptor_pb_prod) %>% dplyr::filter(id %in% ids_oi) %>% dplyr::distinct(receiver, id) 
+  receiver_lr_id_mapping = abundance_expression_info$sender_receiver_info$pb_df %>% dplyr::inner_join(grouping_tbl, by = c("sample","sender","receiver")) %>% dplyr::mutate(lr_interaction = paste(ligand, receptor, sep = "_")) %>% dplyr::mutate(id = paste(lr_interaction, sender, receiver, sep = "_")) %>% dplyr::select(receiver, sample, id, ligand_receptor_pb_prod) %>% dplyr::filter(id %in% ids_oi) %>% dplyr::distinct(receiver, id) 
   
   # make LR prod matrix
-  lr_prod_df = abundance_expression_info$sender_receiver_info$pb_df %>% dplyr::inner_join(grouping_tbl, by = "sample") %>% dplyr::mutate(lr_interaction = paste(ligand, receptor, sep = "_")) %>% dplyr::mutate(id = paste(lr_interaction, sender, receiver, sep = "_")) %>% dplyr::filter(keep_receiver == 1 & keep_sender == 1) %>% dplyr::select(sample, id, ligand_receptor_pb_prod) %>% dplyr::filter(id %in% ids_oi) %>% dplyr::distinct() %>% tidyr::spread(sample, ligand_receptor_pb_prod)
-
+  lr_prod_df = abundance_expression_info$sender_receiver_info$pb_df %>% dplyr::inner_join(grouping_tbl, by = c("sample","sender","receiver")) %>% dplyr::mutate(lr_interaction = paste(ligand, receptor, sep = "_")) %>% dplyr::mutate(id = paste(lr_interaction, sender, receiver, sep = "_")) %>% dplyr::filter(keep_receiver == 1 & keep_sender == 1) %>% dplyr::select(sample, id, ligand_receptor_pb_prod) %>% dplyr::filter(id %in% ids_oi) %>% dplyr::distinct() %>% tidyr::spread(sample, ligand_receptor_pb_prod)
+  
   lr_prod_mat = lr_prod_df %>% dplyr::select(-id) %>% data.frame() %>% as.matrix()
   rownames(lr_prod_mat) = lr_prod_df$id
   
-  col_remove = lr_prod_mat %>% apply(2,function(x)sum(x != 0)) %>% .[. == 0] %>% names()
-  row_remove = lr_prod_mat %>% apply(1,function(x)sum(x != 0)) %>% .[. == 0] %>% names()
+  col_remove = lr_prod_mat %>% apply(2,function(x)sum(x != 0, na.rm = TRUE)) %>% .[. == 0] %>% names()
+  row_remove = lr_prod_mat %>% apply(1,function(x)sum(x != 0, na.rm = TRUE)) %>% .[. == 0] %>% names()
   
   lr_prod_mat = lr_prod_mat %>% .[rownames(.) %>% generics::setdiff(row_remove),colnames(.) %>% generics::setdiff(col_remove)]
   
@@ -129,7 +129,7 @@ lr_target_prior_cor_inference = function(receivers_oi, abundance_expression_info
     
     # subset lr_prod_mat
     lr_prod_mat_oi = lr_prod_mat[receiver_lr_id_mapping %>% dplyr::filter(receiver == receiver_oi) %>% dplyr::pull(id) %>% generics::intersect(rownames(lr_prod_mat)),]
-    print(dim(lr_prod_mat_oi))
+    # print(dim(lr_prod_mat_oi))
     # get DE genes
     if(p_val_adj == FALSE){
       targets_oi = celltype_de %>% dplyr::filter(cluster_id == receiver_oi) %>% dplyr::filter(p_val <= p_val_threshold & logFC >= logFC_threshold) %>% dplyr::pull(gene)
@@ -143,27 +143,29 @@ lr_target_prior_cor_inference = function(receivers_oi, abundance_expression_info
     if("receiver_info" %in% names(abundance_expression_info)){
       pb_df =  abundance_expression_info$receiver_info$pb_df %>% dplyr::filter(gene %in% targets_oi & celltype %in% receiver_oi) %>% dplyr::inner_join(grouping_tbl, by = "sample") %>% dplyr::filter(keep_receiver == 1 & keep_sender == 1)
     }
-
+    
     target_df = pb_df %>% dplyr::select(sample, gene, pb_sample) %>% dplyr::distinct() %>% tidyr::spread(sample, pb_sample)
     target_mat = target_df %>% dplyr::select(-gene) %>% data.frame() %>% as.matrix()
-    print(dim(target_mat))
+    # print(dim(target_mat))
     
     rownames(target_mat) = target_df$gene
     
-    col_remove = target_mat %>% apply(2,function(x)sum(x != 0)) %>% .[. == 0] %>% names()
-    row_remove = target_mat %>% apply(1,function(x)sum(x != 0)) %>% .[. == 0] %>% names()
-    print(col_remove)
-    print(row_remove)
+    col_remove = target_mat %>% apply(2,function(x)sum(x != 0, na.rm = TRUE)) %>% .[. == 0] %>% names()
+    row_remove = target_mat %>% apply(1,function(x)sum(x != 0, na.rm = TRUE)) %>% .[. == 0] %>% names()
     
-    # target_mat = target_mat %>% .[rownames(.) %>% generics::setdiff(col_remove),colnames(.) %>% generics::setdiff(col_remove)]
-    target_mat = target_mat %>% .[rownames(.) %>% generics::setdiff(row_remove) %>% generics::intersect(targets_oi),]
+    target_mat = target_mat %>% .[rownames(.) %>% generics::setdiff(row_remove) %>% generics::intersect(targets_oi), colnames(.) %>% generics::setdiff(col_remove)]
+    # target_mat = target_mat %>% .[rownames(.) %>% generics::setdiff(row_remove) %>% generics::intersect(targets_oi),]
     # target_mat = target_mat[targets_oi, ]
-    print(dim(target_mat))
+    # print(dim(target_mat))
     
     #  calculate correlation between LR and Target expression
     # make sure the dimensions of both matrices are the same
-    common_samples = intersect(colnames(lr_prod_mat), colnames(target_mat))
-    lr_prod_mat = lr_prod_mat[,common_samples]
+    common_samples = intersect(colnames(lr_prod_mat_oi), colnames(target_mat))
+    if(length(common_samples) < 5){
+      warning(paste0("not enough samples for a correlation analysis for the celltype ",receiver_oi))
+      return(NULL)
+    }
+    lr_prod_mat_oi = lr_prod_mat_oi[,common_samples]
     target_mat = target_mat[,common_samples]
     
     # pearson
@@ -181,10 +183,10 @@ lr_target_prior_cor_inference = function(receivers_oi, abundance_expression_info
     
     cor_df = lig_rec_send_rec_mapping %>% dplyr::inner_join(cor_df_pearson, by = "id") %>% dplyr::inner_join(cor_df_pearson_pval, by = c("id", "target")) %>% dplyr::inner_join(cor_df_spearman, by = c("id", "target")) %>% dplyr::inner_join(cor_df_spearman_pval, by = c("id", "target"))
     print(cor_df)
-  # scaling of the correlation metric -- Don't do this for now
-  #   cor_df = cor_df %>% dplyr::ungroup() %>% dplyr::mutate(scaled_pearson = nichenetr::scale_quantile(pearson, 0.05), scaled_spearman = nichenetr::scale_quantile(spearman, 0.05))  # is this  scaling necessary? 
+    # scaling of the correlation metric -- Don't do this for now
+    #   cor_df = cor_df %>% dplyr::ungroup() %>% dplyr::mutate(scaled_pearson = nichenetr::scale_quantile(pearson, 0.05), scaled_spearman = nichenetr::scale_quantile(spearman, 0.05))  # is this  scaling necessary? 
   }) %>% bind_rows()
-  print(lr_target_cor %>% head()) ## TOREMOVE
+  # print(lr_target_cor %>% head()) ## TOREMOVE
   
   # Step3: Scale the ligand-target prior information scores 
   ligand_target_df = ligand_target_matrix %>% data.frame() %>% tibble::rownames_to_column("target") %>% tidyr::gather(ligand, prior_score, -target) %>% tibble::as_tibble()
@@ -200,3 +202,4 @@ lr_target_prior_cor_inference = function(receivers_oi, abundance_expression_info
   # cor_prior_df = cor_prior_df %>% dplyr::mutate(final_score = (scaled_prior_score + 0.50*scaled_pearson + 0.50*scaled_spearman)/2) %>% dplyr::arrange(-final_score) # I could give more weight to the prior information? - but maybe do not do this for the moment?
   return(cor_prior_df)
 }
+
