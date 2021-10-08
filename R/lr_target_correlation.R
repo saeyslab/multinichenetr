@@ -120,10 +120,10 @@ lr_target_prior_cor_inference = function(receivers_oi, abundance_expression_info
   col_remove = lr_prod_mat %>% apply(2,function(x)sum(x != 0, na.rm = TRUE)) %>% .[. == 0] %>% names()
   row_remove = lr_prod_mat %>% apply(1,function(x)sum(x != 0, na.rm = TRUE)) %>% .[. == 0] %>% names()
   
-  lr_prod_mat = lr_prod_mat %>% .[rownames(.) %>% generics::setdiff(row_remove),colnames(.) %>% generics::setdiff(col_remove)]
-  
-  lr_prod_mat = lr_prod_mat[receiver_lr_id_mapping$id, ]
-  
+  lr_prod_mat = lr_prod_mat %>% .[rownames(.) %>% generics::setdiff(row_remove) %>% generics::intersect(receiver_lr_id_mapping$id), colnames(.) %>% generics::setdiff(col_remove)]
+  # lr_prod_mat = lr_prod_mat %>% .[rownames(.) %>% generics::setdiff(row_remove), colnames(.) %>% generics::setdiff(col_remove)]
+  # lr_prod_mat = lr_prod_mat[receiver_lr_id_mapping$id, ]
+  # 
   # Step2: per receiver: subset lr_prod_mat, get DE genes, calculate correlation between LR and Target expression
   lr_target_cor = receivers_oi %>% lapply(function(receiver_oi){
     
