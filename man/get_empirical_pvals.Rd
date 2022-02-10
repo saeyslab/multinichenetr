@@ -23,7 +23,7 @@ lr_network = lr_network \%>\% dplyr::rename(ligand = from, receptor = to) \%>\% 
 sample_id = "tumor"
 group_id = "pEMT"
 celltype_id = "celltype"
-covariates = NA
+batches = NA
 contrasts_oi = c("'High-Low','Low-High'")
 senders_oi = SummarizedExperiment::colData(sce)[,celltype_id] \%>\% unique()
 receivers_oi = SummarizedExperiment::colData(sce)[,celltype_id] \%>\% unique()
@@ -32,7 +32,7 @@ DE_info = get_DE_info(
    sample_id = sample_id,
    celltype_id = celltype_id,
    group_id = group_id,
-   covariates = covariates,
+   batches = batches,
    contrasts = contrasts_oi)
 DE_info_emp = get_empirical_pvals(DE_info$celltype_de$de_output_tidy)
 }

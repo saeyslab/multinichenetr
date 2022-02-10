@@ -59,14 +59,24 @@ library(multinichenetr)
 ```
 
 ```{r}
-# LR network
-lr_network = readRDS(url("https://zenodo.org/record/3260758/files/lr_network.rds"))
-lr_network = lr_network %>% filter(! database %in% c("ppi_prediction","ppi_prediction_go")) # We filter out these interactions because they are not really bona-fide LR pairs - NicheNet v2 prior models will be released relatively soon
-lr_network = lr_network %>% dplyr::rename(ligand = from, receptor = to) %>% distinct(ligand, receptor)
-```
-
-```{r}
-ligand_target_matrix = readRDS(url("https://zenodo.org/record/3260758/files/ligand_target_matrix.rds"))
+organism = "human"
+if(organism == "human"){
+  lr_network = readRDS(url("https://zenodo.org/record/5884439/files/lr_network_human_21122021.rds"))
+  lr_network = lr_network %>% dplyr::rename(ligand = from, receptor = to) %>% distinct(ligand, receptor)
+  sig_network = readRDS(url("https://zenodo.org/record/5884439/files/signaling_network_human_21122021.rds"))
+  gr_network = readRDS(url("https://zenodo.org/record/5884439/files/gr_network_human_21122021.rds"))
+  ligand_target_matrix = readRDS(url("https://zenodo.org/record/5884439/files/ligand_target_matrix_nsga2r_final.rds"))
+  ligand_tf_matrix = readRDS(url("https://zenodo.org/record/5884439/files/ligand_tf_matrix_nsga2r_final.rds"))
+  weighted_networks = readRDS(url("https://zenodo.org/record/5884439/files/weighted_networks_nsga2r_final.rds"))
+} else if(organism == "mouse"){
+  lr_network = readRDS(url("https://zenodo.org/record/5884439/files/lr_network_mouse_21122021.rds"))
+  lr_network = lr_network %>% dplyr::rename(ligand = from, receptor = to) %>% distinct(ligand, receptor)
+  sig_network = readRDS(url("https://zenodo.org/record/5884439/files/signaling_network_mouse_21122021.rds"))
+  gr_network = readRDS(url("https://zenodo.org/record/5884439/files/gr_network_mouse_21122021.rds"))
+  ligand_target_matrix = readRDS(url("https://zenodo.org/record/5884439/files/ligand_target_matrix_nsga2r_final_mouse.rds"))
+  ligand_tf_matrix = readRDS(url("https://zenodo.org/record/5884439/files/ligand_tf_matrix_nsga2r_final_mouse.rds"))
+  weighted_networks = readRDS(url("https://zenodo.org/record/5884439/files/weighted_networks_nsga2r_final_mouse.rds"))
+}
 ```
 
 ## Step 0.2: Prepare SingleCellExperiment objects for Sender and Receiver cells
@@ -892,7 +902,7 @@ targets_oi = multinichenet_output$ligand_activities_targets_DEgenes$de_genes_df 
 ```
 
 ```{r, fig.width=8, fig.height=20}
-p_target = make_sample_target_plots(receiver_info = multinichenet_output$receiver_info, targets_oi, receiver_oi, multinichenet_output$grouping_tbl)
+p_target = make_DEgene_dotplot_pseudobulk(receiver_info = multinichenet_output$receiver_info, targets_oi, receiver_oi, multinichenet_output$grouping_tbl)
 p_target + ggtitle(paste0("DE genes in ",group_oi, " in celltype ",receiver_oi))
 ```
 

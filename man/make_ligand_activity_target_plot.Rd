@@ -4,24 +4,28 @@
 \alias{make_ligand_activity_target_plot}
 \title{make_ligand_activity_target_plot}
 \usage{
-make_ligand_activity_target_plot(group_oi, receiver_oi, prioritized_tbl_oi, ligand_activities_targets_DEgenes, contrast_tbl, grouping_tbl, receiver_info, ligand_target_matrix, plot_legend = TRUE, heights = NULL, widths = NULL)
+make_ligand_activity_target_plot(group_oi, receiver_oi, prioritized_tbl_oi, prioritization_tables, ligand_activities_targets_DEgenes, contrast_tbl, grouping_tbl, receiver_info, ligand_target_matrix, groups_oi = NULL, plot_legend = TRUE, heights = NULL, widths = NULL)
 }
 \arguments{
 \item{group_oi}{Character vector: name of the group of interest}
 
-\item{receiver_oi}{Name of the receiver cell type of interest for which expression of genes should be visualized}
+\item{receiver_oi}{Character vector of receiver cell type of interest}
 
 \item{prioritized_tbl_oi}{Subset of `prioritization_tables$group_prioritization_tbl`: the ligand-receptor interactions shown in this subset will be visualized: recommended to consider the top n LR interactions of a group of interest, based on the prioritization_score (eg n = 50; see vignettes for examples).}
+
+\item{prioritization_tables}{`prioritization_tables` slot of the output of the `generate_prioritization_tables` or `multi_nichenet_analysis` function}
 
 \item{ligand_activities_targets_DEgenes}{Sublist in the output of `multi_nichenet_analysis`}
 
 \item{contrast_tbl}{Table to link the contrast definitions to the group ids.}
 
-\item{grouping_tbl}{Data frame linking the sample_id, group_id and covariate_oi}
+\item{grouping_tbl}{`grouping_tbl` slot of the output of the `multi_nichenet_analysis` function}
 
-\item{receiver_info}{`receiver_info` or `celltype_info` slots from the output of `multi_nichenet_analysis`. Also: part of the output of `get_abundance_expression_info_separate`}
+\item{receiver_info}{`celltype_info` or `receiver_info` slot of the output of the `multi_nichenet_analysis` function}
 
 \item{ligand_target_matrix}{Prior knowledge model of ligand-target regulatory potential (matrix with ligands in columns and targets in rows). See https://github.com/saeyslab/nichenetr.}
+
+\item{groups_oi}{Which groups to show? Default: NULL -- will show all groups.}
 
 \item{plot_legend}{if TRUE (default): show legend on the same figure, if FALSE (recommended): show legend in separate figure}
 
@@ -44,7 +48,7 @@ ligand_target_matrix = readRDS(url("https://zenodo.org/record/3260758/files/liga
 sample_id = "tumor"
 group_id = "pEMT"
 celltype_id = "celltype"
-covariates = NA
+batches = NA
 contrasts_oi = c("'High-Low','Low-High'")
 contrast_tbl = tibble(contrast = c("High-Low","Low-High"), group = c("High","Low"))
 output = multi_nichenet_analysis(
@@ -52,7 +56,7 @@ output = multi_nichenet_analysis(
      celltype_id = celltype_id, 
      sample_id = sample_id, 
      group_id = group_id,
-     covariates = covariates,
+     batches = batches,
      lr_network = lr_network, 
      ligand_target_matrix = ligand_target_matrix, 
      contrasts_oi = contrasts_oi, 
@@ -62,7 +66,7 @@ output = multi_nichenet_analysis(
 group_oi = "High"
 receiver_oi = "Malignant"
 prioritized_tbl_oi = output$prioritization_tables$group_prioritization_tbl \%>\% filter(fraction_expressing_ligand_receptor > 0) \%>\% filter(group == group_oi & receiver == receiver_oi) \%>\% top_n(50, prioritization_score) \%>\% top_n(25, activity_scaled) \%>\% arrange(-activity_scaled)
-combined_plot = make_ligand_activity_target_plot(group_oi, receiver_oi, prioritized_tbl_oi, output$ligand_activities_targets_DEgenes, contrast_tbl, output$grouping_tbl, output$celltype_info,ligand_target_matrix, plot_legend = FALSE)
+combined_plot = make_ligand_activity_target_plot(group_oi, receiver_oi, prioritized_tbl_oi, output$prioritization_tables, output$ligand_activities_targets_DEgenes, contrast_tbl, output$grouping_tbl, output$celltype_info,ligand_target_matrix, plot_legend = FALSE)
 
 }
 

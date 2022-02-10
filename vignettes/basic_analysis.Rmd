@@ -53,14 +53,36 @@ library(multinichenetr)
 ```
 
 ```{r}
-# LR network
-lr_network = readRDS(url("https://zenodo.org/record/3260758/files/lr_network.rds"))
-lr_network = lr_network %>% filter(! database %in% c("ppi_prediction","ppi_prediction_go")) # We filter out these interactions because they are not really bona-fide LR pairs - NicheNet v2 prior models will be released relatively soon
-lr_network = lr_network %>% dplyr::rename(ligand = from, receptor = to) %>% distinct(ligand, receptor)
-```
-
-```{r}
-ligand_target_matrix = readRDS(url("https://zenodo.org/record/3260758/files/ligand_target_matrix.rds"))
+organism = "human"
+if(organism == "human"){
+  lr_network = readRDS(url("https://zenodo.org/record/5884439/files/lr_network_human_21122021.rds"))
+  lr_network = lr_network %>% dplyr::rename(ligand = from, receptor = to) %>% distinct(ligand, receptor) %>% mutate(ligand = make.names(ligand), receptor = make.names(receptor))
+  sig_network = readRDS(url("https://zenodo.org/record/5884439/files/signaling_network_human_21122021.rds")) %>% mutate(from = make.names(from), to = make.names(to))
+  gr_network = readRDS(url("https://zenodo.org/record/5884439/files/gr_network_human_21122021.rds")) %>% mutate(from = make.names(from), to = make.names(to))
+  ligand_target_matrix = readRDS(url("https://zenodo.org/record/5884439/files/ligand_target_matrix_nsga2r_final.rds"))
+  colnames(ligand_target_matrix) = colnames(ligand_target_matrix) %>% make.names()
+  rownames(ligand_target_matrix) = rownames(ligand_target_matrix) %>% make.names()
+  ligand_tf_matrix = readRDS(url("https://zenodo.org/record/5884439/files/ligand_tf_matrix_nsga2r_final.rds"))
+  colnames(ligand_tf_matrix) = colnames(ligand_tf_matrix) %>% make.names()
+  rownames(ligand_tf_matrix) = rownames(ligand_tf_matrix) %>% make.names()
+  weighted_networks = readRDS(url("https://zenodo.org/record/5884439/files/weighted_networks_nsga2r_final.rds"))
+  weighted_networks$lr_sig = weighted_networks$lr_sig %>% mutate(from = make.names(from), to = make.names(to))
+  weighted_networks$gr = weighted_networks$gr %>% mutate(from = make.names(from), to = make.names(to))
+} else if(organism == "mouse"){
+  lr_network = readRDS(url("https://zenodo.org/record/5884439/files/lr_network_mouse_21122021.rds"))
+  lr_network = lr_network %>% dplyr::rename(ligand = from, receptor = to) %>% distinct(ligand, receptor) %>% mutate(ligand = make.names(ligand), receptor = make.names(receptor))
+  sig_network = readRDS(url("https://zenodo.org/record/5884439/files/signaling_network_mouse_21122021.rds")) %>% mutate(from = make.names(from), to = make.names(to))
+  gr_network = readRDS(url("https://zenodo.org/record/5884439/files/gr_network_mouse_21122021.rds")) %>% mutate(from = make.names(from), to = make.names(to))
+  ligand_target_matrix = readRDS(url("https://zenodo.org/record/5884439/files/ligand_target_matrix_nsga2r_final_mouse.rds"))
+  colnames(ligand_target_matrix) = colnames(ligand_target_matrix) %>% make.names()
+  rownames(ligand_target_matrix) = rownames(ligand_target_matrix) %>% make.names()
+  ligand_tf_matrix = readRDS(url("https://zenodo.org/record/5884439/files/ligand_tf_matrix_nsga2r_final_mouse.rds"))
+  colnames(ligand_tf_matrix) = colnames(ligand_tf_matrix) %>% make.names()
+  rownames(ligand_tf_matrix) = rownames(ligand_tf_matrix) %>% make.names()
+  weighted_networks = readRDS(url("https://zenodo.org/record/5884439/files/weighted_networks_nsga2r_final_mouse.rds"))
+  weighted_networks$lr_sig = weighted_networks$lr_sig %>% mutate(from = make.names(from), to = make.names(to))
+  weighted_networks$gr = weighted_networks$gr %>% mutate(from = make.names(from), to = make.names(to))
+}
 ```
 
 # Step 1: Prepare SingleCellExperiment objects for Sender and Receiver cells
@@ -74,6 +96,7 @@ If you start from a Seurat object, you can convert it easily to a SingleCellExpe
 __User adaptation required__
 ```{r}
 sce = readRDS(url("https://zenodo.org/record/5196144/files/sce_hnscc.rds"))
+sce = alias_to_symbol_SCE(sce, "human") %>% makenames_SCE()
 scater::plotReducedDim(sce, dimred = "UMAP", colour_by = "celltype")
 scater::plotReducedDim(sce, dimred = "UMAP", colour_by = "tumor")
 scater::plotReducedDim(sce, dimred = "UMAP", colour_by = "pEMT")
@@ -184,7 +207,7 @@ To keep track of the different steps, we will here set `verbose = TRUE`
 
 ```{r}
 multinichenet_output = multi_nichenet_analysis(sce = sce, celltype_id = celltype_id, sample_id = sample_id, group_id = group_id, 
-                                lr_network = lr_network, ligand_target_matrix = ligand_target_matrix, contrasts_oi = contrasts_oi, contrast_tbl = contrast_tbl, covariates = covariates,
+                                lr_network = lr_network, ligand_target_matrix = ligand_target_matrix, contrasts_oi = contrasts_oi, contrast_tbl = contrast_tbl, batches = batches, covariates = covariates,
                                 prioritizing_weights = prioritizing_weights, min_cells = min_cells, logFC_threshold = logFC_threshold, p_val_threshold = p_val_threshold,  
                                 fraction_cutoff = fraction_cutoff, p_val_adj = p_val_adj, empirical_pval = empirical_pval, top_n_target = top_n_target, sender_receiver_separate = FALSE, verbose = TRUE)
 ```
@@ -495,7 +518,7 @@ targets_oi = multinichenet_output$ligand_activities_targets_DEgenes$de_genes_df 
 ```
 
 ```{r, fig.width=8, fig.height=30}
-p_target = make_sample_target_plots(receiver_info = multinichenet_output$celltype_info, targets_oi, receiver_oi, multinichenet_output$grouping_tbl)
+p_target = make_DEgene_dotplot_pseudobulk(receiver_info = multinichenet_output$celltype_info, targets_oi, receiver_oi, multinichenet_output$grouping_tbl)
 p_target + ggtitle(paste0("DE genes in ",group_oi, " in celltype ",receiver_oi))
 ```
 

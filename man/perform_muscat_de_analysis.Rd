@@ -4,7 +4,7 @@
 \alias{perform_muscat_de_analysis}
 \title{perform_muscat_de_analysis}
 \usage{
-perform_muscat_de_analysis(sce, sample_id, celltype_id, group_id, covariates, contrasts, assay_oi_pb = "counts", fun_oi_pb = "sum", de_method_oi = "edgeR", min_cells = 10)
+perform_muscat_de_analysis(sce, sample_id, celltype_id, group_id, batches, covariates, contrasts, assay_oi_pb = "counts", fun_oi_pb = "sum", de_method_oi = "edgeR", min_cells = 10)
 }
 \arguments{
 \item{sce}{SingleCellExperiment object of the scRNAseq data of interest. Contains both sender and receiver cell types.}
@@ -15,7 +15,9 @@ perform_muscat_de_analysis(sce, sample_id, celltype_id, group_id, covariates, co
 
 \item{group_id}{Name of the meta data column that indicates from which group/condition a cell comes from (in both sce_receiver and sce_sender)}
 
-\item{covariates}{NA if no covariates should be corrected for. If there should be corrected for covariates, this argument should be the name(s) of the columns in the meta data that indicate the covariate(s).}
+\item{batches}{NA if no batches should be corrected for. If there should be corrected for batches during DE analysis and pseudobulk expression calculation, this argument should be the name(s) of the columns in the meta data that indicate the batch(s). Should be categorical. Pseudobulk expression values will be corrected for the first element of this vector.}
+
+\item{covariates}{NA if no covariates should be corrected for. If there should be corrected for covariates uring DE analysis, this argument should be the name(s) of the columns in the meta data that indicate the covariate(s). Can both be categorical and continuous. Pseudobulk expression values will not be corrected for the first element of this vector.}
 
 \item{contrasts}{String indicating the contrasts of interest (= which groups/conditions will be compared) for the differential expression and MultiNicheNet analysis. 
 We will demonstrate here a few examples to indicate how to write this. Check the limma package manuals for more information about defining design matrices and contrasts for differential expression analysis.
@@ -49,6 +51,7 @@ lr_network = lr_network \%>\% dplyr::rename(ligand = from, receptor = to) \%>\% 
 sample_id = "tumor"
 group_id = "pEMT"
 celltype_id = "celltype"
+batches = NA
 covariates = NA
 contrasts_oi = c("'High-Low','Low-High'")
 celltype_de = perform_muscat_de_analysis(
@@ -56,6 +59,7 @@ celltype_de = perform_muscat_de_analysis(
    sample_id = sample_id,
    celltype_id = celltype_id,
    group_id = group_id,
+   batches = batches,
    covariates = covariates,
    contrasts = contrasts_oi)
 }

@@ -1,7 +1,7 @@
 #' @title perform_muscat_de_analysis
 #'
 #' @description \code{perform_muscat_de_analysis} Perform differential expression analysis via Muscat - Pseudobulking approach.
-#' @usage perform_muscat_de_analysis(sce, sample_id, celltype_id, group_id, covariates, contrasts, assay_oi_pb = "counts", fun_oi_pb = "sum", de_method_oi = "edgeR", min_cells = 10)
+#' @usage perform_muscat_de_analysis(sce, sample_id, celltype_id, group_id, batches, covariates, contrasts, assay_oi_pb = "counts", fun_oi_pb = "sum", de_method_oi = "edgeR", min_cells = 10)
 #'
 #' @inheritParams multi_nichenet_analysis_combined
 #' @param contrasts String indicating the contrasts of interest (= which groups/conditions will be compared) for the differential expression and MultiNicheNet analysis. 
@@ -29,6 +29,7 @@
 #' sample_id = "tumor"
 #' group_id = "pEMT"
 #' celltype_id = "celltype"
+#' batches = NA
 #' covariates = NA
 #' contrasts_oi = c("'High-Low','Low-High'")
 #' celltype_de = perform_muscat_de_analysis(
@@ -36,6 +37,7 @@
 #'    sample_id = sample_id,
 #'    celltype_id = celltype_id,
 #'    group_id = group_id,
+#'    batches = batches,
 #'    covariates = covariates,
 #'    contrasts = contrasts_oi)
 #'}
@@ -43,7 +45,7 @@
 #' @export
 #'
 #'
-perform_muscat_de_analysis = function(sce, sample_id, celltype_id, group_id, covariates, contrasts, assay_oi_pb = "counts", fun_oi_pb = "sum", de_method_oi = "edgeR", min_cells = 10){
+perform_muscat_de_analysis = function(sce, sample_id, celltype_id, group_id, batches, covariates, contrasts, assay_oi_pb = "counts", fun_oi_pb = "sum", de_method_oi = "edgeR", min_cells = 10){
   requireNamespace("dplyr")
   
 
@@ -127,9 +129,15 @@ perform_muscat_de_analysis = function(sce, sample_id, celltype_id, group_id, cov
     stop("conditions written in contrasts should be in the condition-indicating column! This is not the case, which can lead to errors downstream.")
   }
 
+  if(!is.na(batches)){
+    if (sum(batches %in% colnames(SummarizedExperiment::colData(sce))) != length(batches) ) {
+      stop("batches should be NA or all present as column name(s) in the metadata dataframe of sce")
+    }
+  }
+  
   if(!is.na(covariates)){
     if (sum(covariates %in% colnames(SummarizedExperiment::colData(sce))) != length(covariates) ) {
-      stop("covariates should be NA or all present as column name(s) in the metadata dataframe of sce_receiver")
+      stop("covariates should be NA or all present as column name(s) in the metadata dataframe of sce")
     }
   }
   
@@ -170,20 +178,20 @@ perform_muscat_de_analysis = function(sce, sample_id, celltype_id, group_id, cov
                              assay = assay_oi_pb, fun = fun_oi_pb,
                              by = c("cluster_id", "sample_id"))
 
-  # prepare the design and contrast matrix for the muscat DE analysis
-  if(length(covariates) > 1){
-    covariates_present = TRUE
+  # prepare the experiment info (ei) table if batches present
+  if(length(batches) > 1){
+    batches_present = TRUE
   } else {
-    if(!is.na(covariates)){
-      covariates_present = TRUE
+    if(!is.na(batches)){
+      batches_present = TRUE
     } else {
-      covariates_present = FALSE
+      batches_present = FALSE
 
     }
   }
 
-  if(covariates_present){
-    extra_metadata = SummarizedExperiment::colData(sce)  %>% tibble::as_tibble() %>% dplyr::select(all_of(sample_id), all_of(covariates)) %>% dplyr::distinct() %>% dplyr::mutate_all(factor)
+  if(batches_present){
+    extra_metadata = SummarizedExperiment::colData(sce)  %>% tibble::as_tibble() %>% dplyr::select(all_of(sample_id), all_of(batches)) %>% dplyr::distinct() %>% dplyr::mutate_all(factor)
   } else {
     extra_metadata = SummarizedExperiment::colData(sce) %>% tibble::as_tibble() %>% dplyr::select(all_of(sample_id)) %>% dplyr::distinct() %>% dplyr::mutate_all(factor) 
   } 
@@ -194,12 +202,57 @@ perform_muscat_de_analysis = function(sce, sample_id, celltype_id, group_id, cov
 
   ei = ei %>%  dplyr::inner_join(extra_metadata, by = "sample_id")
 
+  
+  # prepare the experiment info (ei) table if covariates present
+  if(length(covariates) > 1){
+    covariates_present = TRUE
+  } else {
+    if(!is.na(covariates)){
+      covariates_present = TRUE
+    } else {
+      covariates_present = FALSE
+      
+    }
+  }
+  
   if(covariates_present){
+    extra_metadata = SummarizedExperiment::colData(sce)  %>% tibble::as_tibble() %>% dplyr::select(all_of(sample_id), all_of(covariates)) %>% dplyr::distinct() ## no factorization of the continuous covariates!
+  } else {
+    extra_metadata = SummarizedExperiment::colData(sce) %>% tibble::as_tibble() %>% dplyr::select(all_of(sample_id)) %>% dplyr::distinct() %>% dplyr::mutate_all(factor) 
+  } 
+  if('sample_id' != sample_id){
+    extra_metadata$sample_id = extra_metadata[[sample_id]]
+  }
+  if(is.null(ei)){
+    ei = S4Vectors::metadata(sce)$experiment_info
+  }
+  
+  ei = ei %>%  dplyr::inner_join(extra_metadata, by = "sample_id")
+  
+  # prepare the design and contrast matrix for the muscat DE analysis
+  
+  if(batches_present == TRUE & covariates_present == FALSE){
+    
+    batches_string = paste0("ei$",batches) %>% paste(collapse = " + ")
+    design = eval(parse(text=paste("model.matrix(~ 0 + ei$group_id + ", batches_string, " ) ",sep="")))
+    dimnames(design) = list(ei$sample_id, c(levels(ei$group_id), make.names(colnames(design)[(length(levels(ei$group_id))+1):length(colnames(design))])) )
+
+  } else if (batches_present == FALSE & covariates_present == TRUE) {
+    
     covariates_string = paste0("ei$",covariates) %>% paste(collapse = " + ")
     design = eval(parse(text=paste("model.matrix(~ 0 + ei$group_id + ", covariates_string, " ) ",sep="")))
     dimnames(design) = list(ei$sample_id, c(levels(ei$group_id), make.names(colnames(design)[(length(levels(ei$group_id))+1):length(colnames(design))])) )
 
-  } else {
+  } else if (batches_present == TRUE & covariates_present == TRUE) {
+    
+    batches_string = paste0("ei$",batches) %>% paste(collapse = " + ")
+    covariates_string = paste0("ei$",covariates) %>% paste(collapse = " + ")
+    
+    design = eval(parse(text=paste("model.matrix(~ 0 + ei$group_id + ", batches_string, " + ", covariates_string, " ) ",sep="")))
+    dimnames(design) = list(ei$sample_id, c(levels(ei$group_id), make.names(colnames(design)[(length(levels(ei$group_id))+1):length(colnames(design))])) )
+
+  } else if (batches_present == FALSE & covariates_present == FALSE) {
+    
     design = eval(parse(text=paste("model.matrix(~ 0 + ei$group_id) ",sep="")))
     dimnames(design) = list(ei$sample_id, c(levels(ei$group_id)))
 
@@ -224,7 +277,7 @@ perform_muscat_de_analysis = function(sce, sample_id, celltype_id, group_id, cov
     print("These celltypes are not considered in the analysis. After removing samples that contain less cells than the required minimal, some groups don't have 2 or more samples anymore. As a result the analysis cannot be run. To solve this: decrease the number of min_cells or change your group_id and pool all samples that belong to groups that are not of interest! ")
   }
   if(length(excluded_celltypes) == length(celltypes)){
-    print("None of the cell types passed the check. This might be due to 2 reasons. 1) no cell type has enough cells in >=2 samples per group. 2) problem in covariate definition: not all levels of your covariate are in each group - Also for groups not included in your contrasts!")
+    print("None of the cell types passed the check. This might be due to 2 reasons. 1) no cell type has enough cells in >=2 samples per group. 2) problem in batch definition: not all levels of your batch are in each group - Also for groups not included in your contrasts!")
   }
   
   
@@ -255,7 +308,7 @@ perform_muscat_de_analysis = function(sce, sample_id, celltype_id, group_id, cov
 #' sample_id = "tumor"
 #' group_id = "pEMT"
 #' celltype_id = "celltype"
-#' covariates = NA
+#' batches = NA
 #' contrasts_oi = c("'High-Low','Low-High'")
 #' senders_oi = SummarizedExperiment::colData(sce)[,celltype_id] %>% unique()
 #' receivers_oi = SummarizedExperiment::colData(sce)[,celltype_id] %>% unique()
@@ -264,7 +317,7 @@ perform_muscat_de_analysis = function(sce, sample_id, celltype_id, group_id, cov
 #'    sample_id = sample_id,
 #'    celltype_id = celltype_id,
 #'    group_id = group_id,
-#'    covariates = covariates,
+#'    batches = batches,
 #'    contrasts = contrasts_oi)
 #' de_output_tidy = muscat::resDS(celltype_de$sce, celltype_de$de_output, bind = "row", cpm = FALSE, frq = FALSE) %>% tibble::as_tibble()
 #' emp_res = p.adjust_empirical(de_output_tidy %>% pull(p_val), de_output_tidy  %>% pull(p_val), plot = T)
@@ -405,7 +458,7 @@ get_FDR_empirical = function(de_output_tidy, cluster_id_oi, contrast_oi, plot = 
 #' sample_id = "tumor"
 #' group_id = "pEMT"
 #' celltype_id = "celltype"
-#' covariates = NA
+#' batches = NA
 #' contrasts_oi = c("'High-Low','Low-High'")
 #' senders_oi = SummarizedExperiment::colData(sce)[,celltype_id] %>% unique()
 #' receivers_oi = SummarizedExperiment::colData(sce)[,celltype_id] %>% unique()
@@ -414,7 +467,7 @@ get_FDR_empirical = function(de_output_tidy, cluster_id_oi, contrast_oi, plot = 
 #'    sample_id = sample_id,
 #'    celltype_id = celltype_id,
 #'    group_id = group_id,
-#'    covariates = covariates,
+#'    batches = batches,
 #'    contrasts = contrasts_oi)
 #' de_output_tidy = muscat::resDS(celltype_de$sce, celltype_de$de_output, bind = "row", cpm = FALSE, frq = FALSE) %>% tibble::as_tibble()
 #' de_output_tidy = add_empirical_pval_fdr(de_output_tidy)

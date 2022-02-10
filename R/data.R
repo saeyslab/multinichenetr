@@ -7,3 +7,27 @@
 #' @format An object of class SingleCellExperiment
 #'
 "sce"
+#' Gene annotation information: version 2 - january 2022 - suited for alias conversion
+#'
+#' A data.frame/tibble describing HGNC human gene symbols, their entrez ids and potential aliases.
+#'
+#' @format A data frame/tibble
+#' \describe{
+#'   \item{symbol}{human gene symbol}
+#'   \item{entrez}{human gene entrez}
+#'   \item{alias}{human gene alias}
+#'   }
+#'
+"geneinfo_alias_human"
+#' Gene annotation information: version 2 - january 2022 - suited for alias conversion
+#'
+#' A data.frame/tibble describing MGI mouse gene symbols, their entrez ids and potential aliases.
+#'
+#' @format A data frame/tibble
+#' \describe{
+#'   \item{symbol}{mouse gene symbol}
+#'   \item{entrez}{mouse gene entrez}
+#'   \item{alias}{mouse gene alias}
+#'   }
+#'
+"geneinfo_alias_mouse"

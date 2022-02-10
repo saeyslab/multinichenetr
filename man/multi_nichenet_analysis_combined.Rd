@@ -5,7 +5,7 @@
 \title{multi_nichenet_analysis_combined}
 \usage{
 multi_nichenet_analysis_combined(
-sce, celltype_id, sample_id,group_id, covariates, lr_network,ligand_target_matrix,contrasts_oi,contrast_tbl,  fraction_cutoff = 0.05,
+sce, celltype_id, sample_id,group_id, batches, covariates, lr_network,ligand_target_matrix,contrasts_oi,contrast_tbl,  fraction_cutoff = 0.05,
 prioritizing_weights = c("de_ligand" = 1,"de_receptor" = 1,"activity_scaled" = 1,"exprs_ligand" = 1,"exprs_receptor" = 1, "frac_exprs_ligand_receptor" = 1,"abund_sender" = 0,"abund_receiver" = 0),
 assay_oi_pb ="counts",fun_oi_pb = "sum",de_method_oi = "edgeR",min_cells = 10,logFC_threshold = 0.25,p_val_threshold = 0.05,p_val_adj = FALSE, empirical_pval = TRUE, top_n_target = 250, verbose = FALSE, n.cores = 1, return_lr_prod_matrix = FALSE, findMarkers = FALSE)
 }
@@ -18,20 +18,22 @@ assay_oi_pb ="counts",fun_oi_pb = "sum",de_method_oi = "edgeR",min_cells = 10,lo
 
 \item{group_id}{Name of the meta data column that indicates from which group/condition a cell comes from (in both sce_receiver and sce_sender)}
 
-\item{covariates}{NA if no covariates should be corrected for. If there should be corrected for covariates, this argument should be the name(s) of the columns in the meta data that indicate the covariate(s).}
+\item{batches}{NA if no batches should be corrected for. If there should be corrected for batches during DE analysis and pseudobulk expression calculation, this argument should be the name(s) of the columns in the meta data that indicate the batch(s). Should be categorical. Pseudobulk expression values will be corrected for the first element of this vector.}
+
+\item{covariates}{NA if no covariates should be corrected for. If there should be corrected for covariates uring DE analysis, this argument should be the name(s) of the columns in the meta data that indicate the covariate(s). Can both be categorical and continuous. Pseudobulk expression values will not be corrected for the first element of this vector.}
 
 \item{lr_network}{Prior knowledge Ligand-Receptor network (columns: ligand, receptor)}
 
 \item{ligand_target_matrix}{Prior knowledge model of ligand-target regulatory potential (matrix with ligands in columns and targets in rows). See https://github.com/saeyslab/nichenetr.}
 
 \item{contrasts_oi}{String indicating the contrasts of interest (= which groups/conditions will be compared) for the differential expression and MultiNicheNet analysis. 
-We will demonstrate here a few examples to indicate how to write this. Check the limma package manuals for more information about defining design matrices and contrasts for differential expression analysis.
-If wanting to compare group A vs B: `contrasts_oi = c("'A-B'")`
-If wanting to compare group A vs B & B vs A: `contrasts_oi = c("'A-B','B-A'")`
-If wanting to compare group A vs B & A vs C & A vs D: `contrasts_oi = c("'A-B','A-C', 'A-D'")`
-If wanting to compare group A vs B and C: `contrasts_oi = c("'A-(B+C)/2'")`
-If wanting to compare group A vs B, C and D: `contrasts_oi = c("'A-(B+C+D)/3'")`
-If wanting to compare group A vs B, C and D & B vs A,C,D: `contrasts_oi = c("'A-(B+C+D)/3', 'B-(A+C+D)/3'")`
+We will demonstrate here a few examples to indicate how to write this. Check the limma package manuals for more information about defining design matrices and contrasts for differential expression analysis. \cr
+If wanting to compare group A vs B: `contrasts_oi = c("'A-B'")` \cr
+If wanting to compare group A vs B & B vs A: `contrasts_oi = c("'A-B','B-A'")` \cr
+If wanting to compare group A vs B & A vs C & A vs D: `contrasts_oi = c("'A-B','A-C', 'A-D'")` \cr
+If wanting to compare group A vs B and C: `contrasts_oi = c("'A-(B+C)/2'")` \cr
+If wanting to compare group A vs B, C and D: `contrasts_oi = c("'A-(B+C+D)/3'")` \cr
+If wanting to compare group A vs B, C and D & B vs A,C,D: `contrasts_oi = c("'A-(B+C+D)/3', 'B-(A+C+D)/3'")` \cr
 Note that the groups A, B, ... should be present in the meta data column 'group_id'.}
 
 \item{contrast_tbl}{Data frame providing names for each of the contrasts in contrasts_oi in the 'contrast' column, and the corresponding group of interest in the 'group' column. Entries in the 'group' column should thus be present in the group_id column in the metadata. 
@@ -42,15 +44,15 @@ Example for `contrasts_oi = c("'A-(B+C+D)/3', 'B-(A+C+D)/3'")`:
 
 \item{prioritizing_weights}{Named vector indicating the relative weights of each prioritization criterion included in MultiNicheNet.
 Default: prioritizing_weights = c("de_ligand" = 1,"de_receptor" = 1,"activity_scaled" = 1,"exprs_ligand" = 1,"exprs_receptor" = 1, "frac_exprs_ligand_receptor" = 1,"abund_sender" = 0,"abund_receiver" = 0)
-Details about the meaning of this naming:
-de_ligand: importance of DE of the ligand in a certain sender (indicates upregulation of the ligand in condition of interest compared to other conditions): based on a scaling of the following calculation: -log10(p-value)*logFC.
-de_receptor: importance of DE of the receptor in a certain receiver (indicates upregulation of the receptor in condition of interest compared to other conditions): : based on a scaling of the following calculation: -log10(p-value)*logFC.
-activity_scaled: importance of the scaled ligand activity of the ligand in a certain receiver-condition combination (indicates active signaling of a ligand in a receiver cell type in a certain condition compared to other conditions). Scaled activity: indicates the ranking of ligands in a certain receiver-condition combination.
-exprs_ligand: importance of the condition-and-sender specific expression of a ligand (taking into account average expression value and fraction of cells expressing a ligand). 
-exprs_receptor: importance of the condition-and-receiver specific expression of a receptor (taking into account average expression value and fraction of cells expressing a receptor).
-frac_exprs_ligand_receptor: importance of the fraction of samples in a group that show high enough expression of the specific ligand-receptor pair.
-abund_sender: importance of relative cell type abundance of the sender cell type.
-abund_receiver: importance of relative cell type abundance of the receiver cell type.}
+Details about the meaning of this naming: \cr
+de_ligand: importance of DE of the ligand in a certain sender (indicates upregulation of the ligand in condition of interest compared to other conditions): based on a scaling of the following calculation: -log10(p-value)*logFC. \cr
+de_receptor: importance of DE of the receptor in a certain receiver (indicates upregulation of the receptor in condition of interest compared to other conditions): : based on a scaling of the following calculation: -log10(p-value)*logFC.\cr
+activity_scaled: importance of the scaled ligand activity of the ligand in a certain receiver-condition combination (indicates active signaling of a ligand in a receiver cell type in a certain condition compared to other conditions). Scaled activity: indicates the ranking of ligands in a certain receiver-condition combination. \cr
+exprs_ligand: importance of the condition-and-sender specific expression of a ligand (taking into account average expression value and fraction of cells expressing a ligand).  \cr
+exprs_receptor: importance of the condition-and-receiver specific expression of a receptor (taking into account average expression value and fraction of cells expressing a receptor). \cr
+frac_exprs_ligand_receptor: importance of the fraction of samples in a group that show high enough expression of the specific ligand-receptor pair. \cr
+abund_sender: importance of relative cell type abundance of the sender cell type. \cr
+abund_receiver: importance of relative cell type abundance of the receiver cell type. \cr}
 
 \item{assay_oi_pb}{Indicates which information of the assay of interest should be used (counts, scaled data,...). Default: "counts". See `muscat::aggregateData`.}
 
@@ -66,7 +68,7 @@ abund_receiver: importance of relative cell type abundance of the receiver cell 
 
 \item{p_val_adj}{For defining the gene set of interest for NicheNet ligand activity: should we look at the p-value corrected for multiple testing? Default: FALSE.}
 
-\item{empirical_pval}{For defining the gene set of interest for NicheNet ligand activity - and for ranking DE ligands and receptors: should we use the normal p-values, or the p-values that are corrected by the empirical null procedure. The latter could be beneficial if p-value distribution histograms indicate potential problems in the model definition (eg not all relevant covariates are selected, etc). Default: TRUE.}
+\item{empirical_pval}{For defining the gene set of interest for NicheNet ligand activity - and for ranking DE ligands and receptors: should we use the normal p-values, or the p-values that are corrected by the empirical null procedure. The latter could be beneficial if p-value distribution histograms indicate potential problems in the model definition (eg not all relevant batches are selected, etc). Default: TRUE.}
 
 \item{top_n_target}{For defining NicheNet ligand-target links: which top N predicted target genes. See `nichenetr::get_weighted_ligand_target_links()`.}
 
@@ -102,6 +104,7 @@ ligand_target_matrix = readRDS(url("https://zenodo.org/record/3260758/files/liga
 sample_id = "tumor"
 group_id = "pEMT"
 celltype_id = "celltype"
+batches = NA
 covariates = NA
 contrasts_oi = c("'High-Low','Low-High'")
 contrast_tbl = tibble(contrast = c("High-Low","Low-High"), group = c("High","Low"))
@@ -110,6 +113,7 @@ output = multi_nichenet_analysis_combined(
      celltype_id = celltype_id, 
      sample_id = sample_id, 
      group_id = group_id, 
+     batches = batches,
      covariates = covariates,
      lr_network = lr_network, 
      ligand_target_matrix = ligand_target_matrix, 

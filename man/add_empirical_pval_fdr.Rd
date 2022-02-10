@@ -25,7 +25,7 @@ lr_network = lr_network \%>\% dplyr::rename(ligand = from, receptor = to) \%>\% 
 sample_id = "tumor"
 group_id = "pEMT"
 celltype_id = "celltype"
-covariates = NA
+batches = NA
 contrasts_oi = c("'High-Low','Low-High'")
 senders_oi = SummarizedExperiment::colData(sce)[,celltype_id] \%>\% unique()
 receivers_oi = SummarizedExperiment::colData(sce)[,celltype_id] \%>\% unique()
@@ -34,7 +34,7 @@ celltype_de = perform_muscat_de_analysis(
    sample_id = sample_id,
    celltype_id = celltype_id,
    group_id = group_id,
-   covariates = covariates,
+   batches = batches,
    contrasts = contrasts_oi)
 de_output_tidy = muscat::resDS(celltype_de$sce, celltype_de$de_output, bind = "row", cpm = FALSE, frq = FALSE) \%>\% tibble::as_tibble()
 de_output_tidy = add_empirical_pval_fdr(de_output_tidy)

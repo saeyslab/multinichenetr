@@ -26,7 +26,7 @@ ligand_target_matrix = readRDS(url("https://zenodo.org/record/3260758/files/liga
 sample_id = "tumor"
 group_id = "pEMT"
 celltype_id = "celltype"
-covariates = NA
+batches = NA
 contrasts_oi = c("'High-Low','Low-High'")
 contrast_tbl = tibble(contrast = c("High-Low","Low-High"), group = c("High","Low"))
 output = multi_nichenet_analysis(
@@ -34,7 +34,7 @@ output = multi_nichenet_analysis(
      celltype_id = celltype_id, 
      sample_id = sample_id, 
      group_id = group_id,
-     covariates = covariates,
+     batches = batches,
      lr_network = lr_network, 
      ligand_target_matrix = ligand_target_matrix, 
      contrasts_oi = contrasts_oi, 

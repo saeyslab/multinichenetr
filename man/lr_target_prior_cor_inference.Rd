@@ -13,7 +13,7 @@ lr_target_prior_cor_inference(receivers_oi, abundance_expression_info, celltype_
 
 \item{celltype_de}{Output of `perform_muscat_de_analysis`}
 
-\item{grouping_tbl}{Data frame showing the groups of each sample (and covariates per sample if applicable) (columns: sample and group; and if applicable all covariates of interest)}
+\item{grouping_tbl}{Data frame showing the groups of each sample (and batches per sample if applicable) (columns: sample and group; and if applicable all batches of interest)}
 
 \item{prioritization_tables}{Output of `generate_prioritization_tables` or sublist in the output of `multi_nichenet_analysis`}
 
@@ -40,7 +40,7 @@ ligand_target_matrix = readRDS(url("https://zenodo.org/record/3260758/files/liga
 sample_id = "tumor"
 group_id = "pEMT"
 celltype_id = "celltype"
-covariates = NA
+batches = NA
 contrasts_oi = c("'High-Low','Low-High'")
 contrast_tbl = tibble(contrast = c("High-Low","Low-High"), group = c("High","Low"))
 
@@ -66,7 +66,7 @@ celltype_de = perform_muscat_de_analysis(
    sample_id = sample_id,
    celltype_id = celltype_id,
    group_id = group_id,
-   covariates = covariates,
+   batches = batches,
    contrasts = contrasts_oi)
    
 sender_receiver_de = combine_sender_receiver_de(

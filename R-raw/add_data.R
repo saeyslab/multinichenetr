@@ -22,6 +22,12 @@ sce = SingleCellExperiment::SingleCellExperiment(list(counts=SingleCellExperimen
 )
 usethis::use_data(sce,overwrite = T, compress = "bzip2")
 
+geneinfo_alias_human = readr::read_tsv("C:/Users/rbrowaey/work/Research/NicheNet/StaticNicheNet/NicheNet_V2/networks/human_alias2symbol.tsv")
+geneinfo_alias_mouse = readr::read_tsv("C:/Users/rbrowaey/work/Research/NicheNet/StaticNicheNet/NicheNet_V2/networks/mouse_alias2symbol.tsv")
+usethis::use_data(geneinfo_alias_human, overwrite = T, compress = "bzip2")
+usethis::use_data(geneinfo_alias_mouse, overwrite = T, compress = "bzip2")
+
+
 # usethis::use_package("Seurat") # not used anymore
 usethis::use_package("dplyr")
 usethis::use_package("ggplot2")

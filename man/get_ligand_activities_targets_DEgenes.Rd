@@ -40,7 +40,7 @@ ligand_target_matrix = readRDS(url("https://zenodo.org/record/3260758/files/liga
 sample_id = "tumor"
 group_id = "pEMT"
 celltype_id = "celltype"
-covariates = NA
+batches = NA
 contrasts_oi = c("'High-Low','Low-High'")
 receivers_oi = SummarizedExperiment::colData(sce)[,celltype_id] \%>\% unique() 
 celltype_info = get_avg_frac_exprs_abund(sce = sce, sample_id = sample_id, celltype_id =  celltype_id, group_id = group_id)
@@ -49,7 +49,7 @@ celltype_de = perform_muscat_de_analysis(
    sample_id = sample_id,
    celltype_id = celltype_id,
    group_id = group_id,
-   covariates = covariates,
+   batches = batches,
    contrasts = contrasts_oi)
 receiver_de = celltype_de$de_output_tidy
 ligand_activities_targets_DEgenes = get_ligand_activities_targets_DEgenes(

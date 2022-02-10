@@ -4,7 +4,7 @@
 \alias{get_DE_info}
 \title{get_DE_info}
 \usage{
-get_DE_info(sce, sample_id, group_id, celltype_id, covariates, contrasts_oi, min_cells = 10, assay_oi_pb = "counts", fun_oi_pb = "sum", de_method_oi = "edgeR", findMarkers = FALSE, contrast_tbl = NULL)
+get_DE_info(sce, sample_id, group_id, celltype_id, batches, covariates, contrasts_oi, min_cells = 10, assay_oi_pb = "counts", fun_oi_pb = "sum", de_method_oi = "edgeR", findMarkers = FALSE, contrast_tbl = NULL)
 }
 \arguments{
 \item{sce}{SingleCellExperiment object of the scRNAseq data of interest. Contains both sender and receiver cell types.}
@@ -15,16 +15,18 @@ get_DE_info(sce, sample_id, group_id, celltype_id, covariates, contrasts_oi, min
 
 \item{celltype_id}{Name of the column in the meta data of sce that indicates the cell type of a cell.}
 
-\item{covariates}{NA if no covariates should be corrected for. If there should be corrected for covariates, this argument should be the name(s) of the columns in the meta data that indicate the covariate(s).}
+\item{batches}{NA if no batches should be corrected for. If there should be corrected for batches during DE analysis and pseudobulk expression calculation, this argument should be the name(s) of the columns in the meta data that indicate the batch(s). Should be categorical. Pseudobulk expression values will be corrected for the first element of this vector.}
+
+\item{covariates}{NA if no covariates should be corrected for. If there should be corrected for covariates uring DE analysis, this argument should be the name(s) of the columns in the meta data that indicate the covariate(s). Can both be categorical and continuous. Pseudobulk expression values will not be corrected for the first element of this vector.}
 
 \item{contrasts_oi}{String indicating the contrasts of interest (= which groups/conditions will be compared) for the differential expression and MultiNicheNet analysis. 
-We will demonstrate here a few examples to indicate how to write this. Check the limma package manuals for more information about defining design matrices and contrasts for differential expression analysis.
-If wanting to compare group A vs B: `contrasts_oi = c("'A-B'")`
-If wanting to compare group A vs B & B vs A: `contrasts_oi = c("'A-B','B-A'")`
-If wanting to compare group A vs B & A vs C & A vs D: `contrasts_oi = c("'A-B','A-C', 'A-D'")`
-If wanting to compare group A vs B and C: `contrasts_oi = c("'A-(B+C)/2'")`
-If wanting to compare group A vs B, C and D: `contrasts_oi = c("'A-(B+C+D)/3'")`
-If wanting to compare group A vs B, C and D & B vs A,C,D: `contrasts_oi = c("'A-(B+C+D)/3', 'B-(A+C+D)/3'")`
+We will demonstrate here a few examples to indicate how to write this. Check the limma package manuals for more information about defining design matrices and contrasts for differential expression analysis. \cr
+If wanting to compare group A vs B: `contrasts_oi = c("'A-B'")` \cr
+If wanting to compare group A vs B & B vs A: `contrasts_oi = c("'A-B','B-A'")` \cr
+If wanting to compare group A vs B & A vs C & A vs D: `contrasts_oi = c("'A-B','A-C', 'A-D'")` \cr
+If wanting to compare group A vs B and C: `contrasts_oi = c("'A-(B+C)/2'")` \cr
+If wanting to compare group A vs B, C and D: `contrasts_oi = c("'A-(B+C+D)/3'")` \cr
+If wanting to compare group A vs B, C and D & B vs A,C,D: `contrasts_oi = c("'A-(B+C+D)/3', 'B-(A+C+D)/3'")` \cr
 Note that the groups A, B, ... should be present in the meta data column 'group_id'.}
 
 \item{min_cells}{Indicates the minimal number of cells that a sample should have to be considered in the DE analysis. Default: 10. See `muscat::pbDS`.}
@@ -51,6 +53,7 @@ library(dplyr)
 sample_id = "tumor"
 group_id = "pEMT"
 celltype_id = "celltype"
+batches = NA
 covariates = NA
 contrasts_oi = c("'High-Low','Low-High'")
 DE_info = get_DE_info(
@@ -58,6 +61,7 @@ DE_info = get_DE_info(
    sample_id = sample_id,
    celltype_id = celltype_id,
    group_id = group_id,
+   batches = batches,
    covariates = covariates,
    contrasts = contrasts_oi)
 }

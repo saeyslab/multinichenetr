@@ -4,7 +4,7 @@
 \alias{get_abundance_expression_info}
 \title{get_abundance_expression_info}
 \usage{
-get_abundance_expression_info(sce, sample_id, group_id, celltype_id, min_cells, senders_oi, receivers_oi, lr_network, covariates = NA)
+get_abundance_expression_info(sce, sample_id, group_id, celltype_id, min_cells, senders_oi, receivers_oi, lr_network, batches = NA)
 }
 \arguments{
 \item{sce}{SingleCellExperiment object of the scRNAseq data of interest. Contains both sender and receiver cell types.}
@@ -23,7 +23,7 @@ get_abundance_expression_info(sce, sample_id, group_id, celltype_id, min_cells, 
 
 \item{lr_network}{Prior knowledge Ligand-Receptor network (columns: ligand, receptor)}
 
-\item{covariates}{NA if no covariates should be corrected for. If there should be corrected for covariates, this argument should be the name(s) of the columns in the meta data that indicate the covariate(s).}
+\item{batches}{NA if no batches should be corrected for. If there should be corrected for batches during DE analysis and pseudobulk expression calculation, this argument should be the name(s) of the columns in the meta data that indicate the batch(s). Should be categorical. Pseudobulk expression values will be corrected for the first element of this vector.}
 }
 \value{
 List containing cell type abundance plots, and data frames with average and fraction of expression per sample and per group, and relative cell type abundances as well.

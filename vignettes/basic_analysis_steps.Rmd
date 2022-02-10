@@ -60,14 +60,36 @@ library(multinichenetr)
 ```
 
 ```{r}
-# LR network
-lr_network = readRDS(url("https://zenodo.org/record/3260758/files/lr_network.rds"))
-lr_network = lr_network %>% filter(! database %in% c("ppi_prediction","ppi_prediction_go")) # We filter out these interactions because they are not really bona-fide LR pairs - NicheNet v2 prior models will be released relatively soon
-lr_network = lr_network %>% dplyr::rename(ligand = from, receptor = to) %>% distinct(ligand, receptor)
-```
-
-```{r}
-ligand_target_matrix = readRDS(url("https://zenodo.org/record/3260758/files/ligand_target_matrix.rds"))
+organism = "human"
+if(organism == "human"){
+  lr_network = readRDS(url("https://zenodo.org/record/5884439/files/lr_network_human_21122021.rds"))
+  lr_network = lr_network %>% dplyr::rename(ligand = from, receptor = to) %>% distinct(ligand, receptor) %>% mutate(ligand = make.names(ligand), receptor = make.names(receptor))
+  sig_network = readRDS(url("https://zenodo.org/record/5884439/files/signaling_network_human_21122021.rds")) %>% mutate(from = make.names(from), to = make.names(to))
+  gr_network = readRDS(url("https://zenodo.org/record/5884439/files/gr_network_human_21122021.rds")) %>% mutate(from = make.names(from), to = make.names(to))
+  ligand_target_matrix = readRDS(url("https://zenodo.org/record/5884439/files/ligand_target_matrix_nsga2r_final.rds"))
+  colnames(ligand_target_matrix) = colnames(ligand_target_matrix) %>% make.names()
+  rownames(ligand_target_matrix) = rownames(ligand_target_matrix) %>% make.names()
+  ligand_tf_matrix = readRDS(url("https://zenodo.org/record/5884439/files/ligand_tf_matrix_nsga2r_final.rds"))
+  colnames(ligand_tf_matrix) = colnames(ligand_tf_matrix) %>% make.names()
+  rownames(ligand_tf_matrix) = rownames(ligand_tf_matrix) %>% make.names()
+  weighted_networks = readRDS(url("https://zenodo.org/record/5884439/files/weighted_networks_nsga2r_final.rds"))
+  weighted_networks$lr_sig = weighted_networks$lr_sig %>% mutate(from = make.names(from), to = make.names(to))
+  weighted_networks$gr = weighted_networks$gr %>% mutate(from = make.names(from), to = make.names(to))
+} else if(organism == "mouse"){
+  lr_network = readRDS(url("https://zenodo.org/record/5884439/files/lr_network_mouse_21122021.rds"))
+  lr_network = lr_network %>% dplyr::rename(ligand = from, receptor = to) %>% distinct(ligand, receptor) %>% mutate(ligand = make.names(ligand), receptor = make.names(receptor))
+  sig_network = readRDS(url("https://zenodo.org/record/5884439/files/signaling_network_mouse_21122021.rds")) %>% mutate(from = make.names(from), to = make.names(to))
+  gr_network = readRDS(url("https://zenodo.org/record/5884439/files/gr_network_mouse_21122021.rds")) %>% mutate(from = make.names(from), to = make.names(to))
+  ligand_target_matrix = readRDS(url("https://zenodo.org/record/5884439/files/ligand_target_matrix_nsga2r_final_mouse.rds"))
+  colnames(ligand_target_matrix) = colnames(ligand_target_matrix) %>% make.names()
+  rownames(ligand_target_matrix) = rownames(ligand_target_matrix) %>% make.names()
+  ligand_tf_matrix = readRDS(url("https://zenodo.org/record/5884439/files/ligand_tf_matrix_nsga2r_final_mouse.rds"))
+  colnames(ligand_tf_matrix) = colnames(ligand_tf_matrix) %>% make.names()
+  rownames(ligand_tf_matrix) = rownames(ligand_tf_matrix) %>% make.names()
+  weighted_networks = readRDS(url("https://zenodo.org/record/5884439/files/weighted_networks_nsga2r_final_mouse.rds"))
+  weighted_networks$lr_sig = weighted_networks$lr_sig %>% mutate(from = make.names(from), to = make.names(to))
+  weighted_networks$gr = weighted_networks$gr %>% mutate(from = make.names(from), to = make.names(to))
+}
 ```
 
 ## Step 0.2: Prepare SingleCellExperiment Objects for Sender and Receiver cells
@@ -81,6 +103,7 @@ If you start from a Seurat object, you can convert it easily to a SingleCellExpe
 __User adaptation required__
 ```{r}
 sce = readRDS(url("https://zenodo.org/record/5196144/files/sce_hnscc.rds"))
+sce = alias_to_symbol_SCE(sce, "human") %>% makenames_SCE()
 
 scater::plotReducedDim(sce, dimred = "UMAP", colour_by = "celltype")
 scater::plotReducedDim(sce, dimred = "UMAP", colour_by = "tumor")
@@ -112,6 +135,7 @@ sample_id = "tumor"
 group_id = "pEMT"
 celltype_id = "celltype"
 covariates = NA
+batches = NA
 ```
 
 Sender and receiver cell types also need to be defined. Both are here all cell types in the dataset because we are interested in an All-vs-All analysis.
@@ -147,7 +171,7 @@ min_cells = 5
 Now we will calculate abundance and expression information for each cell type / sample / group combination with the following functions. In the output of this function, you can also find some 'Cell type abundance diagnostic plots' that will the users which celltype-sample combinations will be left out later on for DE calculation because the nr of cells is lower than de defined minimum defined here above. If too many celltype-sample combinations don't pass this threshold, we recommend to define your cell types in a more general way (use one level higher of the cell type ontology hierarchy) (eg TH17 CD4T cells --> CD4T cells).
 
 ```{r}
-abundance_expression_info = get_abundance_expression_info(sce = sce, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id, min_cells = min_cells, senders_oi = senders_oi, receivers_oi = receivers_oi, lr_network = lr_network, covariates = covariates)
+abundance_expression_info = get_abundance_expression_info(sce = sce, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id, min_cells = min_cells, senders_oi = senders_oi, receivers_oi = receivers_oi, lr_network = lr_network, batches = batches)
 ```
 
 Warning: means that some samples have a pseudobulk library size of 0 for a cell type (because that cell type was not present in that sample)
@@ -236,7 +260,7 @@ contrast_tbl = tibble(contrast =
 ### Perform the DE analysis for each cell type.
 
 ```{r}
-DE_info = get_DE_info(sce = sce, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id, covariates = covariates, contrasts_oi = contrasts_oi, min_cells = min_cells)
+DE_info = get_DE_info(sce = sce, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id, batches = batches, covariates = covariates, contrasts_oi = contrasts_oi, min_cells = min_cells)
 ```
 
 ### Check DE results
@@ -294,27 +318,7 @@ If we compare the empirical p-values to the original ones before for the maligna
 As additional check, we will look for the concordance between p-values rankings of the original and empirical DE analysis (via ranking-line and upset plots):
 
 ```{r}
-comparison_plots = DE_info$celltype_de$de_output_tidy$cluster_id %>% unique() %>% lapply(function(celltype_oi, adjusted = FALSE){
-  if(adjusted == TRUE){
-      de_genes_normal = DE_info$celltype_de$de_output_tidy %>% filter(cluster_id == celltype_oi) %>% filter(p_adj.glb <= 0.05) %>% pull(gene) %>% unique()
-      de_genes_emp = DE_info_emp$de_output_tidy_emp %>% filter(cluster_id == celltype_oi) %>% filter(p_adj_emp <= 0.05) %>% pull(gene) %>% unique()
-
-  } else {
-      de_genes_normal = DE_info$celltype_de$de_output_tidy %>% filter(cluster_id == celltype_oi) %>% filter(p_val <= 0.05) %>% pull(gene) %>% unique()
-      de_genes_emp = DE_info_emp$de_output_tidy_emp %>% filter(cluster_id == celltype_oi) %>% filter(p_emp <= 0.05) %>% pull(gene) %>% unique()
-
-  }
-
-  upset_df = tibble(gene = union(de_genes_normal, de_genes_emp), normal = as.double(gene %in% de_genes_normal), empirical = as.double(gene %in% de_genes_emp)) %>% data.frame() %>% magrittr::set_rownames(.$gene) %>% dplyr::select(-gene)
-  colnames(upset_df) = paste(colnames(upset_df), celltype_oi, sep = "-")
-  p_upset = UpSetR::upset(upset_df, sets.bar.color = "#56B4E9", order.by = "freq", empty.intersections = "on") 
-  
-  p_ranking = DE_info_emp$de_output_tidy_emp %>% filter(gene %in% union(de_genes_normal, de_genes_emp) & cluster_id == celltype_oi) %>% group_by(cluster_id, contrast) %>% mutate(normal = rank(p_val), empirical = rank(p_emp)) %>% filter(normal != empirical) %>% mutate(empirical_lower = empirical < normal) %>% tidyr::gather(rank_type, rank, normal:empirical) %>% dplyr::select(gene, rank_type, rank, empirical_lower)  %>% 
-    ggplot(aes(rank_type, rank, group = gene, color = empirical_lower)) + geom_line(aes(group = gene)) + facet_grid(cluster_id ~ contrast) + theme_bw()
-  
-  return(list(p_upset, p_ranking))
-  
-}, adjusted = FALSE) 
+comparison_plots = compare_normal_emp_pvals(DE_info, DE_info_emp, adj_pval = FALSE)
 comparison_plots
 ```
 
@@ -392,6 +396,7 @@ n.cores = 1
 ## Run the NicheNet ligand activity analysis 
 
 ```{r}
+start_time <- Sys.time()
 ligand_activities_targets_DEgenes = suppressMessages(suppressWarnings(get_ligand_activities_targets_DEgenes(
   receiver_de = celltype_de,
   receivers_oi = receivers_oi,
@@ -403,6 +408,8 @@ ligand_activities_targets_DEgenes = suppressMessages(suppressWarnings(get_ligand
   verbose = verbose, 
   n.cores = n.cores
 )))
+end_time <- Sys.time()
+end_time - start_time
 ```
 
 Check the DE genes used for the activity analysis
@@ -435,12 +442,12 @@ We will set our preference for this dataset as follows:
 
 __User adaptation recommended__
 ```{r}
-prioritizing_weights_DE = c("de_ligand" = 3,
-                         "de_receptor" = 3)
+prioritizing_weights_DE = c("de_ligand" = 5,
+                         "de_receptor" = 6)
 prioritizing_weights_activity = c("activity_scaled" = 3)
 
-prioritizing_weights_expression_specificity = c("exprs_ligand" = 1.5,
-                         "exprs_receptor" = 1.5)
+prioritizing_weights_expression_specificity = c("exprs_ligand" = 4,
+                         "exprs_receptor" = 2)
 
 prioritizing_weights_expression_sufficiency = c("frac_exprs_ligand_receptor" = 2)
 
@@ -464,9 +471,9 @@ sender_receiver_tbl = sender_receiver_de %>% dplyr::distinct(sender, receiver)
 
 metadata_combined = SummarizedExperiment::colData(sce) %>% tibble::as_tibble()
 
-if(!is.na(covariates)){
-  grouping_tbl = metadata_combined[,c(sample_id, group_id, covariates)] %>% tibble::as_tibble() %>% dplyr::distinct()
-  colnames(grouping_tbl) = c("sample","group",covariates)
+if(!is.na(batches)){
+  grouping_tbl = metadata_combined[,c(sample_id, group_id, batches)] %>% tibble::as_tibble() %>% dplyr::distinct()
+  colnames(grouping_tbl) = c("sample","group",batches)
 } else {
   grouping_tbl = metadata_combined[,c(sample_id, group_id)] %>% tibble::as_tibble() %>% dplyr::distinct()
   colnames(grouping_tbl) = c("sample","group")
@@ -577,18 +584,26 @@ We will look here at the top100 predictions across all contrasts (high vs low; a
 
 (remark: there are still some bugs in the automatic circos plot function)
 
+```{r}
+prioritized_tbl_oi_high30 = get_top_n_lr_pairs(prioritization_tables, 30, groups_oi = "High")
+prioritized_tbl_oi_low30 = get_top_n_lr_pairs(prioritization_tables, 30, groups_oi = "Low")
+prioritized_tbl_oi_top30_all = get_top_n_lr_pairs(prioritization_tables, 30, rank_per_group = FALSE)
+```
+
 ```{r, fig.width=15, fig.height=12}
-prioritized_tbl_oi_prep = multinichenet_output$prioritization_tables$group_prioritization_tbl %>% 
-  filter(fraction_ligand_group > fraction_cutoff & fraction_receptor_group > fraction_cutoff) %>% 
-  distinct(id, sender, receiver, ligand, receptor, group, prioritization_score, ligand_receptor_lfc_avg, fraction_expressing_ligand_receptor) %>% 
-  filter(ligand_receptor_lfc_avg > 0 & fraction_expressing_ligand_receptor > 0) %>% top_n(30, prioritization_score) 
+# prioritized_tbl_oi_prep = multinichenet_output$prioritization_tables$group_prioritization_tbl %>%
+#   filter(fraction_ligand_group > fraction_cutoff & fraction_receptor_group > fraction_cutoff) %>%
+#   distinct(id, sender, receiver, ligand, receptor, group, prioritization_score, ligand_receptor_lfc_avg, fraction_expressing_ligand_receptor) %>%
+#   filter(ligand_receptor_lfc_avg > 0 & fraction_expressing_ligand_receptor > 0) %>% top_n(30, prioritization_score)
+# 
+# prioritized_tbl_oi_prep %>% dplyr::group_by(group) %>% dplyr::count()
 
-prioritized_tbl_oi_prep %>% dplyr::group_by(group) %>% dplyr::count()
-
-prioritized_tbl_oi = multinichenet_output$prioritization_tables$group_prioritization_tbl %>% 
-  filter(id %in% prioritized_tbl_oi_prep$id) %>% 
-  distinct(id, sender, receiver, ligand, receptor, group) %>% left_join(prioritized_tbl_oi_prep)
+prioritized_tbl_oi = multinichenet_output$prioritization_tables$group_prioritization_tbl %>%
+  filter(id %in% prioritized_tbl_oi_top30_all$id) %>%
+  distinct(id, sender, receiver, ligand, receptor, group) %>% left_join(prioritized_tbl_oi_top30_all)
 prioritized_tbl_oi$prioritization_score[is.na(prioritized_tbl_oi$prioritization_score)] = 0
+
+# prioritized_tbl_oi = lr_pairs_top30_all
 
 senders_receivers = union(prioritized_tbl_oi$sender %>% unique(), prioritized_tbl_oi$receiver %>% unique())
 
@@ -602,18 +617,22 @@ circos_list = make_circos_group_comparison(prioritized_tbl_oi, colors_sender, co
 Now you can also make a full circos plot for one group of interest
 
 ```{r, fig.width=15, fig.height=12}
-group_oi = "High"
-prioritized_tbl_oi = multinichenet_output$prioritization_tables$group_prioritization_tbl %>% 
-  filter(fraction_ligand_group > fraction_cutoff & fraction_receptor_group > fraction_cutoff & group == group_oi) %>% 
-  distinct(id, sender, receiver, ligand, receptor, group, prioritization_score, ligand_receptor_lfc_avg, fraction_expressing_ligand_receptor) %>% 
-  filter(ligand_receptor_lfc_avg > 0 & fraction_expressing_ligand_receptor > 0) %>% top_n(30, prioritization_score) 
+# group_oi = "High"
+# prioritized_tbl_oi = multinichenet_output$prioritization_tables$group_prioritization_tbl %>% 
+#   filter(fraction_ligand_group > fraction_cutoff & fraction_receptor_group > fraction_cutoff & group == group_oi) %>% 
+#   distinct(id, sender, receiver, ligand, receptor, group, prioritization_score, ligand_receptor_lfc_avg, fraction_expressing_ligand_receptor) %>% 
+#   filter(ligand_receptor_lfc_avg > 0 & fraction_expressing_ligand_receptor > 0) %>% top_n(30, prioritization_score) 
+# 
+# senders_receivers = union(prioritized_tbl_oi$sender %>% unique(), prioritized_tbl_oi$receiver %>% unique())
+# 
+# colors_sender = RColorBrewer::brewer.pal(n = length(senders_receivers), name = 'Spectral') %>% magrittr::set_names(senders_receivers)
+# colors_receiver = RColorBrewer::brewer.pal(n = length(senders_receivers), name = 'Spectral') %>% magrittr::set_names(senders_receivers)
+# 
+# circos_list = make_circos_one_group(prioritized_tbl_oi, colors_sender, colors_receiver)
 
-senders_receivers = union(prioritized_tbl_oi$sender %>% unique(), prioritized_tbl_oi$receiver %>% unique())
 
-colors_sender = RColorBrewer::brewer.pal(n = length(senders_receivers), name = 'Spectral') %>% magrittr::set_names(senders_receivers)
-colors_receiver = RColorBrewer::brewer.pal(n = length(senders_receivers), name = 'Spectral') %>% magrittr::set_names(senders_receivers)
-
-circos_list = make_circos_one_group(prioritized_tbl_oi, colors_sender, colors_receiver)
+circos_list = make_circos_one_group(prioritized_tbl_oi_high30, colors_sender, colors_receiver)
+circos_list = make_circos_one_group(prioritized_tbl_oi_low30, colors_sender, colors_receiver)
 
 ```
 
@@ -628,24 +647,26 @@ group_oi = "High"
 ```
 
 ```{r, fig.height=18, fig.width=12}
-prioritized_tbl_oi = multinichenet_output$prioritization_tables$group_prioritization_tbl %>% 
-  distinct(id, sender, receiver, lr_interaction, group, ligand_receptor_lfc_avg, activity_scaled, fraction_expressing_ligand_receptor,  prioritization_score) %>% 
-  filter(fraction_expressing_ligand_receptor > 0) %>% 
-  filter(group == group_oi) %>% group_by(group) %>% top_n(75, prioritization_score) 
+# prioritized_tbl_oi = multinichenet_output$prioritization_tables$group_prioritization_tbl %>%
+#   distinct(id, sender, receiver, lr_interaction, group, ligand_receptor_lfc_avg, activity_scaled, fraction_expressing_ligand_receptor,  prioritization_score) %>%
+#   filter(fraction_expressing_ligand_receptor > 0) %>%
+#   filter(group == group_oi) %>% group_by(group) %>% top_n(75, prioritization_score)
 
-plot_oi = make_sample_lr_prod_plots(multinichenet_output$prioritization_tables, prioritized_tbl_oi)
+prioritized_tbl_oi_high75 = get_top_n_lr_pairs(prioritization_tables, 75, groups_oi = group_oi)
+
+plot_oi = make_sample_lr_prod_plots(multinichenet_output$prioritization_tables, prioritized_tbl_oi_high75)
 plot_oi
 ```
 
 Next to these LR expression products, we can also plot the NicheNet ligand activities of the ligand in the receiver.
 
-```{r, fig.height=18, fig.width=18}
-prioritized_tbl_oi = multinichenet_output$prioritization_tables$group_prioritization_tbl %>% 
-  distinct(id, sender, receiver, lr_interaction, group, ligand_receptor_lfc_avg, activity_scaled, fraction_expressing_ligand_receptor,  prioritization_score) %>% 
-  filter(fraction_expressing_ligand_receptor > 0) %>% 
-  filter(group == group_oi) %>% group_by(group) %>% top_n(75, prioritization_score) 
+```{r, fig.height=24, fig.width=13}
+# prioritized_tbl_oi = multinichenet_output$prioritization_tables$group_prioritization_tbl %>% 
+#   distinct(id, sender, receiver, lr_interaction, group, ligand_receptor_lfc_avg, activity_scaled, fraction_expressing_ligand_receptor,  prioritization_score) %>% 
+#   filter(fraction_expressing_ligand_receptor > 0) %>% 
+#   filter(group == group_oi) %>% group_by(group) %>% top_n(150, prioritization_score) 
 
-plot_oi = make_sample_lr_prod_activity_plots(multinichenet_output$prioritization_tables, prioritized_tbl_oi, widths = c(5,1,1))
+plot_oi = make_sample_lr_prod_activity_plots(multinichenet_output$prioritization_tables, prioritized_tbl_oi_high75, widths = c(4,1,1))
 plot_oi
 ```
 
@@ -660,13 +681,16 @@ group_oi = "High"
 
 ```{r, fig.width=18, fig.height=9}
 
-prioritized_tbl_oi = multinichenet_output$prioritization_tables$group_prioritization_tbl %>% 
-  filter(fraction_ligand_group > fraction_cutoff & fraction_receptor_group > fraction_cutoff) %>% 
-  distinct(id, sender, receiver, lr_interaction, group, ligand_receptor_lfc_avg, activity_scaled, fraction_ligand_group, fraction_expressing_ligand_receptor, scaled_avg_exprs_ligand, prioritization_score) %>% 
-  filter(fraction_expressing_ligand_receptor > 0) %>% 
-  filter(group == group_oi & receiver == receiver_oi) %>% top_n(75, prioritization_score) 
+# prioritized_tbl_oi = multinichenet_output$prioritization_tables$group_prioritization_tbl %>% 
+#   filter(fraction_ligand_group > fraction_cutoff & fraction_receptor_group > fraction_cutoff) %>% 
+#   distinct(id, sender, receiver, lr_interaction, group, ligand_receptor_lfc_avg, activity_scaled, fraction_ligand_group, fraction_expressing_ligand_receptor, scaled_avg_exprs_ligand, prioritization_score) %>% 
+#   filter(fraction_expressing_ligand_receptor > 0) %>% 
+#   filter(group == group_oi & receiver == receiver_oi) %>% top_n(75, prioritization_score) 
 
-plot_oi = make_group_lfc_exprs_activity_plot(multinichenet_output$prioritization_tables, prioritized_tbl_oi, receiver_oi, heights = c(5,1,1))
+prioritized_tbl_oi_high75 = get_top_n_lr_pairs(prioritization_tables, 75, groups_oi = group_oi, receivers_oi = receiver_oi)
+
+
+plot_oi = make_group_lfc_exprs_activity_plot(multinichenet_output$prioritization_tables, prioritized_tbl_oi_high75, receiver_oi, heights = c(5,1,1))
 plot_oi
 
 ```
@@ -678,36 +702,38 @@ In another type of plot, we can visualize the ligand activities for a group-rece
 First: show this for a selection of ligands with high ligand activities:
 
 ```{r}
-group_oi = "High"
-receiver_oi = "Malignant"
-prioritized_tbl_oi = multinichenet_output$prioritization_tables$group_prioritization_tbl %>% 
-  filter(fraction_ligand_group > fraction_cutoff & fraction_receptor_group > fraction_cutoff) %>% 
-  distinct(id, sender, receiver, ligand, receptor, group, prioritization_score, ligand_receptor_lfc_avg, fraction_expressing_ligand_receptor, activity_scaled) %>% 
-  filter(fraction_expressing_ligand_receptor > 0) %>% 
-  filter(group == group_oi & receiver == receiver_oi) %>% 
-  group_by(group) %>% top_n(50, prioritization_score) %>% top_n(25, activity_scaled) %>% arrange(-activity_scaled)
+# group_oi = "High"
+# receiver_oi = "Malignant"
+# prioritized_tbl_oi = multinichenet_output$prioritization_tables$group_prioritization_tbl %>% 
+#   filter(fraction_ligand_group > fraction_cutoff & fraction_receptor_group > fraction_cutoff) %>% 
+#   distinct(id, sender, receiver, ligand, receptor, group, prioritization_score, ligand_receptor_lfc_avg, fraction_expressing_ligand_receptor, activity_scaled) %>% 
+#   filter(fraction_expressing_ligand_receptor > 0) %>% 
+#   filter(group == group_oi & receiver == receiver_oi) %>% 
+#   group_by(group) %>% top_n(50, prioritization_score) %>% top_n(25, activity_scaled) %>% arrange(-activity_scaled)
 ```
 
 ```{r, fig.width=18, fig.height=10}
-combined_plot = make_ligand_activity_target_plot(group_oi, receiver_oi, prioritized_tbl_oi, multinichenet_output$ligand_activities_targets_DEgenes, contrast_tbl, multinichenet_output$grouping_tbl, multinichenet_output$celltype_info, plot_legend = FALSE)
-combined_plot
+# combined_plot = make_ligand_activity_target_plot(group_oi, receiver_oi, prioritized_tbl_oi, multinichenet_output$prioritization_tables, multinichenet_output$ligand_activities_targets_DEgenes, contrast_tbl, multinichenet_output$grouping_tbl, multinichenet_output$celltype_info, ligand_target_matrix, plot_legend = FALSE)
+# combined_plot
 ```
 
 Now: show this for a selection of ligands with high general prioritization scores, not necessarily high ligand activities.
 
 ```{r}
-group_oi = "High"
-receiver_oi = "Malignant"
-prioritized_tbl_oi = multinichenet_output$prioritization_tables$group_prioritization_tbl %>% 
-  filter(fraction_ligand_group > fraction_cutoff & fraction_receptor_group > fraction_cutoff) %>% 
-  distinct(id, sender, receiver, ligand, receptor, group, prioritization_score, ligand_receptor_lfc_avg, fraction_expressing_ligand_receptor, activity_scaled) %>% 
-  filter(fraction_expressing_ligand_receptor > 0) %>% 
-  filter(group == group_oi & receiver == receiver_oi) %>% 
-  group_by(group) %>% top_n(25, prioritization_score) %>% arrange(-activity_scaled)
+# group_oi = "High"
+# receiver_oi = "Malignant"
+# prioritized_tbl_oi = multinichenet_output$prioritization_tables$group_prioritization_tbl %>% 
+#   filter(fraction_ligand_group > fraction_cutoff & fraction_receptor_group > fraction_cutoff) %>% 
+#   distinct(id, sender, receiver, ligand, receptor, group, prioritization_score, ligand_receptor_lfc_avg, fraction_expressing_ligand_receptor, activity_scaled) %>% 
+#   filter(fraction_expressing_ligand_receptor > 0) %>% 
+#   filter(group == group_oi & receiver == receiver_oi) %>% 
+#   group_by(group) %>% top_n(100, prioritization_score) %>% arrange(-activity_scaled)
+prioritized_tbl_oi_high30 = get_top_n_lr_pairs(prioritization_tables, 30, groups_oi = group_oi, receivers_oi = receiver_oi)
+
 ```
 
 ```{r, fig.width=18, fig.height=10}
-combined_plot = make_ligand_activity_target_plot(group_oi, receiver_oi, prioritized_tbl_oi, multinichenet_output$ligand_activities_targets_DEgenes, contrast_tbl, multinichenet_output$grouping_tbl, multinichenet_output$celltype_info, plot_legend = FALSE)
+combined_plot = make_ligand_activity_target_plot(group_oi, receiver_oi, prioritized_tbl_oi_high30, multinichenet_output$prioritization_tables, multinichenet_output$ligand_activities_targets_DEgenes, contrast_tbl, multinichenet_output$grouping_tbl, multinichenet_output$celltype_info, ligand_target_matrix, plot_legend = FALSE)
 combined_plot
 ```
 
@@ -716,16 +742,18 @@ Of course you can look at other receivers as well:
 ```{r}
 group_oi = "High"
 receiver_oi = "myofibroblast"
-prioritized_tbl_oi = multinichenet_output$prioritization_tables$group_prioritization_tbl %>% 
-  filter(fraction_ligand_group > fraction_cutoff & fraction_receptor_group > fraction_cutoff) %>% 
-  distinct(id, sender, receiver, ligand, receptor, group, prioritization_score, ligand_receptor_lfc_avg, fraction_expressing_ligand_receptor, activity_scaled) %>% 
-  filter(fraction_expressing_ligand_receptor > 0) %>% 
-  filter(group == group_oi & receiver == receiver_oi) %>% 
-  group_by(group) %>% top_n(25, prioritization_score) %>% arrange(-activity_scaled)
+# prioritized_tbl_oi = multinichenet_output$prioritization_tables$group_prioritization_tbl %>% 
+#   filter(fraction_ligand_group > fraction_cutoff & fraction_receptor_group > fraction_cutoff) %>% 
+#   distinct(id, sender, receiver, ligand, receptor, group, prioritization_score, ligand_receptor_lfc_avg, fraction_expressing_ligand_receptor, activity_scaled) %>% 
+#   filter(fraction_expressing_ligand_receptor > 0) %>% 
+#   filter(group == group_oi & receiver == receiver_oi) %>% 
+#   group_by(group) %>% top_n(25, prioritization_score) %>% arrange(-activity_scaled)
+prioritized_tbl_oi_high30 = get_top_n_lr_pairs(prioritization_tables, 30, groups_oi = group_oi, receivers_oi = receiver_oi)
+
 ```
 
 ```{r, fig.width=18, fig.height=10}
-combined_plot = make_ligand_activity_target_plot(group_oi, receiver_oi, prioritized_tbl_oi, multinichenet_output$ligand_activities_targets_DEgenes, contrast_tbl, multinichenet_output$grouping_tbl, multinichenet_output$celltype_info, plot_legend = FALSE)
+combined_plot = make_ligand_activity_target_plot(group_oi, receiver_oi, prioritized_tbl_oi_high30, multinichenet_output$prioritization_tables, multinichenet_output$ligand_activities_targets_DEgenes, contrast_tbl, multinichenet_output$grouping_tbl, multinichenet_output$celltype_info, ligand_target_matrix, plot_legend = FALSE)
 combined_plot
 ```
 
@@ -733,7 +761,7 @@ combined_plot
 
 In the next type of plot, we plot all the ligand activities (Both scaled and absolute activities) of each receiver-group combination. This can give us some insights in active signaling pathways across groups. Note that we can thus show top ligands based on ligand activity - agnostic of expression in sender. 
 
-```{r, fig.width=5, fig.height=8}
+```{r, fig.width=10, fig.height=8}
 
 ligands_oi = multinichenet_output$prioritization_tables$ligand_activities_target_de_tbl %>% inner_join(contrast_tbl) %>% 
   group_by(group, receiver) %>% distinct(ligand, receiver, group, activity) %>% 
@@ -748,7 +776,7 @@ Or we can do this plot for ligands, while considering the general priorization s
 
 Show top ligands based on prioritization scores
 
-```{r, fig.width=5, fig.height=8}
+```{r, fig.width=10, fig.height=8}
 
 ligands_oi = multinichenet_output$prioritization_tables$group_prioritization_tbl %>% 
   group_by(group, receiver) %>% distinct(ligand, receiver, group, prioritization_score) %>% 
@@ -768,11 +796,7 @@ It is often useful to zoom in on specific ligand-receptor interactions of intere
 Check the highest scoring links based on the general prioritization score. Here we will pick one of those to visualize.
 
 ```{r}
-prioritized_tbl_oi = multinichenet_output$prioritization_tables$group_prioritization_tbl %>% 
-  filter(fraction_ligand_group > fraction_cutoff & fraction_receptor_group > fraction_cutoff) %>% 
-  distinct(id, sender, receiver, ligand, receptor, group, prioritization_score) %>% 
-  group_by(group, receiver) %>% top_n(5, prioritization_score) 
-prioritized_tbl_oi
+prioritized_tbl_oi_high30
 ```
 
 ```{r}
@@ -832,55 +856,74 @@ targets_oi = multinichenet_output$ligand_activities_targets_DEgenes$de_genes_df 
 ```
 
 ```{r, fig.width=8, fig.height=30}
-p_target = make_sample_target_plots(receiver_info = multinichenet_output$celltype_info, targets_oi, receiver_oi, multinichenet_output$grouping_tbl)
-p_target + ggtitle(paste0("DE genes in ",group_oi, " in celltype ",receiver_oi))
+p_target = make_DEgene_dotplot_pseudobulk(targets_oi, celltype_info = multinichenet_output$celltype_info, prioritization_tables,  receiver_oi, multinichenet_output$grouping_tbl)
+p_target$pseudobulk_plot + ggtitle(paste0("DE genes in ",group_oi, " in celltype ",receiver_oi))
 ```
 
 ## Visualization of expression-correlated target genes of ligand-receptor pairs
 
-Before, we had calculated the correlation in expression between ligand-receptor pairs and DE genes. Now we will filter out correlated ligand-receptor --> target links that both show high expression correlation (spearman or pearson > 0.75 in this example) and have some prior knowledge to support their link.
+Before, we had calculated the correlation in expression between ligand-receptor pairs and DE genes. Now we will filter out correlated ligand-receptor --> target links that both show high expression correlation (spearman or activity > 0.75 in this example) and have some prior knowledge to support their link.
 
-To filter we can use one of these two options: `lr_target_prior_cor_filtered` (recommended and based on scaled ligand-target prior knowledge: the target should be a top target of the ligand, and the ligand should be a top ligand for the target) or `lr_target_prior_cor_filtered_original` (based on the same ligand-target df returned by default in classic NicheNet: focuses on top targets of a ligand only, and not necessarily the reverse)
+To filter we can use one of these two options: `lr_target_prior_cor_filtered` (recommended and based on ligand-target prior knowledge: the target should be a top target of the ligand, and the ligand should be a top ligand for the target) or `lr_target_prior_cor_filtered_original` (based on the same ligand-target df returned by default in classic NicheNet: focuses on top targets of a ligand only, and not necessarily the reverse)
 
 ```{r}
 group_oi = "High"
 receiver_oi = "Malignant"
-lr_target_prior_cor_filtered = multinichenet_output$lr_target_prior_cor %>% filter(scaled_prior_score > 0.50 & (pearson > 0.75 | spearman > 0.75))
-
-lr_target_prior_cor_filtered_original = multinichenet_output$lr_target_prior_cor %>% dplyr::inner_join(multinichenet_output$ligand_activities_targets_DEgenes$ligand_activities %>% dplyr::inner_join(contrast_tbl) %>% dplyr::filter(group == group_oi) %>% dplyr::ungroup() %>% dplyr::distinct(ligand, target), by = c("ligand", "target")) %>% dplyr::filter(pearson > 0.75 | spearman > 0.75)
+lr_target_prior_cor_filtered = multinichenet_output$lr_target_prior_cor %>% inner_join(ligand_activities_targets_DEgenes$ligand_activities %>% distinct(ligand, target, direction_regulation, contrast)) %>% inner_join(contrast_tbl) %>% filter(group == group_oi, receiver == receiver_oi)
+# lr_target_prior_cor_filtered = multinichenet_output$lr_target_prior_cor %>% filter( (rank_of_target < top_n_target | rank_of_ligand < 10) & (pearson > 0.75 | spearman > 0.75))
+lr_target_prior_cor_filtered_up = lr_target_prior_cor_filtered %>% filter(direction_regulation == "up") %>% filter( (rank_of_target < top_n_target) & (pearson > 0.75 | spearman > 0.75))
+lr_target_prior_cor_filtered_down = lr_target_prior_cor_filtered %>% filter(direction_regulation == "down") %>% filter( (rank_of_target < top_n_target) & (pearson < -0.75 | spearman < -0.75))
+lr_target_prior_cor_filtered = bind_rows(lr_target_prior_cor_filtered_up, lr_target_prior_cor_filtered_down)
 ```
 
 Now we will visualize the top correlated hits for the LR pairs that are also in the top200 pairs discriminating both groups from each others:
 
 ```{r}
-prioritized_tbl_oi = multinichenet_output$prioritization_tables$group_prioritization_tbl %>% distinct(id, ligand, receptor, sender, receiver, lr_interaction, group, ligand_receptor_lfc_avg, activity_scaled, fraction_expressing_ligand_receptor,  prioritization_score) %>% filter(fraction_expressing_ligand_receptor > 0 & ligand_receptor_lfc_avg > 0) %>% filter(group == group_oi & receiver == receiver_oi) %>% top_n(100, prioritization_score)
-# prioritized_tbl_oi = prioritized_tbl_oi %>% filter(id %in% lr_target_prior_cor_filtered$id)
-prioritized_tbl_oi = prioritized_tbl_oi %>% group_by(ligand, sender, group) %>% top_n(3, prioritization_score) # keep max three receptors per ligand - for visualization purposes
+# prioritized_tbl_oi = multinichenet_output$prioritization_tables$group_prioritization_tbl %>% distinct(id, ligand, receptor, sender, receiver, lr_interaction, group, ligand_receptor_lfc_avg, activity_scaled, fraction_expressing_ligand_receptor,  prioritization_score) %>% filter(fraction_expressing_ligand_receptor > 0 & ligand_receptor_lfc_avg > 0) %>% filter(group == group_oi & receiver == receiver_oi) %>% top_n(100, prioritization_score)
+# # prioritized_tbl_oi = prioritized_tbl_oi %>% filter(id %in% lr_target_prior_cor_filtered$id)
+prioritized_tbl_oi = get_top_n_lr_pairs(prioritization_tables, 100, groups_oi = group_oi, receivers_oi = receiver_oi)
+# prioritized_tbl_oi = prioritized_tbl_oi %>% group_by(ligand, sender, group) %>% top_n(3, prioritization_score) # keep max three receptors per ligand - for visualization purposes
 ```
 
 First: show the LR-->Target heatmap of prior knowledge supported and correlated links (shows both measure of correlation and measure of prior knowledge)
 
-```{r, fig.width=16, fig.height=10}
-lr_target_prior_cor_heatmap = make_lr_target_prior_cor_heatmap(lr_target_prior_cor_filtered %>% filter(receiver == receiver_oi & id %in% prioritized_tbl_oi$id), add_grid = FALSE)
+```{r, fig.width=19, fig.height=12}
+lr_target_prior_cor_heatmap = make_lr_target_prior_cor_heatmap(lr_target_prior_cor_filtered_up %>% filter(receiver == receiver_oi & id %in% prioritized_tbl_oi$id), add_grid = FALSE)
 lr_target_prior_cor_heatmap
-lr_target_prior_cor_heatmap = make_lr_target_prior_cor_heatmap(lr_target_prior_cor_filtered %>% filter(receiver == receiver_oi & id %in% prioritized_tbl_oi$id), add_grid = TRUE)
+lr_target_prior_cor_heatmap = make_lr_target_prior_cor_heatmap(lr_target_prior_cor_filtered_up %>% filter(receiver == receiver_oi & id %in% prioritized_tbl_oi$id), add_grid = TRUE)
 lr_target_prior_cor_heatmap
 ```
+
+```{r, fig.width=19, fig.height=12}
+lr_target_prior_cor_heatmap = make_lr_target_prior_cor_heatmap(lr_target_prior_cor_filtered_down %>% filter(receiver == receiver_oi & id %in% prioritized_tbl_oi$id), add_grid = FALSE)
+lr_target_prior_cor_heatmap
+lr_target_prior_cor_heatmap = make_lr_target_prior_cor_heatmap(lr_target_prior_cor_filtered_down %>% filter(receiver == receiver_oi & id %in% prioritized_tbl_oi$id), add_grid = TRUE)
+lr_target_prior_cor_heatmap
+```
+
 
 Now visualize these links together with the LR and target expression, to visualize the expression correlation
 
-```{r, fig.width=17, fig.height=12}
-lr_target_correlation_plot = make_lr_target_correlation_plot(multinichenet_output$prioritization_tables, prioritized_tbl_oi, lr_target_prior_cor_filtered, multinichenet_output$grouping_tbl, multinichenet_output$celltype_info, receiver_oi,plot_legend = FALSE, show_cor = FALSE)
-lr_target_correlation_plot$combined_plot
-lr_target_correlation_plot = make_lr_target_correlation_plot(multinichenet_output$prioritization_tables, prioritized_tbl_oi, lr_target_prior_cor_filtered, multinichenet_output$grouping_tbl, multinichenet_output$celltype_info, receiver_oi,plot_legend = FALSE, show_cor = TRUE)
+```{r, fig.width=19, fig.height=16}
+lr_target_correlation_plot = make_lr_target_correlation_plot(multinichenet_output$prioritization_tables, prioritized_tbl_oi,  lr_target_prior_cor_filtered , multinichenet_output$grouping_tbl, multinichenet_output$celltype_info, receiver_oi,plot_legend = FALSE)
 lr_target_correlation_plot$combined_plot
 ```
+
 You can also visualize the expression correlation in the following way for a selected LR pair and their targets:
 
-```{r, fig.width=8, fig.height=10}
-ligand_oi = "IL24"
-receptor_oi = "IL20RB"
+```{r, fig.width=8, fig.height=6}
+ligand_oi = "TGFB3"
+receptor_oi = "ITGB6"
 sender_oi = "CAF"
+receiver_oi = "Malignant"
+lr_target_scatter_plot = make_lr_target_scatter_plot(multinichenet_output$prioritization_tables, ligand_oi, receptor_oi, sender_oi, receiver_oi, multinichenet_output$celltype_info, multinichenet_output$grouping_tbl, lr_target_prior_cor_filtered)
+lr_target_scatter_plot
+```
+
+```{r, fig.width=14, fig.height=6}
+ligand_oi = "TGFB2"
+receptor_oi = "TGFBR2"
+sender_oi = "myofibroblast"
 receiver_oi = "Malignant"
 lr_target_scatter_plot = make_lr_target_scatter_plot(multinichenet_output$prioritization_tables, ligand_oi, receptor_oi, sender_oi, receiver_oi, multinichenet_output$celltype_info, multinichenet_output$grouping_tbl, lr_target_prior_cor_filtered)
 lr_target_scatter_plot
@@ -888,13 +931,6 @@ lr_target_scatter_plot
 
 For these targets, you can also visualize the 'prior knowledge' ligand-receptor-to-target signaling paths. This is done similarly to the workflow described in https://github.com/saeyslab/nichenetr/blob/master/vignettes/ligand_target_signaling_path.md
 ```{r, fig.width=11, fig.height=11}
-weighted_networks = readRDS(url("https://zenodo.org/record/3260758/files/weighted_networks.rds"))
-ligand_tf_matrix = readRDS(url("https://zenodo.org/record/3260758/files/ligand_tf_matrix.rds"))
-  
-lr_network = readRDS(url("https://zenodo.org/record/3260758/files/lr_network.rds"))
-sig_network = readRDS(url("https://zenodo.org/record/3260758/files/signaling_network.rds"))
-gr_network = readRDS(url("https://zenodo.org/record/3260758/files/gr_network.rds"))
-  
 targets_all = lr_target_prior_cor_filtered %>% filter(ligand == ligand_oi & receiver == receiver_oi & sender == sender_oi & receptor == receptor_oi)  %>% pull(target) %>% unique()
   
 active_signaling_network = nichenetr::get_ligand_signaling_path_with_receptor(ligand_tf_matrix = ligand_tf_matrix, ligands_all = ligand_oi, receptors_all = receptor_oi, targets_all = targets_all, weighted_networks = weighted_networks, top_n_regulators = 2)
@@ -906,14 +942,46 @@ active_signaling_network_min_max$gr = active_signaling_network_min_max$gr %>% mu
 colors = c("ligand" = "purple", "receptor" = "orange", "target" = "royalblue", "mediator" = "grey60")
 ggraph_signaling_path = suppressWarnings(make_ggraph_signaling_path(active_signaling_network_min_max, colors, ligand_oi, receptor_oi, targets_all))
 ggraph_signaling_path$plot
+data_source_network %>% head()
 ```
 
 As last plot, we can generate a 'systems' view of the intercellular feedback processes than can be occuring between the different cell populations involved. In this plot, we will draw links between ligands of sender cell types their ligand/receptor-annotated target genes in receiver cell types.
 
-```{r, fig.width=12, fig.height=12}
+
+```{r, fig.width=12, fig.height=10}
+group_oi = "High"
+
+prioritized_tbl_oi = get_top_n_lr_pairs(prioritization_tables, 100, groups_oi = group_oi)
+
+lr_target_prior_cor_filtered = multinichenet_output$lr_target_prior_cor %>% inner_join(ligand_activities_targets_DEgenes$ligand_activities %>% distinct(ligand, target, direction_regulation, contrast)) %>% inner_join(contrast_tbl) %>% filter(group == group_oi)
+lr_target_prior_cor_filtered_up = lr_target_prior_cor_filtered %>% filter(direction_regulation == "up") %>% filter( (rank_of_target < top_n_target) & (pearson > 0.75 | spearman > 0.75))
+lr_target_prior_cor_filtered_down = lr_target_prior_cor_filtered %>% filter(direction_regulation == "down") %>% filter( (rank_of_target < top_n_target) & (pearson < -0.75 | spearman < -0.75))
+lr_target_prior_cor_filtered = bind_rows(lr_target_prior_cor_filtered_up, lr_target_prior_cor_filtered_down)
+
+colors_sender["myofibroblast"] = "blue"
 graph_plot = make_ggraph_ligand_target_links(lr_target_prior_cor_filtered = lr_target_prior_cor_filtered, prioritized_tbl_oi = prioritized_tbl_oi, colors = colors_sender)
 graph_plot$plot
 ```
+
+Make a double prioritization table: do this for every condition
+```{r}
+prioritized_tbl_oi = get_top_n_lr_pairs(prioritization_tables, 150, rank_per_group = FALSE)
+
+lr_target_prior_cor_filtered = prioritization_tables$group_prioritization_tbl$group %>% unique() %>% lapply(function(group_oi){
+  lr_target_prior_cor_filtered = multinichenet_output$lr_target_prior_cor %>% inner_join(ligand_activities_targets_DEgenes$ligand_activities %>% distinct(ligand, target, direction_regulation, contrast)) %>% inner_join(contrast_tbl) %>% filter(group == group_oi)
+  lr_target_prior_cor_filtered_up = lr_target_prior_cor_filtered %>% filter(direction_regulation == "up") %>% filter( (rank_of_target < top_n_target) & (pearson > 0.75 | spearman > 0.75))
+  lr_target_prior_cor_filtered_down = lr_target_prior_cor_filtered %>% filter(direction_regulation == "down") %>% filter( (rank_of_target < top_n_target) & (pearson < -0.75 | spearman < -0.75))
+  lr_target_prior_cor_filtered = bind_rows(lr_target_prior_cor_filtered_up, lr_target_prior_cor_filtered_down)
+}) %>% bind_rows()
+
+```
+```{r, fig.width=18, fig.height=10}
+graph_plot = make_ggraph_ligand_target_links(lr_target_prior_cor_filtered = lr_target_prior_cor_filtered, prioritized_tbl_oi = prioritized_tbl_oi, colors = colors_sender)
+graph_plot$plot
+graph_plot$source_df_lt %>% head()
+graph_plot$nodes_df %>% head()
+```
+
 
 ## Unsupervised analysis
 

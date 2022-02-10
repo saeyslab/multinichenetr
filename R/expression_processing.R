@@ -137,7 +137,7 @@ get_muscat_exprs_avg = function(sce, sample_id, celltype_id, group_id){
 #' @title get_pseudobulk_logCPM_exprs
 #'
 #' @description \code{get_pseudobulk_logCPM_exprs}  Calculate the 'library-size' normalized pseudbulk counts per sample for each gene - returned values are similar to logCPM. 
-#' @usage get_pseudobulk_logCPM_exprs(sce, sample_id, celltype_id, group_id, covariates = NA, assay_oi_pb = "counts", fun_oi_pb = "sum")
+#' @usage get_pseudobulk_logCPM_exprs(sce, sample_id, celltype_id, group_id, batches = NA, assay_oi_pb = "counts", fun_oi_pb = "sum")
 #'
 #' @inheritParams multi_nichenet_analysis_combined
 #'
@@ -163,7 +163,7 @@ get_muscat_exprs_avg = function(sce, sample_id, celltype_id, group_id){
 #'
 #' @export
 #'
-get_pseudobulk_logCPM_exprs = function(sce, sample_id, celltype_id, group_id, covariates = NA, assay_oi_pb = "counts", fun_oi_pb = "sum"){
+get_pseudobulk_logCPM_exprs = function(sce, sample_id, celltype_id, group_id, batches = NA, assay_oi_pb = "counts", fun_oi_pb = "sum"){
   
   requireNamespace("dplyr")
   
@@ -178,36 +178,36 @@ get_pseudobulk_logCPM_exprs = function(sce, sample_id, celltype_id, group_id, co
   pb = muscat::aggregateData(sce, assay = assay_oi_pb, fun = fun_oi_pb, by = c("cluster_id", "sample_id"))
   
   # Prepare the design (group and batch effects) for the combat correction
-  if(length(covariates) > 1){
-    covariates_present = TRUE
-    covariates = covariates[1] ## only keep the first batch for batch correction!
-    warning("You used more than 1 covariate/batch to correct for. This is OK for the DE analysis. But, for the Combat batch correction of pseudobulked counts (used in visualization), only the first covariate will be considered as batch. If you want to use both as batch, redo the analysis after merging both in one variable.")
+  if(length(batches) > 1){
+    batches_present = TRUE
+    batches = batches[1] ## only keep the first batch for batch correction!
+    warning("You used more than 1 batch/batch to correct for. This is OK for the DE analysis. But, for the Combat batch correction of pseudobulked counts (used in visualization), only the first batch will be considered as batch. If you want to use both as batch, redo the analysis after merging both in one variable.")
   } else {
-    if(!is.na(covariates)){
-      covariates_present = TRUE
+    if(!is.na(batches)){
+      batches_present = TRUE
     } else {
-      covariates_present = FALSE
+      batches_present = FALSE
     }
   }
-  if(covariates_present){ ## then perform the correction!
-    extra_metadata = SummarizedExperiment::colData(sce) %>% tibble::as_tibble() %>% dplyr::select(all_of(sample_id), all_of(covariates)) %>% dplyr::distinct() %>% dplyr::mutate_all(factor)
-    colnames(extra_metadata) = c("sample_id","covariates")
+  if(batches_present){ ## then perform the correction!
+    extra_metadata = SummarizedExperiment::colData(sce) %>% tibble::as_tibble() %>% dplyr::select(all_of(sample_id), all_of(batches)) %>% dplyr::distinct() %>% dplyr::mutate_all(factor)
+    colnames(extra_metadata) = c("sample_id","batches")
     ei = S4Vectors::metadata(sce)$experiment_info
     ei = ei %>%  dplyr::inner_join(extra_metadata, by = "sample_id")
     
-    # do a check: will we able to correct for the covariates on a group-by-group basis?
-    n_combinations_observed = ei %>% dplyr::select(group_id, covariates) %>% dplyr::distinct() %>% nrow()
-    n_combinations_possible = length(levels(ei$group_id)) * length(levels(ei$covariates))
+    # do a check: will we able to correct for the batches on a group-by-group basis?
+    n_combinations_observed = ei %>% dplyr::select(group_id, batches) %>% dplyr::distinct() %>% nrow()
+    n_combinations_possible = length(levels(ei$group_id)) * length(levels(ei$batches))
     if(n_combinations_observed != n_combinations_possible){
-      warning("Not all possible group-batch/covariate combinations are present in your data. This will result in errors during the batch effect correction process of Combat and/or Muscat DE analysis. Please reconsider the groups and batches you defined.")
+      warning("Not all possible group-batch/batch combinations are present in your data. This will result in errors during the batch effect correction process of Combat and/or Muscat DE analysis. Please reconsider the groups and batches you defined.")
     } 
     
     # do another necessary check: each batch-group combinations should have at least one or preferably two observations
-    # print(ei %>% dplyr::select(sample_id, group_id, covariates) %>% dplyr::distinct() %>% dplyr::group_by(group_id, covariates) %>% dplyr::count() %>% arrange(n))
-    # print(ei %>% dplyr::select(sample_id, covariates) %>% dplyr::distinct() %>% dplyr::group_by(covariates) %>% dplyr::count() %>% arrange(n))
-    batch = as.factor(ei$covariates)
-    if (any(table(batch) <= 1)) {
-      warning("For some covariate values, only one sample is present in your data. Combat correction of the expression for downstream visualization cannot handle this.")
+    # print(ei %>% dplyr::select(sample_id, group_id, batches) %>% dplyr::distinct() %>% dplyr::group_by(group_id, batches) %>% dplyr::count() %>% arrange(n))
+    # print(ei %>% dplyr::select(sample_id, batches) %>% dplyr::distinct() %>% dplyr::group_by(batches) %>% dplyr::count() %>% arrange(n))
+    batch2 = as.factor(ei$batches)
+    if (any(table(batch2) <= 1)) {
+      warning("For some batch values, only one sample is present in your data. Combat correction of the expression for downstream visualization cannot handle this.")
       pb_df = sce$cluster_id %>% unique() %>% lapply(function(celltype_oi, pb){ # no correction of the pseudobulk counts
         
         pseudobulk_counts_celltype = edgeR::DGEList(pb@assays@data[[celltype_oi]])
@@ -234,9 +234,9 @@ get_pseudobulk_logCPM_exprs = function(sce, sample_id, celltype_id, group_id, co
         count_matrix = count_matrix[,non_zero_samples]
         # adjust the count matrix
         ei = ei %>% dplyr::filter(sample_id %in% non_zero_samples)
-        batch = as.factor(ei$covariates) # still check whether we have enough samples for each celltype to correct for!!
-        if (any(table(batch) <= 1)) {
-          warning(paste0("For some covariate values for celltype ",celltype_oi, " only one sample is present in your data. Combat correction of the expression for downstream visualization cannot handle this. Therefore we continue with non-corrected pseudobulk expression values here."))
+        batch2 = as.factor(ei$batches) # still check whether we have enough samples for each celltype to correct for!!
+        if (any(table(batch2) <= 1)) {
+          warning(paste0("For some batch values for celltype ",celltype_oi, " only one sample is present in your data. Combat correction of the expression for downstream visualization cannot handle this. Therefore we continue with non-corrected pseudobulk expression values here."))
           adj_count_matrix = count_matrix 
         } else {
           quiet <- function(x) { # to suppress sva-combat output
@@ -244,7 +244,7 @@ get_pseudobulk_logCPM_exprs = function(sce, sample_id, celltype_id, group_id, co
             on.exit(sink()) 
             invisible(force(x)) 
           } 
-          adj_count_matrix = quiet(sva::ComBat_seq(count_matrix, batch=ei$covariates, group=ei$group_id, full_mod=TRUE)) # to suppress its output
+          adj_count_matrix = quiet(sva::ComBat_seq(count_matrix, batch=ei$batches, group=ei$group_id, full_mod=TRUE)) # to suppress its output
         }
         # normalize the adjusted count matrix, just like we do for the non-adjusted one
         pseudobulk_counts_celltype = edgeR::DGEList(adj_count_matrix)
@@ -337,7 +337,7 @@ fix_frq_df = function(sce, frq_celltype_samples){
 #' @title get_avg_frac_exprs_abund
 #'
 #' @description \code{get_avg_frac_exprs_abund}  Calculate the average and fraction of expression of each gene per sample and per group. Calculate relative abundances of cell types as well.
-#' @usage get_avg_frac_exprs_abund(sce, sample_id, celltype_id, group_id, covariates = NA)
+#' @usage get_avg_frac_exprs_abund(sce, sample_id, celltype_id, group_id, batches = NA)
 #'
 #' @inheritParams multi_nichenet_analysis_combined
 #' 
@@ -359,7 +359,7 @@ fix_frq_df = function(sce, frq_celltype_samples){
 #'
 #' @export
 #'
-get_avg_frac_exprs_abund = function(sce, sample_id, celltype_id, group_id, covariates = NA){
+get_avg_frac_exprs_abund = function(sce, sample_id, celltype_id, group_id, batches = NA){
   
   requireNamespace("dplyr")
   
@@ -417,9 +417,9 @@ get_avg_frac_exprs_abund = function(sce, sample_id, celltype_id, group_id, covar
     }
   }
 
-  if(!is.na(covariates)){
-    if (sum(covariates %in% colnames(SummarizedExperiment::colData(sce))) != length(covariates) ) {
-      stop("covariates should be NA or all present as column name(s) in the metadata dataframe of sce_receiver")
+  if(!is.na(batches)){
+    if (sum(batches %in% colnames(SummarizedExperiment::colData(sce))) != length(batches) ) {
+      stop("batches should be NA or all present as column name(s) in the metadata dataframe of sce_receiver")
     }
   }
   ## calculate averages, fractions, relative abundance of a cell type in a group
@@ -431,7 +431,7 @@ get_avg_frac_exprs_abund = function(sce, sample_id, celltype_id, group_id, covar
   frq_df = get_muscat_exprs_frac(sce, sample_id = sample_id, celltype_id = celltype_id, group_id = group_id) %>% .$frq_celltype_samples
 
   # calculate pseudobulked counts
-  pb_df = get_pseudobulk_logCPM_exprs(sce, sample_id = sample_id, celltype_id = celltype_id, group_id = group_id, covariates = covariates, assay_oi_pb = "counts", fun_oi_pb = "sum") # should be these parameters
+  pb_df = get_pseudobulk_logCPM_exprs(sce, sample_id = sample_id, celltype_id = celltype_id, group_id = group_id, batches = batches, assay_oi_pb = "counts", fun_oi_pb = "sum") # should be these parameters
   
   # check whether something needs to be fixed
   if(nrow(avg_df %>% dplyr::filter(is.na(average_sample))) > 0 | nrow(avg_df %>% dplyr::filter(is.nan(average_sample))) > 0) {
@@ -712,7 +712,7 @@ combine_sender_receiver_info_ic = function(sender_info, receiver_info, senders_o
 #' sample_id = "tumor"
 #' group_id = "pEMT"
 #' celltype_id = "celltype"
-#' covariates = NA
+#' batches = NA
 #' contrasts_oi = c("'High-Low','Low-High'")
 #' senders_oi = SummarizedExperiment::colData(sce)[,celltype_id] %>% unique()
 #' receivers_oi = SummarizedExperiment::colData(sce)[,celltype_id] %>% unique()
@@ -721,7 +721,7 @@ combine_sender_receiver_info_ic = function(sender_info, receiver_info, senders_o
 #'    sample_id = sample_id,
 #'    celltype_id = celltype_id,
 #'    group_id = group_id,
-#'    covariates = covariates,
+#'    batches = batches,
 #'    contrasts = contrasts_oi)
 #'sender_receiver_de = combine_sender_receiver_de(
 #'  sender_de = celltype_de$de_output_tidy,

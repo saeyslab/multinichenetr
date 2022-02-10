@@ -17,9 +17,9 @@ make_lr_target_scatter_plot(prioritization_tables, ligand_oi, receptor_oi, sende
 
 \item{receiver_oi}{Character vector with the names of the receiver cell type of interest}
 
-\item{receiver_info}{`receiver_info` or `celltype_info` slots from the output of `multi_nichenet_analysis`. Also: part of the output of `get_abundance_expression_info_separate`}
+\item{receiver_info}{`celltype_info` or `receiver_info` slot of the output of the `multi_nichenet_analysis` function}
 
-\item{grouping_tbl}{Data frame linking the sample_id, group_id and covariate_oi}
+\item{grouping_tbl}{`grouping_tbl` slot of the output of the `multi_nichenet_analysis` function}
 
 \item{lr_target_prior_cor_filtered}{Data frame filtered from `lr_target_prior_cor` (= output of `multi_nichenet_analysis` or `lr_target_prior_cor_inference`). Filter should be done to keep onl LR-->Target links that are both supported by prior knowledge and correlation in terms of expression.}
 }
@@ -38,7 +38,7 @@ ligand_target_matrix = readRDS(url("https://zenodo.org/record/3260758/files/liga
 sample_id = "tumor"
 group_id = "pEMT"
 celltype_id = "celltype"
-covariates = NA
+batches = NA
 contrasts_oi = c("'High-Low','Low-High'")
 contrast_tbl = tibble(contrast = c("High-Low","Low-High"), group = c("High","Low"))
 output = multi_nichenet_analysis(
@@ -46,7 +46,7 @@ output = multi_nichenet_analysis(
      celltype_id = celltype_id, 
      sample_id = sample_id, 
      group_id = group_id,
-     covariates = covariates,
+     batches = batches,
      lr_network = lr_network, 
      ligand_target_matrix = ligand_target_matrix, 
      contrasts_oi = contrasts_oi, 

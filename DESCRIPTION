@@ -50,13 +50,14 @@ Imports:
     igraph,
     tidygraph,
     ggraph,
-    scran
+    scran,
+    UpSetR,
+    factoextra
 Suggests: 
     knitr,
     testthat,
     covr,
-    tidyverse,
-    UpSetR
+    tidyverse
 Remotes: 
   github::saeyslab/nichenetr
 RoxygenNote: 7.1.1

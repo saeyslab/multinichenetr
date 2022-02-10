@@ -1,0 +1,243 @@
+---
+title: "Multi-Sample Multi-condition Cell-Cell Communication Analysis via NicheNet: HNSCC application; All-vs-All"
+author: "Robin Browaeys"
+date: "2021-04-09"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Multi-Sample Multi-condition Cell-Cell Communication Analysis via NicheNet: HNSCC application; All-vs-All}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+<!-- github markdown built using 
+rmarkdown::render("vignettes/basic_analysis_steps.Rmd", output_format = "github_document")
+-->
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  # comment = "#>",
+  warning = FALSE,
+  message = FALSE
+)
+```
+
+In this vignette, you can learn how to perform an all-vs-all MultiNicheNet analysis. In this vignette, we start from one single SingleCellExperiment object containing cells from both sender and receiver cell types and from different patients.
+
+A MultiNicheNet analysis can be performed if you have multi-sample, multi-group single-cell data. MultiNicheNet will look for cell-cell communication between the cell types in your data for each sample, and compare the cell-cell communication patterns between the groups of interest. Therefore, the absolute minimum of meta data you need to have, are following columns indicating for each cell: the **group**, **sample** and **cell type**.
+ 
+In this vignette, we will prepare the data and analysis parameters, and then perform the MultiNicheNet analysis. 
+
+The different steps of the MultiNicheNet analysis are the following:
+
+* 0. Preparation of the analysis: load packages, NicheNet LR network & ligand-target matrix, single-cell expression data, and define main settings of the MultiNicheNet analysis
+
+* 1. Extract cell type abundance and expression information from receiver and sender cell types, and link this expression information for ligands of the sender cell types to the corresponding receptors of the receiver cell types 
+
+* 2. Perform genome-wide differential expression analysis of receiver and sender cell types to define DE genes between the conditions of interest. Based on this analysis, we can define the logFC/p-value of ligands in senders and receptors in receivers, and define the set of affected target genes in the receiver.
+
+* 3. Predict NicheNet ligand activities and NicheNet ligand-target links based on these differential expression results
+
+* 4. Use the information collected above to prioritize all sender-ligand---receiver-receptor pairs.
+
+* 5. Optional: unsupervised analysis of sender-ligand---receiver-receptor pair expression values per sample, to see heterogeneity in cell-cell communication. 
+
+In this vignette, we will demonstrate all these steps in detail.
+
+After the MultiNicheNet analysis is done, we will explore the output of the analysis with different ways of visualization. 
+
+# Step 0: Preparation of the analysis: load packages, NicheNet LR network & ligand-target matrix, single-cell expression data
+
+## Step 0.1: Load required packages and NicheNet ligand-receptor network and ligand-target matrix
+
+```{r}
+library(dplyr)
+library(ggplot2)
+library(multinichenetr)
+```
+
+```{r}
+lr_network = readRDS("C:/Users/rbrowaey/work/Research/NicheNet/StaticNicheNet/NicheNet_V2/networks/data/ligand_receptor/lr_network_human_21122021.rds")
+lr_network = lr_network %>% dplyr::rename(ligand = from, receptor = to) %>% distinct(ligand, receptor)
+
+ligand_target_matrix = readRDS("C:/Users/rbrowaey/work/Research/NicheNet/StaticNicheNet/NicheNet_V2/model_construction/models/ligand_target_matrix_nsga2r_final.rds")
+
+
+```
+
+
+## Step 0.2: Prepare SingleCellExperiment Objects for Sender and Receiver cells
+
+
+__User adaptation required__
+```{r}
+sce = readRDS("C:/Users/rbrowaey/work/Research/NicheNet/current_projects/MIS-C/data/sce_misc.rds")
+sce = alias_to_symbol_SCE(sce, "human") %>% makenames_SCE()
+```
+
+## Step 0.3: Prepare settings of the MultiNicheNet cell-cell communication analysis
+
+### Define in which metadata columns we can find the **group**, **sample** and **cell type** IDs
+
+__User adaptation required__
+```{r}
+sample_id = "ShortID"
+group_id = "MIS.C.AgeTier"
+celltype_id = "Annotation_v2.0"
+covariates = "Age"
+batches = "Gender"
+sce = sce[, !is.na(SummarizedExperiment::colData(sce)[,"Gender"]) ]
+sce = sce[, !is.na(SummarizedExperiment::colData(sce)[,"Age"]) ]
+```
+
+Sender and receiver cell types also need to be defined. Both are here all cell types in the dataset because we are interested in an All-vs-All analysis.
+
+```{r}
+senders_oi = SummarizedExperiment::colData(sce)[,celltype_id] %>% unique() %>% head(3)
+receivers_oi = SummarizedExperiment::colData(sce)[,celltype_id] %>% unique() %>% head(3)
+```
+
+If the user wants it, it is possible to use only a subset of senders and receivers. Senders and receivers can be entirely different, but also overlapping, or the same. If you don't use all the cell types in your data, we recommend to continue with a subset of your data.
+
+Example code:
+```{r}
+subset_senders_receivers = TRUE
+if(subset_senders_receivers == TRUE){
+  sce = sce[, SummarizedExperiment::colData(sce)[,celltype_id] %in% c(senders_oi, receivers_oi)]
+}
+```
+
+Now we will go to the first real step of the MultiNicheNet analysis
+
+# Step 1: Extract cell type abundance and expression information from receiver and sender cell types, and link this expression information for ligands of the sender cell types to the corresponding receptors of the receiver cell types
+
+Since MultiNicheNet will infer group differences at the sample level for each cell type (currently via Muscat and pseudobulking), we need to have sufficient cells per sample of a cell type, and this for both groups. In the following analysis we will set this minimum number of cells per cell type per sample at 5. For 10x scRNAseq datasets, we recommend to set this to 10.
+
+__User adaptation recommended__
+```{r}
+min_cells = 10
+```
+
+Now we will calculate abundance and expression information for each cell type / sample / group combination with the following functions. In the output of this function, you can also find some 'Cell type abundance diagnostic plots' that will the users which celltype-sample combinations will be left out later on for DE calculation because the nr of cells is lower than de defined minimum defined here above. If too many celltype-sample combinations don't pass this threshold, we recommend to define your cell types in a more general way (use one level higher of the cell type ontology hierarchy) (eg TH17 CD4T cells --> CD4T cells).
+
+```{r}
+abundance_expression_info = get_abundance_expression_info(sce = sce, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id, min_cells = min_cells, senders_oi = senders_oi, receivers_oi = receivers_oi, lr_network = lr_network, batches = batches)
+```
+
+First, check the cell type abundance diagnostic plots.
+
+### Interpretation of cell type abundance information
+
+The first plot visualizes the number of cells per celltype-sample combination, and indicates which combinations are removed during the DE analysis because there are less than `min_cells` in the celltype-sample combination. 
+
+```{r, fig.width=15, fig.height=12}
+abundance_expression_info$abund_plot_sample
+```
+
+
+```{r, fig.width=12, fig.height=5.5}
+abundance_expression_info$abund_plot_group
+```
+
+If you want to look at the cell numbers behind these plots, you can do so via the following piece of code
+
+```{r}
+abundance_expression_info$abundance_data_receiver
+abundance_expression_info$abundance_data_sender # in the case of an all-vs-all analysis: both are the same
+```
+
+
+### Interpretation of expression information
+
+Previously, we also calculated expression information. With the following piece of code, you can check the average expression for each gene per sample (normalized expression value and fraction of expressing cells with non-zero counts). 
+
+```{r}
+abundance_expression_info$celltype_info$avg_df
+abundance_expression_info$celltype_info$frq_df
+```
+
+Now for the average per group:
+
+```{r}
+abundance_expression_info$celltype_info$avg_df_group
+abundance_expression_info$celltype_info$frq_df_group
+```
+
+```{r}
+abundance_expression_info$celltype_info$pb_df
+abundance_expression_info$celltype_info$pb_df_group
+```
+
+############################################## ############################################## ############################################## ##############################################
+
+############################################## investigation of what happens to the covariate correction ############################################## 
+
+############################################## ############################################## ############################################## ##############################################
+```{r}
+contrasts_oi = c("'M-S','S-M'")
+contrast_tbl = tibble(contrast = 
+                        c("M-S","S-M"), 
+                      group = c("M","S"))
+```
+
+```{r}
+muscat = perform_muscat_de_analysis(sce, sample_id, celltype_id, group_id, batches = NA, covariates = NA, contrasts = contrasts_oi, assay_oi_pb = "counts", fun_oi_pb = "sum", de_method_oi = "edgeR", min_cells = 10)
+
+muscat = perform_muscat_de_analysis(sce, sample_id, celltype_id, group_id, batches = c("Gender"), covariates = NA, contrasts = contrasts_oi, assay_oi_pb = "counts", fun_oi_pb = "sum", de_method_oi = "edgeR", min_cells = 10)
+
+muscat = perform_muscat_de_analysis(sce, sample_id, celltype_id, group_id, batches = c("Age"), covariates = NA, contrasts = contrasts_oi, assay_oi_pb = "counts", fun_oi_pb = "sum", de_method_oi = "edgeR", min_cells = 10)
+
+muscat = perform_muscat_de_analysis(sce, sample_id, celltype_id, group_id, batches = NA, covariates = c("Age"), contrasts = contrasts_oi, assay_oi_pb = "counts", fun_oi_pb = "sum", de_method_oi = "edgeR", min_cells = 10)
+
+muscat = perform_muscat_de_analysis(sce, sample_id, celltype_id, group_id, batches = c("Gender"), covariates = c("Age"), contrasts = contrasts_oi, assay_oi_pb = "counts", fun_oi_pb = "sum", de_method_oi = "edgeR", min_cells = 10)
+
+muscat = perform_muscat_de_analysis(sce, sample_id, celltype_id, group_id, batches = NA, covariates = c("Gender","Age"), contrasts = contrasts_oi, assay_oi_pb = "counts", fun_oi_pb = "sum", de_method_oi = "edgeR", min_cells = 10)
+
+```
+
+
+# Step 2: Perform genome-wide differential expression analysis of receiver and sender cell types to define DE genes between the conditions of interest. Based on this analysis, we can define the logFC/p-value of ligands in senders and receptors in receivers, and define the set of affected target genes in the receiver.
+
+Now we will go over to the multi-group, multi-sample differential expression (DE) analysis (also called 'differential state' analysis by the developers of Muscat).
+
+### Define the contrasts and covariates of interest for the DE analysis.
+
+Here, we want to compare the p-EMT-high vs the p-EMT-low group and find cell-cell communication events that are higher in high than low pEMT. We don't have other covariates to correct for in this dataset. If you would have covariates you can correct for (meaning: different covariate values should be present in all your groups of interest as defined in the contrasts), we strongly recommend doing this, since this is one of the main unique possibilities of the MultiNicheNet approach.
+
+Note the format to indicate the contrasts! (This formatting should be adhered to very strictly, and white spaces are not allowed)
+
+__User adaptation required__
+
+
+### Perform the DE analysis for each cell type.
+
+```{r}
+batches = "Gender"
+covariates = "Age"
+DE_info1 = get_DE_info(sce = sce, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id, batches = batches, covariates = covariates, contrasts_oi = contrasts_oi, min_cells = min_cells)
+
+batches = NA
+covariates = c("Gender","Age")
+DE_info2 = get_DE_info(sce = sce, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id, batches = batches, covariates = covariates, contrasts_oi = contrasts_oi, min_cells = min_cells)
+
+batches = NA
+covariates = c("Gender")
+DE_info3 = get_DE_info(sce = sce, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id, batches = batches, covariates = covariates, contrasts_oi = contrasts_oi, min_cells = min_cells)
+
+# try once with limma-trend on the average
+# DE_info = get_DE_info(sce = sce, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id, covariates = covariates, contrasts_oi = contrasts_oi, min_cells = min_cells, fun_oi_pb = "mean", de_method_oi = "limma-trend")
+```
+
+### Check DE results
+
+Table with logFC and p-values for each gene-celltype-contrast:
+
+```{r}
+DE_info$celltype_de$de_output_tidy
+```
+
+Diagnostic p-value histograms:
+
+```{r, fig.width=9, fig.height=6}
+DE_info$hist_pvals
+```

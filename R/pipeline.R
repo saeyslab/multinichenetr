@@ -20,6 +20,7 @@
 #' sample_id = "tumor"
 #' group_id = "pEMT"
 #' celltype_id = "celltype"
+#' batches = NA
 #' covariates = NA
 #' contrasts_oi = c("'High-Low','Low-High'")
 #' contrast_tbl = tibble(contrast = c("High-Low","Low-High"), group = c("High","Low"))
@@ -28,6 +29,7 @@
 #'      celltype_id = celltype_id, 
 #'      sample_id = sample_id, 
 #'      group_id = group_id,
+#'      batches = batches,
 #'      covariates = covariates,
 #'      lr_network = lr_network, 
 #'      ligand_target_matrix = ligand_target_matrix, 
@@ -57,7 +59,7 @@ multi_nichenet_analysis = function(sender_receiver_separate = TRUE, ...){
 #'
 #' @description \code{multi_nichenet_analysis_separate}  Perform a MultiNicheNet analysis between sender cell types and receiver cell types of interest.
 #' @usage multi_nichenet_analysis_separate(
-#' sce_receiver, sce_sender,celltype_id_receiver,celltype_id_sender,sample_id,group_id, covariates, lr_network,ligand_target_matrix,contrasts_oi,contrast_tbl, fraction_cutoff = 0.05,
+#' sce_receiver, sce_sender,celltype_id_receiver,celltype_id_sender,sample_id,group_id, batches, covariates, lr_network,ligand_target_matrix,contrasts_oi,contrast_tbl, fraction_cutoff = 0.05,
 #' prioritizing_weights = c("de_ligand" = 1,"de_receptor" = 1,"activity_scaled" = 1,"exprs_ligand" = 1,"exprs_receptor" = 1, "frac_exprs_ligand_receptor" = 1,"abund_sender" = 0,"abund_receiver" = 0),
 #' assay_oi_pb ="counts",fun_oi_pb = "sum",de_method_oi = "edgeR",min_cells = 10,logFC_threshold = 0.25,p_val_threshold = 0.05, p_val_adj = FALSE, empirical_pval = TRUE, top_n_target = 250, verbose = FALSE, n.cores = 1, return_lr_prod_matrix = FALSE, findMarkers = FALSE)
 #'
@@ -67,17 +69,18 @@ multi_nichenet_analysis = function(sender_receiver_separate = TRUE, ...){
 #' @param celltype_id_sender Name of the meta data column that indicates the cell type of a cell (in sce_sender). 
 #' @param sample_id Name of the meta data column that indicates from which sample/patient a cell comes from (in both sce_receiver and sce_sender)
 #' @param group_id Name of the meta data column that indicates from which group/condition a cell comes from (in both sce_receiver and sce_sender)
-#' @param covariates NA if no covariates should be corrected for. If there should be corrected for covariates, this argument should be the name(s) of the columns in the meta data that indicate the covariate(s).
+#' @param batches NA if no batches should be corrected for. If there should be corrected for batches during DE analysis and pseudobulk expression calculation, this argument should be the name(s) of the columns in the meta data that indicate the batch(s). Should be categorical. Pseudobulk expression values will be corrected for the first element of this vector. 
+#' @param covariates NA if no covariates should be corrected for. If there should be corrected for covariates uring DE analysis, this argument should be the name(s) of the columns in the meta data that indicate the covariate(s). Can both be categorical and continuous. Pseudobulk expression values will not be corrected for the first element of this vector. 
 #' @param lr_network Prior knowledge Ligand-Receptor network (columns: ligand, receptor)
 #' @param ligand_target_matrix Prior knowledge model of ligand-target regulatory potential (matrix with ligands in columns and targets in rows). See https://github.com/saeyslab/nichenetr.
 #' @param contrasts_oi String indicating the contrasts of interest (= which groups/conditions will be compared) for the differential expression and MultiNicheNet analysis. 
-#' We will demonstrate here a few examples to indicate how to write this. Check the limma package manuals for more information about defining design matrices and contrasts for differential expression analysis.
-#' If wanting to compare group A vs B: `contrasts_oi = c("'A-B'")`
-#' If wanting to compare group A vs B & B vs A: `contrasts_oi = c("'A-B','B-A'")`
-#' If wanting to compare group A vs B & A vs C & A vs D: `contrasts_oi = c("'A-B','A-C', 'A-D'")`
-#' If wanting to compare group A vs B and C: `contrasts_oi = c("'A-(B+C)/2'")`
-#' If wanting to compare group A vs B, C and D: `contrasts_oi = c("'A-(B+C+D)/3'")`
-#' If wanting to compare group A vs B, C and D & B vs A,C,D: `contrasts_oi = c("'A-(B+C+D)/3', 'B-(A+C+D)/3'")`
+#' We will demonstrate here a few examples to indicate how to write this. Check the limma package manuals for more information about defining design matrices and contrasts for differential expression analysis. \cr
+#' If wanting to compare group A vs B: `contrasts_oi = c("'A-B'")` \cr
+#' If wanting to compare group A vs B & B vs A: `contrasts_oi = c("'A-B','B-A'")` \cr
+#' If wanting to compare group A vs B & A vs C & A vs D: `contrasts_oi = c("'A-B','A-C', 'A-D'")` \cr
+#' If wanting to compare group A vs B and C: `contrasts_oi = c("'A-(B+C)/2'")` \cr
+#' If wanting to compare group A vs B, C and D: `contrasts_oi = c("'A-(B+C+D)/3'")` \cr
+#' If wanting to compare group A vs B, C and D & B vs A,C,D: `contrasts_oi = c("'A-(B+C+D)/3', 'B-(A+C+D)/3'")` \cr
 #' Note that the groups A, B, ... should be present in the meta data column 'group_id'.
 #' @param contrast_tbl Data frame providing names for each of the contrasts in contrasts_oi in the 'contrast' column, and the corresponding group of interest in the 'group' column. Entries in the 'group' column should thus be present in the group_id column in the metadata. 
 #' Example for `contrasts_oi = c("'A-(B+C+D)/3', 'B-(A+C+D)/3'")`:
@@ -85,15 +88,15 @@ multi_nichenet_analysis = function(sender_receiver_separate = TRUE, ...){
 #' @param fraction_cutoff Cutoff indicating the minimum fraction of cells of a cell type in a specific sample that are necessary to consider the gene as expressed. 
 #' @param prioritizing_weights Named vector indicating the relative weights of each prioritization criterion included in MultiNicheNet.
 #' Default: prioritizing_weights = c("de_ligand" = 1,"de_receptor" = 1,"activity_scaled" = 1,"exprs_ligand" = 1,"exprs_receptor" = 1, "frac_exprs_ligand_receptor" = 1,"abund_sender" = 0,"abund_receiver" = 0)
-#' Details about the meaning of this naming:
-#' de_ligand: importance of DE of the ligand in a certain sender (indicates upregulation of the ligand in condition of interest compared to other conditions): based on a scaling of the following calculation: -log10(p-value)*logFC.
-#' de_receptor: importance of DE of the receptor in a certain receiver (indicates upregulation of the receptor in condition of interest compared to other conditions): : based on a scaling of the following calculation: -log10(p-value)*logFC.
-#' activity_scaled: importance of the scaled ligand activity of the ligand in a certain receiver-condition combination (indicates active signaling of a ligand in a receiver cell type in a certain condition compared to other conditions). Scaled activity: indicates the ranking of ligands in a certain receiver-condition combination.
-#' exprs_ligand: importance of the condition-and-sender specific expression of a ligand (taking into account average expression value and fraction of cells expressing a ligand). 
-#' exprs_receptor: importance of the condition-and-receiver specific expression of a receptor (taking into account average expression value and fraction of cells expressing a receptor).
-#' frac_exprs_ligand_receptor: importance of the fraction of samples in a group that show high enough expression of the specific ligand-receptor pair.
-#' abund_sender: importance of relative cell type abundance of the sender cell type.
-#' abund_receiver: importance of relative cell type abundance of the receiver cell type.
+#' Details about the meaning of this naming: \cr
+#' de_ligand: importance of DE of the ligand in a certain sender (indicates upregulation of the ligand in condition of interest compared to other conditions): based on a scaling of the following calculation: -log10(p-value)*logFC. \cr
+#' de_receptor: importance of DE of the receptor in a certain receiver (indicates upregulation of the receptor in condition of interest compared to other conditions): : based on a scaling of the following calculation: -log10(p-value)*logFC.\cr
+#' activity_scaled: importance of the scaled ligand activity of the ligand in a certain receiver-condition combination (indicates active signaling of a ligand in a receiver cell type in a certain condition compared to other conditions). Scaled activity: indicates the ranking of ligands in a certain receiver-condition combination. \cr
+#' exprs_ligand: importance of the condition-and-sender specific expression of a ligand (taking into account average expression value and fraction of cells expressing a ligand).  \cr
+#' exprs_receptor: importance of the condition-and-receiver specific expression of a receptor (taking into account average expression value and fraction of cells expressing a receptor). \cr
+#' frac_exprs_ligand_receptor: importance of the fraction of samples in a group that show high enough expression of the specific ligand-receptor pair. \cr
+#' abund_sender: importance of relative cell type abundance of the sender cell type. \cr
+#' abund_receiver: importance of relative cell type abundance of the receiver cell type. \cr
 #' @param assay_oi_pb Indicates which information of the assay of interest should be used (counts, scaled data,...). Default: "counts". See `muscat::aggregateData`.
 #' @param fun_oi_pb Indicates way of doing the pseudobulking. Default: "sum". See `muscat::aggregateData`.
 #' @param de_method_oi Indicates the DE method that will be used after pseudobulking. Default: "edgeR". See `muscat::pbDS`.
@@ -101,22 +104,22 @@ multi_nichenet_analysis = function(sender_receiver_separate = TRUE, ...){
 #' @param logFC_threshold For defining the gene set of interest for NicheNet ligand activity: what is the minimum logFC a gene should have to belong to this gene set? Default: 0.25/
 #' @param p_val_threshold For defining the gene set of interest for NicheNet ligand activity: what is the maximam p-value a gene should have to belong to this gene set? Default: 0.05.
 #' @param p_val_adj For defining the gene set of interest for NicheNet ligand activity: should we look at the p-value corrected for multiple testing? Default: FALSE.
-#' @param empirical_pval For defining the gene set of interest for NicheNet ligand activity - and for ranking DE ligands and receptors: should we use the normal p-values, or the p-values that are corrected by the empirical null procedure. The latter could be beneficial if p-value distribution histograms indicate potential problems in the model definition (eg not all relevant covariates are selected, etc). Default: TRUE.
+#' @param empirical_pval For defining the gene set of interest for NicheNet ligand activity - and for ranking DE ligands and receptors: should we use the normal p-values, or the p-values that are corrected by the empirical null procedure. The latter could be beneficial if p-value distribution histograms indicate potential problems in the model definition (eg not all relevant batches are selected, etc). Default: TRUE.
 #' @param top_n_target For defining NicheNet ligand-target links: which top N predicted target genes. See `nichenetr::get_weighted_ligand_target_links()`.
 #' @param verbose Indicate which different steps of the pipeline are running or not. Default: FALSE.
 #' @param n.cores The number of cores used for parallel computation of the ligand activities per receiver cell type. Default: 1 - no parallel computation.
 #' @param return_lr_prod_matrix Indicate whether to calculate a senderLigand-receiverReceptor matrix, which could be used for unsupervised analysis of the cell-cell communication. Default FALSE. Setting to FALSE might be beneficial to avoid memory issues.
 #' @param findMarkers Indicate whether we should also calculate DE results with the classic scran::findMarkers approach. Default (recommended): FALSE.
 
-#' @return List containing information and output of the MultiNicheNet analysis.
-#' celltype_info: contains average expression value and fraction of each cell type - sample combination,
-#' celltype_de: contains output of the differential expression analysis, 
-#' sender_receiver_info: links the expression information of the ligand in the sender cell types to the expression of the receptor in the receiver cell types, 
-#' sender_receiver_de: links the differential information of the ligand in the sender cell types to the expression of the receptor in the receiver cell types
-#' ligand_activities_targets_DEgenes: contains the output of the NicheNet ligand activity analysis, and the NicheNet ligand-target inference
-#' prioritization_tables: contains the tables with the final prioritization scores
-#' lr_prod_mat: matrix of the ligand-receptor expression product of the expressed senderLigand-receiverReceptor pairs,
-#' grouping_tbl: data frame showing the group per sample 
+#' @return List containing information and output of the MultiNicheNet analysis.\cr
+#' celltype_info: contains average expression value and fraction of each cell type - sample combination, \cr
+#' celltype_de: contains output of the differential expression analysis,  \cr
+#' sender_receiver_info: links the expression information of the ligand in the sender cell types to the expression of the receptor in the receiver cell types,  \cr
+#' sender_receiver_de: links the differential information of the ligand in the sender cell types to the expression of the receptor in the receiver cell types \cr
+#' ligand_activities_targets_DEgenes: contains the output of the NicheNet ligand activity analysis, and the NicheNet ligand-target inference \cr
+#' prioritization_tables: contains the tables with the final prioritization scores \cr
+#' lr_prod_mat: matrix of the ligand-receptor expression product of the expressed senderLigand-receiverReceptor pairs, \cr
+#' grouping_tbl: data frame showing the group per sample  \cr
 #' lr_target_prior_cor: data frame showing the expression correlation between ligand-receptor pairs and DE genes + NicheNet regulatory potential scores indicating the amount of prior knowledge supporting a LR-target regulatory link
 #' @import dplyr
 #' @import ggplot2
@@ -138,6 +141,7 @@ multi_nichenet_analysis = function(sender_receiver_separate = TRUE, ...){
 #' group_id = "pEMT"
 #' celltype_id_receiver = "celltype"
 #' celltype_id_sender = "celltype"
+#' batches = NA
 #' covariates = NA
 #' contrasts_oi = c("'High-Low','Low-High'")
 #' contrast_tbl = tibble(contrast = c("High-Low","Low-High"), group = c("High","Low"))
@@ -148,6 +152,7 @@ multi_nichenet_analysis = function(sender_receiver_separate = TRUE, ...){
 #'      celltype_id_sender = celltype_id_sender,
 #'      sample_id = sample_id, 
 #'      group_id = group_id, 
+#'      batches = batches,
 #'      covariates = covariates,
 #'      lr_network = lr_network, 
 #'      ligand_target_matrix = ligand_target_matrix, 
@@ -164,6 +169,7 @@ multi_nichenet_analysis_separate = function(sce_receiver,
                                             celltype_id_sender,
                                             sample_id,
                                             group_id,
+                                            batches,
                                             covariates,
                                             lr_network,
                                             ligand_target_matrix,
@@ -331,12 +337,12 @@ multi_nichenet_analysis_separate = function(sce_receiver,
   }
   
   
-  if(!is.na(covariates)){
-    if (sum(covariates %in% colnames(SummarizedExperiment::colData(sce_receiver))) != length(covariates) ) {
-      stop("covariates should be NA or all present as column name(s) in the metadata dataframe of sce_receiver")
+  if(!is.na(batches)){
+    if (sum(batches %in% colnames(SummarizedExperiment::colData(sce_receiver))) != length(batches) ) {
+      stop("batches should be NA or all present as column name(s) in the metadata dataframe of sce_receiver")
     }
-    if (sum(covariates %in% colnames(SummarizedExperiment::colData(sce_sender))) != length(covariates) ) {
-      stop("covariates should be NA or all present column name(s) in the metadata dataframe of sce_sender")
+    if (sum(batches %in% colnames(SummarizedExperiment::colData(sce_sender))) != length(batches) ) {
+      stop("batches should be NA or all present column name(s) in the metadata dataframe of sce_sender")
     }
   }
   
@@ -482,7 +488,7 @@ multi_nichenet_analysis_separate = function(sce_receiver,
     print("Make diagnostic abundance plots + Calculate expression information")
   }
   
-  abundance_expression_info = get_abundance_expression_info_separate(sce_receiver = sce_receiver, sce_sender = sce_sender, sample_id = sample_id, group_id = group_id, celltype_id_receiver = celltype_id_receiver, celltype_id_sender = celltype_id_sender, senders_oi = senders_oi, receivers_oi = receivers_oi, lr_network = lr_network, covariates = covariates, min_cells = min_cells)
+  abundance_expression_info = get_abundance_expression_info_separate(sce_receiver = sce_receiver, sce_sender = sce_sender, sample_id = sample_id, group_id = group_id, celltype_id_receiver = celltype_id_receiver, celltype_id_sender = celltype_id_sender, senders_oi = senders_oi, receivers_oi = receivers_oi, lr_network = lr_network, batches = batches, min_cells = min_cells)
   
   ### Perform the DE analysis ----------------------------------------------------------------
   
@@ -490,26 +496,26 @@ multi_nichenet_analysis_separate = function(sce_receiver,
     print("Calculate differential expression for all cell types")
   }
   if(findMarkers == FALSE){
-    DE_info_receiver = get_DE_info(sce = sce_receiver, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id_receiver, covariates = covariates, contrasts_oi = contrasts_oi, min_cells = min_cells, 
+    DE_info_receiver = get_DE_info(sce = sce_receiver, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id_receiver, batches = batches, covariates = covariates, contrasts_oi = contrasts_oi, min_cells = min_cells, 
                                    assay_oi_pb = assay_oi_pb,
                                    fun_oi_pb = fun_oi_pb,
                                    de_method_oi = de_method_oi, 
                                    findMarkers = findMarkers)
     
-    DE_info_sender = get_DE_info(sce = sce_sender, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id_sender, covariates = covariates, contrasts_oi = contrasts_oi, min_cells = min_cells, 
+    DE_info_sender = get_DE_info(sce = sce_sender, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id_sender, batches = batches, covariates = covariates , contrasts_oi = contrasts_oi, min_cells = min_cells, 
                                  assay_oi_pb = assay_oi_pb,
                                  fun_oi_pb = fun_oi_pb,
                                  de_method_oi = de_method_oi,
                                  findMarkers = findMarkers)
   } else {
-    DE_info_receiver = get_DE_info(sce = sce_receiver, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id_receiver, covariates = covariates, contrasts_oi = contrasts_oi, min_cells = min_cells, 
+    DE_info_receiver = get_DE_info(sce = sce_receiver, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id_receiver, batches = batches, covariates = covariates, contrasts_oi = contrasts_oi, min_cells = min_cells, 
                                    assay_oi_pb = assay_oi_pb,
                                    fun_oi_pb = fun_oi_pb,
                                    de_method_oi = de_method_oi, 
                                    findMarkers = findMarkers,
                                    contrast_tbl = contrast_tbl)
     
-    DE_info_sender = get_DE_info(sce = sce_sender, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id_sender, covariates = covariates, contrasts_oi = contrasts_oi, min_cells = min_cells, 
+    DE_info_sender = get_DE_info(sce = sce_sender, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id_sender, batches = batches, covariates = covariates, contrasts_oi = contrasts_oi, min_cells = min_cells, 
                                  assay_oi_pb = assay_oi_pb,
                                  fun_oi_pb = fun_oi_pb,
                                  de_method_oi = de_method_oi,
@@ -589,15 +595,13 @@ multi_nichenet_analysis_separate = function(sce_receiver,
   
   metadata_combined = SummarizedExperiment::colData(sce_receiver) %>% tibble::as_tibble()
   
-  if(!is.na(covariates)){
-    grouping_tbl = metadata_combined[,c(sample_id, group_id, covariates)] %>% tibble::as_tibble() %>% dplyr::distinct()
-    colnames(grouping_tbl) = c("sample","group",covariates)
+  if(!is.na(batches)){
+    grouping_tbl = metadata_combined[,c(sample_id, group_id, batches)] %>% tibble::as_tibble() %>% dplyr::distinct()
+    colnames(grouping_tbl) = c("sample","group",batches)
   } else {
     grouping_tbl = metadata_combined[,c(sample_id, group_id)] %>% tibble::as_tibble() %>% dplyr::distinct()
     colnames(grouping_tbl) = c("sample","group")
   }
-  
-  # print(grouping_tbl)
   
   prioritization_tables = suppressMessages(generate_prioritization_tables(
     sender_receiver_info = abundance_expression_info$sender_receiver_info,
@@ -657,7 +661,7 @@ multi_nichenet_analysis_separate = function(sce_receiver,
 #'
 #' @description \code{multi_nichenet_analysis_combined}  Perform a MultiNicheNet analysis in an all-vs-all setting: all cell types in the data will be considered both as sender and receiver.
 #' @usage multi_nichenet_analysis_combined(
-#' sce, celltype_id, sample_id,group_id, covariates, lr_network,ligand_target_matrix,contrasts_oi,contrast_tbl,  fraction_cutoff = 0.05,
+#' sce, celltype_id, sample_id,group_id, batches, covariates, lr_network,ligand_target_matrix,contrasts_oi,contrast_tbl,  fraction_cutoff = 0.05,
 #' prioritizing_weights = c("de_ligand" = 1,"de_receptor" = 1,"activity_scaled" = 1,"exprs_ligand" = 1,"exprs_receptor" = 1, "frac_exprs_ligand_receptor" = 1,"abund_sender" = 0,"abund_receiver" = 0),
 #' assay_oi_pb ="counts",fun_oi_pb = "sum",de_method_oi = "edgeR",min_cells = 10,logFC_threshold = 0.25,p_val_threshold = 0.05,p_val_adj = FALSE, empirical_pval = TRUE, top_n_target = 250, verbose = FALSE, n.cores = 1, return_lr_prod_matrix = FALSE, findMarkers = FALSE)
 #'
@@ -694,6 +698,7 @@ multi_nichenet_analysis_separate = function(sce_receiver,
 #' sample_id = "tumor"
 #' group_id = "pEMT"
 #' celltype_id = "celltype"
+#' batches = NA
 #' covariates = NA
 #' contrasts_oi = c("'High-Low','Low-High'")
 #' contrast_tbl = tibble(contrast = c("High-Low","Low-High"), group = c("High","Low"))
@@ -702,6 +707,7 @@ multi_nichenet_analysis_separate = function(sce_receiver,
 #'      celltype_id = celltype_id, 
 #'      sample_id = sample_id, 
 #'      group_id = group_id, 
+#'      batches = batches,
 #'      covariates = covariates,
 #'      lr_network = lr_network, 
 #'      ligand_target_matrix = ligand_target_matrix, 
@@ -715,6 +721,7 @@ multi_nichenet_analysis_combined = function(sce,
                                             celltype_id,
                                             sample_id,
                                             group_id,
+                                            batches,
                                             covariates,
                                             lr_network,
                                             ligand_target_matrix,
@@ -836,9 +843,9 @@ multi_nichenet_analysis_combined = function(sce,
     warning("According to your contrast_tbl, some of your contrasts will be assigned to the same group. This should not be a problem if this was intended, but be aware not to make mistakes in the further interpretation and plotting of the results.")
   }
   
-  if(!is.na(covariates)){
-    if (sum(covariates %in% colnames(SummarizedExperiment::colData(sce))) != length(covariates) ) {
-      stop("covariates should be NA or all present as column name(s) in the metadata dataframe of sce_receiver")
+  if(!is.na(batches)){
+    if (sum(batches %in% colnames(SummarizedExperiment::colData(sce))) != length(batches) ) {
+      stop("batches should be NA or all present as column name(s) in the metadata dataframe of sce_receiver")
     }
   }
   
@@ -985,7 +992,7 @@ multi_nichenet_analysis_combined = function(sce,
     print("Make diagnostic abundance plots + Calculate expression information")
   }
   
-  abundance_expression_info = get_abundance_expression_info(sce = sce, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id, min_cells = min_cells, senders_oi = senders_oi, receivers_oi = receivers_oi, lr_network = lr_network, covariates = covariates)
+  abundance_expression_info = get_abundance_expression_info(sce = sce, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id, min_cells = min_cells, senders_oi = senders_oi, receivers_oi = receivers_oi, lr_network = lr_network, batches = batches)
   
   ### Perform the DE analysis ----------------------------------------------------------------
 
@@ -994,13 +1001,13 @@ multi_nichenet_analysis_combined = function(sce,
   }
   
   if(findMarkers == FALSE){
-    DE_info = get_DE_info(sce = sce, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id, covariates = covariates, contrasts_oi = contrasts_oi, min_cells = min_cells,
+    DE_info = get_DE_info(sce = sce, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id, batches = batches, covariates = covariates, contrasts_oi = contrasts_oi, min_cells = min_cells,
                           assay_oi_pb = assay_oi_pb,
                           fun_oi_pb = fun_oi_pb,
                           de_method_oi = de_method_oi,
                           findMarkers = findMarkers)
   } else {
-    DE_info = get_DE_info(sce = sce, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id, covariates = covariates, contrasts_oi = contrasts_oi, min_cells = min_cells,
+    DE_info = get_DE_info(sce = sce, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id, batches = batches, covariates = covariates, contrasts_oi = contrasts_oi, min_cells = min_cells,
                           assay_oi_pb = assay_oi_pb,
                           fun_oi_pb = fun_oi_pb,
                           de_method_oi = de_method_oi,
@@ -1060,15 +1067,14 @@ multi_nichenet_analysis_combined = function(sce,
   
   metadata_combined = SummarizedExperiment::colData(sce) %>% tibble::as_tibble()
   
-  if(!is.na(covariates)){
-    grouping_tbl = metadata_combined[,c(sample_id, group_id, covariates)] %>% tibble::as_tibble() %>% dplyr::distinct()
-    colnames(grouping_tbl) = c("sample","group",covariates)
+  if(!is.na(batches)){
+    grouping_tbl = metadata_combined[,c(sample_id, group_id, batches)] %>% tibble::as_tibble() %>% dplyr::distinct()
+    colnames(grouping_tbl) = c("sample","group",batches)
   } else {
     grouping_tbl = metadata_combined[,c(sample_id, group_id)] %>% tibble::as_tibble() %>% dplyr::distinct()
     colnames(grouping_tbl) = c("sample","group")
   }
 
-  # print(grouping_tbl)
 
   prioritization_tables = suppressMessages(generate_prioritization_tables(
     sender_receiver_info = abundance_expression_info$sender_receiver_info,

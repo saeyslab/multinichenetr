@@ -19,19 +19,19 @@ Example for `contrasts_oi = c("'A-(B+C+D)/3', 'B-(A+C+D)/3'")`:
 
 \item{sender_receiver_tbl}{Data frame with all sender-receiver cell type combinations (columns: sender and receiver)}
 
-\item{grouping_tbl}{Data frame showing the groups of each sample (and covariates per sample if applicable) (columns: sample and group; and if applicable all covariates of interest)}
+\item{grouping_tbl}{Data frame showing the groups of each sample (and batches per sample if applicable) (columns: sample and group; and if applicable all batches of interest)}
 
 \item{prioritizing_weights}{Named vector indicating the relative weights of each prioritization criterion included in MultiNicheNet.
 Default: prioritizing_weights = c("de_ligand" = 1,"de_receptor" = 1,"activity_scaled" = 1,"exprs_ligand" = 1,"exprs_receptor" = 1, "frac_exprs_ligand_receptor" = 1,"abund_sender" = 0,"abund_receiver" = 0)
-Details about the meaning of this naming:
-de_ligand: importance of DE of the ligand in a certain sender (indicates upregulation of the ligand in condition of interest compared to other conditions): based on a scaling of the following calculation: -log10(p-value)*logFC.
-de_receptor: importance of DE of the receptor in a certain receiver (indicates upregulation of the receptor in condition of interest compared to other conditions): : based on a scaling of the following calculation: -log10(p-value)*logFC.
-activity_scaled: importance of the scaled ligand activity of the ligand in a certain receiver-condition combination (indicates active signaling of a ligand in a receiver cell type in a certain condition compared to other conditions). Scaled activity: indicates the ranking of ligands in a certain receiver-condition combination.
-exprs_ligand: importance of the condition-and-sender specific expression of a ligand (taking into account average expression value and fraction of cells expressing a ligand). 
-exprs_receptor: importance of the condition-and-receiver specific expression of a receptor (taking into account average expression value and fraction of cells expressing a receptor).
-frac_exprs_ligand_receptor: importance of the fraction of samples in a group that show high enough expression of the specific ligand-receptor pair.
-abund_sender: importance of relative cell type abundance of the sender cell type.
-abund_receiver: importance of relative cell type abundance of the receiver cell type.}
+Details about the meaning of this naming: \cr
+de_ligand: importance of DE of the ligand in a certain sender (indicates upregulation of the ligand in condition of interest compared to other conditions): based on a scaling of the following calculation: -log10(p-value)*logFC. \cr
+de_receptor: importance of DE of the receptor in a certain receiver (indicates upregulation of the receptor in condition of interest compared to other conditions): : based on a scaling of the following calculation: -log10(p-value)*logFC.\cr
+activity_scaled: importance of the scaled ligand activity of the ligand in a certain receiver-condition combination (indicates active signaling of a ligand in a receiver cell type in a certain condition compared to other conditions). Scaled activity: indicates the ranking of ligands in a certain receiver-condition combination. \cr
+exprs_ligand: importance of the condition-and-sender specific expression of a ligand (taking into account average expression value and fraction of cells expressing a ligand).  \cr
+exprs_receptor: importance of the condition-and-receiver specific expression of a receptor (taking into account average expression value and fraction of cells expressing a receptor). \cr
+frac_exprs_ligand_receptor: importance of the fraction of samples in a group that show high enough expression of the specific ligand-receptor pair. \cr
+abund_sender: importance of relative cell type abundance of the sender cell type. \cr
+abund_receiver: importance of relative cell type abundance of the receiver cell type. \cr}
 
 \item{fraction_cutoff}{Cutoff indicating the minimum fraction of cells of a cell type in a specific sample that are necessary to consider the gene as expressed.}
 
@@ -55,7 +55,7 @@ ligand_target_matrix = readRDS(url("https://zenodo.org/record/3260758/files/liga
 sample_id = "tumor"
 group_id = "pEMT"
 celltype_id = "celltype"
-covariates = NA
+batches = NA
 contrasts_oi = c("'High-Low','Low-High'")
 contrast_tbl = tibble(contrast = c("High-Low","Low-High"), group = c("High","Low"))
 
@@ -79,7 +79,7 @@ celltype_de = perform_muscat_de_analysis(
    sample_id = sample_id,
    celltype_id = celltype_id,
    group_id = group_id,
-   covariates = covariates,
+   batches = batches,
    contrasts = contrasts_oi)
    
 sender_receiver_de = combine_sender_receiver_de(

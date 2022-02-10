@@ -4,7 +4,7 @@
 \alias{make_ligand_receptor_violin_plot}
 \title{make_ligand_receptor_violin_plot}
 \usage{
-make_ligand_receptor_violin_plot(sce_sender, sce_receiver, ligand_oi, receptor_oi, sender_oi, receiver_oi, group_oi, group_id, sample_id, celltype_id_sender, celltype_id_receiver, covariate_oi = NA, background_groups = NULL)
+make_ligand_receptor_violin_plot(sce_sender, sce_receiver, ligand_oi, receptor_oi, sender_oi, receiver_oi, group_oi, group_id, sample_id, celltype_id_sender, celltype_id_receiver, batch_oi = NA, background_groups = NULL)
 }
 \arguments{
 \item{sce_sender}{SingleCellExperiment object containing the sender cell types of interest}
@@ -29,7 +29,7 @@ make_ligand_receptor_violin_plot(sce_sender, sce_receiver, ligand_oi, receptor_o
 
 \item{celltype_id_receiver}{Name of the meta data column that indicates the cell type of a cell (in sce_receiver).}
 
-\item{covariate_oi}{Name of a covariate of interest based on which the visualization will be split. Default: NA: no covariate.}
+\item{batch_oi}{Name of a batch of interest based on which the visualization will be split. Default: NA: no batch.}
 
 \item{background_groups}{Default NULL: all groups in the group_id metadata column will be chosen. But user can fill in a character vector with the names of all gruops of interest.}
 }
@@ -48,7 +48,7 @@ ligand_target_matrix = readRDS(url("https://zenodo.org/record/3260758/files/liga
 sample_id = "tumor"
 group_id = "pEMT"
 celltype_id = "celltype"
-covariates = NA
+batches = NA
 contrasts_oi = c("'High-Low','Low-High'")
 contrast_tbl = tibble(contrast = c("High-Low","Low-High"), group = c("High","Low"))
 output = multi_nichenet_analysis(
@@ -56,7 +56,7 @@ output = multi_nichenet_analysis(
      celltype_id = celltype_id, 
      sample_id = sample_id, 
      group_id = group_id,
-     covariates = covariates,
+     batches = batches,
      lr_network = lr_network, 
      ligand_target_matrix = ligand_target_matrix, 
      contrasts_oi = contrasts_oi, 

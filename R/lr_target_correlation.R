@@ -28,7 +28,7 @@
 #' sample_id = "tumor"
 #' group_id = "pEMT"
 #' celltype_id = "celltype"
-#' covariates = NA
+#' batches = NA
 #' contrasts_oi = c("'High-Low','Low-High'")
 #' contrast_tbl = tibble(contrast = c("High-Low","Low-High"), group = c("High","Low"))
 #' 
@@ -54,7 +54,7 @@
 #'    sample_id = sample_id,
 #'    celltype_id = celltype_id,
 #'    group_id = group_id,
-#'    covariates = covariates,
+#'    batches = batches,
 #'    contrasts = contrasts_oi)
 #'    
 #' sender_receiver_de = combine_sender_receiver_de(
@@ -132,17 +132,20 @@ lr_target_prior_cor_inference = function(receivers_oi, abundance_expression_info
     # print(dim(lr_prod_mat_oi))
     # get DE genes
     if(p_val_adj == FALSE){
-      targets_oi = celltype_de %>% dplyr::filter(cluster_id == receiver_oi) %>% dplyr::filter(p_val <= p_val_threshold & logFC >= logFC_threshold) %>% dplyr::pull(gene)
+      targets_oi = celltype_de %>% dplyr::filter(cluster_id == receiver_oi) %>% dplyr::filter(p_val <= p_val_threshold & abs(logFC) >= logFC_threshold) %>% dplyr::pull(gene)
+
     } else {
-      targets_oi = celltype_de %>% dplyr::filter(cluster_id == receiver_oi) %>% dplyr::filter(p_adj <= p_val_threshold & logFC >= logFC_threshold) %>% dplyr::pull(gene)
+      targets_oi = celltype_de %>% dplyr::filter(cluster_id == receiver_oi) %>% dplyr::filter(p_adj <= p_val_threshold & abs(logFC) >= logFC_threshold) %>% dplyr::pull(gene)
     }
-    
+
     if("celltype_info" %in% names(abundance_expression_info)){
       pb_df =  abundance_expression_info$celltype_info$pb_df %>% dplyr::filter(gene %in% targets_oi & celltype %in% receiver_oi) %>% dplyr::inner_join(grouping_tbl, by = "sample") %>% dplyr::filter(keep_receiver == 1 & keep_sender == 1)
     }
     if("receiver_info" %in% names(abundance_expression_info)){
       pb_df =  abundance_expression_info$receiver_info$pb_df %>% dplyr::filter(gene %in% targets_oi & celltype %in% receiver_oi) %>% dplyr::inner_join(grouping_tbl, by = "sample") %>% dplyr::filter(keep_receiver == 1 & keep_sender == 1)
     }
+    
+    ##### target genes correlation #####
     
     target_df = pb_df %>% dplyr::select(sample, gene, pb_sample) %>% dplyr::distinct() %>% tidyr::spread(sample, pb_sample)
     target_mat = target_df %>% dplyr::select(-gene) %>% data.frame() %>% as.matrix()
@@ -180,9 +183,9 @@ lr_target_prior_cor_inference = function(receivers_oi, abundance_expression_info
     cor_df_spearman = cor_mat$r %>% .[,rownames(target_mat)] %>% data.frame() %>% tibble::rownames_to_column("id") %>% tidyr::gather(target, spearman, -id) %>% tibble::as_tibble()
     cor_df_spearman_pval = cor_mat$P %>% .[,rownames(target_mat)] %>% data.frame() %>% tibble::rownames_to_column("id") %>% tidyr::gather(target, spearman_pval, -id) %>% tibble::as_tibble()
     
-    
-    cor_df = lig_rec_send_rec_mapping %>% dplyr::inner_join(cor_df_pearson, by = "id") %>% dplyr::inner_join(cor_df_pearson_pval, by = c("id", "target")) %>% dplyr::inner_join(cor_df_spearman, by = c("id", "target")) %>% dplyr::inner_join(cor_df_spearman_pval, by = c("id", "target"))
-    print(cor_df)
+    cor_df = lig_rec_send_rec_mapping %>% dplyr::inner_join(cor_df_pearson, by = "id") %>% dplyr::inner_join(cor_df_pearson_pval, by = c("id", "target")) %>% dplyr::inner_join(cor_df_spearman, by = c("id", "target")) %>% dplyr::inner_join(cor_df_spearman_pval, by = c("id", "target")) 
+
+    # print(cor_df)
     # scaling of the correlation metric -- Don't do this for now
     #   cor_df = cor_df %>% dplyr::ungroup() %>% dplyr::mutate(scaled_pearson = nichenetr::scale_quantile(pearson, 0.05), scaled_spearman = nichenetr::scale_quantile(spearman, 0.05))  # is this  scaling necessary? 
   }) %>% bind_rows()
@@ -190,8 +193,10 @@ lr_target_prior_cor_inference = function(receivers_oi, abundance_expression_info
   
   # Step3: Scale the ligand-target prior information scores 
   ligand_target_df = ligand_target_matrix %>% data.frame() %>% tibble::rownames_to_column("target") %>% tidyr::gather(ligand, prior_score, -target) %>% tibble::as_tibble()
-  ligand_target_df = ligand_target_df %>% dplyr::group_by(ligand) %>% dplyr::mutate(scaled_ligand = nichenetr::scale_quantile(prior_score, 0.0005)) %>% dplyr::group_by(target) %>% dplyr::mutate(scaled_target = nichenetr::scale_quantile(prior_score, 0.0005))
-  ligand_target_df = ligand_target_df %>% dplyr::mutate(scaled_prior_score = 0.5*(scaled_ligand + scaled_target))
+  ligand_target_df = ligand_target_df %>% dplyr::group_by(ligand) %>% dplyr::mutate(rank_of_target = rank(desc(prior_score), ties.method = "min")) %>% dplyr::group_by(target) %>% dplyr::mutate(rank_of_ligand = rank(desc(prior_score), ties.method = "min"))
+
+  # ligand_target_df = ligand_target_df %>% dplyr::group_by(ligand) %>% dplyr::mutate(scaled_ligand = nichenetr::scale_quantile(prior_score, 0.0005)) %>% dplyr::group_by(target) %>% dplyr::mutate(scaled_target = nichenetr::scale_quantile(prior_score, 0.0005))
+  # ligand_target_df = ligand_target_df %>% dplyr::mutate(scaled_prior_score = 0.5*(scaled_ligand + scaled_target))
   
   # Step4: Combine the ligand-target prior information scores and combine with the correlation based ones!
   cor_prior_df = lr_target_cor %>% dplyr::inner_join(ligand_target_df, by = c("ligand", "target")) %>% dplyr::mutate(id_target = paste(id, target, sep = "_")) %>% dplyr::ungroup() 
@@ -201,5 +206,6 @@ lr_target_prior_cor_inference = function(receivers_oi, abundance_expression_info
   # cor_prior_df = cor_prior_df %>% mutate(final_score = 0.50*(2*scaled_prior_score + scaled_cor_score)) %>% arrange(-final_score)
   # cor_prior_df = cor_prior_df %>% dplyr::mutate(final_score = (scaled_prior_score + 0.50*scaled_pearson + 0.50*scaled_spearman)/2) %>% dplyr::arrange(-final_score) # I could give more weight to the prior information? - but maybe do not do this for the moment?
   return(cor_prior_df)
+  
 }
 
