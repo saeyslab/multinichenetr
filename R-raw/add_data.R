@@ -28,6 +28,11 @@ usethis::use_data(geneinfo_alias_human, overwrite = T, compress = "bzip2")
 usethis::use_data(geneinfo_alias_mouse, overwrite = T, compress = "bzip2")
 
 
+ligand_target_matrix = readRDS(url("https://zenodo.org/record/5884439/files/ligand_target_matrix_nsga2r_final.rds"))
+ligand_target_matrix = ligand_target_matrix[intersect(rownames(sce), rownames(ligand_target_matrix)),intersect(rownames(sce), colnames(ligand_target_matrix))]
+ligand_target_matrix_test = ligand_target_matrix
+usethis::use_data(ligand_target_matrix_test, overwrite = T, compress = "bzip2")
+
 # usethis::use_package("Seurat") # not used anymore
 usethis::use_package("dplyr")
 usethis::use_package("ggplot2")

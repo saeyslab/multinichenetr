@@ -31,3 +31,10 @@
 #'   }
 #'
 "geneinfo_alias_mouse"
+#' Ligand-Target Matrix: subset NicheNet 2.0.
+#'
+#' Matrix with ligand-target regulatory potential scores
+#'
+#' @format A matrix
+#'
+"ligand_target_matrix_test"

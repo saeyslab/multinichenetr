@@ -765,6 +765,12 @@ alias_to_symbol_SCE = function(sce, organism) {
   RNA = sce@assays@data
   
   newnames = convert_alias_to_symbols(rownames(sce), organism = organism)
+  
+  # sometimes: there are doubles:
+  doubles =  newnames %>% table() %>% .[. > 1] %>% names()
+  genes_remove = (names(newnames[newnames %in% doubles]) != (newnames[newnames %in% doubles])) %>%  .[. == TRUE] %>% names()
+  newnames[genes_remove] = genes_remove # set the doubles back to their old names
+  
   rownames(sce) = newnames
   
   if(!is.null(RNA$counts)){

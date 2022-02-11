@@ -653,7 +653,7 @@ multi_nichenet_analysis_separate = function(sce_receiver,
     grouping_tbl = grouping_tbl,
     lr_target_prior_cor = lr_target_prior_cor
   ) 
-  multinichenet_output = multinichenet_output %>% make_lite_output()
+
   return(multinichenet_output)
   
 }
@@ -1122,8 +1122,6 @@ multi_nichenet_analysis_combined = function(sce,
     grouping_tbl = grouping_tbl,
     lr_target_prior_cor = lr_target_prior_cor
   ) 
-  
-  multinichenet_output = multinichenet_output %>% make_lite_output()
   
   return(multinichenet_output)
 

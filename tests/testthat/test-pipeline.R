@@ -5,8 +5,9 @@ if(organism == "human"){
   lr_network = lr_network %>% dplyr::rename(ligand = from, receptor = to) %>% distinct(ligand, receptor) %>% filter(ligand %in% rownames(sce)) %>% mutate(ligand = make.names(ligand), receptor = make.names(receptor)) 
   sig_network = readRDS(url("https://zenodo.org/record/5884439/files/signaling_network_human_21122021.rds")) %>% mutate(from = make.names(from), to = make.names(to))
   gr_network = readRDS(url("https://zenodo.org/record/5884439/files/gr_network_human_21122021.rds")) %>% mutate(from = make.names(from), to = make.names(to))
-  ligand_target_matrix = readRDS(url("https://zenodo.org/record/5884439/files/ligand_target_matrix_nsga2r_final.rds"))
-  ligand_target_matrix = ligand_target_matrix[,intersect(rownames(sce), colnames(ligand_target_matrix))]
+  # ligand_target_matrix = readRDS(url("https://zenodo.org/record/5884439/files/ligand_target_matrix_nsga2r_final.rds"))
+  # ligand_target_matrix = ligand_target_matrix[,intersect(rownames(sce), colnames(ligand_target_matrix))]
+  ligand_target_matrix = ligand_target_matrix_test
   colnames(ligand_target_matrix) = colnames(ligand_target_matrix) %>% make.names()
   rownames(ligand_target_matrix) = rownames(ligand_target_matrix) %>% make.names()
   ligand_tf_matrix = readRDS(url("https://zenodo.org/record/5884439/files/ligand_tf_matrix_nsga2r_final.rds"))
@@ -17,7 +18,7 @@ if(organism == "human"){
   weighted_networks$gr = weighted_networks$gr %>% mutate(from = make.names(from), to = make.names(to))
 }
 test_that("Pipeline for all-vs-all analysis works & plotting functions work", {
-  # sce = sce %>% alias_to_symbol_SCE(organism = "human") %>% makenames_SCE()
+  sce = sce %>% alias_to_symbol_SCE(organism = "human") %>% makenames_SCE()
   sample_id = "tumor"
   group_id = "pEMT"
   celltype_id = "celltype"
@@ -1144,6 +1145,10 @@ test_that("Pipeline with wrapper function works - while correcting for batch eff
     contrast_tbl = contrast_tbl,
     sender_receiver_separate = FALSE
   )
+  expect_type(output,"list")
+  expect_type(output$prioritization_tables,"list")
+  
+  output = output %>% make_lite_output()
   expect_type(output,"list")
   expect_type(output$prioritization_tables,"list")
   
