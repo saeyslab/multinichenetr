@@ -30,7 +30,6 @@ Imports:
     generics,
     dplyr,
     grid,
-    Nebulosa,
     muscat,
     limma,
     SummarizedExperiment,

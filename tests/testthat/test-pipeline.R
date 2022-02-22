@@ -1,6 +1,7 @@
 context("MultiNicheNet pipeline")
 organism = "human"
 if(organism == "human"){
+  options(timeout=500)
   lr_network = readRDS(url("https://zenodo.org/record/5884439/files/lr_network_human_21122021.rds"))
   lr_network = lr_network %>% dplyr::rename(ligand = from, receptor = to) %>% distinct(ligand, receptor) %>% filter(ligand %in% rownames(sce)) %>% mutate(ligand = make.names(ligand), receptor = make.names(receptor)) 
   sig_network = readRDS(url("https://zenodo.org/record/5884439/files/signaling_network_human_21122021.rds")) %>% mutate(from = make.names(from), to = make.names(to))
@@ -1248,8 +1249,6 @@ test_that("Pipeline for separate analysis works - while correcting for batch eff
 })
 test_that("Unsupervised analysis functions work", {
 
-  lr_network = readRDS(url("https://zenodo.org/record/3260758/files/lr_network.rds"))
-  lr_network = lr_network %>% dplyr::rename(ligand = from, receptor = to) %>% dplyr::distinct(ligand, receptor)
   sample_id = "tumor"
   group_id = "pEMT"
   celltype_id = "celltype"

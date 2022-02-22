@@ -1384,7 +1384,7 @@ make_ligand_receptor_feature_plot = function(sce_sender, sce_receiver, ligand_oi
     background_groups = SummarizedExperiment::colData(sce_sender)[,group_id] %>% unique() %>% generics::setdiff(group_oi)
   }
   
-  # subset Sender - Nebulosa
+  # subset Sender 
   sce_subset_oi = sce_sender[, SummarizedExperiment::colData(sce_sender)[,group_id] %in% group_oi]
   sce_subset_bg = sce_sender[, SummarizedExperiment::colData(sce_sender)[,group_id] %in% background_groups]
 
@@ -1393,7 +1393,7 @@ make_ligand_receptor_feature_plot = function(sce_sender, sce_receiver, ligand_oi
 
   sender_plots_feature = make_featureplot(sce_subset_oi,sce_subset_bg, "Sender UMAP", ligand_oi, group_oi, background_groups, group_id)
   
-  # subset Receiver - Nebulosa
+  # subset Receiver 
   sce_subset_oi = sce_receiver[, SummarizedExperiment::colData(sce_receiver)[,group_id] %in% group_oi]
   sce_subset_bg = sce_receiver[, SummarizedExperiment::colData(sce_receiver)[,group_id] %in% background_groups]
   
@@ -1767,7 +1767,7 @@ make_target_feature_plot = function(sce_receiver, target_oi, group_oi, group_id,
     background_groups = SummarizedExperiment::colData(sce_receiver)[,group_id] %>% unique() %>% generics::setdiff(group_oi)
   }
 
-  # subset Receiver - Nebulosa
+  # subset Receiver 
   sce_subset_oi = sce_receiver[, SummarizedExperiment::colData(sce_receiver)[,group_id] %in% group_oi]
   sce_subset_bg = sce_receiver[, SummarizedExperiment::colData(sce_receiver)[,group_id] %in% background_groups]
   

@@ -483,6 +483,9 @@ multi_nichenet_analysis_separate = function(sce_receiver,
   senders_oi = SummarizedExperiment::colData(sce_sender)[,celltype_id_sender] %>% unique()
   receivers_oi = SummarizedExperiment::colData(sce_receiver)[,celltype_id_receiver] %>% unique()
   
+  sce = sce[, SummarizedExperiment::colData(sce)[,celltype_id_sender] %in% c(senders_oi, receivers_oi)]
+  sce = sce[, SummarizedExperiment::colData(sce)[,celltype_id_receiver] %in% c(senders_oi, receivers_oi)]
+  
   ### Receiver abundance plots + Calculate expression information
   if(verbose == TRUE){
     print("Make diagnostic abundance plots + Calculate expression information")
@@ -652,8 +655,10 @@ multi_nichenet_analysis_separate = function(sce_receiver,
     lr_prod_mat = lr_prod_mat,
     grouping_tbl = grouping_tbl,
     lr_target_prior_cor = lr_target_prior_cor
-  ) 
-
+  )
+  
+  multinichenet_output = multinichenet_output %>% make_lite_output()
+  
   return(multinichenet_output)
   
 }
@@ -1033,6 +1038,10 @@ multi_nichenet_analysis_combined = function(sce,
     celltype_de = DE_info_emp$de_output_tidy_emp %>% dplyr::select(-p_val, -p_adj) %>% dplyr::rename(p_val = p_emp, p_adj = p_adj_emp)
   }
   
+  senders_oi = celltype_de$cluster_id %>% unique()
+  receivers_oi = celltype_de$cluster_id %>% unique()
+  sce = sce[, SummarizedExperiment::colData(sce)[,celltype_id] %in% c(senders_oi, receivers_oi)]
+  
   sender_receiver_de = suppressMessages(combine_sender_receiver_de(
     sender_de = celltype_de,
     receiver_de = celltype_de,
@@ -1122,6 +1131,8 @@ multi_nichenet_analysis_combined = function(sce,
     grouping_tbl = grouping_tbl,
     lr_target_prior_cor = lr_target_prior_cor
   ) 
+  
+  multinichenet_output = multinichenet_output %>% make_lite_output()
   
   return(multinichenet_output)
 
