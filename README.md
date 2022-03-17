@@ -109,34 +109,32 @@ Linux (Ubuntu) and Mac (most recently tested R version: R 4.0.4).
 
 ## Learning to use multinichenetr
 
-In the following vignettes, you can find how to do a MultiNicheNet
-analysis:
-
-Performing an all-vs-all analysis with sender cell types and receiver
-cell types in the same SingleCellExperiment object:
+In the following vignettes, you can find how to do a step-by-step
+MultiNicheNet analysis (with all sender cell types and receiver cell
+types in the same SingleCellExperiment object):
 
 -   [Multi-sample Multi-condition Cell-Cell Communication Analysis via
-    NicheNet: HNSCC application; All-vs-All: step-by-step
-    (recommended)](vignettes/basic_analysis_steps.md):
-    `vignette("basic_analysis_steps", package="multinichenetr")`
+    NicheNet: MIS-C application; All-vs-All:
+    step-by-step](vignettes/basic_analysis_steps_MISC.md):
+    `vignette("basic_analysis_steps_MISC", package="multinichenetr")`
 
 -   [Multi-sample Multi-condition Cell-Cell Communication Analysis via
-    NicheNet: HNSCC application;
-    All-vs-All](vignettes/basic_analysis.md):
-    `vignette("basic_analysis", package="multinichenetr")`
+    NicheNet: MIS-C application; All-vs-All: step-by-step
+    (detailed)](vignettes/detailed_analysis_steps_MISC.md):
+    `vignette("detailed_analysis_steps_MISC", package="multinichenetr")`
 
-Performing an analysis with predefined sender and receiver cell types in
-different SingleCellExperiment objects:
-
--   [Multi-sample Multi-condition Cell-Cell Communication Analysis via
-    NicheNet: HNSCC application; Separate: step-by-step
-    (recommended)](vignettes/basic_analysis_steps_separate.md):
-    `vignette("basic_analysis_separate_steps", package="multinichenetr")`
+In the following vignette, you can find how to do use the wrapper
+function of MultiNicheNet (with all sender cell types and receiver cell
+types in the same SingleCellExperiment object):
 
 -   [Multi-sample Multi-condition Cell-Cell Communication Analysis via
-    NicheNet: HNSCC application;
-    Separate](vignettes/basic_analysis_separate.md):
-    `vignette("basic_analysis_separate", package="multinichenetr")`
+    NicheNet: MIS-C application; All-vs-All:
+    wrapper](vignettes/basic_analysis_MISC.md):
+    `vignette("basic_analysis_MISC", package="multinichenetr")`
+
+When applying MultiNicheNet on datasets with many samples and cell
+types, it is recommended to run the analysis on a HPC or gridengine
+cluster.
 
 ## References
 

@@ -10,7 +10,7 @@ vignette: >
 ---
 
 <!-- github markdown built using 
-rmarkdown::render("vignettes/basic_analysis_steps_MISC.Rmd", output_format = "github_document")
+rmarkdown::render("vignettes/basic_analysis_MISC.Rmd", output_format = "github_document")
 -->
 
 ```{r setup, include = FALSE}
@@ -45,7 +45,7 @@ The different steps of the MultiNicheNet analysis are the following:
 
 * 5. Calculate correlation in expression between ligand-receptor pairs and their predicted target genes
 
-In this vignette, we will demonstrate all these steps in detail.
+In this vignette, we will demonstrate the use of a wrapper function to perform all these steps in one line of code. If you want to explore the different steps of MultiNicheNet one by one in more detail, you could check this other vignette: [basis_analysis_steps_MISC.md](basis_analysis_steps_MISC.md).
 
 After the MultiNicheNet analysis is done, we will explore the output of the analysis with different ways of visualization. 
 
@@ -95,7 +95,9 @@ sce = readRDS(url("https://zenodo.org/record/6362434/files/sce_misc_subset.rds")
 sce = alias_to_symbol_SCE(sce, "human") %>% makenames_SCE()
 ```
 
-## Step 0.3: Prepare settings of the MultiNicheNet cell-cell communication analysis
+Now we will go further in defining the settings for the MultiNicheNet analysis
+
+# Step 1:  Prepare the cell-cell communication analysis
 
 ### Define in which metadata columns we can find the **group**, **sample** and **cell type** IDs
 
@@ -133,40 +135,13 @@ If the user wants it, it is possible to use only a subset of senders and receive
 sce = sce[, SummarizedExperiment::colData(sce)[,celltype_id] %in% c(senders_oi, receivers_oi)]
 ```
 
-Now we will go to the first real step of the MultiNicheNet analysis
-
-# Step 1: Extract cell type abundance and expression information from receiver and sender cell types, and link this expression information for ligands of the sender cell types to the corresponding receptors of the receiver cell types
-
 Since MultiNicheNet will infer group differences at the sample level for each cell type (currently via Muscat - pseudobulking + EdgeR), we need to have sufficient cells per sample of a cell type, and this for both groups. In the following analysis we will set this minimum number of cells per cell type per sample at 10 (absolute minimum). 
 
 ```{r}
 min_cells = 10
 ```
 
-Now we will calculate abundance and expression information for each cell type / sample / group combination with the following functions. In the output of this function, you can also find some 'Cell type abundance diagnostic plots' that will the users which celltype-sample combinations will be left out later on for DE calculation because the nr of cells is lower than de defined minimum defined here above. If too many celltype-sample combinations don't pass this threshold, we recommend to define your cell types in a more general way (use one level higher of the cell type ontology hierarchy) (eg TH17 CD4T cells --> CD4T cells).
-
-```{r}
-abundance_expression_info = get_abundance_expression_info(sce = sce, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id, min_cells = min_cells, senders_oi = senders_oi, receivers_oi = receivers_oi, lr_network = lr_network, batches = batches)
-```
-
-First, we will check the cell type abundance diagnostic plots.
-
-### Interpretation of cell type abundance information
-
-The first plot visualizes the number of cells per celltype-sample combination, and indicates which combinations are removed during the DE analysis because there are less than `min_cells` in the celltype-sample combination. 
-
-```{r, fig.width=15, fig.height=12}
-abundance_expression_info$abund_plot_sample
-```
-The red dotted line indicates the required minimum of cells as defined above in `min_cells`. We can see here that some sample-celltype combinations are left out. For the DE analysis in the next step, only cell types will be considered if there are at least two samples per group with a sufficient number of cells.
-
-__Important__: Based on the cell type abundance diagnostics, we recommend users to change their analysis settings if required (eg changing cell type annotation level, batches, ...), before proceeding with the rest of the analysis.
-
-# Step 2: Perform genome-wide differential expression analysis of receiver and sender cell types to define DE genes between the conditions of interest. Based on this analysis, we can define the logFC/p-value of ligands in senders and receptors in receivers, and define the set of affected target genes in the receiver.
-
-Now we will go over to the multi-group, multi-sample differential expression (DE) analysis (also called 'differential state' analysis by the developers of Muscat).
-
-### Define the contrasts and covariates of interest for the DE analysis.
+### Define the contrasts and covariates of interest for the DE analysis, and the minimal number of cells of a cell type that each sample should have to be considered for DE analysis of that cell type.
 
 Here, we want to compare each patient group to the other groups, so the MIS-C (M) group vs healthy control siblins (S) and adult COVID19 patients (A) etcetera. 
 To do this comparison, we need to set the following contrasts:
@@ -189,45 +164,7 @@ If you want to compare only two groups (eg M vs S), you can do like this:
 `contrasts_oi = c("'M-S','S-M'") `
 `contrast_tbl = tibble(contrast = c("M-S","S-M"), group = c("M","S"))`
 
-### Perform the DE analysis for each cell type.
-
-```{r}
-DE_info = get_DE_info(sce = sce, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id, batches = batches, covariates = covariates, contrasts_oi = contrasts_oi, min_cells = min_cells)
-```
-
-### Check DE results
-
-Table with logFC and p-values for each gene-celltype-contrast:
-
-```{r}
-DE_info$celltype_de$de_output_tidy %>% arrange(p_adj) %>% head()
-```
-
-```{r}
-celltype_de = DE_info$celltype_de$de_output_tidy
-```
-
-In the next step, we will combine the DE information of senders and receivers by linking their ligands and receptors together:
-
-### Combine DE information for ligand-senders and receptors-receivers (similar to step1 - `abundance_expression_info$sender_receiver_info`)
-
-```{r}
-sender_receiver_de = combine_sender_receiver_de(
-  sender_de = celltype_de,
-  receiver_de = celltype_de,
-  senders_oi = senders_oi,
-  receivers_oi = receivers_oi,
-  lr_network = lr_network
-)
-```
-
-```{r}
-sender_receiver_de %>% head(20)
-```
-
-# Step 3: Predict NicheNet ligand activities and NicheNet ligand-target links based on these differential expression results
-
-## Define the parameters for the NicheNet ligand activity analysis 
+### Define the parameters for the NicheNet ligand activity analysis 
 
 Here, we need to define the thresholds that will be used to consider genes as differentially expressed or not (logFC, p-value, decision whether to use adjusted or normal p-value, minimum fraction of cells that should express a gene in at least one sample in a group, whether to use the normal p-values or empirical p-values). 
 
@@ -244,6 +181,7 @@ We will here choose for applying the p-value cutoff on the normal p-values, and 
 ```{r}
 # p_val_adj = TRUE 
 p_val_adj = FALSE 
+empirical_pval = FALSE
 ```
 
 For the NicheNet ligand-target inference, we also need to select which top n of the predicted target genes will be considered (here: top 250 targets per ligand).
@@ -255,43 +193,11 @@ top_n_target = 250
 The NicheNet ligand activity analysis can be run in parallel for each receiver cell type, by changing the number of cores as defined here. This is only recommended if you have many receiver cell type. 
 
 ```{r}
-verbose = TRUE
 cores_system = 8
-n.cores = min(cores_system, sender_receiver_de$receiver %>% unique() %>% length()) # use one core per receiver cell type
+n.cores = min(cores_system, union(senders_oi, receivers_oi) %>% length()) # use one core per receiver cell type
 ```
 
-## Run the NicheNet ligand activity analysis 
-
-(this might take some time)
-```{r}
-ligand_activities_targets_DEgenes = suppressMessages(suppressWarnings(get_ligand_activities_targets_DEgenes(
-  receiver_de = celltype_de,
-  receivers_oi = receivers_oi,
-  ligand_target_matrix = ligand_target_matrix,
-  logFC_threshold = logFC_threshold,
-  p_val_threshold = p_val_threshold,
-  p_val_adj = p_val_adj,
-  top_n_target = top_n_target,
-  verbose = verbose, 
-  n.cores = n.cores
-)))
-```
-
-Check the DE genes used for the activity analysis
-
-```{r}
-ligand_activities_targets_DEgenes$de_genes_df %>% head(20)
-```
-
-Check the output of the activity analysis
-
-```{r}
-ligand_activities_targets_DEgenes$ligand_activities %>% head(20)
-```
-
-# Step 4: Use the information collected above to prioritize all sender-ligand---receiver-receptor pairs.
-
-In the 3 previous steps, we calculated expression, differential expression and NicheNet activity information. Now we will combine these different types of information in one prioritization scheme.
+### Define the weights of the prioritization of both expression, differential expression and NicheNet activity information
 
 MultiNicheNet allows the user to define the weights of the following criteria to prioritize ligand-receptor interactions:
 
@@ -302,8 +208,6 @@ MultiNicheNet allows the user to define the weights of the following criteria to
 * High relative abundance of sender and/or receiver in the condition of interest: `scaled_abundance_sender` and `scaled_abundance_receiver`
 
 The different properties of the sender-ligand---receiver-receptor pairs can be weighted according to the user's preference and insight in the dataset at hand. 
-
-## Define the prioritization weights, and prepare grouping objects
 
 We will set our preference for this dataset as follows - and recommend the user to use the same weights by default:
 
@@ -330,88 +234,55 @@ prioritizing_weights = c(prioritizing_weights_DE,
                          prioritizing_weights_relative_abundance)
 ```
 
-Make necessary grouping data frame
+
+# Step 2: Perform the cell-cell communication analysis
+
+Now we will run the MultiNicheNet wrapper. In the function `multi_nichenet_analysis`, we need to specify that we use one SingleCellExperiment object of which all cell types should be considered as both receiver and sender by setting `sender_receiver_separate = FALSE`. This setting will call the underlying `multi_nichenet_analysis_combined` pipeline function. In case you want to consider different sender and receiver cell types, you should put `sender_receiver_separate = TRUE` and add the additional function arguments as can be seen in `?multi_nichenet_analysis_separate`
+
+To keep track of the different steps, we will here set `verbose = TRUE`
 
 ```{r}
-sender_receiver_tbl = sender_receiver_de %>% dplyr::distinct(sender, receiver)
-
-metadata_combined = SummarizedExperiment::colData(sce) %>% tibble::as_tibble()
-
-if(!is.na(batches)){
-  grouping_tbl = metadata_combined[,c(sample_id, group_id, batches)] %>% tibble::as_tibble() %>% dplyr::distinct()
-  colnames(grouping_tbl) = c("sample","group",batches)
-} else {
-  grouping_tbl = metadata_combined[,c(sample_id, group_id)] %>% tibble::as_tibble() %>% dplyr::distinct()
-  colnames(grouping_tbl) = c("sample","group")
-}
-
+multinichenet_output = multi_nichenet_analysis(sce = sce, celltype_id = celltype_id, sample_id = sample_id, group_id = group_id, 
+                                lr_network = lr_network, ligand_target_matrix = ligand_target_matrix, contrasts_oi = contrasts_oi, contrast_tbl = contrast_tbl, batches = batches, covariates = covariates,
+                                prioritizing_weights = prioritizing_weights, min_cells = min_cells, logFC_threshold = logFC_threshold, p_val_threshold = p_val_threshold,  
+                                fraction_cutoff = fraction_cutoff, p_val_adj = p_val_adj, empirical_pval = empirical_pval, top_n_target = top_n_target, n.cores = n.cores, sender_receiver_separate = FALSE, verbose = TRUE)
 ```
 
-Crucial note: grouping_tbl: group should be the same as in the contrast_tbl, and as in the expression info tables! Rename accordingly if this would not be the case. If you followed the guidelines of this tutorial closely, there should be no problem.
+The output of the MultiNicheNet analysis contains much information. We will now go over this step-by-step
 
-## Run the prioritization 
+## Check the returned tables in the output
+
+### Average expression value and fraction of each cell type - sample combination
 
 ```{r}
-prioritization_tables = suppressMessages(generate_prioritization_tables(
-  sender_receiver_info = abundance_expression_info$sender_receiver_info,
-  sender_receiver_de = sender_receiver_de,
-  ligand_activities_targets_DEgenes = ligand_activities_targets_DEgenes,
-  contrast_tbl = contrast_tbl,
-  sender_receiver_tbl = sender_receiver_tbl,
-  grouping_tbl = grouping_tbl,
-  prioritizing_weights = prioritizing_weights,
-  fraction_cutoff = fraction_cutoff, 
-  abundance_data_receiver = abundance_expression_info$abundance_data_receiver,
-  abundance_data_sender = abundance_expression_info$abundance_data_sender
-))
+multinichenet_output$celltype_info$avg_df %>% head()
+multinichenet_output$celltype_info$frq_df %>% head()
+multinichenet_output$celltype_info$avg_df_group %>% head()
+multinichenet_output$celltype_info$frq_df_group %>% head()
+multinichenet_output$celltype_info$rel_abundance_df %>% head()
 ```
 
-Check the output tables
-
-First: group-based summary table
+### DE information for each cell type - contrast combination
 
 ```{r}
-prioritization_tables$group_prioritization_tbl %>% head(20)
+multinichenet_output$celltype_de %>% head()
 ```
 
-
-# Step 5: Add information on prior knowledge and expression correlation between LR and target expression. 
-
-In multi-sample datasets, we have the opportunity to look whether expression of ligand-receptor across all samples is correlated with the expression of their by NicheNet predicted target genes. This is what we will do with the following line of code:
+### Output of the NicheNet ligand activity analysis, and the NicheNet ligand-target inference
 
 ```{r}
-lr_target_prior_cor = lr_target_prior_cor_inference(prioritization_tables$group_prioritization_tbl$receiver %>% unique(), abundance_expression_info, celltype_de, grouping_tbl, prioritization_tables, ligand_target_matrix, logFC_threshold = logFC_threshold, p_val_threshold = p_val_threshold, p_val_adj = p_val_adj)
+multinichenet_output$ligand_activities_targets_DEgenes$ligand_activities %>% head()
 ```
 
-# Save all the output of MultiNicheNet 
-
-To avoid needing to redo the analysis later.
-All the output written down here is sufficient to make all in-built downstream visualizations.
+### Tables with the final prioritization scores (results per group and per sample)
 
 ```{r}
-path = "./"
-
-multinichenet_output = list(
-    celltype_info = abundance_expression_info$celltype_info,
-    celltype_de = celltype_de,
-    sender_receiver_info = abundance_expression_info$sender_receiver_info,
-    sender_receiver_de =  sender_receiver_de,
-    ligand_activities_targets_DEgenes = ligand_activities_targets_DEgenes,
-    prioritization_tables = prioritization_tables,
-    grouping_tbl = grouping_tbl,
-    lr_target_prior_cor = lr_target_prior_cor
-  ) 
-multinichenet_output = make_lite_output(multinichenet_output)
-
-save = FALSE
-if(save == TRUE){
-  saveRDS(multinichenet_output, paste0(path, "multinichenet_output.rds"))
-
-}
+multinichenet_output$prioritization_tables$group_prioritization_tbl %>% head()
 ```
 
+Based on these prioritization tables, we will define which interactions to visualize in the different plots below.
 
-# Visualization of the results of the cell-cell communication analysis
+# Step 3: Visualization of the results of the cell-cell communication analysis
 
 In a first instance, we will look at the broad overview of prioritized interactions via condition-specific Circos plots.
 
@@ -422,7 +293,6 @@ We will look here at the top 50 predictions across all contrasts, senders, and r
 ```{r}
 prioritized_tbl_oi_all = get_top_n_lr_pairs(multinichenet_output$prioritization_tables, 50, rank_per_group = FALSE)
 ```
-
 
 ```{r, fig.width=15, fig.height=12}
 prioritized_tbl_oi = multinichenet_output$prioritization_tables$group_prioritization_tbl %>%
@@ -516,7 +386,7 @@ Before, we had calculated the correlation in expression between ligand-receptor 
 ```{r}
 group_oi = "M"
 receiver_oi = "M_Monocyte_CD16"
-lr_target_prior_cor_filtered = multinichenet_output$lr_target_prior_cor %>% inner_join(ligand_activities_targets_DEgenes$ligand_activities %>% distinct(ligand, target, direction_regulation, contrast)) %>% inner_join(contrast_tbl) %>% filter(group == group_oi, receiver == receiver_oi)
+lr_target_prior_cor_filtered = multinichenet_output$lr_target_prior_cor %>% inner_join(multinichenet_output$ligand_activities_targets_DEgenes$ligand_activities %>% distinct(ligand, target, direction_regulation, contrast)) %>% inner_join(contrast_tbl) %>% filter(group == group_oi, receiver == receiver_oi)
 lr_target_prior_cor_filtered_up = lr_target_prior_cor_filtered %>% filter(direction_regulation == "up") %>% filter( (rank_of_target < top_n_target) & (pearson > 0.50 | spearman > 0.50))
 lr_target_prior_cor_filtered_down = lr_target_prior_cor_filtered %>% filter(direction_regulation == "down") %>% filter( (rank_of_target < top_n_target) & (pearson < -0.50 | spearman < -0.50)) # downregulation -- negative correlation
 lr_target_prior_cor_filtered = bind_rows(lr_target_prior_cor_filtered_up, lr_target_prior_cor_filtered_down)
@@ -525,7 +395,7 @@ lr_target_prior_cor_filtered = bind_rows(lr_target_prior_cor_filtered_up, lr_tar
 Now we will visualize the top correlated target genes for the LR pairs that are also in the top 50 LR pairs discriminating the groups from each other:
 
 ```{r}
-prioritized_tbl_oi = get_top_n_lr_pairs(prioritization_tables, 50, groups_oi = group_oi, receivers_oi = receiver_oi)
+prioritized_tbl_oi = get_top_n_lr_pairs(multinichenet_output$prioritization_tables, 50, groups_oi = group_oi, receivers_oi = receiver_oi)
 ```
 
 
@@ -552,10 +422,10 @@ In the plots before, we demonstrated that some DE genes have both expression cor
 As last plot, we can generate a 'systems' view of these intercellular feedback and cascade processes than can be occuring between the different cell populations involved. In this plot, we will draw links between ligands of sender cell types their ligand/receptor-annotated target genes in receiver cell types. So links are ligand-target links (= gene regulatory links) and not ligand-receptor protein-protein interactions!
 
 ```{r}
-prioritized_tbl_oi = get_top_n_lr_pairs(prioritization_tables, 150, rank_per_group = FALSE)
+prioritized_tbl_oi = get_top_n_lr_pairs(multinichenet_output$prioritization_tables, 150, rank_per_group = FALSE)
 
-lr_target_prior_cor_filtered = prioritization_tables$group_prioritization_tbl$group %>% unique() %>% lapply(function(group_oi){
-  lr_target_prior_cor_filtered = multinichenet_output$lr_target_prior_cor %>% inner_join(ligand_activities_targets_DEgenes$ligand_activities %>% distinct(ligand, target, direction_regulation, contrast)) %>% inner_join(contrast_tbl) %>% filter(group == group_oi)
+lr_target_prior_cor_filtered = multinichenet_output$prioritization_tables$group_prioritization_tbl$group %>% unique() %>% lapply(function(group_oi){
+  lr_target_prior_cor_filtered = multinichenet_output$lr_target_prior_cor %>% inner_join(multinichenet_output$ligand_activities_targets_DEgenes$ligand_activities %>% distinct(ligand, target, direction_regulation, contrast)) %>% inner_join(contrast_tbl) %>% filter(group == group_oi)
   lr_target_prior_cor_filtered_up = lr_target_prior_cor_filtered %>% filter(direction_regulation == "up") %>% filter( (rank_of_target < top_n_target) & (pearson > 0.50 | spearman > 0.50))
   lr_target_prior_cor_filtered_down = lr_target_prior_cor_filtered %>% filter(direction_regulation == "down") %>% filter( (rank_of_target < top_n_target) & (pearson < -0.50 | spearman < -0.50))
   lr_target_prior_cor_filtered = bind_rows(lr_target_prior_cor_filtered_up, lr_target_prior_cor_filtered_down)

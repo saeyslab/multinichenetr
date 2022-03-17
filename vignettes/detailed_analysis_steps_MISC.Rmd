@@ -10,7 +10,7 @@ vignette: >
 ---
 
 <!-- github markdown built using 
-rmarkdown::render("vignettes/basic_analysis_steps_MISC.Rmd", output_format = "github_document")
+rmarkdown::render("vignettes/detailed_analysis_steps_MISC.Rmd", output_format = "github_document")
 -->
 
 ```{r setup, include = FALSE}
@@ -95,14 +95,26 @@ sce = readRDS(url("https://zenodo.org/record/6362434/files/sce_misc_subset.rds")
 sce = alias_to_symbol_SCE(sce, "human") %>% makenames_SCE()
 ```
 
-## Step 0.3: Prepare settings of the MultiNicheNet cell-cell communication analysis
-
-### Define in which metadata columns we can find the **group**, **sample** and **cell type** IDs
-
 In this case study, we want to study differences in cell-cell communication patterns between MIS-C patients (M), their healthy siblings (S) and adult patients with severe covid (A). The meta data columns that indicate this disease status is `MIS.C.AgeTier`. 
 
 Cell type annotations are indicated in the `Annotation_v2.0` column, and the sample is indicated by the `ShortID` column. 
 If your cells are annotated in multiple hierarchical levels, we recommend using a high level in the hierarchy. This for 2 reasons: 1) MultiNicheNet focuses on differential expression and not differential abundance, and 2) there should be sufficient cells per sample-celltype combination.
+
+We will now also check the number of cells per cell type condition combination, and the number of patients per condition.
+
+```{r}
+table(SummarizedExperiment::colData(sce)$Annotation_v2.0, SummarizedExperiment::colData(sce)$ShortID) # cell types vs samples
+```
+As you can see, some Celltype-Sample combinations have 0 cells. It is possible that during DE analysis, some cell types will be removed from the analysis if there is not enough information to do a DE analysis. (More info later)
+
+```{r}
+table(SummarizedExperiment::colData(sce)$Annotation_v2.0, SummarizedExperiment::colData(sce)$MIS.C.AgeTier) # cell types vs conditions
+```
+
+
+## Step 0.3: Prepare settings of the MultiNicheNet cell-cell communication analysis
+
+### Define in which metadata columns we can find the **group**, **sample** and **cell type** IDs
 
 If you would have batch effects or covariates you can correct for, you can define this here as well. 
 
@@ -160,7 +172,57 @@ abundance_expression_info$abund_plot_sample
 ```
 The red dotted line indicates the required minimum of cells as defined above in `min_cells`. We can see here that some sample-celltype combinations are left out. For the DE analysis in the next step, only cell types will be considered if there are at least two samples per group with a sufficient number of cells.
 
+In a next plot, we will look at differential abundance between the conditions. This because the pseudobulking approach behind Muscat could potentially suffer from some biases if there would be huge differences in abundances of a cell type between different groups. Downstream results of these cell types should then be considered with some caution.
+
+```{r, fig.width=7, fig.height=7}
+abundance_expression_info$abund_plot_group
+```
+Differential abundance looks quite OK. 
+
+If you want to look at the cell numbers behind these plots, you can do so via the following piece of code
+
+```{r}
+abundance_expression_info$abundance_data_receiver %>% head()
+abundance_expression_info$abundance_data_sender %>% head() # in the case of an all-vs-all analysis: both are the same
+```
+
 __Important__: Based on the cell type abundance diagnostics, we recommend users to change their analysis settings if required (eg changing cell type annotation level, batches, ...), before proceeding with the rest of the analysis.
+
+### Interpretation of expression information
+
+Previously, we also calculated expression information. With the following piece of code, you can check the average expression for each gene per sample (normalized expression value and fraction of expressing cells with non-zero counts, and logCPM-pseudocounts). 
+
+```{r}
+abundance_expression_info$celltype_info$avg_df %>% head()
+abundance_expression_info$celltype_info$frq_df %>% head()
+abundance_expression_info$celltype_info$pb_df %>% head()
+```
+
+Now for the average per group:
+
+```{r}
+abundance_expression_info$celltype_info$avg_df_group %>% head()
+abundance_expression_info$celltype_info$frq_df_group %>% head()
+abundance_expression_info$celltype_info$pb_df_group %>% head()
+```
+
+In the last part of this step, we combined this information for each ligand-receptor pair combination for each sender-receiver combination. The output of this can be seen as well:
+
+For sample-based:
+
+```{r}
+abundance_expression_info$sender_receiver_info$avg_df %>% head()
+abundance_expression_info$sender_receiver_info$frq_df %>% head()
+abundance_expression_info$sender_receiver_info$pb_df %>% head()
+```
+
+For group-based:
+
+```{r}
+abundance_expression_info$sender_receiver_info$avg_df_group %>% head()
+abundance_expression_info$sender_receiver_info$frq_df_group %>% head()
+abundance_expression_info$sender_receiver_info$pb_df_group %>% head()
+```
 
 # Step 2: Perform genome-wide differential expression analysis of receiver and sender cell types to define DE genes between the conditions of interest. Based on this analysis, we can define the logFC/p-value of ligands in senders and receptors in receivers, and define the set of affected target genes in the receiver.
 
@@ -203,8 +265,66 @@ Table with logFC and p-values for each gene-celltype-contrast:
 DE_info$celltype_de$de_output_tidy %>% arrange(p_adj) %>% head()
 ```
 
+It is always a good idea to check distribution of the p-values resulting from this DE expression analysis. In order to trust the p-values, the p-value distributions should be uniform distributions, with a peak allowed between 0 and 0.05 if there would be a clear biological effect in the data. 
+
+You can look at these p-value histograms in the following way:
+
+```{r, fig.width=13, fig.height=6}
+DE_info$hist_pvals
+```
+
+The p-value distributions look OK.  If this would not be the cause, this might point to issues in the DE model definition. For example in case we did not add all important covariates, there is substructure present in the groups, etc.
+
+If there are some issues, you can use the empiricall null procedure. This is a procedure that will define empirical p-values based on the observed distribution of the test statistic (here: logFC) and not based on the theoretical distribution. This approach has also been used in the Saturn package: https://github.com/statOmics/satuRn. We only recommend this if the p-value distributions point to possible issues, but will illustrate here how to do this as example:
+
+### Empirical Null procedure
+
 ```{r}
-celltype_de = DE_info$celltype_de$de_output_tidy
+empirical_pval = TRUE
+if(empirical_pval == TRUE){
+  DE_info_emp = get_empirical_pvals(DE_info$celltype_de$de_output_tidy)
+} 
+```
+
+Table with logFC and p-values for each gene-celltype-contrast:
+
+```{r}
+DE_info_emp$de_output_tidy_emp %>% arrange(p_emp) %>% head()
+```
+
+The following plot shows the distributions of those corrected, empirical p-values:
+
+```{r, fig.width=13, fig.height=6}
+DE_info_emp$hist_pvals_emp
+```
+The following plots show how well the correction worked. The green fitted curve should fit well with the histogram. If not, this might point to some issues in the DE model definition.
+
+```{r, fig.width=7, fig.height=7}
+DE_info_emp$z_distr_plots_emp_pval
+```
+
+In general, these plots look OK. 
+
+Next, we will compare the empirical p-values to the original ones before. We will look for the concordance between p-values rankings of the original and empirical DE analysis (via ranking-line and upset plots):
+
+```{r}
+comparison_plots = compare_normal_emp_pvals(DE_info, DE_info_emp, adj_pval = FALSE)
+comparison_plots
+```
+
+You can see that for some cell types, the genes considered to be DE can change.
+
+### Conclusion of the diagnostic plots concerning the DE analysis
+
+P-value histograms of both the normal and empirical p-values look good here. In case the normal p-value distributions don't look good, we recommend to continue based on the empirical p-values. 
+
+```{r}
+empirical_pval = TRUE
+if(empirical_pval == FALSE){
+  celltype_de = DE_info$celltype_de$de_output_tidy
+} else {
+  celltype_de = DE_info_emp$de_output_tidy_emp %>% dplyr::select(-p_val, -p_adj) %>% dplyr::rename(p_val = p_emp, p_adj = p_adj_emp)
+}
 ```
 
 In the next step, we will combine the DE information of senders and receivers by linking their ligands and receptors together:
@@ -374,6 +494,12 @@ First: group-based summary table
 prioritization_tables$group_prioritization_tbl %>% head(20)
 ```
 
+Second: sample-based summary table: contains expression information of each LR pair per sample
+
+```{r}
+prioritization_tables$sample_prioritization_tbl %>% head(20)
+```
+
 
 # Step 5: Add information on prior knowledge and expression correlation between LR and target expression. 
 
@@ -438,6 +564,21 @@ colors_receiver = RColorBrewer::brewer.pal(n = length(senders_receivers), name =
 circos_list = make_circos_group_comparison(prioritized_tbl_oi, colors_sender, colors_receiver)
 ```
 
+Now you can also make a full circos plot for one group of interest, where will show the top30 per group
+
+```{r}
+prioritized_tbl_oi_A_30 = get_top_n_lr_pairs(multinichenet_output$prioritization_tables, 30, groups_oi = "A")
+prioritized_tbl_oi_M_30 = get_top_n_lr_pairs(multinichenet_output$prioritization_tables, 30, groups_oi = "M")
+prioritized_tbl_oi_S_30 = get_top_n_lr_pairs(multinichenet_output$prioritization_tables, 30, groups_oi = "S")
+```
+
+
+```{r, fig.width=15, fig.height=12}
+circos_A = make_circos_one_group(prioritized_tbl_oi_A_30, colors_sender, colors_receiver)
+circos_M = make_circos_one_group(prioritized_tbl_oi_M_30, colors_sender, colors_receiver)
+circos_S = make_circos_one_group(prioritized_tbl_oi_S_30, colors_sender, colors_receiver)
+```
+
 ## Visualization of scaled ligand-receptor pseudobulk products and ligand activity
 
 Now we will visualize per sample the scaled product of ligand and receptor expression. Samples that were left out of the DE analysis are indicated with a smaller dot (this helps to indicate the samples that did not contribute to the calculation of the logFC, and thus not contributed to the final prioritization)
@@ -475,7 +616,7 @@ plot_oi = make_sample_lr_prod_activity_plots(multinichenet_output$prioritization
 plot_oi
 ```
 
-You can make these plots also for the other groups, like we will illustrate now for the S group
+Now the entire top50 for the S group
 
 ```{r}
 group_oi = "S"
@@ -485,6 +626,19 @@ group_oi = "S"
 prioritized_tbl_oi_S_50 = get_top_n_lr_pairs(multinichenet_output$prioritization_tables, 50, groups_oi = group_oi)
 
 plot_oi = make_sample_lr_prod_activity_plots(multinichenet_output$prioritization_tables, prioritized_tbl_oi_S_50)
+plot_oi
+```
+
+Now the entire top50 for the A group: 
+
+```{r}
+group_oi = "A"
+```
+
+```{r, fig.height=13, fig.width=15}
+prioritized_tbl_oi_A_50 = get_top_n_lr_pairs(multinichenet_output$prioritization_tables, 50, groups_oi = group_oi)
+
+plot_oi = make_sample_lr_prod_activity_plots(multinichenet_output$prioritization_tables, prioritized_tbl_oi_A_50)
 plot_oi
 ```
 
@@ -507,6 +661,30 @@ combined_plot = make_ligand_activity_target_plot(group_oi, receiver_oi, prioriti
 combined_plot
 ```
 
+Of course you can look at other receivers as well:
+
+```{r}
+group_oi = "M"
+receiver_oi = "M_Monocyte_CD16"
+prioritized_tbl_oi_M_10 = get_top_n_lr_pairs(multinichenet_output$prioritization_tables, 10, groups_oi = group_oi, receivers_oi = receiver_oi)
+```
+
+```{r, fig.width=13, fig.height=8}
+combined_plot = make_ligand_activity_target_plot(group_oi, receiver_oi, prioritized_tbl_oi_M_10, multinichenet_output$prioritization_tables, multinichenet_output$ligand_activities_targets_DEgenes, contrast_tbl, multinichenet_output$grouping_tbl, multinichenet_output$celltype_info, ligand_target_matrix, plot_legend = FALSE)
+combined_plot
+```
+## Show DE genes only:
+
+```{r, fig.width=7, fig.height=10}
+group_oi = "M"
+receiver_oi = "M_Monocyte_CD16"
+targets_oi = multinichenet_output$ligand_activities_targets_DEgenes$de_genes_df %>% inner_join(contrast_tbl) %>% filter(group == group_oi) %>% arrange(p_val) %>% filter(receiver == receiver_oi & logFC > 1 & contrast == contrast_tbl %>% filter(group == group_oi) %>% pull(contrast)) %>% pull(gene) %>% unique()
+
+p_target = make_DEgene_dotplot_pseudobulk(genes_oi = targets_oi, celltype_info = multinichenet_output$celltype_info, prioritization_tables = multinichenet_output$prioritization_tables, celltype_oi = receiver_oi, multinichenet_output$grouping_tbl)
+p_target$pseudobulk_plot
+p_target$singlecell_plot
+```
+
 __Note__ Use `make_DEgene_dotplot_pseudobulk_batch` if you want to indicate the batch of each sample to the plot
 
 ## Visualization of expression-correlated target genes of ligand-receptor pairs
@@ -522,27 +700,93 @@ lr_target_prior_cor_filtered_down = lr_target_prior_cor_filtered %>% filter(dire
 lr_target_prior_cor_filtered = bind_rows(lr_target_prior_cor_filtered_up, lr_target_prior_cor_filtered_down)
 ```
 
-Now we will visualize the top correlated target genes for the LR pairs that are also in the top 50 LR pairs discriminating the groups from each other:
+Now we will visualize the top correlated hits for the LR pairs that are also in the top 50 LR pairs discriminating the groups from each other:
 
 ```{r}
 prioritized_tbl_oi = get_top_n_lr_pairs(prioritization_tables, 50, groups_oi = group_oi, receivers_oi = receiver_oi)
 ```
 
+First: show the LR-->Target heatmap of prior knowledge supported and correlated links (shows both measure of correlation and measure of prior knowledge)
 
-```{r, fig.width=26, fig.height=16}
+For upregulated targets:
+```{r, fig.width=19, fig.height=12}
+lr_target_prior_cor_heatmap = make_lr_target_prior_cor_heatmap(lr_target_prior_cor_filtered_up %>% filter(receiver == receiver_oi & id %in% prioritized_tbl_oi$id), add_grid = TRUE)
+lr_target_prior_cor_heatmap
+```
+
+For downregulated targets:
+
+```{r, fig.width=19, fig.height=12}
+lr_target_prior_cor_heatmap = make_lr_target_prior_cor_heatmap(lr_target_prior_cor_filtered_down %>% filter(receiver == receiver_oi & id %in% prioritized_tbl_oi$id), add_grid = TRUE)
+lr_target_prior_cor_heatmap
+```
+
+
+Now visualize these links together with the LR and target expression, to visualize the expression correlation
+
+```{r, fig.width=19, fig.height=16}
 lr_target_correlation_plot = make_lr_target_correlation_plot(multinichenet_output$prioritization_tables, prioritized_tbl_oi,  lr_target_prior_cor_filtered , multinichenet_output$grouping_tbl, multinichenet_output$celltype_info, receiver_oi,plot_legend = FALSE)
 lr_target_correlation_plot$combined_plot
 ```
 
 You can also visualize the expression correlation in the following way for a selected LR pair and their targets:
 
-```{r, fig.width=21, fig.height=6}
+```{r, fig.width=16, fig.height=6}
 ligand_oi = "IFNG"
 receptor_oi = "IFNGR2"
 sender_oi = "L_T_Proliferating"
 receiver_oi = "M_Monocyte_CD16"
 lr_target_scatter_plot = make_lr_target_scatter_plot(multinichenet_output$prioritization_tables, ligand_oi, receptor_oi, sender_oi, receiver_oi, multinichenet_output$celltype_info, multinichenet_output$grouping_tbl, lr_target_prior_cor_filtered)
 lr_target_scatter_plot
+```
+
+```{r, fig.width=12, fig.height=6}
+ligand_oi = "IFNG"
+receptor_oi = "IFNGR1"
+sender_oi = "L_T_TIM3._CD38._HLADR."
+receiver_oi = "M_Monocyte_CD16"
+lr_target_scatter_plot = make_lr_target_scatter_plot(multinichenet_output$prioritization_tables, ligand_oi, receptor_oi, sender_oi, receiver_oi, multinichenet_output$celltype_info, multinichenet_output$grouping_tbl, lr_target_prior_cor_filtered)
+lr_target_scatter_plot
+```
+
+For these targets, you can also visualize the 'prior knowledge' ligand-receptor-to-target signaling paths. This is done similarly to the workflow described in https://github.com/saeyslab/nichenetr/blob/master/vignettes/ligand_target_signaling_path.md
+
+```{r}
+organism = "human"
+if(organism == "human"){
+  sig_network = readRDS(url("https://zenodo.org/record/5884439/files/signaling_network_human_21122021.rds")) %>% mutate(from = make.names(from), to = make.names(to))
+  gr_network = readRDS(url("https://zenodo.org/record/5884439/files/gr_network_human_21122021.rds")) %>% mutate(from = make.names(from), to = make.names(to))
+  ligand_tf_matrix = readRDS(url("https://zenodo.org/record/5884439/files/ligand_tf_matrix_nsga2r_final.rds"))
+  colnames(ligand_tf_matrix) = colnames(ligand_tf_matrix) %>% make.names()
+  rownames(ligand_tf_matrix) = rownames(ligand_tf_matrix) %>% make.names()
+  weighted_networks = readRDS(url("https://zenodo.org/record/5884439/files/weighted_networks_nsga2r_final.rds"))
+  weighted_networks$lr_sig = weighted_networks$lr_sig %>% mutate(from = make.names(from), to = make.names(to))
+  weighted_networks$gr = weighted_networks$gr %>% mutate(from = make.names(from), to = make.names(to))
+} else if(organism == "mouse"){
+  sig_network = readRDS(url("https://zenodo.org/record/5884439/files/signaling_network_mouse_21122021.rds")) %>% mutate(from = make.names(from), to = make.names(to))
+  gr_network = readRDS(url("https://zenodo.org/record/5884439/files/gr_network_mouse_21122021.rds")) %>% mutate(from = make.names(from), to = make.names(to))
+  ligand_tf_matrix = readRDS(url("https://zenodo.org/record/5884439/files/ligand_tf_matrix_nsga2r_final_mouse.rds"))
+  colnames(ligand_tf_matrix) = colnames(ligand_tf_matrix) %>% make.names()
+  rownames(ligand_tf_matrix) = rownames(ligand_tf_matrix) %>% make.names()
+  weighted_networks = readRDS(url("https://zenodo.org/record/5884439/files/weighted_networks_nsga2r_final_mouse.rds"))
+  weighted_networks$lr_sig = weighted_networks$lr_sig %>% mutate(from = make.names(from), to = make.names(to))
+  weighted_networks$gr = weighted_networks$gr %>% mutate(from = make.names(from), to = make.names(to))
+}
+```
+
+```{r, fig.width=11, fig.height=11}
+targets_all = lr_target_prior_cor_filtered %>% filter(ligand == ligand_oi & receiver == receiver_oi & sender == sender_oi & receptor == receptor_oi)  %>% pull(target) %>% unique()
+  
+active_signaling_network = nichenetr::get_ligand_signaling_path_with_receptor(ligand_tf_matrix = ligand_tf_matrix, ligands_all = ligand_oi, receptors_all = receptor_oi, targets_all = targets_all, weighted_networks = weighted_networks, top_n_regulators = 2)
+data_source_network = nichenetr::infer_supporting_datasources(signaling_graph_list = active_signaling_network,lr_network = lr_network, sig_network = sig_network, gr_network = gr_network)
+  
+active_signaling_network_min_max = active_signaling_network
+active_signaling_network_min_max$sig = active_signaling_network_min_max$sig %>% mutate(weight = ((weight-min(weight))/(max(weight)-min(weight))) + 0.75)
+active_signaling_network_min_max$gr = active_signaling_network_min_max$gr %>% mutate(weight = ((weight-min(weight))/(max(weight)-min(weight))) + 0.75)
+colors = c("ligand" = "purple", "receptor" = "orange", "target" = "royalblue", "mediator" = "grey60")
+ggraph_signaling_path = suppressWarnings(make_ggraph_signaling_path(active_signaling_network_min_max, colors, ligand_oi, receptor_oi, targets_all))
+ggraph_signaling_path$plot
+data_source_network %>% head()
 ```
 
 ## Intercellular regulatory network systems view
@@ -563,10 +807,63 @@ lr_target_prior_cor_filtered = prioritization_tables$group_prioritization_tbl$gr
 
 ```
 
-```{r, fig.width=30, fig.height=12}
+```{r, fig.width=40, fig.height=12}
 colors_sender["L_T_TIM3._CD38._HLADR."] = "pink" # the  original lightgreen with white font is not very readable
 graph_plot = make_ggraph_ligand_target_links(lr_target_prior_cor_filtered = lr_target_prior_cor_filtered, prioritized_tbl_oi = prioritized_tbl_oi, colors = colors_sender)
 graph_plot$plot
 graph_plot$source_df_lt %>% head()
 graph_plot$nodes_df %>% head()
+```
+
+
+## Show ligand activities for each receiver-group combination
+
+In the next type of plot, we plot all the ligand activities (Both scaled and absolute activities) of each receiver-group combination. This can give us some insights in active signaling pathways across groups. Note that we can thus show top ligands based on ligand activity - agnostic of expression in sender. 
+
+```{r, fig.width=13, fig.height=8}
+ligands_oi = multinichenet_output$prioritization_tables$ligand_activities_target_de_tbl %>% inner_join(contrast_tbl) %>% 
+  group_by(group, receiver) %>% distinct(ligand, receiver, group, activity) %>% 
+  top_n(5, activity) %>% pull(ligand) %>% unique()
+
+plot_oi = make_ligand_activity_plots(multinichenet_output$prioritization_tables, ligands_oi, contrast_tbl, widths = NULL)
+plot_oi
+```
+
+## Zoom in on specific ligand-receptor interactions: show their expression in the single-cell data!
+
+Single-cell-based Feature, and Violin plots of ligand-receptor interaction of interest: `make_ligand_receptor_feature_plot` and `make_ligand_receptor_violin_plot`
+
+It is often useful to zoom in on specific ligand-receptor interactions of interest by looking in more detail to their expression at the single cell level 
+
+Check the highest scoring links based on the general prioritization score. Here we will pick one of those to visualize.
+
+```{r}
+prioritized_tbl_oi %>% head(10)
+```
+
+```{r}
+ligand_oi = "IFNG"
+receptor_oi = "IFNGR1"
+group_oi = "M"
+sender_oi = "L_T_TIM3._CD38._HLADR."
+receiver_oi = "M_Monocyte_CD16"
+```
+
+```{r, fig.width=13, fig.height=8}
+p_violin = make_ligand_receptor_violin_plot(sce_sender = sce, sce_receiver = sce, ligand_oi = ligand_oi, receptor_oi = receptor_oi, group_oi = group_oi, group_id = group_id, sender_oi = sender_oi, receiver_oi = receiver_oi, sample_id = sample_id, celltype_id_sender = celltype_id, celltype_id_receiver = celltype_id)
+p_violin
+```
+
+For `make_ligand_receptor_feature_plot`, your SingleCellExperiment object should have a dimensionality reduction element stored.
+
+## Zoom in on specific ligand-target interactions: show their expression in the single-cell data!
+
+Make target gene violin and feature plots: `make_target_violin_plot` and `make_target_feature_plot`
+
+LILRB1: interesting gene in MIS-C CD16+ monocytes
+
+```{r, fig.width=18, fig.height=8}
+target_oi = "LILRB1"
+
+make_target_violin_plot(sce_receiver = sce, target_oi = target_oi, receiver_oi = receiver_oi, group_oi = group_oi, group_id = group_id, sample_id, celltype_id_receiver = celltype_id)
 ```
