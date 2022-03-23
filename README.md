@@ -102,7 +102,7 @@ with:
 
     # install.packages("devtools")
     devtools::install_github("saeyslab/nichenetr")
-    devtools::install_github("browaeysrobin/multinichenetr")
+    devtools::install_github("saeyslab/multinichenetr")
 
 multinichenetr is tested via Github Actions version control on Windows,
 Linux (Ubuntu) and Mac (most recently tested R version: R 4.0.4).
