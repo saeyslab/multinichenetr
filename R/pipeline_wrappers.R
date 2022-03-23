@@ -489,7 +489,7 @@ get_abundance_expression_info_separate = function(sce_receiver, sce_sender, samp
 #' @title get_DE_info
 #'
 #' @description \code{get_DE_info} Perform differential expression analysis via Muscat - Pseudobulking approach. Also visualize the p-value distribution. Under the hood, the following function is used: `perform_muscat_de_analysis`.
-#' @usage get_DE_info(sce, sample_id, group_id, celltype_id, batches, covariates, contrasts_oi, min_cells = 10, assay_oi_pb = "counts", fun_oi_pb = "sum", de_method_oi = "edgeR", findMarkers = FALSE, contrast_tbl = NULL)
+#' @usage get_DE_info(sce, sample_id, group_id, celltype_id, batches, covariates, contrasts_oi, min_cells = 10, assay_oi_pb = "counts", fun_oi_pb = "sum", de_method_oi = "edgeR", findMarkers = FALSE, contrast_tbl = NULL, filter_muscat = TRUE)
 #'
 #' @inheritParams multi_nichenet_analysis_combined
 #' @inheritParams perform_muscat_de_analysis
@@ -524,7 +524,7 @@ get_abundance_expression_info_separate = function(sce_receiver, sce_sender, samp
 #' @export
 #'
 #'
-get_DE_info = function(sce, sample_id, group_id, celltype_id, batches, covariates, contrasts_oi, min_cells = 10, assay_oi_pb = "counts", fun_oi_pb = "sum", de_method_oi = "edgeR", findMarkers = FALSE, contrast_tbl = NULL){
+get_DE_info = function(sce, sample_id, group_id, celltype_id, batches, covariates, contrasts_oi, min_cells = 10, assay_oi_pb = "counts", fun_oi_pb = "sum", de_method_oi = "edgeR", findMarkers = FALSE, contrast_tbl = NULL, filter_muscat = TRUE){
   
   requireNamespace("dplyr")
   requireNamespace("ggplot2")
@@ -540,7 +540,8 @@ get_DE_info = function(sce, sample_id, group_id, celltype_id, batches, covariate
     assay_oi_pb = assay_oi_pb,
     fun_oi_pb = fun_oi_pb,
     de_method_oi = de_method_oi,
-    min_cells = min_cells)
+    min_cells = min_cells,
+    filter_muscat = filter_muscat)
   
   hist_pvals = celltype_de$de_output_tidy %>% dplyr::inner_join(celltype_de$de_output_tidy %>% dplyr::group_by(contrast,cluster_id) %>% dplyr::count(), by = c("cluster_id","contrast")) %>% 
     dplyr::mutate(cluster_id = paste0(cluster_id, "\nnr of genes: ", n)) %>% dplyr::mutate(`p-value <= 0.05` = p_val <= 0.05) %>% 
@@ -550,7 +551,7 @@ get_DE_info = function(sce, sample_id, group_id, celltype_id, batches, covariate
   
   if(findMarkers == TRUE){
 
-    genes_filtered = celltype_de$de_output_tidy %>% dplyr::pull(gene) %>% unique()
+    genes_filtered = celltype_de$de_output_tidy %>% dplyr::pull(gene) %>% unique() # filtering should be done per cell type...
     celltypes = celltype_de$de_output_tidy %>% dplyr::pull(cluster_id) %>% unique()
     
     celltype_de_findmarkers = celltypes %>% lapply(function(celltype_oi, sce){

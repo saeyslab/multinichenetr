@@ -1,7 +1,7 @@
 #' @title perform_muscat_de_analysis
 #'
 #' @description \code{perform_muscat_de_analysis} Perform differential expression analysis via Muscat - Pseudobulking approach.
-#' @usage perform_muscat_de_analysis(sce, sample_id, celltype_id, group_id, batches, covariates, contrasts, assay_oi_pb = "counts", fun_oi_pb = "sum", de_method_oi = "edgeR", min_cells = 10)
+#' @usage perform_muscat_de_analysis(sce, sample_id, celltype_id, group_id, batches, covariates, contrasts, assay_oi_pb = "counts", fun_oi_pb = "sum", de_method_oi = "edgeR", min_cells = 10, filter_muscat = TRUE)
 #'
 #' @inheritParams multi_nichenet_analysis_combined
 #' @param contrasts String indicating the contrasts of interest (= which groups/conditions will be compared) for the differential expression and MultiNicheNet analysis. 
@@ -45,7 +45,7 @@
 #' @export
 #'
 #'
-perform_muscat_de_analysis = function(sce, sample_id, celltype_id, group_id, batches, covariates, contrasts, assay_oi_pb = "counts", fun_oi_pb = "sum", de_method_oi = "edgeR", min_cells = 10){
+perform_muscat_de_analysis = function(sce, sample_id, celltype_id, group_id, batches, covariates, contrasts, assay_oi_pb = "counts", fun_oi_pb = "sum", de_method_oi = "edgeR", min_cells = 10, filter_muscat = TRUE){
   requireNamespace("dplyr")
   
 
@@ -261,7 +261,11 @@ perform_muscat_de_analysis = function(sce, sample_id, celltype_id, group_id, bat
   contrast = eval(parse(text=paste("limma::makeContrasts(", contrasts, ",levels=design)",sep="")))
 
   # run DS analysis
-  res = muscat::pbDS(pb, method = de_method_oi , design = design, contrast = contrast, min_cells = min_cells, verbose = FALSE, filter = "both")
+  if(filter_muscat == TRUE){
+    res = muscat::pbDS(pb, method = de_method_oi , design = design, contrast = contrast, min_cells = min_cells, verbose = FALSE, filter = "genes")
+  } else {
+    res = muscat::pbDS(pb, method = de_method_oi , design = design, contrast = contrast, min_cells = min_cells, verbose = FALSE, filter = "none")
+  }
   
   de_output_tidy = muscat::resDS(sce, res, bind = "row", cpm = FALSE, frq = FALSE) %>% tibble::as_tibble() %>% dplyr::rename(p_adj = p_adj.glb)
   

@@ -7,7 +7,7 @@
 multi_nichenet_analysis_separate(
 sce_receiver, sce_sender,celltype_id_receiver,celltype_id_sender,sample_id,group_id, batches, covariates, lr_network,ligand_target_matrix,contrasts_oi,contrast_tbl, fraction_cutoff = 0.05,
 prioritizing_weights = c("de_ligand" = 1,"de_receptor" = 1,"activity_scaled" = 1,"exprs_ligand" = 1,"exprs_receptor" = 1, "frac_exprs_ligand_receptor" = 1,"abund_sender" = 0,"abund_receiver" = 0),
-assay_oi_pb ="counts",fun_oi_pb = "sum",de_method_oi = "edgeR",min_cells = 10,logFC_threshold = 0.25,p_val_threshold = 0.05, p_val_adj = FALSE, empirical_pval = TRUE, top_n_target = 250, verbose = FALSE, n.cores = 1, return_lr_prod_matrix = FALSE, findMarkers = FALSE)
+assay_oi_pb ="counts",fun_oi_pb = "sum",de_method_oi = "edgeR",min_cells = 10,logFC_threshold = 0.25,p_val_threshold = 0.05, p_val_adj = FALSE, empirical_pval = TRUE, top_n_target = 250, verbose = FALSE, n.cores = 1, return_lr_prod_matrix = FALSE, findMarkers = FALSE, filter_muscat = TRUE)
 }
 \arguments{
 \item{sce_receiver}{SingleCellExperiment object containing the receiver cell types of interest}
@@ -83,6 +83,8 @@ abund_receiver: importance of relative cell type abundance of the receiver cell 
 \item{return_lr_prod_matrix}{Indicate whether to calculate a senderLigand-receiverReceptor matrix, which could be used for unsupervised analysis of the cell-cell communication. Default FALSE. Setting to FALSE might be beneficial to avoid memory issues.}
 
 \item{findMarkers}{Indicate whether we should also calculate DE results with the classic scran::findMarkers approach. Default (recommended): FALSE.}
+
+\item{filter_muscat}{Indicate whether genes should be filtered by filterByExprs before the DE analysis (TRUE) or not (FALSE). Default: TRUE. TRUE recommended if you want to focus on highly expressed DE genes, FALSE if you want to retrieve DE information for all genes.}
 }
 \value{
 List containing information and output of the MultiNicheNet analysis.\cr

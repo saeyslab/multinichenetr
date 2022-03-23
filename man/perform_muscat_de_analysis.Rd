@@ -4,7 +4,7 @@
 \alias{perform_muscat_de_analysis}
 \title{perform_muscat_de_analysis}
 \usage{
-perform_muscat_de_analysis(sce, sample_id, celltype_id, group_id, batches, covariates, contrasts, assay_oi_pb = "counts", fun_oi_pb = "sum", de_method_oi = "edgeR", min_cells = 10)
+perform_muscat_de_analysis(sce, sample_id, celltype_id, group_id, batches, covariates, contrasts, assay_oi_pb = "counts", fun_oi_pb = "sum", de_method_oi = "edgeR", min_cells = 10, filter_muscat = TRUE)
 }
 \arguments{
 \item{sce}{SingleCellExperiment object of the scRNAseq data of interest. Contains both sender and receiver cell types.}
@@ -36,6 +36,8 @@ Note that the groups A, B, ... should be present in the meta data column 'group_
 \item{de_method_oi}{Indicates the DE method that will be used after pseudobulking. Default: "edgeR". See `muscat::pbDS`.}
 
 \item{min_cells}{Indicates the minimal number of cells that a sample should have to be considered in the DE analysis. Default: 10. See `muscat::pbDS`.}
+
+\item{filter_muscat}{Indicate whether genes should be filtered by filterByExprs before the DE analysis (TRUE) or not (FALSE). Default: TRUE. TRUE recommended if you want to focus on highly expressed DE genes, FALSE if you want to retrieve DE information for all genes.}
 }
 \value{
 List with output of the differential expression analysis in 1) default format(`muscat::pbDS()`), and 2) in a tidy table format (`muscat::resDS()`).

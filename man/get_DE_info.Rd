@@ -4,7 +4,7 @@
 \alias{get_DE_info}
 \title{get_DE_info}
 \usage{
-get_DE_info(sce, sample_id, group_id, celltype_id, batches, covariates, contrasts_oi, min_cells = 10, assay_oi_pb = "counts", fun_oi_pb = "sum", de_method_oi = "edgeR", findMarkers = FALSE, contrast_tbl = NULL)
+get_DE_info(sce, sample_id, group_id, celltype_id, batches, covariates, contrasts_oi, min_cells = 10, assay_oi_pb = "counts", fun_oi_pb = "sum", de_method_oi = "edgeR", findMarkers = FALSE, contrast_tbl = NULL, filter_muscat = TRUE)
 }
 \arguments{
 \item{sce}{SingleCellExperiment object of the scRNAseq data of interest. Contains both sender and receiver cell types.}
@@ -40,6 +40,8 @@ Note that the groups A, B, ... should be present in the meta data column 'group_
 \item{findMarkers}{Indicate whether we should also calculate DE results with the classic scran::findMarkers approach. Default (recommended): FALSE.}
 
 \item{contrast_tbl}{see explanation in multi_nichenet_analysis function -- here: only required to give as input if findMarkers = TRUE.}
+
+\item{filter_muscat}{Indicate whether genes should be filtered by filterByExprs before the DE analysis (TRUE) or not (FALSE). Default: TRUE. TRUE recommended if you want to focus on highly expressed DE genes, FALSE if you want to retrieve DE information for all genes.}
 }
 \value{
 List with output of the differential expression analysis in 1) default format(`muscat::pbDS()`), and 2) in a tidy table format (`muscat::resDS()`) (both in the `celltype_de` slot); Histogram plot of the p-values is also returned.
