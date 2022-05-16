@@ -500,34 +500,30 @@ multi_nichenet_analysis_separate = function(sce_receiver,
     print("Calculate differential expression for all cell types")
   }
   if(findMarkers == FALSE){
-    DE_info_receiver = get_DE_info(sce = sce_receiver, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id_receiver, batches = batches, covariates = covariates, contrasts_oi = contrasts_oi, min_cells = min_cells, 
+    DE_info_receiver = get_DE_info(sce = sce_receiver, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id_receiver, batches = batches, covariates = covariates, contrasts_oi = contrasts_oi, frq_df = abundance_expression_info$receiver_info$frq_df,min_cells = min_cells, 
                                    assay_oi_pb = assay_oi_pb,
                                    fun_oi_pb = fun_oi_pb,
                                    de_method_oi = de_method_oi, 
-                                   filter_muscat = filter_muscat,
                                    findMarkers = findMarkers)
     
-    DE_info_sender = get_DE_info(sce = sce_sender, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id_sender, batches = batches, covariates = covariates , contrasts_oi = contrasts_oi, min_cells = min_cells, 
+    DE_info_sender = get_DE_info(sce = sce_sender, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id_sender, batches = batches, covariates = covariates , contrasts_oi = contrasts_oi, frq_df = abundance_expression_info$sender_info$frq_df, min_cells = min_cells, 
                                  assay_oi_pb = assay_oi_pb,
                                  fun_oi_pb = fun_oi_pb,
                                  de_method_oi = de_method_oi,
-                                 filter_muscat = filter_muscat,
                                  findMarkers = findMarkers)
   } else {
-    DE_info_receiver = get_DE_info(sce = sce_receiver, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id_receiver, batches = batches, covariates = covariates, contrasts_oi = contrasts_oi, min_cells = min_cells, 
+    DE_info_receiver = get_DE_info(sce = sce_receiver, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id_receiver, batches = batches, covariates = covariates, contrasts_oi = contrasts_oi, frq_df = abundance_expression_info$receiver_info$frq_df, min_cells = min_cells, 
                                    assay_oi_pb = assay_oi_pb,
                                    fun_oi_pb = fun_oi_pb,
                                    de_method_oi = de_method_oi, 
                                    findMarkers = findMarkers,
-                                   filter_muscat = filter_muscat,
                                    contrast_tbl = contrast_tbl)
     
-    DE_info_sender = get_DE_info(sce = sce_sender, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id_sender, batches = batches, covariates = covariates, contrasts_oi = contrasts_oi, min_cells = min_cells, 
+    DE_info_sender = get_DE_info(sce = sce_sender, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id_sender, batches = batches, covariates = covariates, contrasts_oi = contrasts_oi, frq_df = abundance_expression_info$sender_info$frq_df, min_cells = min_cells, 
                                  assay_oi_pb = assay_oi_pb,
                                  fun_oi_pb = fun_oi_pb,
                                  de_method_oi = de_method_oi,
                                  findMarkers = findMarkers,
-                                 filter_muscat = filter_muscat,
                                  contrast_tbl = contrast_tbl)
 
   }
@@ -652,9 +648,10 @@ multi_nichenet_analysis_separate = function(sce_receiver,
     receiver_de = celltype_de_receiver,
     sender_info = abundance_expression_info$sender_info,
     sender_de = celltype_de_sender,
-    abundance_data_receiver = abundance_expression_info$abundance_data_receiver, abundance_data_sender = abundance_expression_info$abundance_data_sender, 
-    sender_receiver_info = abundance_expression_info$sender_receiver_info,
-    sender_receiver_de =  sender_receiver_de,
+    abundance_data_receiver = abundance_expression_info$abundance_data_receiver, 
+    abundance_data_sender = abundance_expression_info$abundance_data_sender, 
+    # sender_receiver_info = abundance_expression_info$sender_receiver_info,
+    # sender_receiver_de =  sender_receiver_de,
     ligand_activities_targets_DEgenes = ligand_activities_targets_DEgenes,
     prioritization_tables = prioritization_tables,
     lr_prod_mat = lr_prod_mat,
@@ -1011,18 +1008,16 @@ multi_nichenet_analysis_combined = function(sce,
   }
   
   if(findMarkers == FALSE){
-    DE_info = get_DE_info(sce = sce, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id, batches = batches, covariates = covariates, contrasts_oi = contrasts_oi, min_cells = min_cells,
+    DE_info = get_DE_info(sce = sce, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id, batches = batches, covariates = covariates, contrasts_oi = contrasts_oi, frq_df = abundance_expression_info$celltype_info$frq_df, min_cells = min_cells,
                           assay_oi_pb = assay_oi_pb,
                           fun_oi_pb = fun_oi_pb,
                           de_method_oi = de_method_oi,
-                          filter_muscat = filter_muscat,
                           findMarkers = findMarkers)
   } else {
-    DE_info = get_DE_info(sce = sce, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id, batches = batches, covariates = covariates, contrasts_oi = contrasts_oi, min_cells = min_cells,
+    DE_info = get_DE_info(sce = sce, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id, batches = batches, covariates = covariates, contrasts_oi = contrasts_oi, frq_df = abundance_expression_info$celltype_info$frq_df, min_cells = min_cells,
                           assay_oi_pb = assay_oi_pb,
                           fun_oi_pb = fun_oi_pb,
                           de_method_oi = de_method_oi,
-                          filter_muscat = filter_muscat,
                           findMarkers = findMarkers,
                           contrast_tbl = contrast_tbl)
   }
@@ -1128,10 +1123,11 @@ multi_nichenet_analysis_combined = function(sce,
   
   multinichenet_output = list(
     celltype_info = abundance_expression_info$celltype_info,
-    abundance_data_receiver = abundance_expression_info$abundance_data_receiver, abundance_data_sender = abundance_expression_info$abundance_data_sender, 
+    abundance_data_receiver = abundance_expression_info$abundance_data_receiver, 
+    abundance_data_sender = abundance_expression_info$abundance_data_sender, 
     celltype_de = celltype_de,
-    sender_receiver_info = abundance_expression_info$sender_receiver_info,
-    sender_receiver_de =  sender_receiver_de,
+    # sender_receiver_info = abundance_expression_info$sender_receiver_info,
+    # sender_receiver_de =  sender_receiver_de,
     ligand_activities_targets_DEgenes = ligand_activities_targets_DEgenes,
     prioritization_tables = prioritization_tables,
     lr_prod_mat = lr_prod_mat,

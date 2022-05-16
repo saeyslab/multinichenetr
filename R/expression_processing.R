@@ -442,23 +442,34 @@ get_avg_frac_exprs_abund = function(sce, sample_id, celltype_id, group_id, batch
     frq_df = fix_frq_df(sce, frq_df)
   }
 
-  # prepare grouping to get group averages
+  # calculate these above metrics per group
   metadata = SummarizedExperiment::colData(sce) %>% tibble::as_tibble()
-  if('sample_id' != sample_id){
+  if ("sample_id" != sample_id) {
     metadata$sample_id = metadata[[sample_id]]
   }
-  if('group_id' != sample_id){
+  if ("group_id" != sample_id) {
     metadata$group_id = metadata[[group_id]]
   }
-  if('celltype_id' != celltype_id){
+  if ("celltype_id" != celltype_id) {
     metadata$celltype_id = metadata[[celltype_id]]
   }
-
-  grouping_df = metadata %>% dplyr::select(sample_id, group_id) %>% tibble::as_tibble() %>% dplyr::distinct() %>% dplyr::rename(sample = sample_id, group = group_id)
-
-  avg_df_group = avg_df %>% dplyr::inner_join(grouping_df) %>% dplyr::group_by(group, celltype, gene) %>% dplyr::summarise(average_group = mean(average_sample))
-  frq_df_group = frq_df %>% dplyr::inner_join(grouping_df) %>% dplyr::group_by(group, celltype, gene) %>% dplyr::summarise(fraction_group = mean(fraction_sample))
-  pb_df_group = pb_df %>% dplyr::inner_join(grouping_df) %>% dplyr::group_by(group, celltype, gene) %>% dplyr::summarise(pb_group = mean(pb_sample))
+  grouping_df = metadata %>% dplyr::select(sample_id, group_id) %>% 
+    tibble::as_tibble() %>% dplyr::distinct() %>% dplyr::rename(sample = sample_id, 
+                                                                group = group_id)
+  avg_df_group = avg_df %>% dplyr::inner_join(grouping_df) %>% 
+    dplyr::group_by(group, celltype, gene) %>% dplyr::summarise(average_group = mean(average_sample))
+  frq_df_group = frq_df %>% dplyr::inner_join(grouping_df) %>% 
+    dplyr::group_by(group, celltype, gene) %>% dplyr::summarise(fraction_group = mean(fraction_sample))
+  pb_df_group = pb_df %>% dplyr::inner_join(grouping_df) %>% 
+    dplyr::group_by(group, celltype, gene) %>% dplyr::summarise(pb_group = mean(pb_sample))
+  
+  # define whether genes are expressed - inspired by edgeR::filterByExprs but more suited for pseudobulk data
+  # expressed in a cell type = for n samples: non-zero counts in >= 2.5% of cells in a sample
+  # n = 70% of samples of the smallest group
+  n_smallest_group = grouping_df %>% dplyr::group_by(group) %>% dplyr::count() %>% dplyr::pull(n) %>% min()
+  n_min = 0.70*n_smallest_group
+  frq_exprs = frq_df %>% dplyr::inner_join(grouping_df) %>% dplyr::mutate(expressed_sample = fraction_sample > 0.025)
+  frq_df = frq_exprs %>% dplyr::inner_join(frq_exprs %>% dplyr::group_by(gene, celltype) %>% dplyr::summarise(n_expressed = sum(expressed_sample)) %>% dplyr::mutate(expressed_celltype = n_expressed > n_min)) %>% dplyr::ungroup()
   
   # calculate relative abundance
   n_celltypes = metadata$celltype_id %>% unique() %>% length()

@@ -102,8 +102,9 @@ lr_target_prior_cor_inference = function(receivers_oi, abundance_expression_info
   # add sender-receiver presence to grouping_tbl
   grouping_tbl = grouping_tbl %>% dplyr::inner_join(prioritization_tables$sample_prioritization_tbl %>% dplyr::distinct(sample, sender, receiver, keep_receiver, keep_sender), by = "sample")
   
-  # Step1: calculate LR prod matrix
+  # Step1: calculate LR prod matrix -- take only top 20% of LR pairs because only those are interesting
   ids_oi = prioritization_tables$group_prioritization_tbl %>% dplyr::filter(fraction_expressing_ligand_receptor > 0)  %>% dplyr::pull(id) %>% unique()
+  ids_oi = get_top_n_lr_pairs(prioritization_tables, round(length(ids_oi)*0.20), rank_per_group = TRUE)  %>% dplyr::pull(id) %>% unique() ## prioritization-based subset of IDs! -- only those interesting for correlation analyses with target genes
   
   # make ligand-receptor-id mapping
   lig_rec_send_rec_mapping = abundance_expression_info$sender_receiver_info$pb_df %>% dplyr::inner_join(grouping_tbl, by = c("sample","sender","receiver")) %>% dplyr::mutate(lr_interaction = paste(ligand, receptor, sep = "_")) %>% dplyr::mutate(id = paste(lr_interaction, sender, receiver, sep = "_")) %>% dplyr::select(sender, receiver, ligand, receptor, id) %>% dplyr::distinct()

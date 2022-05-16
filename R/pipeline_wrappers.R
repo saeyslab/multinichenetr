@@ -489,11 +489,12 @@ get_abundance_expression_info_separate = function(sce_receiver, sce_sender, samp
 #' @title get_DE_info
 #'
 #' @description \code{get_DE_info} Perform differential expression analysis via Muscat - Pseudobulking approach. Also visualize the p-value distribution. Under the hood, the following function is used: `perform_muscat_de_analysis`.
-#' @usage get_DE_info(sce, sample_id, group_id, celltype_id, batches, covariates, contrasts_oi, min_cells = 10, assay_oi_pb = "counts", fun_oi_pb = "sum", de_method_oi = "edgeR", findMarkers = FALSE, contrast_tbl = NULL, filter_muscat = TRUE)
+#' @usage get_DE_info(sce, sample_id, group_id, celltype_id, batches, covariates, contrasts_oi, frq_df, min_cells = 10, assay_oi_pb = "counts", fun_oi_pb = "sum", de_method_oi = "edgeR", findMarkers = FALSE, contrast_tbl = NULL)
 #'
 #' @inheritParams multi_nichenet_analysis_combined
 #' @inheritParams perform_muscat_de_analysis
 #' @param contrast_tbl see explanation in multi_nichenet_analysis function -- here: only required to give as input if findMarkers = TRUE.
+#' @param frq_df frq_df slot output of `get_avg_frac_exprs_abund`: dataframe showing fraction of cells expressing genes, split per sample - there is also an indication whether genes are expressed in a cell type. 
 #' 
 #' @return List with output of the differential expression analysis in 1) default format(`muscat::pbDS()`), and 2) in a tidy table format (`muscat::resDS()`) (both in the `celltype_de` slot); Histogram plot of the p-values is also returned.
 #'
@@ -511,6 +512,7 @@ get_abundance_expression_info_separate = function(sce_receiver, sce_sender, samp
 #' batches = NA
 #' covariates = NA
 #' contrasts_oi = c("'High-Low','Low-High'")
+#' avg_frac_exprs_abund = get_avg_frac_exprs_abund(sce = sce, sample_id = sample_id, celltype_id = celltype_id, group_id = group_id)
 #' DE_info = get_DE_info(
 #'    sce = sce,
 #'    sample_id = sample_id,
@@ -518,30 +520,55 @@ get_abundance_expression_info_separate = function(sce_receiver, sce_sender, samp
 #'    group_id = group_id,
 #'    batches = batches,
 #'    covariates = covariates,
-#'    contrasts = contrasts_oi)
+#'    contrasts = contrasts_oi, 
+#'    frq_df = avg_frac_exprs_abund$frq_df)
 #'}
 #'
 #' @export
 #'
 #'
-get_DE_info = function(sce, sample_id, group_id, celltype_id, batches, covariates, contrasts_oi, min_cells = 10, assay_oi_pb = "counts", fun_oi_pb = "sum", de_method_oi = "edgeR", findMarkers = FALSE, contrast_tbl = NULL, filter_muscat = TRUE){
+get_DE_info = function(sce, sample_id, group_id, celltype_id, batches, covariates, contrasts_oi, frq_df, min_cells = 10, assay_oi_pb = "counts", fun_oi_pb = "sum", de_method_oi = "edgeR", findMarkers = FALSE, contrast_tbl = NULL){
   
   requireNamespace("dplyr")
   requireNamespace("ggplot2")
   
-  celltype_de = perform_muscat_de_analysis(
-    sce = sce,
-    sample_id = sample_id,
-    celltype_id = celltype_id,
-    group_id = group_id,
-    batches = batches,
-    covariates = covariates,
-    contrasts = contrasts_oi,
-    assay_oi_pb = assay_oi_pb,
-    fun_oi_pb = fun_oi_pb,
-    de_method_oi = de_method_oi,
-    min_cells = min_cells,
-    filter_muscat = filter_muscat)
+  celltypes = SummarizedExperiment::colData(sce)[,celltype_id] %>% unique()
+  
+  DE_list = celltypes %>% lapply(function(celltype_oi, sce, frq_df){
+    genes_expressed = frq_df %>% dplyr::filter(celltype == celltype_oi & expressed_celltype== TRUE) %>% dplyr::pull(gene) %>% unique()
+    sce_oi = sce[intersect(rownames(sce), genes_expressed), SummarizedExperiment::colData(sce)[,celltype_id] == celltype_oi]
+    DE_result = tryCatch(
+      {perform_muscat_de_analysis(sce = sce_oi, 
+                                  sample_id = sample_id, 
+                                  celltype_id = celltype_id, 
+                                  group_id = group_id, 
+                                  batches = batches, 
+                                  covariates = covariates, 
+                                  contrasts = contrasts_oi, 
+                                  assay_oi_pb = assay_oi_pb, 
+                                  fun_oi_pb = fun_oi_pb, 
+                                  de_method_oi = de_method_oi, 
+                                  min_cells = min_cells, 
+                                  filter_muscat = FALSE)
+        }, 
+      error = function(cond){
+        return(NA) # occurs when not enough samples per group with sufficient cells
+      })
+  }, sce, frq_df)
+  
+  celltype_de = list(
+    de_output = c(DE_list %>% purrr::map("de_output")),
+    de_output_tidy = DE_list %>% purrr::map("de_output_tidy") %>% bind_rows()
+    )
+  excluded_celltypes = celltypes %>% generics::setdiff(celltype_de$de_output_tidy$cluster_id) %>% unique()
+  if (length(excluded_celltypes) > 0) {
+    print("excluded cell types are:")
+    print(excluded_celltypes)
+    print("These celltypes are not considered in the analysis. After removing samples that contain less cells than the required minimal, some groups don't have 2 or more samples anymore. As a result the analysis cannot be run. To solve this: decrease the number of min_cells or change your group_id and pool all samples that belong to groups that are not of interest! ")
+  }
+  if (length(excluded_celltypes) == length(celltypes)) {
+    print("None of the cell types passed the check. This might be due to 2 reasons. 1) no cell type has enough cells in >=2 samples per group. 2) problem in batch definition: not all levels of your batch are in each group - Also for groups not included in your contrasts!")
+  }
   
   hist_pvals = celltype_de$de_output_tidy %>% dplyr::inner_join(celltype_de$de_output_tidy %>% dplyr::group_by(contrast,cluster_id) %>% dplyr::count(), by = c("cluster_id","contrast")) %>% 
     dplyr::mutate(cluster_id = paste0(cluster_id, "\nnr of genes: ", n)) %>% dplyr::mutate(`p-value <= 0.05` = p_val <= 0.05) %>% 
@@ -551,19 +578,18 @@ get_DE_info = function(sce, sample_id, group_id, celltype_id, batches, covariate
   
   if(findMarkers == TRUE){
 
-    genes_filtered = celltype_de$de_output_tidy %>% dplyr::pull(gene) %>% unique() # filtering should be done per cell type...
     celltypes = celltype_de$de_output_tidy %>% dplyr::pull(cluster_id) %>% unique()
     
-    celltype_de_findmarkers = celltypes %>% lapply(function(celltype_oi, sce){
-      sce_oi = sce[genes_filtered, SummarizedExperiment::colData(sce)[,celltype_id] == celltype_oi]
+    celltype_de_findmarkers = celltypes %>% lapply(function(celltype_oi, sce, frq_df){
+      genes_expressed = frq_df %>% dplyr::filter(celltype == celltype_oi & expressed_celltype== TRUE) %>% dplyr::pull(gene) %>% unique()
+      sce_oi = sce[intersect(rownames(sce), genes_expressed), SummarizedExperiment::colData(sce)[,celltype_id] == celltype_oi]
       DE_tables_list = scran::findMarkers(sce_oi, test.type="t", groups = SummarizedExperiment::colData(sce_oi)[,group_id])
-      
       conditions = names(DE_tables_list)
       DE_tables_df = conditions %>% lapply(function(condition_oi, DE_tables_list){
         DE_table_oi = DE_tables_list[[condition_oi]]
         DE_table_oi = DE_table_oi %>% data.frame() %>% tibble::rownames_to_column("gene") %>% tibble::as_tibble() %>% dplyr::mutate(cluster_id = celltype_oi, group = condition_oi) %>% dplyr::select(gene, p.value, FDR, summary.logFC, cluster_id, group)  
       }, DE_tables_list) %>% dplyr::bind_rows()
-    }, sce) %>% dplyr::bind_rows() %>% dplyr::rename(logFC = summary.logFC, p_val = p.value, p_adj = FDR) %>% dplyr::inner_join(contrast_tbl, by = "group") %>% dplyr::select(gene, cluster_id, logFC, p_val, p_adj, contrast)
+    }, sce, frq_df) %>% dplyr::bind_rows() %>% dplyr::rename(logFC = summary.logFC, p_val = p.value, p_adj = FDR) %>% dplyr::inner_join(contrast_tbl, by = "group") %>% dplyr::select(gene, cluster_id, logFC, p_val, p_adj, contrast)
     
     hist_pvals_findmarkers = celltype_de_findmarkers %>% dplyr::inner_join(celltype_de_findmarkers %>% dplyr::group_by(contrast,cluster_id) %>% dplyr::count(), by = c("cluster_id","contrast")) %>% 
       dplyr::mutate(cluster_id = paste0(cluster_id, "\nnr of genes: ", n)) %>% dplyr::mutate(`p-value <= 0.05` = p_val <= 0.05) %>% 
@@ -658,7 +684,11 @@ make_lite_output = function(multinichenet_output){
   requireNamespace("dplyr")
   
   if("celltype_info" %in% names(multinichenet_output)){
-    gene_subset = generics::union(multinichenet_output$prioritization_tables$group_prioritization_tbl$ligand, multinichenet_output$prioritization_tables$group_prioritization_tbl$receptor) %>% generics::union(multinichenet_output$ligand_activities_targets_DEgenes$de_genes_df %>% dplyr::pull(gene) %>% unique())
+    gene_subset = generics::union( ## to filter the output, keep only genes that are expressed ligands, receptors and/or DE genes
+      multinichenet_output$prioritization_tables$group_prioritization_tbl %>% dplyr::filter(fraction_expressing_ligand_receptor > 0) %>% .$ligand, 
+      multinichenet_output$prioritization_tables$group_prioritization_tbl %>% dplyr::filter(fraction_expressing_ligand_receptor > 0) %>% .$receptor) %>% 
+      generics::union(multinichenet_output$ligand_activities_targets_DEgenes$de_genes_df %>% dplyr::pull(gene) %>% unique())
+    
     multinichenet_output$celltype_info$avg_df = multinichenet_output$celltype_info$avg_df %>% dplyr::filter(gene %in% gene_subset)
     multinichenet_output$celltype_info$frq_df = multinichenet_output$celltype_info$frq_df %>% dplyr::filter(gene %in% gene_subset)
     multinichenet_output$celltype_info$pb_df = multinichenet_output$celltype_info$pb_df %>% dplyr::filter(gene %in% gene_subset)
@@ -672,15 +702,15 @@ make_lite_output = function(multinichenet_output){
     ## maybe also a subset of LR-Sender-Receiver pairs?
     LR_subset = multinichenet_output$prioritization_tables$group_prioritization_tbl %>% dplyr::filter(fraction_expressing_ligand_receptor  > 0) %>% dplyr::distinct(ligand, receptor, sender, receiver)
     
-    multinichenet_output$sender_receiver_info$avg_df = multinichenet_output$sender_receiver_info$avg_df %>% dplyr::inner_join(LR_subset, by = c("sender", "receiver", "ligand", "receptor"))
-    multinichenet_output$sender_receiver_info$frq_df = multinichenet_output$sender_receiver_info$frq_df %>% dplyr::inner_join(LR_subset, by = c("sender", "receiver", "ligand", "receptor"))
-    multinichenet_output$sender_receiver_info$pb_df = multinichenet_output$sender_receiver_info$pb_df %>% dplyr::inner_join(LR_subset, by = c("sender", "receiver", "ligand", "receptor"))
-    
-    multinichenet_output$sender_receiver_info$avg_df_group = multinichenet_output$sender_receiver_info$avg_df_group %>% dplyr::inner_join(LR_subset, by = c("sender", "receiver", "ligand", "receptor"))
-    multinichenet_output$sender_receiver_info$frq_df_group = multinichenet_output$sender_receiver_info$frq_df_group %>% dplyr::inner_join(LR_subset, by = c("sender", "receiver", "ligand", "receptor"))
-    multinichenet_output$sender_receiver_info$pb_df_group = multinichenet_output$sender_receiver_info$pb_df_group %>% dplyr::inner_join(LR_subset, by = c("sender", "receiver", "ligand", "receptor"))
-    
-    multinichenet_output$sender_receiver_de = multinichenet_output$sender_receiver_de %>% dplyr::inner_join(LR_subset, by = c("sender", "receiver", "ligand", "receptor"))
+    # multinichenet_output$sender_receiver_info$avg_df = multinichenet_output$sender_receiver_info$avg_df %>% dplyr::inner_join(LR_subset, by = c("sender", "receiver", "ligand", "receptor"))
+    # multinichenet_output$sender_receiver_info$frq_df = multinichenet_output$sender_receiver_info$frq_df %>% dplyr::inner_join(LR_subset, by = c("sender", "receiver", "ligand", "receptor"))
+    # multinichenet_output$sender_receiver_info$pb_df = multinichenet_output$sender_receiver_info$pb_df %>% dplyr::inner_join(LR_subset, by = c("sender", "receiver", "ligand", "receptor"))
+    # 
+    # multinichenet_output$sender_receiver_info$avg_df_group = multinichenet_output$sender_receiver_info$avg_df_group %>% dplyr::inner_join(LR_subset, by = c("sender", "receiver", "ligand", "receptor"))
+    # multinichenet_output$sender_receiver_info$frq_df_group = multinichenet_output$sender_receiver_info$frq_df_group %>% dplyr::inner_join(LR_subset, by = c("sender", "receiver", "ligand", "receptor"))
+    # multinichenet_output$sender_receiver_info$pb_df_group = multinichenet_output$sender_receiver_info$pb_df_group %>% dplyr::inner_join(LR_subset, by = c("sender", "receiver", "ligand", "receptor"))
+    # 
+    # multinichenet_output$sender_receiver_de = multinichenet_output$sender_receiver_de %>% dplyr::inner_join(LR_subset, by = c("sender", "receiver", "ligand", "receptor"))
     
     multinichenet_output$prioritization_tables$group_prioritization_tbl = multinichenet_output$prioritization_tables$group_prioritization_tbl %>% dplyr::inner_join(LR_subset, by = c("sender", "receiver", "ligand", "receptor"))
     multinichenet_output$prioritization_tables$sample_prioritization_tbl = multinichenet_output$prioritization_tables$sample_prioritization_tbl %>% dplyr::inner_join(LR_subset, by = c("sender", "receiver", "ligand", "receptor"))
@@ -690,7 +720,8 @@ make_lite_output = function(multinichenet_output){
   } else {
     if("receiver_info" %in% names(multinichenet_output)) {
       # sender
-      gene_subset = multinichenet_output$prioritization_tables$group_prioritization_tbl$ligand %>% unique()
+      gene_subset = multinichenet_output$prioritization_tables$group_prioritization_tbl %>% dplyr::filter(fraction_expressing_ligand_receptor > 0) %>% .$ligand %>% unique()
+      
       multinichenet_output$sender_info$avg_df = multinichenet_output$sender_info$avg_df %>% dplyr::filter(gene %in% gene_subset)
       multinichenet_output$sender_info$frq_df = multinichenet_output$sender_info$frq_df %>% dplyr::filter(gene %in% gene_subset)
       multinichenet_output$sender_info$pb_df = multinichenet_output$sender_info$pb_df %>% dplyr::filter(gene %in% gene_subset)
@@ -702,7 +733,10 @@ make_lite_output = function(multinichenet_output){
       multinichenet_output$sender_de = multinichenet_output$sender_de %>% dplyr::filter(gene %in% gene_subset)
       
       # receiver
-      gene_subset = unique(multinichenet_output$prioritization_tables$group_prioritization_tbl$receptor) %>% generics::union(multinichenet_output$ligand_activities_targets_DEgenes$de_genes_df %>% dplyr::pull(gene) %>% unique())
+      gene_subset = generics::union(
+        multinichenet_output$ligand_activities_targets_DEgenes$de_genes_df %>% dplyr::pull(gene), 
+        multinichenet_output$prioritization_tables$group_prioritization_tbl %>% dplyr::filter(fraction_expressing_ligand_receptor > 0) %>% .$receptor)  
+      
       multinichenet_output$receiver_info$avg_df = multinichenet_output$receiver_info$avg_df %>% dplyr::filter(gene %in% gene_subset)
       multinichenet_output$receiver_info$frq_df = multinichenet_output$receiver_info$frq_df %>% dplyr::filter(gene %in% gene_subset)
       multinichenet_output$receiver_info$pb_df = multinichenet_output$receiver_info$pb_df %>% dplyr::filter(gene %in% gene_subset)
@@ -716,15 +750,15 @@ make_lite_output = function(multinichenet_output){
       ## maybe also a subset of LR-Sender-Receiver pairs?
       LR_subset = multinichenet_output$prioritization_tables$group_prioritization_tbl %>% dplyr::filter(fraction_expressing_ligand_receptor  > 0) %>% dplyr::distinct(ligand, receptor, sender, receiver)
       
-      multinichenet_output$sender_receiver_info$avg_df = multinichenet_output$sender_receiver_info$avg_df %>% dplyr::inner_join(LR_subset, by = c("sender", "receiver", "ligand", "receptor"))
-      multinichenet_output$sender_receiver_info$frq_df = multinichenet_output$sender_receiver_info$frq_df %>% dplyr::inner_join(LR_subset, by = c("sender", "receiver", "ligand", "receptor"))
-      multinichenet_output$sender_receiver_info$pb_df = multinichenet_output$sender_receiver_info$pb_df %>% dplyr::inner_join(LR_subset, by = c("sender", "receiver", "ligand", "receptor"))
-      
-      multinichenet_output$sender_receiver_info$avg_df_group = multinichenet_output$sender_receiver_info$avg_df_group %>% dplyr::inner_join(LR_subset, by = c("sender", "receiver", "ligand", "receptor"))
-      multinichenet_output$sender_receiver_info$frq_df_group = multinichenet_output$sender_receiver_info$frq_df_group %>% dplyr::inner_join(LR_subset, by = c("sender", "receiver", "ligand", "receptor"))
-      multinichenet_output$sender_receiver_info$pb_df_group = multinichenet_output$sender_receiver_info$pb_df_group %>% dplyr::inner_join(LR_subset, by = c("sender", "receiver", "ligand", "receptor"))
-      
-      multinichenet_output$sender_receiver_de = multinichenet_output$sender_receiver_de %>% dplyr::inner_join(LR_subset, by = c("sender", "receiver", "ligand", "receptor"))
+      # multinichenet_output$sender_receiver_info$avg_df = multinichenet_output$sender_receiver_info$avg_df %>% dplyr::inner_join(LR_subset, by = c("sender", "receiver", "ligand", "receptor"))
+      # multinichenet_output$sender_receiver_info$frq_df = multinichenet_output$sender_receiver_info$frq_df %>% dplyr::inner_join(LR_subset, by = c("sender", "receiver", "ligand", "receptor"))
+      # multinichenet_output$sender_receiver_info$pb_df = multinichenet_output$sender_receiver_info$pb_df %>% dplyr::inner_join(LR_subset, by = c("sender", "receiver", "ligand", "receptor"))
+      # 
+      # multinichenet_output$sender_receiver_info$avg_df_group = multinichenet_output$sender_receiver_info$avg_df_group %>% dplyr::inner_join(LR_subset, by = c("sender", "receiver", "ligand", "receptor"))
+      # multinichenet_output$sender_receiver_info$frq_df_group = multinichenet_output$sender_receiver_info$frq_df_group %>% dplyr::inner_join(LR_subset, by = c("sender", "receiver", "ligand", "receptor"))
+      # multinichenet_output$sender_receiver_info$pb_df_group = multinichenet_output$sender_receiver_info$pb_df_group %>% dplyr::inner_join(LR_subset, by = c("sender", "receiver", "ligand", "receptor"))
+      # 
+      # multinichenet_output$sender_receiver_de = multinichenet_output$sender_receiver_de %>% dplyr::inner_join(LR_subset, by = c("sender", "receiver", "ligand", "receptor"))
       
       multinichenet_output$prioritization_tables$group_prioritization_tbl = multinichenet_output$prioritization_tables$group_prioritization_tbl %>% dplyr::inner_join(LR_subset, by = c("sender", "receiver", "ligand", "receptor"))
       multinichenet_output$prioritization_tables$sample_prioritization_tbl = multinichenet_output$prioritization_tables$sample_prioritization_tbl %>% dplyr::inner_join(LR_subset, by = c("sender", "receiver", "ligand", "receptor"))
@@ -734,9 +768,7 @@ make_lite_output = function(multinichenet_output){
     }
 
   }
-  
 
-  
   return(multinichenet_output)
 }
 #' @title Convert aliases to official gene symbols in a SingleCellExperiment Object
