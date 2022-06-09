@@ -1126,8 +1126,6 @@ test_that("Pipeline with wrapper function works", {
 test_that("Pipeline with wrapper function works - while correcting for batch effects", {
   sample_id = "tumor"
   group_id = "pEMT"
-  sample_id = "tumor"
-  group_id = "pEMT"
   celltype_id = "celltype"
   batches = "batch"
   covariates = NA

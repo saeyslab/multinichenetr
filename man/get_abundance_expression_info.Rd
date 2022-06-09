@@ -17,9 +17,9 @@ get_abundance_expression_info(sce, sample_id, group_id, celltype_id, min_cells, 
 
 \item{min_cells}{Indicates the minimal number of cells that a sample should have to be considered in the DE analysis. Default: 10. See `muscat::pbDS`.}
 
-\item{senders_oi}{Character vector indicating the names of the sender cell types of interest}
+\item{senders_oi}{Default NULL: all celltypes will be considered as senders If you want to select specific senders_oi: you can add this here as character vector.}
 
-\item{receivers_oi}{Character vector indicating the names of the receiver cell types of interest}
+\item{receivers_oi}{Default NULL: all celltypes will be considered as receivers. If you want to select specific receivers_oi: you can add this here as character vector.}
 
 \item{lr_network}{Prior knowledge Ligand-Receptor network (columns: ligand, receptor)}
 

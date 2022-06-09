@@ -7,7 +7,7 @@
 multi_nichenet_analysis_separate(
 sce_receiver, sce_sender,celltype_id_receiver,celltype_id_sender,sample_id,group_id, batches, covariates, lr_network,ligand_target_matrix,contrasts_oi,contrast_tbl, fraction_cutoff = 0.05,
 prioritizing_weights = c("de_ligand" = 1,"de_receptor" = 1,"activity_scaled" = 1,"exprs_ligand" = 1,"exprs_receptor" = 1, "frac_exprs_ligand_receptor" = 1,"abund_sender" = 0,"abund_receiver" = 0),
-assay_oi_pb ="counts",fun_oi_pb = "sum",de_method_oi = "edgeR",min_cells = 10,logFC_threshold = 0.25,p_val_threshold = 0.05, p_val_adj = FALSE, empirical_pval = TRUE, top_n_target = 250, verbose = FALSE, n.cores = 1, return_lr_prod_matrix = FALSE, findMarkers = FALSE, filter_muscat = TRUE)
+assay_oi_pb ="counts",fun_oi_pb = "sum",de_method_oi = "edgeR",min_cells = 10,logFC_threshold = 0.25,p_val_threshold = 0.05, p_val_adj = FALSE, empirical_pval = TRUE, top_n_target = 250, verbose = FALSE, n.cores = 1, return_lr_prod_matrix = FALSE, findMarkers = FALSE, filterByExpr.min.count = 5, filterByExpr.min.total.count = 10, filterByExpr.large.n = 3, filterByExpr.min.prop = 0.7)
 }
 \arguments{
 \item{sce_receiver}{SingleCellExperiment object containing the receiver cell types of interest}
@@ -84,7 +84,13 @@ abund_receiver: importance of relative cell type abundance of the receiver cell 
 
 \item{findMarkers}{Indicate whether we should also calculate DE results with the classic scran::findMarkers approach. Default (recommended): FALSE.}
 
-\item{filter_muscat}{Indicate whether genes should be filtered by filterByExprs before the DE analysis (TRUE) or not (FALSE). Default: TRUE. TRUE recommended if you want to focus on highly expressed DE genes, FALSE if you want to retrieve DE information for all genes.}
+\item{filterByExpr.min.count}{check edgeR::filterByExpr documentation - Default = 5. Increase this if you want more stringent filtering in terms of required counts per gene per sample.}
+
+\item{filterByExpr.min.total.count}{check edgeR::filterByExpr documentation -Default = 10. Increase this if you want more stringent filtering in terms of required counts per gene per sample.}
+
+\item{filterByExpr.large.n}{check edgeR::filterByExpr documentation -Default = 3. Increase this if you want more stringent filtering in terms of required samples with expression of the gene.}
+
+\item{filterByExpr.min.prop}{check edgeR::filterByExpr documentation - Default = 0.7. Increase this if you want more stringent filtering in terms of required samples with expression of the gene.}
 }
 \value{
 List containing information and output of the MultiNicheNet analysis.\cr

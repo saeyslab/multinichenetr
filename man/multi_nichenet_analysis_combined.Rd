@@ -5,9 +5,9 @@
 \title{multi_nichenet_analysis_combined}
 \usage{
 multi_nichenet_analysis_combined(
-sce, celltype_id, sample_id,group_id, batches, covariates, lr_network,ligand_target_matrix,contrasts_oi,contrast_tbl,  fraction_cutoff = 0.05,
+sce, celltype_id, sample_id,group_id, batches, covariates, lr_network,ligand_target_matrix,contrasts_oi,contrast_tbl, senders_oi = NULL,receivers_oi = NULL, fraction_cutoff = 0.05,
 prioritizing_weights = c("de_ligand" = 1,"de_receptor" = 1,"activity_scaled" = 1,"exprs_ligand" = 1,"exprs_receptor" = 1, "frac_exprs_ligand_receptor" = 1,"abund_sender" = 0,"abund_receiver" = 0),
-assay_oi_pb ="counts",fun_oi_pb = "sum",de_method_oi = "edgeR",min_cells = 10,logFC_threshold = 0.25,p_val_threshold = 0.05,p_val_adj = FALSE, empirical_pval = TRUE, top_n_target = 250, verbose = FALSE, n.cores = 1, return_lr_prod_matrix = FALSE, findMarkers = FALSE, filter_muscat = TRUE)
+assay_oi_pb ="counts",fun_oi_pb = "sum",de_method_oi = "edgeR",min_cells = 10,logFC_threshold = 0.25,p_val_threshold = 0.05,p_val_adj = FALSE, empirical_pval = TRUE, top_n_target = 250, verbose = FALSE, n.cores = 1, return_lr_prod_matrix = FALSE, findMarkers = FALSE, filterByExpr.min.count = 5, filterByExpr.min.total.count = 10, filterByExpr.large.n = 3, filterByExpr.min.prop = 0.7)
 }
 \arguments{
 \item{sce}{SingleCellExperiment object of the scRNAseq data of interest. Contains both sender and receiver cell types.}
@@ -39,6 +39,10 @@ Note that the groups A, B, ... should be present in the meta data column 'group_
 \item{contrast_tbl}{Data frame providing names for each of the contrasts in contrasts_oi in the 'contrast' column, and the corresponding group of interest in the 'group' column. Entries in the 'group' column should thus be present in the group_id column in the metadata. 
 Example for `contrasts_oi = c("'A-(B+C+D)/3', 'B-(A+C+D)/3'")`:
 `contrast_tbl = tibble(contrast = c("A-(B+C+D)/3","B-(A+C+D)/3"), group = c("A","B"))`}
+
+\item{senders_oi}{Default NULL: all celltypes will be considered as senders If you want to select specific senders_oi: you can add this here as character vector.}
+
+\item{receivers_oi}{Default NULL: all celltypes will be considered as receivers. If you want to select specific receivers_oi: you can add this here as character vector.}
 
 \item{fraction_cutoff}{Cutoff indicating the minimum fraction of cells of a cell type in a specific sample that are necessary to consider the gene as expressed.}
 
@@ -80,7 +84,13 @@ abund_receiver: importance of relative cell type abundance of the receiver cell 
 
 \item{findMarkers}{Indicate whether we should also calculate DE results with the classic scran::findMarkers approach. Default (recommended): FALSE.}
 
-\item{filter_muscat}{Indicate whether genes should be filtered by filterByExprs before the DE analysis (TRUE) or not (FALSE). Default: TRUE. TRUE recommended if you want to focus on highly expressed DE genes, FALSE if you want to retrieve DE information for all genes.}
+\item{filterByExpr.min.count}{check edgeR::filterByExpr documentation - Default = 5. Increase this if you want more stringent filtering in terms of required counts per gene per sample.}
+
+\item{filterByExpr.min.total.count}{check edgeR::filterByExpr documentation -Default = 10. Increase this if you want more stringent filtering in terms of required counts per gene per sample.}
+
+\item{filterByExpr.large.n}{check edgeR::filterByExpr documentation -Default = 3. Increase this if you want more stringent filtering in terms of required samples with expression of the gene.}
+
+\item{filterByExpr.min.prop}{check edgeR::filterByExpr documentation - Default = 0.7. Increase this if you want more stringent filtering in terms of required samples with expression of the gene.}
 }
 \value{
 List containing information and output of the MultiNicheNet analysis.
