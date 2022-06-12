@@ -489,7 +489,7 @@ get_abundance_expression_info_separate = function(sce_receiver, sce_sender, samp
 #' @title get_DE_info
 #'
 #' @description \code{get_DE_info} Perform differential expression analysis via Muscat - Pseudobulking approach. Also visualize the p-value distribution. Under the hood, the following function is used: `perform_muscat_de_analysis`.
-#' @usage get_DE_info(sce, sample_id, group_id, celltype_id, batches, covariates, contrasts_oi, min_cells = 10, assay_oi_pb = "counts", fun_oi_pb = "sum", de_method_oi = "edgeR", findMarkers = FALSE, contrast_tbl = NULL, filterByExpr.min.count = 5, filterByExpr.min.total.count = 10, filterByExpr.large.n = 3, filterByExpr.min.prop = 0.7)
+#' @usage get_DE_info(sce, sample_id, group_id, celltype_id, batches, covariates, contrasts_oi, min_cells = 10, assay_oi_pb = "counts", fun_oi_pb = "sum", de_method_oi = "edgeR", findMarkers = FALSE, contrast_tbl = NULL, filterByExpr.min.count = 7, filterByExpr.min.total.count = 15, filterByExpr.large.n = 4, filterByExpr.min.prop = 0.7)
 #'
 #' @inheritParams multi_nichenet_analysis_combined
 #' @inheritParams perform_muscat_de_analysis
@@ -526,7 +526,7 @@ get_abundance_expression_info_separate = function(sce_receiver, sce_sender, samp
 #' @export
 #'
 #'
-get_DE_info = function(sce, sample_id, group_id, celltype_id, batches, covariates, contrasts_oi, min_cells = 10, assay_oi_pb = "counts", fun_oi_pb = "sum", de_method_oi = "edgeR", findMarkers = FALSE, contrast_tbl = NULL, filterByExpr.min.count = 5, filterByExpr.min.total.count = 10, filterByExpr.large.n = 3, filterByExpr.min.prop = 0.7){
+get_DE_info = function(sce, sample_id, group_id, celltype_id, batches, covariates, contrasts_oi, min_cells = 10, assay_oi_pb = "counts", fun_oi_pb = "sum", de_method_oi = "edgeR", findMarkers = FALSE, contrast_tbl = NULL, filterByExpr.min.count = 7, filterByExpr.min.total.count = 15, filterByExpr.large.n = 4, filterByExpr.min.prop = 0.7){
   
   requireNamespace("dplyr")
   requireNamespace("ggplot2")

@@ -61,7 +61,7 @@ multi_nichenet_analysis = function(sender_receiver_separate = TRUE, ...){
 #' @usage multi_nichenet_analysis_separate(
 #' sce_receiver, sce_sender,celltype_id_receiver,celltype_id_sender,sample_id,group_id, batches, covariates, lr_network,ligand_target_matrix,contrasts_oi,contrast_tbl, fraction_cutoff = 0.05,
 #' prioritizing_weights = c("de_ligand" = 1,"de_receptor" = 1,"activity_scaled" = 1,"exprs_ligand" = 1,"exprs_receptor" = 1, "frac_exprs_ligand_receptor" = 1,"abund_sender" = 0,"abund_receiver" = 0),
-#' assay_oi_pb ="counts",fun_oi_pb = "sum",de_method_oi = "edgeR",min_cells = 10,logFC_threshold = 0.25,p_val_threshold = 0.05, p_val_adj = FALSE, empirical_pval = TRUE, top_n_target = 250, verbose = FALSE, n.cores = 1, return_lr_prod_matrix = FALSE, findMarkers = FALSE, filterByExpr.min.count = 5, filterByExpr.min.total.count = 10, filterByExpr.large.n = 3, filterByExpr.min.prop = 0.7)
+#' assay_oi_pb ="counts",fun_oi_pb = "sum",de_method_oi = "edgeR",min_cells = 10,logFC_threshold = 0.25,p_val_threshold = 0.05, p_val_adj = FALSE, empirical_pval = TRUE, top_n_target = 250, verbose = FALSE, n.cores = 1, return_lr_prod_matrix = FALSE, findMarkers = FALSE, filterByExpr.min.count = 7, filterByExpr.min.total.count = 15, filterByExpr.large.n = 4, filterByExpr.min.prop = 0.7)
 #'
 #' @param sce_receiver SingleCellExperiment object containing the receiver cell types of interest
 #' @param sce_sender SingleCellExperiment object containing the sender cell types of interest
@@ -189,7 +189,7 @@ multi_nichenet_analysis_separate = function(sce_receiver,
                                             p_val_threshold = 0.05,
                                             p_val_adj = FALSE,
                                             empirical_pval = TRUE,
-                                            top_n_target = 250, verbose = FALSE, n.cores = 1, return_lr_prod_matrix = FALSE, findMarkers = FALSE, filterByExpr.min.count = 5, filterByExpr.min.total.count = 10, filterByExpr.large.n = 3, filterByExpr.min.prop = 0.7){
+                                            top_n_target = 250, verbose = FALSE, n.cores = 1, return_lr_prod_matrix = FALSE, findMarkers = FALSE, filterByExpr.min.count = 7, filterByExpr.min.total.count = 15, filterByExpr.large.n = 4, filterByExpr.min.prop = 0.7){
 
 
   requireNamespace("dplyr")
@@ -587,8 +587,7 @@ multi_nichenet_analysis_separate = function(sce_receiver,
   }
   
   abundance_expression_info = get_abundance_expression_info_separate(sce_receiver = sce_receiver, sce_sender = sce_sender, sample_id = sample_id, group_id = group_id, celltype_id_receiver = celltype_id_receiver, celltype_id_sender = celltype_id_sender, senders_oi = senders_oi, receivers_oi = receivers_oi, lr_network = lr_network, batches = batches, min_cells = min_cells)
-  rm(sce_sender)
-  rm(sce_receiver)
+
   
   ### Use the DE analysis for defining the DE genes in the receiver cell type and perform NicheNet ligand activity and ligand-target inference ----------------------------------------------------------------
   if(verbose == TRUE){
@@ -623,7 +622,8 @@ multi_nichenet_analysis_separate = function(sce_receiver,
     grouping_tbl = metadata_combined[,c(sample_id, group_id)] %>% tibble::as_tibble() %>% dplyr::distinct()
     colnames(grouping_tbl) = c("sample","group")
   }
-  
+  rm(sce_sender)
+  rm(sce_receiver)
   prioritization_tables = suppressMessages(generate_prioritization_tables(
     sender_receiver_info = abundance_expression_info$sender_receiver_info,
     sender_receiver_de = sender_receiver_de,
@@ -687,7 +687,7 @@ multi_nichenet_analysis_separate = function(sce_receiver,
 #' @usage multi_nichenet_analysis_combined(
 #' sce, celltype_id, sample_id,group_id, batches, covariates, lr_network,ligand_target_matrix,contrasts_oi,contrast_tbl, senders_oi = NULL,receivers_oi = NULL, fraction_cutoff = 0.05,
 #' prioritizing_weights = c("de_ligand" = 1,"de_receptor" = 1,"activity_scaled" = 1,"exprs_ligand" = 1,"exprs_receptor" = 1, "frac_exprs_ligand_receptor" = 1,"abund_sender" = 0,"abund_receiver" = 0),
-#' assay_oi_pb ="counts",fun_oi_pb = "sum",de_method_oi = "edgeR",min_cells = 10,logFC_threshold = 0.25,p_val_threshold = 0.05,p_val_adj = FALSE, empirical_pval = TRUE, top_n_target = 250, verbose = FALSE, n.cores = 1, return_lr_prod_matrix = FALSE, findMarkers = FALSE, filterByExpr.min.count = 5, filterByExpr.min.total.count = 10, filterByExpr.large.n = 3, filterByExpr.min.prop = 0.7)
+#' assay_oi_pb ="counts",fun_oi_pb = "sum",de_method_oi = "edgeR",min_cells = 10,logFC_threshold = 0.25,p_val_threshold = 0.05,p_val_adj = FALSE, empirical_pval = TRUE, top_n_target = 250, verbose = FALSE, n.cores = 1, return_lr_prod_matrix = FALSE, findMarkers = FALSE, filterByExpr.min.count = 7, filterByExpr.min.total.count = 15, filterByExpr.large.n = 4, filterByExpr.min.prop = 0.7)
 #'
 #' @param sce SingleCellExperiment object of the scRNAseq data of interest. Contains both sender and receiver cell types.
 #' @param celltype_id Name of the column in the meta data of sce that indicates the cell type of a cell.
@@ -765,7 +765,7 @@ multi_nichenet_analysis_combined = function(sce,
                                             p_val_threshold = 0.05,
                                             p_val_adj = FALSE,
                                             empirical_pval = TRUE,
-                                            top_n_target = 250, verbose = FALSE, n.cores = 1, return_lr_prod_matrix = FALSE, findMarkers = FALSE, filterByExpr.min.count = 5, filterByExpr.min.total.count = 10, filterByExpr.large.n = 3, filterByExpr.min.prop = 0.7){
+                                            top_n_target = 250, verbose = FALSE, n.cores = 1, return_lr_prod_matrix = FALSE, findMarkers = FALSE, filterByExpr.min.count = 7, filterByExpr.min.total.count = 15, filterByExpr.large.n = 4, filterByExpr.min.prop = 0.7){
 
 
   requireNamespace("dplyr")
