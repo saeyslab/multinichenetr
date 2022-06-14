@@ -110,9 +110,9 @@ multi_nichenet_analysis = function(sender_receiver_separate = TRUE, ...){
 #' @param n.cores The number of cores used for parallel computation of the ligand activities per receiver cell type. Default: 1 - no parallel computation.
 #' @param return_lr_prod_matrix Indicate whether to calculate a senderLigand-receiverReceptor matrix, which could be used for unsupervised analysis of the cell-cell communication. Default FALSE. Setting to FALSE might be beneficial to avoid memory issues.
 #' @param findMarkers Indicate whether we should also calculate DE results with the classic scran::findMarkers approach. Default (recommended): FALSE.
-#' @param filterByExpr.min.count check edgeR::filterByExpr documentation - Default = 5. Increase this if you want more stringent filtering in terms of required counts per gene per sample.
-#' @param filterByExpr.min.total.count check edgeR::filterByExpr documentation -Default = 10. Increase this if you want more stringent filtering in terms of required counts per gene per sample.
-#' @param filterByExpr.large.n check edgeR::filterByExpr documentation -Default = 3. Increase this if you want more stringent filtering in terms of required samples with expression of the gene.
+#' @param filterByExpr.min.count check edgeR::filterByExpr documentation - Default = 7. Increase this if you want more stringent filtering in terms of required counts per gene per sample.
+#' @param filterByExpr.min.total.count check edgeR::filterByExpr documentation -Default = 15. Increase this if you want more stringent filtering in terms of required counts per gene per sample.
+#' @param filterByExpr.large.n check edgeR::filterByExpr documentation -Default = 4. Increase this if you want more stringent filtering in terms of required samples with expression of the gene.
 #' @param filterByExpr.min.prop check edgeR::filterByExpr documentation - Default = 0.7. Increase this if you want more stringent filtering in terms of required samples with expression of the gene.
 
 #' @return List containing information and output of the MultiNicheNet analysis.\cr

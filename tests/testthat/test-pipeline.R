@@ -146,8 +146,8 @@ test_that("Pipeline for all-vs-all analysis works & plotting functions work", {
   graph_plot = make_ggraph_ligand_target_links(lr_target_prior_cor_filtered = lr_target_prior_cor_filtered, prioritized_tbl_oi = prioritized_tbl_oi, colors = c("blue","red"))
   expect_type(graph_plot,"list")
   
-  ligand_oi = "LAMC2"
-  receptor_oi = "CD151"
+  ligand_oi = "ADAM17"
+  receptor_oi = "ITGB1"
   sender_oi = "CAF"
   receiver_oi = "Malignant"
   lr_target_scatter_plot = make_lr_target_scatter_plot(output$prioritization_tables, ligand_oi, receptor_oi, sender_oi, receiver_oi, output$celltype_info, output$grouping_tbl, lr_target_prior_cor_filtered)

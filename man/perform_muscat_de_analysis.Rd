@@ -4,7 +4,7 @@
 \alias{perform_muscat_de_analysis}
 \title{perform_muscat_de_analysis}
 \usage{
-perform_muscat_de_analysis(sce, sample_id, celltype_id, group_id, batches, covariates, contrasts, assay_oi_pb = "counts", fun_oi_pb = "sum", de_method_oi = "edgeR", min_cells = 10, filterByExpr.min.count = 5, filterByExpr.min.total.count = 10, filterByExpr.large.n = 3, filterByExpr.min.prop = 0.7)
+perform_muscat_de_analysis(sce, sample_id, celltype_id, group_id, batches, covariates, contrasts, assay_oi_pb = "counts", fun_oi_pb = "sum", de_method_oi = "edgeR", min_cells = 10, filterByExpr.min.count = 7, filterByExpr.min.total.count = 15, filterByExpr.large.n = 4, filterByExpr.min.prop = 0.7)
 }
 \arguments{
 \item{sce}{SingleCellExperiment object of the scRNAseq data of interest. Contains both sender and receiver cell types.}
@@ -37,11 +37,11 @@ Note that the groups A, B, ... should be present in the meta data column 'group_
 
 \item{min_cells}{Indicates the minimal number of cells that a sample should have to be considered in the DE analysis. Default: 10. See `muscat::pbDS`.}
 
-\item{filterByExpr.min.count}{check edgeR::filterByExpr documentation - Default = 5. Increase this if you want more stringent filtering in terms of required counts per gene per sample.}
+\item{filterByExpr.min.count}{check edgeR::filterByExpr documentation - Default = 7. Increase this if you want more stringent filtering in terms of required counts per gene per sample.}
 
-\item{filterByExpr.min.total.count}{check edgeR::filterByExpr documentation -Default = 10. Increase this if you want more stringent filtering in terms of required counts per gene per sample.}
+\item{filterByExpr.min.total.count}{check edgeR::filterByExpr documentation -Default = 15. Increase this if you want more stringent filtering in terms of required counts per gene per sample.}
 
-\item{filterByExpr.large.n}{check edgeR::filterByExpr documentation -Default = 3. Increase this if you want more stringent filtering in terms of required samples with expression of the gene.}
+\item{filterByExpr.large.n}{check edgeR::filterByExpr documentation -Default = 4. Increase this if you want more stringent filtering in terms of required samples with expression of the gene.}
 
 \item{filterByExpr.min.prop}{check edgeR::filterByExpr documentation - Default = 0.7. Increase this if you want more stringent filtering in terms of required samples with expression of the gene.}
 }
