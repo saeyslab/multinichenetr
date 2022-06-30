@@ -1,11 +1,12 @@
 #' @title lr_target_prior_cor_inference
 #'
 #' @description \code{lr_target_prior_cor_inference} Calculate the pearson and spearman expression correlation between ligand-receptor pair pseudobulk expression products and DE gene expression product. Add the NicheNet ligand-target regulatory potential score as well as prior knowledge support for the LR-->Target link.
-#' @usage lr_target_prior_cor_inference(receivers_oi, abundance_expression_info, celltype_de, grouping_tbl, prioritization_tables, ligand_target_matrix, logFC_threshold = 0.25, p_val_threshold = 0.05, p_val_adj = FALSE)
+#' @usage lr_target_prior_cor_inference(receivers_oi, abundance_expression_info, celltype_de, grouping_tbl, prioritization_tables, ligand_target_matrix, logFC_threshold = 0.25, p_val_threshold = 0.05, p_val_adj = FALSE, top_n_LR = 2500)
 #'
 #' @param receivers_oi Character vector with the names of the receiver cell types of interest
 #' @param abundance_expression_info Output of `get_abundance_expression_info_separate` or `get_abundance_expression_info`
 #' @param celltype_de Output of `perform_muscat_de_analysis`
+#' @param  top_n_LR top nr of LR pairs for which correlation with target genes will be calculated. Is 2500 by default. If you want to calculate correlation for all LR pairs, set this argument to NA.
 #' @inheritParams make_sample_lr_prod_plots
 #' @inheritParams get_ligand_activities_targets_DEgenes
 #' @inheritParams generate_prioritization_tables
@@ -95,16 +96,19 @@
 #'
 #' @export
 #'
-lr_target_prior_cor_inference = function(receivers_oi, abundance_expression_info, celltype_de, grouping_tbl, prioritization_tables, ligand_target_matrix, logFC_threshold = 0.25, p_val_threshold = 0.05, p_val_adj = FALSE){
+lr_target_prior_cor_inference = function(receivers_oi, abundance_expression_info, celltype_de, grouping_tbl, prioritization_tables, ligand_target_matrix, logFC_threshold = 0.25, p_val_threshold = 0.05, p_val_adj = FALSE, top_n_LR = 2500){
   
   requireNamespace("dplyr")
   
   # add sender-receiver presence to grouping_tbl
   grouping_tbl = grouping_tbl %>% dplyr::inner_join(prioritization_tables$sample_prioritization_tbl %>% dplyr::distinct(sample, sender, receiver, keep_receiver, keep_sender), by = "sample")
   
-  # Step1: calculate LR prod matrix -- take only top 20% of LR pairs because only those are interesting
-  ids_oi = prioritization_tables$group_prioritization_tbl %>% dplyr::filter(fraction_expressing_ligand_receptor > 0)  %>% dplyr::pull(id) %>% unique()
-  ids_oi = get_top_n_lr_pairs(prioritization_tables, round(length(ids_oi)*0.20), rank_per_group = TRUE)  %>% dplyr::pull(id) %>% unique() ## prioritization-based subset of IDs! -- only those interesting for correlation analyses with target genes
+  # Step1: calculate LR prod matrix for the LR ids of interest
+  if(is.na(top_n_LR)){
+    ids_oi = prioritization_tables$group_prioritization_tbl %>% dplyr::filter(fraction_expressing_ligand_receptor > 0)  %>% dplyr::pull(id) %>% unique()
+  } else {
+    ids_oi = get_top_n_lr_pairs(prioritization_tables, top_n_LR, rank_per_group = FALSE)  %>% dplyr::pull(id) %>% unique() ## prioritization-based subset of IDs! -- only those interesting for correlation analyses with target genes
+  }
   
   # make ligand-receptor-id mapping
   lig_rec_send_rec_mapping = abundance_expression_info$sender_receiver_info$pb_df %>% dplyr::inner_join(grouping_tbl, by = c("sample","sender","receiver")) %>% dplyr::mutate(lr_interaction = paste(ligand, receptor, sep = "_")) %>% dplyr::mutate(id = paste(lr_interaction, sender, receiver, sep = "_")) %>% dplyr::select(sender, receiver, ligand, receptor, id) %>% dplyr::distinct()

@@ -4,10 +4,12 @@
 \alias{make_lite_output}
 \title{make_lite_output}
 \usage{
-make_lite_output(multinichenet_output)
+make_lite_output(multinichenet_output, top_n_LR = 2500)
 }
 \arguments{
 \item{multinichenet_output}{Output of a MultiNicheNet analysis (result of `multi_nichenet_analysis()`).}
+
+\item{top_n_LR}{top nr of LR pairs for which correlation with target genes will be calculated. Is 2500 by default. If you want to calculate correlation for all LR pairs, set this argument to NA.}
 }
 \value{
 multinichenet output list (= result of `multi_nichenet_analysis()`), but now filtered such that expression information is only returned for present ligands, receptors, and genes DE in at least one probed condition.

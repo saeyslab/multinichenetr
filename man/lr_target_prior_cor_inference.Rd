@@ -4,7 +4,7 @@
 \alias{lr_target_prior_cor_inference}
 \title{lr_target_prior_cor_inference}
 \usage{
-lr_target_prior_cor_inference(receivers_oi, abundance_expression_info, celltype_de, grouping_tbl, prioritization_tables, ligand_target_matrix, logFC_threshold = 0.25, p_val_threshold = 0.05, p_val_adj = FALSE)
+lr_target_prior_cor_inference(receivers_oi, abundance_expression_info, celltype_de, grouping_tbl, prioritization_tables, ligand_target_matrix, logFC_threshold = 0.25, p_val_threshold = 0.05, p_val_adj = FALSE, top_n_LR = 2500)
 }
 \arguments{
 \item{receivers_oi}{Character vector with the names of the receiver cell types of interest}
@@ -24,6 +24,8 @@ lr_target_prior_cor_inference(receivers_oi, abundance_expression_info, celltype_
 \item{p_val_threshold}{For defining the gene set of interest for NicheNet ligand activity: what is the maximam p-value a gene should have to belong to this gene set? Default: 0.05.}
 
 \item{p_val_adj}{For defining the gene set of interest for NicheNet ligand activity: should we look at the p-value corrected for multiple testing? Default: FALSE.}
+
+\item{top_n_LR}{top nr of LR pairs for which correlation with target genes will be calculated. Is 2500 by default. If you want to calculate correlation for all LR pairs, set this argument to NA.}
 }
 \value{
 Tibble with expression correlation and prior knowledge support measures for ligand-receptor to target gene links

@@ -1,7 +1,7 @@
 Package: multinichenetr
 Type: Package
 Title: Cell-Cell Communication analysis for scRNAseq data with complex multi-sample multi-group designs 
-Version: 0.1.0
+Version: 1.0.0
 Author: person("Robin", "Browaeys", email = "robin.browaeys@ugent.be",
   role = c("aut", "cre"))
 Maintainer: Robin Browaeys <robin.browaeys@ugent.be>
