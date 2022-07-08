@@ -183,7 +183,7 @@ generate_prioritization_tables = function(sender_receiver_info, sender_receiver_
                       (prioritizing_weights["frac_exprs_ligand_receptor"] * fraction_expressing_ligand_receptor) +
                       (prioritizing_weights["abund_sender"] * rel_abundance_scaled_sender) +
                       (prioritizing_weights["abund_receiver"] * rel_abundance_scaled_receiver)
-                    )* (1/length(prioritizing_weights))) %>% dplyr::arrange(-prioritization_score)
+                    )* (1/sum(prioritizing_weights))) %>% dplyr::arrange(-prioritization_score)
 
   
   # Sample-based Prioritization ----------------------------------------------- ----------------------------------------------------------------

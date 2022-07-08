@@ -1117,7 +1117,6 @@ multi_nichenet_analysis_combined = function(sce,
     colnames(grouping_tbl) = c("sample","group")
   }
 
-
   prioritization_tables = suppressMessages(generate_prioritization_tables(
     sender_receiver_info = abundance_expression_info$sender_receiver_info,
     sender_receiver_de = sender_receiver_de,

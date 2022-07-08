@@ -149,7 +149,6 @@ get_abundance_expression_info = function(sce, sample_id, group_id, celltype_id, 
   }
   
   ### Cell type Info
-  
   celltype_info = suppressMessages(get_avg_frac_exprs_abund(
     sce = sce,
     sample_id = sample_id,
@@ -159,7 +158,6 @@ get_abundance_expression_info = function(sce, sample_id, group_id, celltype_id, 
   
   
   ### Link LR network to Cell type info
-  
   receiver_info_ic = suppressMessages(process_info_to_ic(
     info_object = celltype_info,
     ic_type = "receiver",

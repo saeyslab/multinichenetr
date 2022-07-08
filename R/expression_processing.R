@@ -463,7 +463,7 @@ get_avg_frac_exprs_abund = function(sce, sample_id, celltype_id, group_id, batch
   pb_df_group = pb_df %>% dplyr::inner_join(grouping_df) %>% 
     dplyr::group_by(group, celltype, gene) %>% dplyr::summarise(pb_group = mean(pb_sample))
   
-  # define whether genes are expressed - inspired by edgeR::filterByExprs but more suited for pseudobulk data
+  # define whether genes are expressed - inspired by edgeR::filterByExprs but more suited for pseudobulk data  ------ but in the end not used before DE analysis because  edgeR::filterByExprs is used there!
   # expressed in a cell type = for n samples: non-zero counts in >= 2.5% of cells in a sample
   # n = 70% of samples of the smallest group
   n_smallest_group = grouping_df %>% dplyr::group_by(group) %>% dplyr::count() %>% dplyr::pull(n) %>% min()
