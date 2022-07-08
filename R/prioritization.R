@@ -166,6 +166,7 @@ generate_prioritization_tables = function(sender_receiver_info, sender_receiver_
     mutate(max_scaled_activity = pmax(scaled_activity_scaled_up, scaled_activity_scaled_down), na.rm = TRUE)
 
   # have a weighted average the final score (no product!!)
+  sum_prioritization_weights = 2*prioritizing_weights["de_ligand"] + 2*prioritizing_weights["de_receptor"] + prioritizing_weights["activity_scaled"] + prioritizing_weights["exprs_ligand"] + prioritizing_weights["exprs_receptor"] + prioritizing_weights["frac_exprs_ligand_receptor"] + prioritizing_weights["abund_sender"] + prioritizing_weights["abund_receiver"]
   group_prioritization_tbl = group_prioritization_tbl %>%
     dplyr::mutate(prioritization_score =
                     (
@@ -183,7 +184,7 @@ generate_prioritization_tables = function(sender_receiver_info, sender_receiver_
                       (prioritizing_weights["frac_exprs_ligand_receptor"] * fraction_expressing_ligand_receptor) +
                       (prioritizing_weights["abund_sender"] * rel_abundance_scaled_sender) +
                       (prioritizing_weights["abund_receiver"] * rel_abundance_scaled_receiver)
-                    )* (1/sum(prioritizing_weights))) %>% dplyr::arrange(-prioritization_score)
+                    )* (1/sum_prioritization_weights)) %>% dplyr::arrange(-prioritization_score)
 
   
   # Sample-based Prioritization ----------------------------------------------- ----------------------------------------------------------------

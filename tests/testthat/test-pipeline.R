@@ -51,6 +51,7 @@ test_that("Pipeline for all-vs-all analysis works & plotting functions work", {
        ligand_target_matrix = ligand_target_matrix,
        contrasts_oi = contrasts_oi,
        contrast_tbl = contrast_tbl)
+  output$prioritization_tables$group_prioritization_tbl %>% select(id, scaled_lfc_ligand, scaled_lfc_receptor, scaled_p_val_ligand_adapted, scaled_p_val_receptor_adapted, max_scaled_activity, scaled_pb_ligand, scaled_pb_receptor, fraction_expressing_ligand_receptor,  prioritization_score )
   expect_type(output,"list")
   expect_type(output$prioritization_tables,"list")
   output = make_lite_output(output)
