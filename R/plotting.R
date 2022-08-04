@@ -2439,7 +2439,9 @@ make_ligand_activity_target_plot = function(group_oi, receiver_oi, prioritized_t
     ) + labs(fill = "Regulatory Potential") + xlab("Predicted target genes") + ylab("Prioritized ligands")
   
   # custom_scale_fill = scale_fill_gradientn(colours = c("white", "plum1", "orchid2","orchid4","violetred"),values = c(0, 0.05, 0.50, 0.80, 1),  limits = c(0, max(ligand_target_matrix)))
-  custom_scale_fill = scale_fill_gradientn(colours = c("white", RColorBrewer::brewer.pal(n = 11, name = "PiYG") %>% .[1:5] %>% rev()),values = c(0, 0.025, 0.075, 0.25, 0.40, 0.55, 1),  limits = c(0, max(ligand_target_matrix)))
+  # custom_scale_fill = scale_fill_gradientn(colours = c("white", RColorBrewer::brewer.pal(n = 11, name = "PiYG") %>% .[1:5] %>% rev()),values = c(0, 0.025, 0.075, 0.25, 0.40, 0.55, 1),  limits = c(0, max(ligand_target_matrix)))
+  custom_scale_fill = scale_fill_gradientn(colours = c("white", RColorBrewer::brewer.pal(n = 11, name = "PiYG") %>% .[1:5] %>% rev()),values = c(0, 0.04, 0.12, 0.30, 0.40, 0.55, 1),  limits = c(0, max(ligand_target_matrix)))
+  
   p_ligand_target_network = p_ligand_target_network + custom_scale_fill
   
   # Ligand-Activity-Scaled -----

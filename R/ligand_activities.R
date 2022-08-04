@@ -1,7 +1,7 @@
 #' @title get_ligand_activities_targets_DEgenes
 #'
 #' @description \code{get_ligand_activities_targets_DEgenes}  Predict NicheNet ligand activities and ligand-target links for the receiver cell types. Uses `nichenetr::predict_ligand_activities()` and `nichenetr::get_weighted_ligand_target_links()` under the hood.
-#' @usage get_ligand_activities_targets_DEgenes(receiver_de, receivers_oi,  ligand_target_matrix, logFC_threshold = 0.25, p_val_threshold = 0.05, p_val_adj = FALSE, top_n_target = 250, verbose = FALSE, n.cores = 1)
+#' @usage get_ligand_activities_targets_DEgenes(receiver_de, receivers_oi,  ligand_target_matrix, logFC_threshold = 0.50, p_val_threshold = 0.05, p_val_adj = FALSE, top_n_target = 250, verbose = FALSE, n.cores = 1)
 #'
 #' @inheritParams multi_nichenet_analysis_separate
 #' @inheritParams combine_sender_receiver_info_ic
@@ -46,7 +46,7 @@
 #'
 #' @export
 #'
-get_ligand_activities_targets_DEgenes = function(receiver_de, receivers_oi,  ligand_target_matrix, logFC_threshold = 0.25, p_val_threshold = 0.05, p_val_adj = FALSE, top_n_target = 250, verbose = FALSE, n.cores = 1){
+get_ligand_activities_targets_DEgenes = function(receiver_de, receivers_oi,  ligand_target_matrix, logFC_threshold = 0.50, p_val_threshold = 0.05, p_val_adj = FALSE, top_n_target = 250, verbose = FALSE, n.cores = 1){
   
   requireNamespace("dplyr")
   receivers_oi = receiver_de$cluster_id %>% unique() %>% sort()
