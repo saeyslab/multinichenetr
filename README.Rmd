@@ -21,6 +21,10 @@ rmarkdown::render("README.Rmd",output_format = "md_document")
 
 The main goal of the MultiNicheNet package is to find which ligand-receptor interactions are differentially expressed and differentially active between conditions of interest, such as patient groups. Compared to the normal NicheNet workflow, MultiNicheNet is more suited to tackle complex experimental designs such as those with multiple samples and conditions, and multiple receiver cell types of interest.
 
+<br><br>
+![](vignettes/overview_figure.png)
+<br><br>
+
 In the MultiNicheNet approach, we allow the user to prioritize differential cell-cell communication events (ligand-receptor interactions and downstream signaling to target genes) based on the following criteria: 
 
 * Upregulation of the ligand in a sender cell type and/or upregulation of the receptor in a receiver cell type - in the condition of interest.

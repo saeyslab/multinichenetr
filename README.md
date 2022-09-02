@@ -28,6 +28,8 @@ suited to tackle complex experimental designs such as those with
 multiple samples and conditions, and multiple receiver cell types of
 interest.
 
+<br><br> ![](vignettes/overview_figure.png) <br><br>
+
 In the MultiNicheNet approach, we allow the user to prioritize
 differential cell-cell communication events (ligand-receptor
 interactions and downstream signaling to target genes) based on the
