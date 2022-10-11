@@ -201,11 +201,11 @@ n.cores = min(cores_system, union(senders_oi, receivers_oi) %>% length()) # use 
 
 MultiNicheNet allows the user to define the weights of the following criteria to prioritize ligand-receptor interactions:
 
-* Upregulation of the ligand in a sender cell type and/or upregulation of the receptor in a receiver cell type - in the condition of interest. : `scaled_lfc_ligand`, `scaled_p_val_ligand`, `scaled_lfc_receptor`, and `scaled_p_val_receptor`
-* Sufficiently high expression levels of ligand and receptor in many samples of the same group (to mitigate the influence of outlier samples). : `fraction_expressing_ligand_receptor`
-* Cell-type and condition specific expression of the ligand in the sender cell type and receptor in the receiver cell type (to mitigate the influence of upregulated but still relatively weakly expressed ligands/receptors) : `scaled_avg_exprs_ligand`,  `scaled_avg_frq_ligand`,  `scaled_avg_exprs_receptor`,  and `scaled_avg_frq_receptor`
-* High NicheNet ligand activity, to further prioritize ligand-receptor pairs based on their predicted effect of the ligand-receptor interaction on the gene expression in the receiver cell type : `scaled_activity` and `scaled_activity_scaled` (scaled_activity=absolute value of ligand activity; scaled_activity_scaled=scaled ligand activity value that is comparable between different receiver settings - recommended to put more weight on this)
-* High relative abundance of sender and/or receiver in the condition of interest: `scaled_abundance_sender` and `scaled_abundance_receiver`
+* Upregulation of the ligand in a sender cell type and/or upregulation of the receptor in a receiver cell type - in the condition of interest. : `de_ligand` and `de_receptor`
+* Sufficiently high expression levels of ligand and receptor in many samples of the same group (to mitigate the influence of outlier samples). : `frac_exprs_ligand_receptor`
+* Cell-type and condition specific expression of the ligand in the sender cell type and receptor in the receiver cell type (to mitigate the influence of upregulated but still relatively weakly expressed ligands/receptors) : `exprs_ligand` and `exprs_receptor`
+* High NicheNet ligand activity, to further prioritize ligand-receptor pairs based on their predicted effect of the ligand-receptor interaction on the gene expression in the receiver cell type : `activity_scaled` 
+* High relative abundance of sender and/or receiver in the condition of interest: `abund_sender` and `abund_receiver` (experimental feature - not recommended to give non-zero weights for default analyses)
 
 The different properties of the sender-ligand---receiver-receptor pairs can be weighted according to the user's preference and insight in the dataset at hand. 
 

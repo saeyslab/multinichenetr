@@ -691,7 +691,7 @@ make_DEgene_dotplot_pseudobulk = function(genes_oi, celltype_info, prioritizatio
   ####  make the plot that indicates fraction of expression ####
   
   frq_df =  celltype_info$frq_df %>% dplyr::filter(gene %in% genes_oi & celltype %in% celltype_oi)
-  plot_data = plot_data %>% dplyr::inner_join(frq_df, by = c("gene", "sample", "celltype"))
+  plot_data = plot_data %>% dplyr::inner_join(frq_df, by = c("gene", "sample", "celltype","group"))
   plot_data$gene = factor(plot_data$gene, levels=genes_oi)
   
   p2 = plot_data %>%
@@ -824,7 +824,7 @@ make_DEgene_dotplot_pseudobulk_reversed = function(genes_oi, celltype_info, prio
     ####  make the plot that indicates fraction of expression ####
     
     frq_df =  celltype_info$frq_df %>% dplyr::filter(gene %in% genes_oi & celltype %in% celltype_oi)
-    plot_data = plot_data %>% dplyr::inner_join(frq_df, by = c("gene", "sample", "celltype"))
+    plot_data = plot_data %>% dplyr::inner_join(frq_df, by = c("gene", "sample", "celltype","group"))
     plot_data$gene = factor(plot_data$gene, levels=genes_oi)
     
     p2 = plot_data %>%
@@ -1044,7 +1044,7 @@ make_DEgene_dotplot_pseudobulk_batch = function(genes_oi, celltype_info, priorit
   ####  make the plot that indicates fraction of expression ####
   
   frq_df =  celltype_info$frq_df %>% dplyr::filter(gene %in% genes_oi & celltype %in% celltype_oi)
-  plot_data = plot_data %>% dplyr::inner_join(frq_df, by = c("gene", "sample", "celltype"))
+  plot_data = plot_data %>% dplyr::inner_join(frq_df, by = c("gene", "sample", "celltype","group"))
   plot_data$gene = factor(plot_data$gene, levels=genes_oi)
   
   p2 = plot_data %>%
@@ -2090,7 +2090,7 @@ make_lr_target_correlation_plot = function(prioritization_tables, prioritized_tb
       strip.text.x.top = element_text(size = 10, color = "black", angle = 0),
       strip.text.y.left = element_text(size = 9, color = "black", angle = 0),
       strip.background = element_rect(color="darkgrey", fill="whitesmoke", size=1.5, linetype="solid")
-    ) + labs(color = "Scaled L-R\navg expression product", size= "Sufficient presence\nof sender & receiver") + 
+    ) + labs(color = "Scaled L-R\n pseudobulk product", size= "Sufficient presence\nof sender & receiver") + 
     scale_size_manual(values = keep_sender_receiver_values)
   max_lfc = abs(sample_data$scaled_LR_pb_prod ) %>% max()
   custom_scale_color = scale_color_gradientn(colours = RColorBrewer::brewer.pal(n = 7, name = "RdBu") %>% rev(),values = c(0, 0.350, 0.4850, 0.5, 0.5150, 0.65, 1),  limits = c(-1*max_lfc, max_lfc))

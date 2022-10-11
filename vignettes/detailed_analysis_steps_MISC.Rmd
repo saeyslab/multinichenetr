@@ -316,10 +316,11 @@ You can see that for some cell types, the genes considered to be DE can change.
 
 ### Conclusion of the diagnostic plots concerning the DE analysis
 
-P-value histograms of both the normal and empirical p-values look good here. In case the normal p-value distributions don't look good, we recommend to continue based on the empirical p-values. 
+P-value histograms of both the normal and empirical p-values look good here. In case the normal p-value distributions don't look good, we recommend to continue based on the empirical p-values (set `empirical_pval = TRUE` in next code chunk). 
+**However, for this dataset, normal p-value distributions look OK, so we will continue with those. Therefore, put the empirical_pval argument to FALSE**. 
 
 ```{r}
-empirical_pval = TRUE
+empirical_pval = FALSE
 if(empirical_pval == FALSE){
   celltype_de = DE_info$celltype_de$de_output_tidy
 } else {
@@ -359,7 +360,7 @@ p_val_threshold = 0.05
 fraction_cutoff = 0.05
 ```
 
-We will here choose for applying the p-value cutoff on the normal p-values, and not on the p-values corrected for multiple testing. This choice was made here because this dataset has only a few samples per group and we might have a lack of statistical power due to pseudobulking. In case of more samples per group, and a sufficient high number of DE genes per group-celltype (> 50), we would recommend using the adjusted p-values.
+We will here choose for applying the p-value cutoff on the normal p-values, and not on the p-values corrected for multiple testing. This choice was made here because this dataset has only a few samples per group and we might have a lack of statistical power due to pseudobulking. In case of more samples per group, and a sufficient high number of DE genes per group-celltype (> 20-50), we would recommend using the adjusted p-values.
 
 ```{r}
 # p_val_adj = TRUE 
@@ -415,11 +416,11 @@ In the 3 previous steps, we calculated expression, differential expression and N
 
 MultiNicheNet allows the user to define the weights of the following criteria to prioritize ligand-receptor interactions:
 
-* Upregulation of the ligand in a sender cell type and/or upregulation of the receptor in a receiver cell type - in the condition of interest. : `scaled_lfc_ligand`, `scaled_p_val_ligand`, `scaled_lfc_receptor`, and `scaled_p_val_receptor`
-* Sufficiently high expression levels of ligand and receptor in many samples of the same group (to mitigate the influence of outlier samples). : `fraction_expressing_ligand_receptor`
-* Cell-type and condition specific expression of the ligand in the sender cell type and receptor in the receiver cell type (to mitigate the influence of upregulated but still relatively weakly expressed ligands/receptors) : `scaled_avg_exprs_ligand`,  `scaled_avg_frq_ligand`,  `scaled_avg_exprs_receptor`,  and `scaled_avg_frq_receptor`
-* High NicheNet ligand activity, to further prioritize ligand-receptor pairs based on their predicted effect of the ligand-receptor interaction on the gene expression in the receiver cell type : `scaled_activity` and `scaled_activity_scaled` (scaled_activity=absolute value of ligand activity; scaled_activity_scaled=scaled ligand activity value that is comparable between different receiver settings - recommended to put more weight on this)
-* High relative abundance of sender and/or receiver in the condition of interest: `scaled_abundance_sender` and `scaled_abundance_receiver`
+* Upregulation of the ligand in a sender cell type and/or upregulation of the receptor in a receiver cell type - in the condition of interest. : `de_ligand` and `de_receptor`
+* Sufficiently high expression levels of ligand and receptor in many samples of the same group (to mitigate the influence of outlier samples). : `frac_exprs_ligand_receptor`
+* Cell-type and condition specific expression of the ligand in the sender cell type and receptor in the receiver cell type (to mitigate the influence of upregulated but still relatively weakly expressed ligands/receptors) : `exprs_ligand` and `exprs_receptor`
+* High NicheNet ligand activity, to further prioritize ligand-receptor pairs based on their predicted effect of the ligand-receptor interaction on the gene expression in the receiver cell type : `activity_scaled` 
+* High relative abundance of sender and/or receiver in the condition of interest: `abund_sender` and `abund_receiver` (experimental feature - not recommended to give non-zero weights for default analyses)
 
 The different properties of the sender-ligand---receiver-receptor pairs can be weighted according to the user's preference and insight in the dataset at hand. 
 
