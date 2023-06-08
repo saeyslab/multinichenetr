@@ -521,21 +521,21 @@ multinichenet_output$ligand_activities_targets_DEgenes$ligand_activities %>% hea
 ``` r
 multinichenet_output$prioritization_tables$group_prioritization_tbl %>% head()
 ## # A tibble: 6 x 60
-##   contr~1 group sender recei~2 ligand recep~3 lfc_l~4 lfc_r~5 ligan~6 p_val~7 p_adj~8 p_val~9 p_adj~* activ~* direc~* activ~* lr_in~* id    avg_l~* avg_r~* ligan~* fract~* fract~* ligan~* rel_a~* rel_a~* sende~* lfc_p~*
-##   <chr>   <chr> <chr>  <chr>   <chr>  <chr>     <dbl>   <dbl>   <dbl>   <dbl>   <dbl>   <dbl>   <dbl>   <dbl> <fct>     <dbl> <chr>   <chr>   <dbl>   <dbl>   <dbl>   <dbl>   <dbl>   <dbl>   <dbl>   <dbl>   <dbl>   <dbl>
-## 1 idiopa~ idio~ Proli~ Alveol~ FN1    ITGB6     1.61     1.41    1.51 7.41e-8 5.16e-5 9.91e-9 1.98e-6  0.0313 up         1.04 FN1_IT~ FN1_~    2.45   1.16     2.84   0.861   0.614   0.528   0.719   0.001   0.360   11.5 
-## 2 idiopa~ idio~ Proli~ Alveol~ FN1    ITGB6     1.61     1.41    1.51 7.41e-8 5.16e-5 9.91e-9 1.98e-6  0.0207 down       6.63 FN1_IT~ FN1_~    2.45   1.16     2.84   0.861   0.614   0.528   0.719   0.001   0.360   11.5 
-## 3 idiopa~ idio~ Proli~ Alveol~ FN1    ITGAV     1.61     1.29    1.45 7.41e-8 5.16e-5 1.86e-6 1.83e-4  0.0313 up         1.04 FN1_IT~ FN1_~    2.45   0.532    1.30   0.861   0.382   0.328   0.719   0.001   0.360   11.5 
-## 4 idiopa~ idio~ Proli~ Alveol~ FN1    ITGAV     1.61     1.29    1.45 7.41e-8 5.16e-5 1.86e-6 1.83e-4  0.0207 down       6.63 FN1_IT~ FN1_~    2.45   0.532    1.30   0.861   0.382   0.328   0.719   0.001   0.360   11.5 
-## 5 idiopa~ idio~ Fibro~ Alveol~ FN1    ITGB6     0.616    1.41    1.01 1.73e-3 2.08e-2 9.91e-9 1.98e-6  0.0313 up         1.04 FN1_IT~ FN1_~    2.19   1.16     2.54   0.872   0.614   0.535   0.639   0.001   0.320    1.70
-## 6 idiopa~ idio~ Fibro~ Alveol~ FN1    ITGB6     0.616    1.41    1.01 1.73e-3 2.08e-2 9.91e-9 1.98e-6  0.0207 down       6.63 FN1_IT~ FN1_~    2.19   1.16     2.54   0.872   0.614   0.535   0.639   0.001   0.320    1.70
-## # ... with 32 more variables: p_val_ligand_adapted <dbl>, scaled_lfc_ligand <dbl>, scaled_p_val_ligand <dbl>, scaled_lfc_pval_ligand <dbl>, scaled_p_val_ligand_adapted <dbl>, lfc_pval_receptor <dbl>,
-## #   p_val_receptor_adapted <dbl>, scaled_lfc_receptor <dbl>, scaled_p_val_receptor <dbl>, scaled_lfc_pval_receptor <dbl>, scaled_p_val_receptor_adapted <dbl>, activity_up <dbl>, activity_scaled_up <dbl>,
-## #   scaled_activity_scaled_up <dbl>, scaled_activity_up <dbl>, activity_down <dbl>, activity_scaled_down <dbl>, scaled_activity_scaled_down <dbl>, scaled_activity_down <dbl>, scaled_avg_exprs_ligand <dbl>,
-## #   scaled_avg_frq_ligand <dbl>, pb_ligand_group <dbl>, scaled_pb_ligand <dbl>, scaled_avg_exprs_receptor <dbl>, scaled_avg_frq_receptor <dbl>, pb_receptor_group <dbl>, scaled_pb_receptor <dbl>,
-## #   fraction_expressing_ligand_receptor <dbl>, max_scaled_activity <dbl>, na.rm <lgl>, prioritization_score <dbl>, top_group <chr>, and abbreviated variable names 1: contrast, 2: receiver, 3: receptor, 4: lfc_ligand,
-## #   5: lfc_receptor, 6: ligand_receptor_lfc_avg, 7: p_val_ligand, 8: p_adj_ligand, 9: p_val_receptor, *: p_adj_receptor, *: activity, *: direction_regulation, *: activity_scaled, *: lr_interaction, *: avg_ligand_group,
-## #   *: avg_receptor_group, *: ligand_receptor_prod_group, *: fraction_ligand_group, *: fraction_receptor_group, *: ligand_receptor_fraction_prod_group, *: rel_abundance_scaled_sender, ...
+##   contrast     group sender recei~1 ligand recep~2 lfc_l~3 lfc_r~4 ligan~5 p_val~6 p_adj~7 p_val~8 p_adj~9 activ~* direc~* activ~* lr_in~* id    avg_l~* avg_r~* ligan~* fract~* fract~* ligan~* rel_a~* rel_a~* sende~*
+##   <chr>        <chr> <chr>  <chr>   <chr>  <chr>     <dbl>   <dbl>   <dbl>   <dbl>   <dbl>   <dbl>   <dbl>   <dbl> <fct>     <dbl> <chr>   <chr>   <dbl>   <dbl>   <dbl>   <dbl>   <dbl>   <dbl>   <dbl>   <dbl>   <dbl>
+## 1 idiopathic.~ idio~ Proli~ Alveol~ FN1    ITGB6     1.61     1.41    1.51 7.41e-8 5.16e-5 9.91e-9 1.98e-6  0.0313 up         1.04 FN1_IT~ FN1_~    2.45   1.16     2.84   0.861   0.614   0.528   0.719   0.001   0.360
+## 2 idiopathic.~ idio~ Proli~ Alveol~ FN1    ITGB6     1.61     1.41    1.51 7.41e-8 5.16e-5 9.91e-9 1.98e-6  0.0207 down       6.63 FN1_IT~ FN1_~    2.45   1.16     2.84   0.861   0.614   0.528   0.719   0.001   0.360
+## 3 idiopathic.~ idio~ Proli~ Alveol~ FN1    ITGAV     1.61     1.29    1.45 7.41e-8 5.16e-5 1.86e-6 1.83e-4  0.0313 up         1.04 FN1_IT~ FN1_~    2.45   0.532    1.30   0.861   0.382   0.328   0.719   0.001   0.360
+## 4 idiopathic.~ idio~ Proli~ Alveol~ FN1    ITGAV     1.61     1.29    1.45 7.41e-8 5.16e-5 1.86e-6 1.83e-4  0.0207 down       6.63 FN1_IT~ FN1_~    2.45   0.532    1.30   0.861   0.382   0.328   0.719   0.001   0.360
+## 5 idiopathic.~ idio~ Fibro~ Alveol~ FN1    ITGB6     0.616    1.41    1.01 1.73e-3 2.08e-2 9.91e-9 1.98e-6  0.0313 up         1.04 FN1_IT~ FN1_~    2.19   1.16     2.54   0.872   0.614   0.535   0.639   0.001   0.320
+## 6 idiopathic.~ idio~ Fibro~ Alveol~ FN1    ITGB6     0.616    1.41    1.01 1.73e-3 2.08e-2 9.91e-9 1.98e-6  0.0207 down       6.63 FN1_IT~ FN1_~    2.19   1.16     2.54   0.872   0.614   0.535   0.639   0.001   0.320
+## # ... with 33 more variables: lfc_pval_ligand <dbl>, p_val_ligand_adapted <dbl>, scaled_lfc_ligand <dbl>, scaled_p_val_ligand <dbl>, scaled_lfc_pval_ligand <dbl>, scaled_p_val_ligand_adapted <dbl>,
+## #   lfc_pval_receptor <dbl>, p_val_receptor_adapted <dbl>, scaled_lfc_receptor <dbl>, scaled_p_val_receptor <dbl>, scaled_lfc_pval_receptor <dbl>, scaled_p_val_receptor_adapted <dbl>, activity_up <dbl>,
+## #   activity_scaled_up <dbl>, scaled_activity_scaled_up <dbl>, scaled_activity_up <dbl>, activity_down <dbl>, activity_scaled_down <dbl>, scaled_activity_scaled_down <dbl>, scaled_activity_down <dbl>,
+## #   scaled_avg_exprs_ligand <dbl>, scaled_avg_frq_ligand <dbl>, pb_ligand_group <dbl>, scaled_pb_ligand <dbl>, scaled_avg_exprs_receptor <dbl>, scaled_avg_frq_receptor <dbl>, pb_receptor_group <dbl>,
+## #   scaled_pb_receptor <dbl>, fraction_expressing_ligand_receptor <dbl>, max_scaled_activity <dbl>, na.rm <lgl>, prioritization_score <dbl>, top_group <chr>, and abbreviated variable names 1: receiver, 2: receptor,
+## #   3: lfc_ligand, 4: lfc_receptor, 5: ligand_receptor_lfc_avg, 6: p_val_ligand, 7: p_adj_ligand, 8: p_val_receptor, 9: p_adj_receptor, *: activity, *: direction_regulation, *: activity_scaled, *: lr_interaction,
+## #   *: avg_ligand_group, *: avg_receptor_group, *: ligand_receptor_prod_group, *: fraction_ligand_group, *: fraction_receptor_group, *: ligand_receptor_fraction_prod_group, *: rel_abundance_scaled_sender, ...
 ```
 
 Based on these prioritization tables, we will define which interactions
@@ -569,7 +569,7 @@ colors_receiver = RColorBrewer::brewer.pal(n = length(senders_receivers), name =
 circos_list = make_circos_group_comparison(prioritized_tbl_oi, colors_sender, colors_receiver)
 ```
 
-![](batch_correction_analysis_LungAtlas_files/figure-gfm/unnamed-chunk-22-1.png)<!-- -->![](batch_correction_analysis_LungAtlas_files/figure-gfm/unnamed-chunk-22-2.png)<!-- -->![](batch_correction_analysis_LungAtlas_files/figure-gfm/unnamed-chunk-22-3.png)<!-- -->
+![](batch_correction_analysis_LungAtlas_files/figure-gfm/unnamed-chunk-67-1.png)<!-- -->![](batch_correction_analysis_LungAtlas_files/figure-gfm/unnamed-chunk-67-2.png)<!-- -->![](batch_correction_analysis_LungAtlas_files/figure-gfm/unnamed-chunk-67-3.png)<!-- -->
 
 ## Visualization of scaled ligand-receptor pseudobulk products and ligand activity
 
@@ -593,7 +593,7 @@ plot_oi = make_sample_lr_prod_activity_batch_plots(multinichenet_output$prioriti
 plot_oi
 ```
 
-![](batch_correction_analysis_LungAtlas_files/figure-gfm/unnamed-chunk-24-1.png)<!-- -->
+![](batch_correction_analysis_LungAtlas_files/figure-gfm/unnamed-chunk-69-1.png)<!-- -->
 
 Typically, there are way more than 50 differentially expressed and
 active ligand-receptor pairs per group across all sender-receiver
@@ -609,7 +609,7 @@ plot_oi = make_sample_lr_prod_activity_batch_plots(multinichenet_output$prioriti
 plot_oi
 ```
 
-![](batch_correction_analysis_LungAtlas_files/figure-gfm/unnamed-chunk-25-1.png)<!-- -->
+![](batch_correction_analysis_LungAtlas_files/figure-gfm/unnamed-chunk-70-1.png)<!-- -->
 
 Eg Fibroblast as sender:
 
@@ -620,7 +620,7 @@ plot_oi = make_sample_lr_prod_activity_batch_plots(multinichenet_output$prioriti
 plot_oi
 ```
 
-![](batch_correction_analysis_LungAtlas_files/figure-gfm/unnamed-chunk-26-1.png)<!-- -->
+![](batch_correction_analysis_LungAtlas_files/figure-gfm/unnamed-chunk-71-1.png)<!-- -->
 
 You can make these plots also for the other groups, like we will
 illustrate now for the normal group
@@ -636,7 +636,7 @@ plot_oi = make_sample_lr_prod_activity_batch_plots(multinichenet_output$prioriti
 plot_oi
 ```
 
-![](batch_correction_analysis_LungAtlas_files/figure-gfm/unnamed-chunk-28-1.png)<!-- -->
+![](batch_correction_analysis_LungAtlas_files/figure-gfm/unnamed-chunk-73-1.png)<!-- -->
 
 ## Intercellular regulatory network systems view
 
@@ -664,7 +664,7 @@ graph_plot = make_ggraph_ligand_target_links(lr_target_prior_cor_filtered = lr_t
 graph_plot$plot
 ```
 
-![](batch_correction_analysis_LungAtlas_files/figure-gfm/unnamed-chunk-30-1.png)<!-- -->
+![](batch_correction_analysis_LungAtlas_files/figure-gfm/unnamed-chunk-75-1.png)<!-- -->
 
 ``` r
 graph_plot$source_df_lt %>% head()
@@ -720,7 +720,7 @@ plot_oi = make_sample_lr_prod_activity_batch_plots(multinichenet_output_noBC$pri
 plot_oi
 ```
 
-![](batch_correction_analysis_LungAtlas_files/figure-gfm/unnamed-chunk-33-1.png)<!-- -->
+![](batch_correction_analysis_LungAtlas_files/figure-gfm/unnamed-chunk-78-1.png)<!-- -->
 
 For this dataset and these cell types, the non-corrected expression
 values look similar to the corrected ones.
@@ -779,7 +779,7 @@ plot_oi = make_sample_lr_prod_activity_batch_plots(multinichenet_output$prioriti
 plot_oi
 ```
 
-![](batch_correction_analysis_LungAtlas_files/figure-gfm/unnamed-chunk-37-1.png)<!-- -->
+![](batch_correction_analysis_LungAtlas_files/figure-gfm/unnamed-chunk-82-1.png)<!-- -->
 
 #### BC-specific hits with noBC expression values plot
 
@@ -788,16 +788,16 @@ plot_oi = make_sample_lr_prod_activity_batch_plots(multinichenet_output_noBC$pri
 plot_oi
 ```
 
-![](batch_correction_analysis_LungAtlas_files/figure-gfm/unnamed-chunk-38-1.png)<!-- -->
+![](batch_correction_analysis_LungAtlas_files/figure-gfm/unnamed-chunk-83-1.png)<!-- -->
 
 #### noBC-specific hits with BC expression values plot
 
 ``` r
-plot_oi = make_sample_lr_prod_activity_batch_plots(multinichenet_output_noBC$prioritization_tables, noBC_specific_interactions_df, multinichenet_output$grouping_tbl, batches , widths = c(11,1,1))
+plot_oi = make_sample_lr_prod_activity_batch_plots(multinichenet_output$prioritization_tables, noBC_specific_interactions_df, multinichenet_output$grouping_tbl, batches , widths = c(11,1,1))
 plot_oi
 ```
 
-![](batch_correction_analysis_LungAtlas_files/figure-gfm/unnamed-chunk-39-1.png)<!-- -->
+![](batch_correction_analysis_LungAtlas_files/figure-gfm/unnamed-chunk-84-1.png)<!-- -->
 
 #### noBC-specific hits with no BC expression values plots
 
@@ -806,7 +806,7 @@ plot_oi = make_sample_lr_prod_activity_batch_plots(multinichenet_output_noBC$pri
 plot_oi
 ```
 
-![](batch_correction_analysis_LungAtlas_files/figure-gfm/unnamed-chunk-40-1.png)<!-- -->
+![](batch_correction_analysis_LungAtlas_files/figure-gfm/unnamed-chunk-85-1.png)<!-- -->
 
 Important to notice: specific interactions of batch or noBATCH analysis:
 also including the ligand activity metric, so not only the DE of the LR
@@ -899,7 +899,7 @@ p_target = make_DEgene_dotplot_pseudobulk_batch(genes_oi = targets_oi, celltype_
 p_target$pseudobulk_plot
 ```
 
-![](batch_correction_analysis_LungAtlas_files/figure-gfm/unnamed-chunk-43-1.png)<!-- -->
+![](batch_correction_analysis_LungAtlas_files/figure-gfm/unnamed-chunk-88-1.png)<!-- -->
 
 Visualize these BC_specific_targets with non-corrected expression
 values:
@@ -909,7 +909,7 @@ p_target = make_DEgene_dotplot_pseudobulk_batch(genes_oi = targets_oi, celltype_
 p_target$pseudobulk_plot
 ```
 
-![](batch_correction_analysis_LungAtlas_files/figure-gfm/unnamed-chunk-44-1.png)<!-- -->
+![](batch_correction_analysis_LungAtlas_files/figure-gfm/unnamed-chunk-89-1.png)<!-- -->
 
 Here you see a clear difference, pointing to the need to properly
 correct for batch effects to get a good set of DE genes, which will be
