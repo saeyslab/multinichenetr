@@ -136,11 +136,11 @@ are the best vignettes to learn how to apply MultiNicheNet to different
 datastes for addressing different questions.
 
 -   [MultiNicheNet analysis: MIS-C pairwise comparison - wrapper
-    function](vignettes/basic_analysis_steps_MISC.md):
-    `vignette("basic_analysis_steps_MISC", package="multinichenetr")`
--   [MultiNicheNet analysis: MIS-C threewise comparison - wrapper
     function](vignettes/pairwise_analysis_MISC.md):
-    `vignette("pairwise_analysis_MISC", package="multinichenetr")`
+    `vignette("pairwise_analysis_MISC.Rmd", package="multinichenetr")`
+-   [MultiNicheNet analysis: MIS-C threewise comparison - wrapper
+    function](vignettes/threewise_analysis_MISC.md):
+    `vignette("threewise_analysis_MISC", package="multinichenetr")`
 -   [MultiNicheNet analysis: SCC paired analysis - wrapper
     function](vignettes/paired_analysis_SCC.md):
     `vignette("paired_analysis_SCC", package="multinichenetr")`
