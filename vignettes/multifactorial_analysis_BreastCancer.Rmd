@@ -1,0 +1,496 @@
+---
+title: "MultiNicheNet analysis: anti-PD1 Breast cancer multifactorial comparison - wrapper function"
+author: "Robin Browaeys"
+date: "2023-06-06"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{MultiNicheNet analysis: anti-PD1 Breast cancer multifactorial comparison - wrapper function}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+<!-- github markdown built using 
+rmarkdown::render("vignettes/multifactorial_analysis_BreastCancer.Rmd", output_format = "github_document")
+-->
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  # comment = "#>",
+  warning = FALSE,
+  message = FALSE
+)
+```
+
+In this vignette, you can learn how to perform a MultiNicheNet analysis comparing cell-cell communication between multiple groups of patients/conditions, from data with complex multifcatorial experimental designs. In this vignette, we start from one SingleCellExperiment object containing cells from both sender and receiver cell types and from different patients.
+
+A MultiNicheNet analysis can be performed if you have multi-sample, multi-group single-cell data. MultiNicheNet will look for cell-cell communication between the cell types in your data for each sample, and compare the cell-cell communication patterns between the groups of interest. Therefore, the absolute minimum of meta data you need to have, are following columns indicating for each cell: the **group**, **sample** and **cell type**.
+ 
+As example expression data of interacting cells, we will here use scRNAseq data from breast cancer biopsies of patients receiving anti-PD1 immune-checkpoint blockade therapy. Bassez et al. collected from each patient one tumor biopsy before anti-PD1 therapy (“pre-treatment”) and one during subsequent surgery (“on-treatment”) [A single-cell map of intratumoral changes during anti-PD1 treatment of patients with breast cancer](https://www.nature.com/articles/s41591-021-01323-8). Based on additional scTCR-seq results, they identified one group of patients with clonotype expansion as response to the therapy (“E”) and one group with only limited or no clonotype expansion (“NE”). 
+
+We will here demonstrate how MultiNicheNet can exploit the flexibility of generalized linear models in the pseudobulk-edgeR framework to handle complex multifactor experimental designs and address non-trivial questions. We will apply MultiNicheNet qto compare cell-cell interaction changes during anti-PD1 therapy (“on” versus “pre”) between the E patients and the NE patients. This analysis exemplifies how to study differential dynamics of cell-cell communication between conditions or patient groups.
+
+In this vignette, we will first prepare the data and analysis parameters, and then perform the MultiNicheNet analysis. 
+
+The different steps of the MultiNicheNet analysis are the following:
+
+* 0. Preparation of the analysis: load packages, NicheNet LR network & ligand-target matrix, single-cell expression data, and define main settings of the MultiNicheNet analysis
+
+* 1. Extract cell type abundance and expression information from receiver and sender cell types, and link this expression information for ligands of the sender cell types to the corresponding receptors of the receiver cell types 
+
+* 2. Perform genome-wide differential expression analysis of receiver and sender cell types to define DE genes between the conditions of interest. Based on this analysis, we can define the logFC/p-value of ligands in senders and receptors in receivers, and define the set of affected target genes in the receiver.
+
+* 3. Predict NicheNet ligand activities and NicheNet ligand-target links based on these differential expression results
+
+* 4. Use the information collected above to prioritize all sender-ligand---receiver-receptor pairs.
+
+* 5. Calculate correlation in expression between ligand-receptor pairs and their predicted target genes
+
+In this vignette, we will demonstrate the use of a wrapper function to perform all these steps in one line of code. If you want to explore the different steps of MultiNicheNet one by one in more detail, you could check this other vignette: [basis_analysis_steps_MISC.md](basis_analysis_steps_MISC.md).
+
+After the MultiNicheNet analysis is done, we will explore the output of the analysis with different ways of visualization. 
+
+# Step 0: Preparation of the analysis: load packages, NicheNet LR network & ligand-target matrix, single-cell expression data
+
+## Step 0.1: Load required packages and NicheNet ligand-receptor network and ligand-target matrix
+
+```{r}
+library(SingleCellExperiment)
+library(dplyr)
+library(ggplot2)
+library(multinichenetr)
+```
+
+The Nichenet v2 networks and matrices for both mouse and human can be downloaded from Zenodo [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.7074291.svg)](https://doi.org/10.5281/zenodo.7074291). 
+
+We will read these object in for human because our expression data is of human patients. 
+Gene names are here made syntactically valid via `make.names()` to avoid the loss of genes (eg H2-M3) in downstream visualizations.
+
+```{r}
+organism = "human"
+if(organism == "human"){
+  lr_network = readRDS(url("https://zenodo.org/record/7074291/files/lr_network_human_21122021.rds"))
+  lr_network = lr_network %>% dplyr::rename(ligand = from, receptor = to) %>% distinct(ligand, receptor) %>% mutate(ligand = make.names(ligand), receptor = make.names(receptor))
+  ligand_target_matrix = readRDS(url("https://zenodo.org/record/7074291/files/ligand_target_matrix_nsga2r_final.rds"))
+  colnames(ligand_target_matrix) = colnames(ligand_target_matrix) %>% make.names()
+  rownames(ligand_target_matrix) = rownames(ligand_target_matrix) %>% make.names()
+} else if(organism == "mouse"){
+  lr_network = readRDS(url("https://zenodo.org/record/7074291/files/lr_network_mouse_21122021.rds"))
+  lr_network = lr_network %>% dplyr::rename(ligand = from, receptor = to) %>% distinct(ligand, receptor) %>% mutate(ligand = make.names(ligand), receptor = make.names(receptor))
+  ligand_target_matrix = readRDS(url("https://zenodo.org/record/7074291/files/ligand_target_matrix_nsga2r_final_mouse.rds"))
+  colnames(ligand_target_matrix) = colnames(ligand_target_matrix) %>% make.names()
+  rownames(ligand_target_matrix) = rownames(ligand_target_matrix) %>% make.names()
+}
+```
+
+## Step 0.2: Read in SingleCellExperiment Objects 
+
+In this vignette, sender and receiver cell types are in the same SingleCellExperiment object, which we will load here. In this vignette, we will load in a subset of the breast cancer scRNAseq data [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.8010790.svg)](https://doi.org/10.5281/zenodo.8010790). For the sake of demonstration, this subset only contains 3 cell types. 
+
+If you start from a Seurat object, you can convert it easily to a SingleCellExperiment via `sce = Seurat::as.SingleCellExperiment(seurat_obj, assay = "RNA")`.
+
+Because the NicheNet 2.0. networks are in the most recent version of the official gene symbols, we will make sure that the gene symbols used in the expression data are also updated (= converted from their "aliases" to official gene symbols). Afterwards, we will make them again syntactically valid. 
+
+```{r}
+sce = readRDS(url("https://zenodo.org/record/8010790/files/sce_subset_breastcancer.rds"))
+sce = alias_to_symbol_SCE(sce, "human") %>% makenames_SCE()
+```
+
+Now we will go further in defining the settings for the MultiNicheNet analysis
+
+# Step 1:  Prepare the cell-cell communication analysis
+
+### Define in which metadata columns we can find the **group**, **sample** and **cell type** IDs
+
+In this case study, we want to study differences in therapy-induced cell-cell communication changes (On-vs-Pre therapy) between two patient groups (E vs NE: patients with clonotype expansion versus patients without clonotype expansion). Both therapy-timepoint and patient group are indicated in the following meta data column: `expansion_timepoint`, which has 4 different values: PreE, PreNE, OnE, OnNE.
+
+Cell type annotations are indicated in the `subType` column, and the sample is indicated by the `sample_id` column. 
+If your cells are annotated in multiple hierarchical levels, we recommend using a high level in the hierarchy. This for 2 reasons: 1) MultiNicheNet focuses on differential expression and not differential abundance, and 2) there should be sufficient cells per sample-celltype combination.
+
+If you would have batch effects or covariates you can correct for, you can define this here as well. 
+
+Important: for categorical covariates and batches, there should be at least one sample for every group-batch combination. If one of your groups/conditions lacks a certain level of your batch, you won't be able to correct for the batch effect because the model is then not able to distinguish batch from group/condition effects.As a result of this we cannot add the patient_id here as a covariate like done in the vignette illustrating a paired analysis:  [paired_analysis_SCC.md](paired_analysis_SCC.md). This is because some patients belong to the NE group and some to the E group.
+
+Important: the column names of group, sample, cell type, batches and covariates should be syntactically valid (`make.names`)
+
+Important: All group, sample, cell type, batch and covariate names should be syntactically valid as well (`make.names`) (eg through `SummarizedExperiment::colData(sce)$ShortID = SummarizedExperiment::colData(sce)$ShortID %>% make.names()`)
+
+```{r}
+sample_id = "sample_id"
+group_id = "expansion_timepoint"
+celltype_id = "subType"
+covariates = NA
+batches = NA
+```
+
+Sender and receiver cell types also need to be defined. Both are here all cell types in the dataset because we are interested in an All-vs-All analysis.
+
+```{r}
+senders_oi = SummarizedExperiment::colData(sce)[,celltype_id] %>% unique()
+receivers_oi = SummarizedExperiment::colData(sce)[,celltype_id] %>% unique()
+```
+
+If the user wants it, it is possible to use only a subset of senders and receivers. Senders and receivers can be entirely different, but also overlapping, or the same. If you don't use all the cell types in your data, we recommend to continue with a subset of your data.
+
+```{r}
+sce = sce[, SummarizedExperiment::colData(sce)[,celltype_id] %in% c(senders_oi, receivers_oi)]
+```
+
+
+### Define the contrasts and covariates of interest for the DE analysis, and the minimal number of cells of a cell type that each sample should have to be considered for DE analysis of that cell type.
+
+Since MultiNicheNet will infer group differences at the sample level for each cell type (currently via Muscat - pseudobulking + EdgeR), we need to have sufficient cells per sample of a cell type, and this for both groups. In the following analysis we will set this minimum number of cells per cell type per sample at 10 (recommended minimum). 
+
+```{r}
+min_cells = 10
+```
+
+For this analysis, we want to compare how cell-cell communication changes On-vs-Pre anti-PD1 therapy are different between responder/expander patients vs non-responder/expander patients. In other words, we want to study how both patient groups react differently to the therapy. 
+
+To do this comparison, we need to set the following contrasts:
+
+```{r}
+contrasts_oi = c("'(OnE-PreE)-(OnNE-PreNE)','(OnNE-PreNE)-(OnE-PreE)'")
+```
+
+To understand this, let's take a look at the first contrasts of interest: `(OnE-PreE)-(OnNE-PreNE)`. As you can see, the first part of the expression: `(OnE-PreE)` will cover differences on-vs-pre therapy in the E group, the second part `(OnNE-PreNE)` in the NE group. By adding the minus sign, we can compare these differences between the E and NE group.
+
+__Very Important__ Note the format to indicate the contrasts! This formatting should be adhered to very strictly, and white spaces are not allowed!  Check `?get_DE_info` for explanation about how to define this well. The most important things are that: each contrast is surrounded by single quotation marks, contrasts are separated by a comma without any whitespace, and alle contrasts together are surrounded by double quotation marks. If you compare against two groups, you should divide by 2, if you compare against three groups, you should divide by 3 etcetera. See some of the other MultiNicheNet tutorials that demonstrate how to do this.
+
+For downstream visualizations and linking contrasts to their main group, you need to run the following:
+
+```{r}
+contrast_tbl = tibble(contrast =
+                        c("(OnE-PreE)-(OnNE-PreNE)", "(OnNE-PreNE)-(OnE-PreE)"),
+                      group = c("OnE","OnNE")) 
+```
+
+### Define the parameters for the NicheNet ligand activity analysis 
+
+Here, we need to define the thresholds that will be used to consider genes as differentially expressed or not (logFC, p-value, decision whether to use adjusted or normal p-value, minimum fraction of cells that should express a gene in at least one sample in a group, whether to use the normal p-values or empirical p-values). 
+
+NicheNet ligand activity will then be calculated as the enrichment of predicted target genes of ligands in this set of DE genes compared to the genomic background. Here we choose for a minimum logFC of 0.50, maximum p-value of 0.05, and minimum fraction of expression of 0.05. 
+
+```{r}
+logFC_threshold = 0.50
+p_val_threshold = 0.05
+fraction_cutoff = 0.05
+```
+
+We will here choose for applying the p-value cutoff on the normal p-values, and not on the p-values corrected for multiple testing. This choice was made here because this dataset has only a few samples per group and we might have a lack of statistical power due to pseudobulking. In case of more samples per group, and a sufficient high number of DE genes per group-celltype (> 50), we would recommend using the adjusted p-values. We also choose here to work with the default p-values and not Efron empirical p-values (see other vignette [detailed_analysis_steps_empirical_pvalues.md](detailed_analysis_steps_empirical_pvalues.md) and Methods section of the MultiNicheNet paper). In the vignette [detailed_analysis_steps_empirical_pvalues.md](detailed_analysis_steps_empirical_pvalues.md), we will demonstrate why this may not be ideal here.
+
+```{r}
+# p_val_adj = TRUE 
+p_val_adj = FALSE 
+empirical_pval = FALSE
+```
+
+For the NicheNet ligand-target inference, we also need to select which top n of the predicted target genes will be considered (here: top 250 targets per ligand).
+
+```{r}
+top_n_target = 250
+```
+
+The NicheNet ligand activity analysis can be run in parallel for each receiver cell type, by changing the number of cores as defined here. This is only recommended if you have many receiver cell type. 
+
+```{r}
+cores_system = 8
+n.cores = min(cores_system, union(senders_oi, receivers_oi) %>% length()) # use one core per receiver cell type
+```
+
+### Define the weights of the prioritization of both expression, differential expression and NicheNet activity information
+
+MultiNicheNet allows the user to define the weights of the following criteria to prioritize ligand-receptor interactions:
+
+* Upregulation of the ligand in a sender cell type and/or upregulation of the receptor in a receiver cell type - in the condition of interest. : `de_ligand` and `de_receptor`
+* Sufficiently high expression levels of ligand and receptor in many samples of the same group (to mitigate the influence of outlier samples). : `frac_exprs_ligand_receptor`
+* Cell-type and condition specific expression of the ligand in the sender cell type and receptor in the receiver cell type (to mitigate the influence of upregulated but still relatively weakly expressed ligands/receptors) : `exprs_ligand` and `exprs_receptor`
+* High NicheNet ligand activity, to further prioritize ligand-receptor pairs based on their predicted effect of the ligand-receptor interaction on the gene expression in the receiver cell type : `activity_scaled` 
+* High relative abundance of sender and/or receiver in the condition of interest: `abund_sender` and `abund_receiver` (experimental feature - not recommended to give non-zero weights for default analyses)
+
+The different properties of the sender-ligand---receiver-receptor pairs can be weighted according to the user's preference and insight in the dataset at hand. 
+
+We will set our preference for this dataset as follows - and recommend the user to use the same weights by default if they don't have specific reasons to change some of the parameters:
+
+```{r}
+prioritizing_weights_DE = c("de_ligand" = 1,
+                         "de_receptor" = 1)
+prioritizing_weights_activity = c("activity_scaled" = 2)
+
+prioritizing_weights_expression_specificity = c("exprs_ligand" = 2,
+                         "exprs_receptor" = 2)
+
+prioritizing_weights_expression_sufficiency = c("frac_exprs_ligand_receptor" = 1)
+
+prioritizing_weights_relative_abundance = c( "abund_sender" = 0,
+                         "abund_receiver" = 0)
+
+```
+
+```{r}
+prioritizing_weights = c(prioritizing_weights_DE, 
+                         prioritizing_weights_activity, 
+                         prioritizing_weights_expression_specificity,
+                         prioritizing_weights_expression_sufficiency, 
+                         prioritizing_weights_relative_abundance)
+```
+
+
+# Step 2: Perform MultiNicheNet's cell-cell communication analysis
+
+Now we will run the MultiNicheNet wrapper. In the function `multi_nichenet_analysis`, we need to specify that we use one SingleCellExperiment object of which all cell types should be considered as both receiver and sender by setting `sender_receiver_separate = FALSE`. This setting will call the underlying `multi_nichenet_analysis_combined` pipeline function. In case you want to consider different sender and receiver cell types, you should put `sender_receiver_separate = TRUE` and add the additional function arguments as can be seen in `?multi_nichenet_analysis_separate`
+
+To keep track of the different steps, we will here set `verbose = TRUE`
+
+This takes a few minutes for this vignette. The more cell types are considered, the longer this analysis takes.
+
+```{r}
+multinichenet_output = multi_nichenet_analysis(sce = sce, celltype_id = celltype_id, sample_id = sample_id, group_id = group_id, 
+                                lr_network = lr_network, ligand_target_matrix = ligand_target_matrix, contrasts_oi = contrasts_oi, contrast_tbl = contrast_tbl, batches = batches, covariates = covariates,
+                                prioritizing_weights = prioritizing_weights, min_cells = min_cells, logFC_threshold = logFC_threshold, p_val_threshold = p_val_threshold,  
+                                fraction_cutoff = fraction_cutoff, p_val_adj = p_val_adj, empirical_pval = empirical_pval, top_n_target = top_n_target, n.cores = n.cores, sender_receiver_separate = FALSE, verbose = TRUE)
+```
+
+The output of the MultiNicheNet analysis contains much information. We will now go over this step-by-step
+
+## Check the returned tables in the output
+
+### Average expression value and fraction of each cell type - sample combination
+
+```{r}
+multinichenet_output$celltype_info$avg_df %>% head()
+multinichenet_output$celltype_info$frq_df %>% head()
+multinichenet_output$celltype_info$avg_df_group %>% head()
+multinichenet_output$celltype_info$frq_df_group %>% head()
+multinichenet_output$celltype_info$rel_abundance_df %>% head()
+```
+
+### DE information for each cell type - contrast combination
+
+```{r}
+multinichenet_output$celltype_de %>% head()
+```
+
+### Output of the NicheNet ligand activity analysis, and the NicheNet ligand-target inference
+
+```{r}
+multinichenet_output$ligand_activities_targets_DEgenes$ligand_activities %>% head()
+```
+
+### Tables with the final prioritization scores (results per group and per sample)
+
+```{r}
+multinichenet_output$prioritization_tables$group_prioritization_tbl %>% head()
+```
+
+Based on these prioritization tables, we will define which interactions to visualize in the different plots below.
+
+# Step 3: Visualization of the results of the cell-cell communication analysis
+
+In a first instance, we will look at the broad overview of prioritized interactions via condition-specific Circos plots.
+
+## Circos plot of top-prioritized links
+
+We will look here at the top 50 predictions across all contrasts, senders, and receivers of interest.
+
+```{r}
+prioritized_tbl_oi_all = get_top_n_lr_pairs(multinichenet_output$prioritization_tables, 50, rank_per_group = FALSE)
+```
+
+```{r, fig.width=15, fig.height=12}
+prioritized_tbl_oi = multinichenet_output$prioritization_tables$group_prioritization_tbl %>%
+  filter(id %in% prioritized_tbl_oi_all$id) %>%
+  distinct(id, sender, receiver, ligand, receptor, group) %>% left_join(prioritized_tbl_oi_all)
+prioritized_tbl_oi$prioritization_score[is.na(prioritized_tbl_oi$prioritization_score)] = 0
+
+senders_receivers = union(prioritized_tbl_oi$sender %>% unique(), prioritized_tbl_oi$receiver %>% unique()) %>% sort()
+
+colors_sender = RColorBrewer::brewer.pal(n = length(senders_receivers), name = 'Spectral') %>% magrittr::set_names(senders_receivers)
+colors_receiver = RColorBrewer::brewer.pal(n = length(senders_receivers), name = 'Spectral') %>% magrittr::set_names(senders_receivers)
+
+circos_list = make_circos_group_comparison(prioritized_tbl_oi, colors_sender, colors_receiver)
+```
+
+## Visualization of scaled ligand-receptor pseudobulk products and ligand activity
+
+Now we will visualize per sample the scaled product of ligand and receptor expression. Samples that were left out of the DE analysis are indicated with a smaller dot (this helps to indicate the samples that did not contribute to the calculation of the logFC, and thus not contributed to the final prioritization)
+
+We will now check the top 50 interactions of which the On-vs-Pre change is more strong in the E group than the NE group.
+
+```{r}
+group_oi = "OnE"
+```
+
+```{r, fig.height=13, fig.width=20}
+prioritized_tbl_oi_top_50 = get_top_n_lr_pairs(multinichenet_output$prioritization_tables, 50, groups_oi = group_oi)
+
+plot_oi = make_sample_lr_prod_activity_plots(multinichenet_output$prioritization_tables, prioritized_tbl_oi_top_50)
+plot_oi
+```
+
+Typically, there are way more than 50 differentially expressed and active ligand-receptor pairs per group across all sender-receiver combinations. Therefore it might be useful to zoom in on specific cell types as senders/receivers:
+
+Eg CD4T as receiver:
+
+```{r, fig.height=13, fig.width=20}
+prioritized_tbl_oi_top_50 = get_top_n_lr_pairs(multinichenet_output$prioritization_tables, 50, groups_oi = group_oi, receivers_oi = "CD4T")
+
+plot_oi = make_sample_lr_prod_activity_plots(multinichenet_output$prioritization_tables, prioritized_tbl_oi_top_50)
+plot_oi
+```
+
+Eg CD4T as sender:
+
+```{r, fig.height=13, fig.width=20}
+prioritized_tbl_oi_top_50 = get_top_n_lr_pairs(multinichenet_output$prioritization_tables, 50, groups_oi = group_oi, senders_oi = "CD4T")
+
+plot_oi = make_sample_lr_prod_activity_plots(multinichenet_output$prioritization_tables, prioritized_tbl_oi_top_50)
+plot_oi
+```
+
+You can make these plots also for the other groups, like we will illustrate now for the NE group
+
+```{r}
+group_oi = "OnNE"
+```
+
+```{r, fig.height=13, fig.width=20}
+prioritized_tbl_oi_S_50 = get_top_n_lr_pairs(multinichenet_output$prioritization_tables, 50, groups_oi = group_oi)
+
+plot_oi = make_sample_lr_prod_activity_plots(multinichenet_output$prioritization_tables, prioritized_tbl_oi_S_50)
+plot_oi
+```
+
+
+## Intercellular regulatory network systems view
+
+As additional plot, we can generate a 'systems' view of these intercellular feedback and cascade processes than can be occuring between the different cell populations involved. In this plot, we will draw links between ligands of sender cell types their ligand/receptor-annotated target genes in receiver cell types. So links are ligand-target links (= gene regulatory links) and not ligand-receptor protein-protein interactions!
+
+```{r}
+prioritized_tbl_oi = get_top_n_lr_pairs(multinichenet_output$prioritization_tables, 150, rank_per_group = FALSE)
+
+lr_target_prior_cor_filtered = multinichenet_output$prioritization_tables$group_prioritization_tbl$group %>% unique() %>% lapply(function(group_oi){
+  lr_target_prior_cor_filtered = multinichenet_output$lr_target_prior_cor %>% inner_join(multinichenet_output$ligand_activities_targets_DEgenes$ligand_activities %>% distinct(ligand, target, direction_regulation, contrast)) %>% inner_join(contrast_tbl) %>% filter(group == group_oi)
+  lr_target_prior_cor_filtered_up = lr_target_prior_cor_filtered %>% filter(direction_regulation == "up") %>% filter( (rank_of_target < top_n_target) & (pearson > 0.50 | spearman > 0.50))
+  lr_target_prior_cor_filtered_down = lr_target_prior_cor_filtered %>% filter(direction_regulation == "down") %>% filter( (rank_of_target < top_n_target) & (pearson < -0.50 | spearman < -0.50))
+  lr_target_prior_cor_filtered = bind_rows(lr_target_prior_cor_filtered_up, lr_target_prior_cor_filtered_down)
+}) %>% bind_rows()
+
+```
+
+```{r, fig.width=30, fig.height=12}
+colors_sender["Fibroblast"] = "pink" # the  original yellow with white font is not very readable
+graph_plot = make_ggraph_ligand_target_links(lr_target_prior_cor_filtered = lr_target_prior_cor_filtered, prioritized_tbl_oi = prioritized_tbl_oi, colors = colors_sender)
+graph_plot$plot
+graph_plot$source_df_lt %>% head()
+graph_plot$nodes_df %>% head()
+```
+
+## Plots of cell-cell communication changes
+
+All the above visualizations were general and not specific to the multifactorial design and complex contrast of this data and analysis. In the final part of this vignette, we will demonstrate some visualizations that better showcase differences in therapy-induced cell-cell communication changes. Because it is very hard to do this for the final MultiNicheNet prioritization score including both expression and activity, we will only visualize ligand-receptor expression in the following plots. But realise that the interactions we will show are prioritized by MultiNicheNet not only based on expression, but thus also ligand activity.
+
+Also note that following visualizations should be tailored to the specific multifactorial design of the data you are analyzing.
+
+### Prepare difference plots
+
+In the following blocks of code, we will first create and reformat a data frame so that we know for each sample from which patient it came, whether it was On or Pre therapy, whether the patient is from the E or NE group, and also what the pseudobulk expression product is for a ligand-receptor pair. 
+
+As example, we will focus on the top 10 interactions with stronger On-Pre differences in the E group versus the NE group.
+
+```{r, fig.height=11, fig.width=20}
+# get prioritized interactions
+prioritized_tbl_oi = get_top_n_lr_pairs(multinichenet_output$prioritization_tables, 10, rank_per_group = TRUE, groups_oi = "OnE")
+
+# create sample-level data frame for these interactions
+sample_data = multinichenet_output$prioritization_tables$sample_prioritization_tbl %>% dplyr::filter(id %in% prioritized_tbl_oi$id) %>% dplyr::mutate(sender_receiver = paste(sender, receiver, sep = " --> "), lr_interaction = paste(ligand, receptor, sep = " - "))   %>%  dplyr::arrange(receiver) %>% dplyr::group_by(receiver) %>%  dplyr::arrange(sender, .by_group = TRUE) 
+
+sample_data = sample_data %>% dplyr::mutate(sender_receiver = factor(sender_receiver, levels = sample_data$sender_receiver %>% unique()))
+
+# define the time point and group and link it all together
+grouping_tbl2 = multinichenet_output$grouping_tbl %>% dplyr::inner_join(multinichenet_output$prioritization_tables$sample_prioritization_tbl %>% dplyr::distinct(sample, keep_receiver, keep_sender))
+grouping_tbl2 = grouping_tbl2 %>% inner_join(tibble(group = c("PreE","PreNE","OnE","OnNE"), contrast = c("E","NE","E","NE")))
+  
+grouping_tbl2$on_pre = "On"
+grouping_tbl2$on_pre[grouping_tbl2$group %in% c("PreE","PreNE")] = "Pre"
+
+sample_data = sample_data %>% ungroup() %>% 
+  mutate(patient= sample_data$sample %>% stringr::str_split("Pre") %>% sapply(function(x){x[1]}) %>% stringr::str_split("On")  %>% sapply(function(x){x[1]})) %>% 
+  inner_join(grouping_tbl2)
+```
+
+Then we will remove samples where sender and/or receiver was missing and calculate the On-vs-Pre difference in pseudobulk expression (absolute and relative difference, named respectively `diff` and `lfc`). 
+
+```{r, fig.height=11, fig.width=20}
+sample_data = sample_data %>% filter(keep_sender & keep_receiver) %>% mutate(group = factor(group, levels = c("PreNE","PreE", "OnNE","OnE")), on_pre = factor(on_pre, levels = c("Pre","On")))
+sample_data = sample_data %>% inner_join(
+  sample_data %>% filter(keep_receiver == 1 & keep_sender == 1) %>% ungroup() %>% select(id, patient, on_pre, ligand_receptor_pb_prod) %>% distinct() %>% tidyr::spread(on_pre, ligand_receptor_pb_prod) %>% mutate(diff = On-Pre, fc = On/Pre) %>% mutate(lfc = log(fc)) %>% arrange(-lfc)
+  )
+order_patients = sample_data %>% group_by(patient) %>% summarise(sum_diff = sum(diff, na.rm = TRUE)) %>% arrange(-sum_diff) %>% pull(patient)
+order_samples = sample_data %>% group_by(patient) %>% summarise(sum_diff = sum(diff, na.rm = TRUE)) %>% inner_join(sample_data) %>% arrange(-sum_diff) %>% pull(sample) %>% unique()
+
+
+```
+
+
+### Boxplots
+
+```{r, fig.height=15, fig.width=15}
+p_lr_prod_change_boxplot = sample_data %>% mutate(patient = factor(patient, levels = order_patients)) %>% 
+    ggplot(aes(x = contrast, y = ligand_receptor_pb_prod, fill = on_pre, group = group)) +
+    geom_boxplot() + 
+    facet_wrap(id~.) +
+    theme_bw() +
+    xlab("") + ylab("") 
+
+p_lr_prod_change_boxplot
+```
+These boxplots reflect what the DE model underlying MultiNicheNet infers: namely average group differences. However, they don't show potential inter-sample heterogeneity. That's why we will also create bubble and line plots in the following blocks of code.
+
+### Bubble plots
+
+Bubble Blot for E group
+
+We will now visualize the On-vs-Pre absolute difference in pseudobulk ligand-receptor expression product in a bubble plot. 
+
+```{r, fig.height=4, fig.width=11}
+max_diff = abs(sample_data$diff) %>% max(na.rm = TRUE)
+custom_scale_color = scale_color_gradientn(colours = RColorBrewer::brewer.pal(n = 7, 
+        name = "RdBu") %>% rev(), values = c(0, 0.30, 0.425, 
+        0.5, 0.575, 0.70, 1), limits = c(-1 * max_diff, max_diff))
+
+p_lr_prod_change = sample_data %>% mutate(patient = factor(patient, levels = order_patients)) %>%
+    ggplot(aes(patient, lr_interaction, color = diff)) +
+    geom_point(size = 5) +
+    facet_grid(sender_receiver~contrast, scales = "free", space = "free", switch = "y") +
+    theme_light() +  
+        theme(axis.ticks = element_blank(), axis.title = element_blank(), 
+            axis.text.y = element_text(face = "bold.italic", 
+                size = 9), axis.text.x = element_text(size = 9, 
+                angle = 90, hjust = 0), panel.grid.major = element_blank(), 
+            panel.grid.minor = element_blank(), panel.spacing.x = unit(0.4, 
+                "lines"), panel.spacing.y = unit(0.25, 
+                "lines"), strip.text.x.top = element_text(size = 10, 
+                color = "black", face = "bold", angle = 0), 
+            strip.text.y.left = element_text(size = 9, color = "black", 
+                face = "bold", angle = 0), strip.background = element_rect(color = "darkgrey", 
+                fill = "whitesmoke", size = 1.5, linetype = "solid")) +
+    custom_scale_color +
+    xlab("") + ylab("")
+p_lr_prod_change
+
+
+```
+
+### Line plots
+
+```{r, fig.height=20, fig.width=4}
+line_plot = sample_data %>% filter(ligand_receptor_pb_prod != 0) %>%
+    ggplot(aes(on_pre, ligand_receptor_pb_prod, group = patient, color = contrast)) +
+    geom_point() + geom_line() +
+    facet_grid(id~contrast, scales = "free", switch = "y") +
+    theme_bw() + 
+    scale_color_brewer(palette = "Set2") +
+    xlab("") + ylab("")
+line_plot
+```

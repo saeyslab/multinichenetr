@@ -1,10 +1,10 @@
 ---
-title: "Multi-Sample Multi-condition Cell-Cell Communication Analysis via NicheNet: MIS-C application: All-vs-All"
+title: "MultiNicheNet analysis: MIS-C threewise comparison - step-by-step"
 author: "Robin Browaeys"
-date: "2022-03-16"
+date: "2023-06-06"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{Multi-Sample Multi-condition Cell-Cell Communication Analysis via NicheNet: MIS-C application: All-vs-All}
+  %\VignetteIndexEntry{MultiNicheNet analysis: MIS-C threewise comparison - step-by-step}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
@@ -45,7 +45,7 @@ The different steps of the MultiNicheNet analysis are the following:
 
 * 5. Calculate correlation in expression between ligand-receptor pairs and their predicted target genes
 
-In this vignette, we will demonstrate all these steps in detail.
+In this vignette, we will demonstrate all these steps one by one.
 
 After the MultiNicheNet analysis is done, we will explore the output of the analysis with different ways of visualization. 
 
@@ -84,14 +84,14 @@ if(organism == "human"){
 
 ## Step 0.2: Read in SingleCellExperiment Objects 
 
-In this vignette, sender and receiver cell types are in the same SingleCellExperiment object, which we will load here. In this vignette, we will load in a subset of the scRNAseq data of the MIS-C [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.6362434.svg)](https://doi.org/10.5281/zenodo.6362434). This subset only contains the cell types that were found to be most interesting related to MIS-C according to Hoste et al. 
+In this vignette, sender and receiver cell types are in the same SingleCellExperiment object, which we will load here. In this vignette, we will load in a subset of the scRNAseq data of the MIS-C [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.8010790.svg)](https://doi.org/10.5281/zenodo.8010790). For the sake of demonstration, this subset only contains 3 cell types. These celltypes are some of the cell types that were found to be most interesting related to MIS-C according to Hoste et al. 
 
 If you start from a Seurat object, you can convert it easily to a SingleCellExperiment via `sce = Seurat::as.SingleCellExperiment(seurat_obj, assay = "RNA")`.
 
 Because the NicheNet 2.0. networks are in the most recent version of the official gene symbols, we will make sure that the gene symbols used in the expression data are also updated (= converted from their "aliases" to official gene symbols). Afterwards, we will make them again syntactically valid. 
 
 ```{r}
-sce = readRDS(url("https://zenodo.org/record/6362434/files/sce_misc_subset.rds"))
+sce = readRDS(url("https://zenodo.org/record/8010790/files/sce_subset_misc.rds"))
 sce = alias_to_symbol_SCE(sce, "human") %>% makenames_SCE()
 ```
 
@@ -137,7 +137,7 @@ Now we will go to the first real step of the MultiNicheNet analysis
 
 # Step 1: Extract cell type abundance and expression information from receiver and sender cell types, and link this expression information for ligands of the sender cell types to the corresponding receptors of the receiver cell types
 
-Since MultiNicheNet will infer group differences at the sample level for each cell type (currently via Muscat - pseudobulking + EdgeR), we need to have sufficient cells per sample of a cell type, and this for both groups. In the following analysis we will set this minimum number of cells per cell type per sample at 10 (absolute minimum). 
+Since MultiNicheNet will infer group differences at the sample level for each cell type (currently via Muscat - pseudobulking + EdgeR), we need to have sufficient cells per sample of a cell type, and this for both groups. In the following analysis we will set this minimum number of cells per cell type per sample at 10 (recommended minimum). 
 
 ```{r}
 min_cells = 10
@@ -539,7 +539,7 @@ You can also visualize the expression correlation in the following way for a sel
 ```{r, fig.width=21, fig.height=6}
 ligand_oi = "IFNG"
 receptor_oi = "IFNGR2"
-sender_oi = "L_T_Proliferating"
+sender_oi = "L_T_TIM3._CD38._HLADR."
 receiver_oi = "M_Monocyte_CD16"
 lr_target_scatter_plot = make_lr_target_scatter_plot(multinichenet_output$prioritization_tables, ligand_oi, receptor_oi, sender_oi, receiver_oi, multinichenet_output$celltype_info, multinichenet_output$grouping_tbl, lr_target_prior_cor_filtered)
 lr_target_scatter_plot
@@ -564,7 +564,7 @@ lr_target_prior_cor_filtered = prioritization_tables$group_prioritization_tbl$gr
 ```
 
 ```{r, fig.width=30, fig.height=12}
-colors_sender["L_T_TIM3._CD38._HLADR."] = "pink" # the  original lightgreen with white font is not very readable
+colors_sender["L_T_TIM3._CD38._HLADR."] = "pink" # the  original yellow background color with white font is not very readable
 graph_plot = make_ggraph_ligand_target_links(lr_target_prior_cor_filtered = lr_target_prior_cor_filtered, prioritized_tbl_oi = prioritized_tbl_oi, colors = colors_sender)
 graph_plot$plot
 graph_plot$source_df_lt %>% head()

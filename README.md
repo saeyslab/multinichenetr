@@ -55,9 +55,7 @@ way, MultiNicheNet extends on the prioritization done by NicheNet, which
 is only based on the ligand activity score.
 
 Users can customize the weights of these different factors to prioritize
-some of these criteria stronger, or neglect them altogether. If wanted,
-the user can also take into account relative abundance of the sender and
-receiver cell type in the condition of interest.
+some of these criteria stronger, or neglect them altogether.
 
 At the basis of MultiNicheNet for defining differentially expressed
 ligands, receptors and target genes, is the the differential state
@@ -83,7 +81,8 @@ options to include other frameworks than muscat.
 -   Prioritizing the most important ligand-receptor interactions from
     different sender-receiver pairs between different sample groups,
     according to criteria such as condition specificity, cell-type
-    specificity, signaling activity, and more.
+    specificity, ligand activity (= downstream signaling activity), and
+    more.
 -   Finding differential expressed ligand-receptor interactions from
     different sender-receiver pairs between different sample groups
     (Differential Ligand-Receptor network inference).
@@ -93,6 +92,10 @@ options to include other frameworks than muscat.
 -   Predicting specific downstream affected target genes of
     ligand-receptor links of interest (NicheNet ligand-target
     inference).
+-   Predicting intercellular signaling networks, connecting ligands to
+    ligand- or receptor-encoding target genes in other cell types,
+    enabling predictions concerning intercellular cascade and feedback
+    mechanisms.
 
 ## Installation of multinichenetr
 
@@ -107,36 +110,77 @@ with:
     devtools::install_github("saeyslab/multinichenetr")
 
 multinichenetr is tested via Github Actions version control on Windows,
-Linux (Ubuntu) and Mac (most recently tested R version: R 4.0.4).
+Linux (Ubuntu) and Mac (most recently tested R version: R 4.3.0.).
 
 ## Learning to use multinichenetr
 
-In the following vignettes, you can find how to do a step-by-step
-MultiNicheNet analysis (with all sender cell types and receiver cell
-types in the same SingleCellExperiment object):
+We provide several vignettes demonstrating the different types of
+analysis that can be performed with MultiNicheNet, and the several types
+of downstream visualizations that can be created.
 
--   [Multi-sample Multi-condition Cell-Cell Communication Analysis via
-    NicheNet: MIS-C application; All-vs-All:
+We recommend users to start with the following vignette, which
+demonstrates the different steps in the analysis without too many
+details yet. This is the recommended vignette to learn the basics of
+MultiNicheNet.
+
+-   [MultiNicheNet analysis: MIS-C threewise comparison -
     step-by-step](vignettes/basic_analysis_steps_MISC.md):
     `vignette("basic_analysis_steps_MISC", package="multinichenetr")`
 
--   [Multi-sample Multi-condition Cell-Cell Communication Analysis via
-    NicheNet: MIS-C application; All-vs-All: step-by-step
-    (detailed)](vignettes/detailed_analysis_steps_MISC.md):
+This vignette provides an example of a comparison between 3 groups. The
+following vignettes demonstrate how to analyze cell-cell communication
+differences in other settings. For sake of simplicity, these vignettes
+also use a MultiNicheNet wrapper function, which encompasses the
+different steps demonstrated in the previous vignette. These vignettes
+are the best vignettes to learn how to apply MultiNicheNet to different
+datastes for addressing different questions.
+
+-   [MultiNicheNet analysis: MIS-C pairwise comparison - wrapper
+    function](vignettes/basic_analysis_steps_MISC.md):
+    `vignette("basic_analysis_steps_MISC", package="multinichenetr")`
+-   [MultiNicheNet analysis: MIS-C threewise comparison - wrapper
+    function](vignettes/pairwise_analysis_MISC.md):
+    `vignette("pairwise_analysis_MISC", package="multinichenetr")`
+-   [MultiNicheNet analysis: SCC paired analysis - wrapper
+    function](vignettes/paired_analysis_SCC.md):
+    `vignette("paired_analysis_SCC", package="multinichenetr")`
+-   [MultiNicheNet analysis: anti-PD1 Breast cancer multifactorial
+    comparison - wrapper
+    function](vignettes/multifactorial_analysis_BreastCancer.md):
+    `vignette("multifactorial_analysis_BreastCancer", package="multinichenetr")`
+-   [MultiNicheNet analysis: Integrated lung atlas analysis - correct
+    for batch effects to infer differences between IPF and healthy
+    subjects - wrapper
+    function](vignettes/batch_correction_analysis_LungAtlas.md):
+    `vignette("batch_correction_analysis_LungAtlas", package="multinichenetr")`
+
+The next vignette will cover the different steps in more detail,
+showcasing some additional recommended quality checks and visualizations
+
+-   [MultiNicheNet analysis: MIS-C threewise comparison - step-by-step
+    with all details](vignettes/detailed_analysis_steps_MISC.md):
     `vignette("detailed_analysis_steps_MISC", package="multinichenetr")`
 
-In the following vignette, you can find how to do use the wrapper
-function of MultiNicheNet (with all sender cell types and receiver cell
-types in the same SingleCellExperiment object):
+That vignettes checks as well for the DE analysis p-value distributions.
+In case these are suboptimal, pointing to violations to some model
+assumptions, we recommend to use empirical p-values as discussed in the
+Methods section of the paper and demonstrated in the following vignette:
 
--   [Multi-sample Multi-condition Cell-Cell Communication Analysis via
-    NicheNet: MIS-C application; All-vs-All:
-    wrapper](vignettes/basic_analysis_MISC.md):
-    `vignette("basic_analysis_MISC", package="multinichenetr")`
+-   [MultiNicheNet analysis: anti-PD1 Breast cancer multifactorial
+    comparison - step-by-step with all
+    details](vignettes/detailed_analysis_steps_empirical_pvalues.md):
+    `vignette("detailed_analysis_steps_empirical_pvalues", package="multinichenetr")`
 
 When applying MultiNicheNet on datasets with many samples and cell
-types, it is recommended to run the analysis on a HPC or gridengine
-cluster.
+types, it is recommended to run the analysis on HPC infrastructure.You
+can have a look at following scripts to see how we split up the analysis
+in two parts: 1) running MultiNicheNet and saving necessary output and
+plots; and 2) interpreting the results and generating visualizations.
+
+-   [Running MultiNicheNet with
+    qsub](vignettes/2-multinichenet_prism_final_MSA.Rmd)
+-   [Interpreting MultiNicheNet results
+    locally](vignettes/3-multinichenet_interpretation_MSA_final.Rmd)
 
 ## References
 

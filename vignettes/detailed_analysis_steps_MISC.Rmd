@@ -1,10 +1,10 @@
 ---
-title: "Multi-Sample Multi-condition Cell-Cell Communication Analysis via NicheNet: MIS-C application: All-vs-All"
+title: "MultiNicheNet analysis: MIS-C threewise comparison - step-by-step with all details"
 author: "Robin Browaeys"
-date: "2022-03-16"
+date: "2023-06-06"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{Multi-Sample Multi-condition Cell-Cell Communication Analysis via NicheNet: MIS-C application: All-vs-All}
+  %\VignetteIndexEntry{MultiNicheNet analysis: MIS-C threewise comparison - step-by-step with all details}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
@@ -84,14 +84,14 @@ if(organism == "human"){
 
 ## Step 0.2: Read in SingleCellExperiment Objects 
 
-In this vignette, sender and receiver cell types are in the same SingleCellExperiment object, which we will load here. In this vignette, we will load in a subset of the scRNAseq data of the MIS-C [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.6362434.svg)](https://doi.org/10.5281/zenodo.6362434). This subset only contains the cell types that were found to be most interesting related to MIS-C according to Hoste et al. 
+In this vignette, sender and receiver cell types are in the same SingleCellExperiment object, which we will load here. In this vignette, we will load in a subset of the scRNAseq data of the MIS-C [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.8010790.svg)](https://doi.org/10.5281/zenodo.8010790). For the sake of demonstration, this subset only contains 3 cell types. These celltypes are some of the cell types that were found to be most interesting related to MIS-C according to Hoste et al. 
 
 If you start from a Seurat object, you can convert it easily to a SingleCellExperiment via `sce = Seurat::as.SingleCellExperiment(seurat_obj, assay = "RNA")`.
 
 Because the NicheNet 2.0. networks are in the most recent version of the official gene symbols, we will make sure that the gene symbols used in the expression data are also updated (= converted from their "aliases" to official gene symbols). Afterwards, we will make them again syntactically valid. 
 
 ```{r}
-sce = readRDS(url("https://zenodo.org/record/6362434/files/sce_misc_subset.rds"))
+sce = readRDS(url("https://zenodo.org/record/8010790/files/sce_subset_misc.rds"))
 sce = alias_to_symbol_SCE(sce, "human") %>% makenames_SCE()
 ```
 
@@ -149,7 +149,7 @@ Now we will go to the first real step of the MultiNicheNet analysis
 
 # Step 1: Extract cell type abundance and expression information from receiver and sender cell types, and link this expression information for ligands of the sender cell types to the corresponding receptors of the receiver cell types
 
-Since MultiNicheNet will infer group differences at the sample level for each cell type (currently via Muscat - pseudobulking + EdgeR), we need to have sufficient cells per sample of a cell type, and this for both groups. In the following analysis we will set this minimum number of cells per cell type per sample at 10 (absolute minimum). 
+Since MultiNicheNet will infer group differences at the sample level for each cell type (currently via Muscat - pseudobulking + EdgeR), we need to have sufficient cells per sample of a cell type, and this for both groups. In the following analysis we will set this minimum number of cells per cell type per sample at 10 (recommended minimum). 
 
 ```{r}
 min_cells = 10
@@ -275,44 +275,18 @@ DE_info$hist_pvals
 
 The p-value distributions look OK.  If this would not be the cause, this might point to issues in the DE model definition. For example in case we did not add all important covariates, there is substructure present in the groups, etc.
 
-If there are some issues, you can use the empiricall null procedure. This is a procedure that will define empirical p-values based on the observed distribution of the test statistic (here: logFC) and not based on the theoretical distribution. This approach has also been used in the Saturn package: https://github.com/statOmics/satuRn. We only recommend this if the p-value distributions point to possible issues, but will illustrate here how to do this as example:
+If there are some issues, you can use the empiricall null procedure. This is a procedure that will define empirical p-values based on the observed distribution of the test statistic (here: logFC) and not based on the theoretical distribution. This approach has also been used in the Saturn package: https://github.com/statOmics/satuRn. We only recommend this if the p-value distributions point to possible issues. Therefore we refer the user to the following vignette [detailed_analysis_steps_empirical_pvalues.md](detailed_analysis_steps_empirical_pvalues.md), where we demonstrate how a suboptimal p-value distribution looks like and how to use empirical p-values instead. 
+
+Because there were no issues here, we continue with the default p-values.
 
 ### Empirical Null procedure
 
 ```{r}
-empirical_pval = TRUE
+empirical_pval = FALSE
 if(empirical_pval == TRUE){
   DE_info_emp = get_empirical_pvals(DE_info$celltype_de$de_output_tidy)
 } 
 ```
-
-Table with logFC and p-values for each gene-celltype-contrast:
-
-```{r}
-DE_info_emp$de_output_tidy_emp %>% arrange(p_emp) %>% head()
-```
-
-The following plot shows the distributions of those corrected, empirical p-values:
-
-```{r, fig.width=13, fig.height=6}
-DE_info_emp$hist_pvals_emp
-```
-The following plots show how well the correction worked. The green fitted curve should fit well with the histogram. If not, this might point to some issues in the DE model definition.
-
-```{r, fig.width=7, fig.height=7}
-DE_info_emp$z_distr_plots_emp_pval
-```
-
-In general, these plots look OK. 
-
-Next, we will compare the empirical p-values to the original ones before. We will look for the concordance between p-values rankings of the original and empirical DE analysis (via ranking-line and upset plots):
-
-```{r}
-comparison_plots = compare_normal_emp_pvals(DE_info, DE_info_emp, adj_pval = FALSE)
-comparison_plots
-```
-
-You can see that for some cell types, the genes considered to be DE can change.
 
 ### Conclusion of the diagnostic plots concerning the DE analysis
 
@@ -732,15 +706,6 @@ lr_target_correlation_plot$combined_plot
 
 You can also visualize the expression correlation in the following way for a selected LR pair and their targets:
 
-```{r, fig.width=16, fig.height=6}
-ligand_oi = "IFNG"
-receptor_oi = "IFNGR2"
-sender_oi = "L_T_Proliferating"
-receiver_oi = "M_Monocyte_CD16"
-lr_target_scatter_plot = make_lr_target_scatter_plot(multinichenet_output$prioritization_tables, ligand_oi, receptor_oi, sender_oi, receiver_oi, multinichenet_output$celltype_info, multinichenet_output$grouping_tbl, lr_target_prior_cor_filtered)
-lr_target_scatter_plot
-```
-
 ```{r, fig.width=12, fig.height=6}
 ligand_oi = "IFNG"
 receptor_oi = "IFNGR1"
@@ -809,7 +774,7 @@ lr_target_prior_cor_filtered = prioritization_tables$group_prioritization_tbl$gr
 ```
 
 ```{r, fig.width=40, fig.height=12}
-colors_sender["L_T_TIM3._CD38._HLADR."] = "pink" # the  original lightgreen with white font is not very readable
+colors_sender["L_T_TIM3._CD38._HLADR."] = "pink" # the  original yellow background with white font is not very readable
 graph_plot = make_ggraph_ligand_target_links(lr_target_prior_cor_filtered = lr_target_prior_cor_filtered, prioritized_tbl_oi = prioritized_tbl_oi, colors = colors_sender)
 graph_plot$plot
 graph_plot$source_df_lt %>% head()
@@ -819,7 +784,7 @@ graph_plot$nodes_df %>% head()
 
 ## Show ligand activities for each receiver-group combination
 
-In the next type of plot, we plot all the ligand activities (Both scaled and absolute activities) of each receiver-group combination. This can give us some insights in active signaling pathways across groups. Note that we can thus show top ligands based on ligand activity - agnostic of expression in sender. 
+In the next type of plot, we plot all the ligand activities (Both scaled and absolute activities) of each receiver-group combination. This can give us some insights in active signaling pathways across groups. Note that we can thus show top ligands based on ligand activity - agnostic of expression in sender. We always recommend doing this type of analysis as well.
 
 ```{r, fig.width=13, fig.height=8}
 ligands_oi = multinichenet_output$prioritization_tables$ligand_activities_target_de_tbl %>% inner_join(contrast_tbl) %>% 
@@ -829,6 +794,8 @@ ligands_oi = multinichenet_output$prioritization_tables$ligand_activities_target
 plot_oi = make_ligand_activity_plots(multinichenet_output$prioritization_tables, ligands_oi, contrast_tbl, widths = NULL)
 plot_oi
 ```
+
+Here we see a type I interferon ligand activity signature in the A-group. Because type I interferons were not (sufficiently high) expressed by the cell types in our dataset, they were not retrieved by the classic MultiNicheNet analysis. However, they may have an important role in the A-group, as is supported by literature. 
 
 ## Zoom in on specific ligand-receptor interactions: show their expression in the single-cell data!
 
