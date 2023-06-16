@@ -20,6 +20,9 @@ designs.** The goal of this toolbox is to study differences in
 intercellular communication between groups of samples of interest (eg
 patients of different disease states).
 
+You can read all about MultiNicheNet in the following preprint:
+<https://www.biorxiv.org/content/10.1101/2023.06.13.544751v1>
+
 The main goal of the MultiNicheNet package is to find which
 ligand-receptor interactions are differentially expressed and
 differentially active between conditions of interest, such as patient
@@ -184,11 +187,15 @@ plots; and 2) interpreting the results and generating visualizations.
 
 ## References
 
-Browaeys, R., Saelens, W. & Saeys, Y. NicheNet: modeling intercellular
-communication by linking ligands to target genes. Nat Methods (2019)
-<doi:10.1038/s41592-019-0667-5>
+Browaeys, R. et al. MultiNicheNet: a flexible framework for differential
+cell-cell communication analysis from multi-sample multi-condition
+single-cell transcriptomics data. (preprint)
 
 Crowell, H.L., Soneson, C., Germain, PL. et al. muscat detects
 subpopulation-specific state transitions from multi-sample
 multi-condition single-cell transcriptomics data. Nat Commun 11, 6077
 (2020). <https://doi.org/10.1038/s41467-020-19894-4>
+
+Browaeys, R., Saelens, W. & Saeys, Y. NicheNet: modeling intercellular
+communication by linking ligands to target genes. Nat Methods (2019)
+<doi:10.1038/s41592-019-0667-5>

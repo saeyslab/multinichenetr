@@ -1,15 +1,7 @@
-citHeader("To cite nichenetr in publications use:")
+citHeader("To cite multinichenetr in publications use:")
 
-citEntry(entry = "Article",
-  title        = "NicheNet: Modeling intercellular communication by linking ligands to target genes",
-  author       = personList(as.person("Robin Browaeys"),
-                   as.person("Wouter Saelens"), as.person("Yvan Saeys")),
-  journal      = "Nature Methods",
-  year         = "2019",
-  url          = {"https://www.nature.com/articles/s41592-019-0667-5"},
-
-  textVersion  =
-  paste("Robin Browaeys, Wouter Saelens, Yvan Saeys (2019)",
-        "NicheNet: Modeling intercellular communication by linking ligands to target genes",
-        "Nature Methods")
+citEntry(entry = "Preprint",
+  title        = "MultiNicheNet: a flexible framework for differential cell-cell communication analysis from multi-sample multi-condition single-cell transcriptomics data",
+  author       = personList(as.person("Robin Browaeys")),
+  url          = {"https://www.biorxiv.org/content/10.1101/2023.06.13.544751v1"},
 )
