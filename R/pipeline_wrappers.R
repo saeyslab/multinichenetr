@@ -529,6 +529,120 @@ get_DE_info = function(sce, sample_id, group_id, celltype_id, batches, covariate
   requireNamespace("dplyr")
   requireNamespace("ggplot2")
   
+  if (class(sce) != "SingleCellExperiment") {
+    stop("sce should be a SingleCellExperiment object")
+  }
+  if (!celltype_id %in% colnames(SummarizedExperiment::colData(sce))) {
+    stop("celltype_id should be a column name in the metadata dataframe of sce")
+  }
+  if (celltype_id != make.names(celltype_id)) {
+    stop("celltype_id should be a syntactically valid R name - check make.names")
+  }
+  if (!sample_id %in% colnames(SummarizedExperiment::colData(sce))) {
+    stop("sample_id should be a column name in the metadata dataframe of sce")
+  }
+  if (sample_id != make.names(sample_id)) {
+    stop("sample_id should be a syntactically valid R name - check make.names")
+  }
+  if (!group_id %in% colnames(SummarizedExperiment::colData(sce))) {
+    stop("group_id should be a column name in the metadata dataframe of sce")
+  }
+  if (group_id != make.names(group_id)) {
+    stop("group_id should be a syntactically valid R name - check make.names")
+  }
+  
+  if(is.double(SummarizedExperiment::colData(sce)[,celltype_id])){
+    stop("SummarizedExperiment::colData(sce)[,celltype_id] should be a character vector or a factor")
+  }
+  if(is.double(SummarizedExperiment::colData(sce)[,group_id])){
+    stop("SummarizedExperiment::colData(sce)[,group_id] should be a character vector or a factor")
+  }
+  if(is.double(SummarizedExperiment::colData(sce)[,sample_id])){
+    stop("SummarizedExperiment::colData(sce)[,sample_id] should be a character vector or a factor")
+  }
+  
+  # if some of these are factors, and not all levels have syntactically valid names - prompt to change this
+  if(is.factor(SummarizedExperiment::colData(sce)[,celltype_id])){
+    is_make_names = levels(SummarizedExperiment::colData(sce)[,celltype_id]) == make.names(levels(SummarizedExperiment::colData(sce)[,celltype_id]))
+    if(sum(is_make_names) != length(levels(SummarizedExperiment::colData(sce)[,celltype_id]))){
+      stop("The levels of the factor SummarizedExperiment::colData(sce)[,celltype_id] should be a syntactically valid R names - see make.names")
+    }
+  }
+  if(is.factor(SummarizedExperiment::colData(sce)[,group_id])){
+    is_make_names = levels(SummarizedExperiment::colData(sce)[,group_id]) == make.names(levels(SummarizedExperiment::colData(sce)[,group_id]))
+    if(sum(is_make_names) != length(levels(SummarizedExperiment::colData(sce)[,group_id]))){
+      stop("The levels of the factor SummarizedExperiment::colData(sce)[,group_id] should be a syntactically valid R names - see make.names")
+    }
+  }
+  if(is.factor(SummarizedExperiment::colData(sce)[,sample_id])){
+    is_make_names = levels(SummarizedExperiment::colData(sce)[,sample_id]) == make.names(levels(SummarizedExperiment::colData(sce)[,sample_id]))
+    if(sum(is_make_names) != length(levels(SummarizedExperiment::colData(sce)[,sample_id]))){
+      stop("The levels of the factor SummarizedExperiment::colData(sce)[,sample_id] should be a syntactically valid R names - see make.names")
+    }
+  }
+  
+  if(!is.character(contrasts_oi)){
+    stop("contrasts should be a character vector")
+  }
+  
+  # conditions of interest in the contrast should be present in the in the group column of the metadata
+  groups_oi = SummarizedExperiment::colData(sce)[,group_id] %>% unique()
+  conditions_oi = stringr::str_split(contrasts_oi, "'") %>% unlist() %>% unique() %>%
+    # stringr::str_split("[:digit:]") %>% unlist() %>% unique() %>%
+    stringr::str_split("\\)") %>% unlist() %>% unique() %>%
+    stringr::str_split("\\(") %>% unlist() %>% unique() %>%
+    stringr::str_split("-") %>% unlist() %>% unique() %>%
+    stringr::str_split("\\+") %>% unlist() %>% unique() %>%
+    stringr::str_split("\\*") %>% unlist() %>% unique() %>%
+    stringr::str_split("\\/") %>% unlist() %>% unique() %>% generics::setdiff(c("",","," ,", ", ")) %>% unlist() %>% unique()
+  conditions_oi = conditions_oi[is.na(suppressWarnings(as.numeric(conditions_oi)))]
+  
+  if(length(contrasts_oi) != 1 | !is.character(contrasts_oi)){
+    stop("contrasts_oi should be a character vector of length 1. See the documentation of the function for having an idea of the right format of setting your contrasts.")
+  }
+  
+  # conditions of interest in the contrast should be present in the in the contrast_tbl
+  contrasts_simplified = stringr::str_split(contrasts_oi, "'") %>% unlist() %>% unique() %>%
+    stringr::str_split(",") %>% unlist() %>% unique() %>% generics::setdiff(c("",",")) %>% unlist() %>% unique()
+  
+  if (sum(conditions_oi %in% groups_oi) != length(conditions_oi)) {
+    stop("conditions written in contrasts should be in the condition-indicating column! This is not the case, which can lead to errors downstream.")
+  }
+  
+  if(!is.na(batches)){
+    if (sum(batches %in% colnames(SummarizedExperiment::colData(sce))) != length(batches) ) {
+      stop("batches should be NA or all present as column name(s) in the metadata dataframe of sce")
+    }
+  }
+  
+  if(!is.na(covariates)){
+    if (sum(covariates %in% colnames(SummarizedExperiment::colData(sce))) != length(covariates) ) {
+      stop("covariates should be NA or all present as column name(s) in the metadata dataframe of sce")
+    }
+  }
+  
+  if(!is.character(assay_oi_pb)){
+    stop("assay_oi_pb should be a character vector")
+  } else {
+    if(assay_oi_pb != "counts"){
+      warning("are you sure you don't want to use the counts assay?")
+    }
+  }
+  if(!is.character(fun_oi_pb)){
+    stop("fun_oi_pb should be a character vector")
+  }
+  if(!is.character(de_method_oi)){
+    stop("de_method_oi should be a character vector")
+  }
+  
+  if(!is.double(min_cells)){
+    stop("min_cells should be numeric")
+  } else {
+    if(min_cells <= 0) {
+      warning("min_cells is now 0 or smaller. We recommend having a positive, non-zero value for this parameter")
+    }
+  }
+  
   celltypes = SummarizedExperiment::colData(sce)[,celltype_id] %>% unique()
   
   DE_list = celltypes %>% lapply(function(celltype_oi, sce){
@@ -551,7 +665,15 @@ get_DE_info = function(sce, sample_id, group_id, celltype_id, batches, covariate
                                   filterByExpr.min.prop = filterByExpr.min.prop)
         }, 
       error = function(cond){
-        return(NA) # occurs when not enough samples per group with sufficient cells
+        message(paste0("perform_muscat_de_analysis errored for celltype: ", celltype_oi))
+        message("Here's the original error message:")
+        message(cond)
+        message("")
+        print(cond)
+        message(paste0("perform_muscat_de_analysis errored for celltype: ", celltype_oi))
+        message("")
+        print("In case: Error in x[[1]]: subscript out of bounds: this likely means that there are not enough samples per group with sufficient cells of this cell type. This cell type will thus be ignored for further analyses, other cell types will still be considered.")
+        return(NA) # occurs when not enough samples per group with sufficient cells in most cases, can also be due to other error messages
       })
   }, sce)
   
@@ -559,14 +681,21 @@ get_DE_info = function(sce, sample_id, group_id, celltype_id, batches, covariate
     de_output = c(DE_list %>% purrr::map("de_output")),
     de_output_tidy = DE_list %>% purrr::map("de_output_tidy") %>% bind_rows()
     )
+  
+  print("DE analysis is done:")
+  
+  print("included cell types are:")
+  included_celltypes = celltypes %>% generics::intersect(celltype_de$de_output_tidy$cluster_id) %>% unique()
+  print(included_celltypes)
+  
   excluded_celltypes = celltypes %>% generics::setdiff(celltype_de$de_output_tidy$cluster_id) %>% unique()
   if (length(excluded_celltypes) > 0) {
     print("excluded cell types are:")
     print(excluded_celltypes)
-    print("These celltypes are not considered in the analysis. After removing samples that contain less cells than the required minimal, some groups don't have 2 or more samples anymore. As a result the analysis cannot be run. To solve this: decrease the number of min_cells or change your group_id and pool all samples that belong to groups that are not of interest! ")
+    print("These celltypes are not considered in the analysis. After removing samples that contain less cells than the required minimal, some groups don't have 2 or more samples anymore (also relevant for groups not included in your contrasts!). As a result the analysis cannot be run. To solve this: decrease the number of min_cells or change your group_id and pool all samples that belong to groups that are not of interest! ")
   }
   if (length(excluded_celltypes) == length(celltypes)) {
-    print("None of the cell types passed the check. This might be due to 2 reasons. 1) no cell type has enough cells in >=2 samples per group. 2) problem in batch definition: not all levels of your batch are in each group - Also for groups not included in your contrasts!")
+    print("DE analysis did error for all cell types. This might be because of several reasons - check the original error message for this. Here are 2 common reasons in case no cell type past the filtering criteria: 1) no cell type has enough cells in >=2 samples per group. 2) problem in batch definition: not all levels of your batch are in each group - Also for groups not included in your contrasts!")
   }
   
   hist_pvals = celltype_de$de_output_tidy %>% dplyr::inner_join(celltype_de$de_output_tidy %>% dplyr::group_by(contrast,cluster_id) %>% dplyr::count(), by = c("cluster_id","contrast")) %>% 

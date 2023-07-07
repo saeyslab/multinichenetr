@@ -1,6 +1,6 @@
 #' @title perform_muscat_de_analysis
 #'
-#' @description \code{perform_muscat_de_analysis} Perform differential expression analysis via Muscat - Pseudobulking approach.
+#' @description \code{perform_muscat_de_analysis} Perform differential expression analysis via Muscat - Pseudobulking approach - FOR ONE CELLTYPE.
 #' @usage perform_muscat_de_analysis(sce, sample_id, celltype_id, group_id, batches, covariates, contrasts, assay_oi_pb = "counts", fun_oi_pb = "sum", de_method_oi = "edgeR", min_cells = 10, filterByExpr.min.count = 7, filterByExpr.min.total.count = 15, filterByExpr.large.n = 4, filterByExpr.min.prop = 0.7)
 #'
 #' @inheritParams multi_nichenet_analysis_combined
@@ -47,7 +47,6 @@
 #'
 perform_muscat_de_analysis = function(sce, sample_id, celltype_id, group_id, batches, covariates, contrasts, assay_oi_pb = "counts", fun_oi_pb = "sum", de_method_oi = "edgeR", min_cells = 10, filterByExpr.min.count = 7, filterByExpr.min.total.count = 15, filterByExpr.large.n = 4, filterByExpr.min.prop = 0.7){
   requireNamespace("dplyr")
-  
 
   if (class(sce) != "SingleCellExperiment") {
     stop("sce should be a SingleCellExperiment object")
