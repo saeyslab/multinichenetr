@@ -17,7 +17,7 @@ rmarkdown::render("README.Rmd",output_format = "md_document")
 [![Coverage Status](https://codecov.io/gh/browaeysrobin/multinichenetr/branch/master/graph/badge.svg?token=0X627I4TM7)](https://codecov.io/gh/browaeysrobin/multinichenetr)
 <!-- badges: end -->
 
-**multinichenetr: the R package containing multiple functionalities to computationally study cell-cell communication from single-cell transcriptomics data with complex multi-sample, multi-condition designs.** The goal of this toolbox is to study differences in intercellular communication between groups of samples of interest (eg patients of different disease states). 
+**multinichenetr: the R package for differential cell-cell communication analysis from single-cell transcriptomics data with complex multi-sample, multi-condition designs.** The goal of this toolbox is to study differences in intercellular communication between groups of samples of interest (eg patients of different disease states). 
 
 You can read all about MultiNicheNet in the following preprint: https://www.biorxiv.org/content/10.1101/2023.06.13.544751v1 
 
@@ -92,6 +92,11 @@ When applying MultiNicheNet on datasets with many samples and cell types, it is 
 
 * [Running MultiNicheNet with qsub](vignettes/2-multinichenet_prism_final_MSA.Rmd)
 * [Interpreting MultiNicheNet results locally](vignettes/3-multinichenet_interpretation_MSA_final.Rmd)
+
+## Frequently recurring questions and issues
+
+* Even though it is stated in the vignettes, many reported issues arise because names of celltypes, groups/conditions, and/or samples are not syntactically valid. Before reporting your issue, make sure you satisfy this condition and other conditions described in the vignettes.
+* We strongly recommend having at least 4 samples in each of the groups/conditions you want to compare. With less samples, the benefits of performing a pseudobulk-based DE analysis are less clear and non-multi-sample tools for differential cell-cell communication might be better alternatives. 
 
 ## References
 

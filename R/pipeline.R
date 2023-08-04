@@ -659,6 +659,9 @@ multi_nichenet_analysis_separate = function(sce_receiver,
   
   
   # Add information on prior knowledge and expression correlation between LR and target expression ------------------------------------------------------------------------------------------------------------
+  if(verbose == TRUE){
+    print("Calculate correlation between LR pairs and target genes")
+  }
   lr_target_prior_cor = lr_target_prior_cor_inference(prioritization_tables$group_prioritization_tbl$receiver %>% unique(), abundance_expression_info, celltype_de_receiver, grouping_tbl, prioritization_tables, ligand_target_matrix, logFC_threshold = logFC_threshold, p_val_threshold = p_val_threshold, p_val_adj = p_val_adj, top_n_LR = top_n_LR)
   
   
@@ -1149,6 +1152,9 @@ multi_nichenet_analysis_combined = function(sce,
   }
 
   # Add information on prior knowledge and expression correlation between LR and target expression ------------------------------------------------------------------------------------------------------------
+  if(verbose == TRUE){
+    print("Calculate correlation between LR pairs and target genes")
+  }
   lr_target_prior_cor = lr_target_prior_cor_inference(prioritization_tables$group_prioritization_tbl$receiver %>% unique(), abundance_expression_info, celltype_de, grouping_tbl, prioritization_tables, ligand_target_matrix, logFC_threshold = logFC_threshold, p_val_threshold = p_val_threshold, p_val_adj = p_val_adj, top_n_LR = top_n_LR)
   
   multinichenet_output = list(

@@ -4,7 +4,7 @@
 \alias{get_ligand_activities_targets_DEgenes}
 \title{get_ligand_activities_targets_DEgenes}
 \usage{
-get_ligand_activities_targets_DEgenes(receiver_de, receivers_oi,  ligand_target_matrix, logFC_threshold = 0.25, p_val_threshold = 0.05, p_val_adj = FALSE, top_n_target = 250, verbose = FALSE, n.cores = 1)
+get_ligand_activities_targets_DEgenes(receiver_de, receivers_oi,  ligand_target_matrix, logFC_threshold = 0.50, p_val_threshold = 0.05, p_val_adj = FALSE, top_n_target = 250, verbose = FALSE, n.cores = 1)
 }
 \arguments{
 \item{receiver_de}{Differential expression analysis output for the receiver cell types. `de_output_tidy` slot of the output of `perform_muscat_de_analysis`.}

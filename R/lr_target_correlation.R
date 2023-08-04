@@ -204,7 +204,13 @@ lr_target_prior_cor_inference = function(receivers_oi, abundance_expression_info
   # ligand_target_df = ligand_target_df %>% dplyr::mutate(scaled_prior_score = 0.5*(scaled_ligand + scaled_target))
   
   # Step4: Combine the ligand-target prior information scores and combine with the correlation based ones!
-  cor_prior_df = lr_target_cor %>% dplyr::inner_join(ligand_target_df, by = c("ligand", "target")) %>% dplyr::mutate(id_target = paste(id, target, sep = "_")) %>% dplyr::ungroup() 
+  if(nrow(lr_target_cor) > 0){
+    cor_prior_df = lr_target_cor %>% dplyr::inner_join(ligand_target_df, by = c("ligand", "target")) %>% dplyr::mutate(id_target = paste(id, target, sep = "_")) %>% dplyr::ungroup() 
+  } else {
+    cor_prior_df = NULL
+    print("For no celltypes, sufficient samples (>= 5) were available for a correlation analysis. lr_target_prior_cor, the output of this function, will be NULL. As a result, not all types of downstream visualizations can be created.")
+  }
+  
   
   # combine prior and correlation information
   # cor_prior_df = cor_prior_df %>% mutate(scaled_cor_score = 0.5*(scaled_pearson + scaled_target_pearson ))

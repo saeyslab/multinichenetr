@@ -49,7 +49,7 @@ Note that the groups A, B, ... should be present in the meta data column 'group_
 List with output of the differential expression analysis in 1) default format(`muscat::pbDS()`), and 2) in a tidy table format (`muscat::resDS()`).
 }
 \description{
-\code{perform_muscat_de_analysis} Perform differential expression analysis via Muscat - Pseudobulking approach.
+\code{perform_muscat_de_analysis} Perform differential expression analysis via Muscat - Pseudobulking approach - FOR ONE CELLTYPE.
 }
 \examples{
 \dontrun{
