@@ -33,6 +33,42 @@ get_abundance_expression_info = function(sce, sample_id, group_id, celltype_id, 
   
   requireNamespace("dplyr")
   requireNamespace("ggplot2")
+  
+  # if some of these are factors, and not all levels have syntactically valid names - prompt to change this
+  if(is.factor(SummarizedExperiment::colData(sce)[,celltype_id])){
+    is_make_names = levels(SummarizedExperiment::colData(sce)[,celltype_id]) == make.names(levels(SummarizedExperiment::colData(sce)[,celltype_id]))
+    if(sum(is_make_names) != length(levels(SummarizedExperiment::colData(sce)[,celltype_id]))){
+      stop("The levels of the factor SummarizedExperiment::colData(sce)[,celltype_id] should be a syntactically valid R names - see make.names")
+    }
+  } else{
+    is_make_names = unique(sort(SummarizedExperiment::colData(sce)[,celltype_id])) == make.names(unique(sort(SummarizedExperiment::colData(sce)[,celltype_id])))
+    if(sum(is_make_names) != length(unique(sort((SummarizedExperiment::colData(sce)[,celltype_id]))))){
+      stop("All the cell type labels in SummarizedExperiment::colData(sce)[,celltype_id] should be syntactically valid R names - see make.names")
+    }
+  }
+  
+  if(is.factor(SummarizedExperiment::colData(sce)[,group_id])){
+    is_make_names = levels(SummarizedExperiment::colData(sce)[,group_id]) == make.names(levels(SummarizedExperiment::colData(sce)[,group_id]))
+    if(sum(is_make_names) != length(levels(SummarizedExperiment::colData(sce)[,group_id]))){
+      stop("The levels of the factor SummarizedExperiment::colData(sce)[,group_id] should be a syntactically valid R names - see make.names")
+    }
+  } else{
+    is_make_names = unique(sort(SummarizedExperiment::colData(sce)[,group_id])) == make.names(unique(sort(SummarizedExperiment::colData(sce)[,group_id])))
+    if(sum(is_make_names) != length(unique(sort((SummarizedExperiment::colData(sce)[,group_id]))))){
+      stop("All the group/condition labels in SummarizedExperiment::colData(sce)[,group_id] should be syntactically valid R names - see make.names")
+    }
+  }
+  if(is.factor(SummarizedExperiment::colData(sce)[,sample_id])){
+    is_make_names = levels(SummarizedExperiment::colData(sce)[,sample_id]) == make.names(levels(SummarizedExperiment::colData(sce)[,sample_id]))
+    if(sum(is_make_names) != length(levels(SummarizedExperiment::colData(sce)[,sample_id]))){
+      stop("The levels of the factor SummarizedExperiment::colData(sce)[,sample_id] should be a syntactically valid R names - see make.names")
+    }
+  } else{
+    is_make_names = unique(sort(SummarizedExperiment::colData(sce)[,sample_id])) == make.names(unique(sort(SummarizedExperiment::colData(sce)[,sample_id])))
+    if(sum(is_make_names) != length(unique(sort((SummarizedExperiment::colData(sce)[,sample_id]))))){
+      stop("All the sample_id labels in SummarizedExperiment::colData(sce)[,sample_id] should be syntactically valid R names - see make.names")
+    }
+  }
 
   ### Receiver abundance plots
 
@@ -218,6 +254,76 @@ get_abundance_expression_info_separate = function(sce_receiver, sce_sender, samp
   requireNamespace("dplyr")
   requireNamespace("ggplot2")
 
+  # if some of these are factors, and not all levels have syntactically valid names - prompt to change this
+  if(is.factor(SummarizedExperiment::colData(sce_receiver)[,celltype_id_receiver])){
+    is_make_names = levels(SummarizedExperiment::colData(sce_receiver)[,celltype_id_receiver]) == make.names(levels(SummarizedExperiment::colData(sce_receiver)[,celltype_id_receiver]))
+    if(sum(is_make_names) != length(levels(SummarizedExperiment::colData(sce_receiver)[,celltype_id_receiver]))){
+      stop("The levels of the factor SummarizedExperiment::colData(sce_receiver)[,celltype_id_receiver] should be a syntactically valid R names - see make.names")
+    }
+  } else{
+    is_make_names = unique(sort(SummarizedExperiment::colData(sce_receiver)[,celltype_id_receiver])) == make.names(unique(sort(SummarizedExperiment::colData(sce_receiver)[,celltype_id_receiver])))
+    if(sum(is_make_names) != length(unique(sort((SummarizedExperiment::colData(sce_receiver)[,celltype_id_receiver]))))){
+      stop("All the cell type labels in SummarizedExperiment::colData(sce_receiver)[,celltype_id_receiver] should be syntactically valid R names - see make.names")
+    }
+  }
+  
+  if(is.factor(SummarizedExperiment::colData(sce_receiver)[,group_id])){
+    is_make_names = levels(SummarizedExperiment::colData(sce_receiver)[,group_id]) == make.names(levels(SummarizedExperiment::colData(sce_receiver)[,group_id]))
+    if(sum(is_make_names) != length(levels(SummarizedExperiment::colData(sce_receiver)[,group_id]))){
+      stop("The levels of the factor SummarizedExperiment::colData(sce_receiver)[,group_id] should be a syntactically valid R names - see make.names")
+    }
+  } else{
+    is_make_names = unique(sort(SummarizedExperiment::colData(sce_receiver)[,group_id])) == make.names(unique(sort(SummarizedExperiment::colData(sce_receiver)[,group_id])))
+    if(sum(is_make_names) != length(unique(sort((SummarizedExperiment::colData(sce_receiver)[,group_id]))))){
+      stop("All the group/condition labels in SummarizedExperiment::colData(sce_receiver)[,group_id] should be syntactically valid R names - see make.names")
+    }
+  }
+  if(is.factor(SummarizedExperiment::colData(sce_receiver)[,sample_id])){
+    is_make_names = levels(SummarizedExperiment::colData(sce_receiver)[,sample_id]) == make.names(levels(SummarizedExperiment::colData(sce_receiver)[,sample_id]))
+    if(sum(is_make_names) != length(levels(SummarizedExperiment::colData(sce_receiver)[,sample_id]))){
+      stop("The levels of the factor SummarizedExperiment::colData(sce_receiver)[,sample_id] should be a syntactically valid R names - see make.names")
+    }
+  } else{
+    is_make_names = unique(sort(SummarizedExperiment::colData(sce_receiver)[,sample_id])) == make.names(unique(sort(SummarizedExperiment::colData(sce_receiver)[,sample_id])))
+    if(sum(is_make_names) != length(unique(sort((SummarizedExperiment::colData(sce_receiver)[,sample_id]))))){
+      stop("All the sample_id labels in SummarizedExperiment::colData(sce_receiver)[,sample_id] should be syntactically valid R names - see make.names")
+    }
+  }
+  # if some of these are factors, and not all levels have syntactically valid names - prompt to change this
+  if(is.factor(SummarizedExperiment::colData(sce_sender)[,celltype_id_sender])){
+    is_make_names = levels(SummarizedExperiment::colData(sce_sender)[,celltype_id_sender]) == make.names(levels(SummarizedExperiment::colData(sce_sender)[,celltype_id_sender]))
+    if(sum(is_make_names) != length(levels(SummarizedExperiment::colData(sce_sender)[,celltype_id_sender]))){
+      stop("The levels of the factor SummarizedExperiment::colData(sce_sender)[,celltype_id_sender] should be a syntactically valid R names - see make.names")
+    }
+  } else{
+    is_make_names = unique(sort(SummarizedExperiment::colData(sce_sender)[,celltype_id_sender])) == make.names(unique(sort(SummarizedExperiment::colData(sce_sender)[,celltype_id_sender])))
+    if(sum(is_make_names) != length(unique(sort((SummarizedExperiment::colData(sce_sender)[,celltype_id_sender]))))){
+      stop("All the cell type labels in SummarizedExperiment::colData(sce_sender)[,celltype_id_sender] should be syntactically valid R names - see make.names")
+    }
+  }
+  
+  if(is.factor(SummarizedExperiment::colData(sce_sender)[,group_id])){
+    is_make_names = levels(SummarizedExperiment::colData(sce_sender)[,group_id]) == make.names(levels(SummarizedExperiment::colData(sce_sender)[,group_id]))
+    if(sum(is_make_names) != length(levels(SummarizedExperiment::colData(sce_sender)[,group_id]))){
+      stop("The levels of the factor SummarizedExperiment::colData(sce_sender)[,group_id] should be a syntactically valid R names - see make.names")
+    }
+  } else{
+    is_make_names = unique(sort(SummarizedExperiment::colData(sce_sender)[,group_id])) == make.names(unique(sort(SummarizedExperiment::colData(sce_sender)[,group_id])))
+    if(sum(is_make_names) != length(unique(sort((SummarizedExperiment::colData(sce_sender)[,group_id]))))){
+      stop("All the group/condition labels in SummarizedExperiment::colData(sce_sender)[,group_id] should be syntactically valid R names - see make.names")
+    }
+  }
+  if(is.factor(SummarizedExperiment::colData(sce_sender)[,sample_id])){
+    is_make_names = levels(SummarizedExperiment::colData(sce_sender)[,sample_id]) == make.names(levels(SummarizedExperiment::colData(sce_sender)[,sample_id]))
+    if(sum(is_make_names) != length(levels(SummarizedExperiment::colData(sce_sender)[,sample_id]))){
+      stop("The levels of the factor SummarizedExperiment::colData(sce_sender)[,sample_id] should be a syntactically valid R names - see make.names")
+    }
+  } else{
+    is_make_names = unique(sort(SummarizedExperiment::colData(sce_sender)[,sample_id])) == make.names(unique(sort(SummarizedExperiment::colData(sce_sender)[,sample_id])))
+    if(sum(is_make_names) != length(unique(sort((SummarizedExperiment::colData(sce_sender)[,sample_id]))))){
+      stop("All the sample_id labels in SummarizedExperiment::colData(sce_sender)[,sample_id] should be syntactically valid R names - see make.names")
+    }
+  }
   ### Receiver plots and info
   
   metadata_abundance = SummarizedExperiment::colData(sce_receiver)[,c(sample_id, group_id, celltype_id_receiver)] %>% tibble::as_tibble()
@@ -567,17 +673,33 @@ get_DE_info = function(sce, sample_id, group_id, celltype_id, batches, covariate
     if(sum(is_make_names) != length(levels(SummarizedExperiment::colData(sce)[,celltype_id]))){
       stop("The levels of the factor SummarizedExperiment::colData(sce)[,celltype_id] should be a syntactically valid R names - see make.names")
     }
+  } else{
+    is_make_names = unique(sort(SummarizedExperiment::colData(sce)[,celltype_id])) == make.names(unique(sort(SummarizedExperiment::colData(sce)[,celltype_id])))
+    if(sum(is_make_names) != length(unique(sort((SummarizedExperiment::colData(sce)[,celltype_id]))))){
+      stop("All the cell type labels in SummarizedExperiment::colData(sce)[,celltype_id] should be syntactically valid R names - see make.names")
+    }
   }
+  
   if(is.factor(SummarizedExperiment::colData(sce)[,group_id])){
     is_make_names = levels(SummarizedExperiment::colData(sce)[,group_id]) == make.names(levels(SummarizedExperiment::colData(sce)[,group_id]))
     if(sum(is_make_names) != length(levels(SummarizedExperiment::colData(sce)[,group_id]))){
       stop("The levels of the factor SummarizedExperiment::colData(sce)[,group_id] should be a syntactically valid R names - see make.names")
+    }
+  } else{
+    is_make_names = unique(sort(SummarizedExperiment::colData(sce)[,group_id])) == make.names(unique(sort(SummarizedExperiment::colData(sce)[,group_id])))
+    if(sum(is_make_names) != length(unique(sort((SummarizedExperiment::colData(sce)[,group_id]))))){
+      stop("All the group/condition labels in SummarizedExperiment::colData(sce)[,group_id] should be syntactically valid R names - see make.names")
     }
   }
   if(is.factor(SummarizedExperiment::colData(sce)[,sample_id])){
     is_make_names = levels(SummarizedExperiment::colData(sce)[,sample_id]) == make.names(levels(SummarizedExperiment::colData(sce)[,sample_id]))
     if(sum(is_make_names) != length(levels(SummarizedExperiment::colData(sce)[,sample_id]))){
       stop("The levels of the factor SummarizedExperiment::colData(sce)[,sample_id] should be a syntactically valid R names - see make.names")
+    }
+  } else{
+    is_make_names = unique(sort(SummarizedExperiment::colData(sce)[,sample_id])) == make.names(unique(sort(SummarizedExperiment::colData(sce)[,sample_id])))
+    if(sum(is_make_names) != length(unique(sort((SummarizedExperiment::colData(sce)[,sample_id]))))){
+      stop("All the sample_id labels in SummarizedExperiment::colData(sce)[,sample_id] should be syntactically valid R names - see make.names")
     }
   }
   

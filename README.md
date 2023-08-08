@@ -190,7 +190,14 @@ plots; and 2) interpreting the results and generating visualizations.
     arise because names of celltypes, groups/conditions, and/or samples
     are not syntactically valid. Before reporting your issue, make sure
     you satisfy this condition and other conditions described in the
-    vignettes.
+    vignettes. In the latest version of MultiNicheNet, input checks are
+    run to check this and give an understandable error message.
+-   It is required that each sample is uniquely assigned to only one
+    condition/group of interest. See the vignettes about paired and
+    multifactorial analysis to see how to define your analysis input
+    when you have multiple samples and conditions per patient. In the
+    latest version of MultiNicheNet, input checks are run to check this
+    and give an understandable error message.
 -   We strongly recommend having at least 4 samples in each of the
     groups/conditions you want to compare. With less samples, the
     benefits of performing a pseudobulk-based DE analysis are less clear

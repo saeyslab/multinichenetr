@@ -86,11 +86,22 @@ perform_muscat_de_analysis = function(sce, sample_id, celltype_id, group_id, bat
     if(sum(is_make_names) != length(levels(SummarizedExperiment::colData(sce)[,celltype_id]))){
       stop("The levels of the factor SummarizedExperiment::colData(sce)[,celltype_id] should be a syntactically valid R names - see make.names")
     }
+  } else{
+    is_make_names = unique(sort(SummarizedExperiment::colData(sce)[,celltype_id])) == make.names(unique(sort(SummarizedExperiment::colData(sce)[,celltype_id])))
+    if(sum(is_make_names) != length(unique(sort((SummarizedExperiment::colData(sce)[,celltype_id]))))){
+      stop("All the cell type labels in SummarizedExperiment::colData(sce)[,celltype_id] should be syntactically valid R names - see make.names")
+    }
   }
+
   if(is.factor(SummarizedExperiment::colData(sce)[,group_id])){
     is_make_names = levels(SummarizedExperiment::colData(sce)[,group_id]) == make.names(levels(SummarizedExperiment::colData(sce)[,group_id]))
     if(sum(is_make_names) != length(levels(SummarizedExperiment::colData(sce)[,group_id]))){
       stop("The levels of the factor SummarizedExperiment::colData(sce)[,group_id] should be a syntactically valid R names - see make.names")
+    }
+  } else{
+    is_make_names = unique(sort(SummarizedExperiment::colData(sce)[,group_id])) == make.names(unique(sort(SummarizedExperiment::colData(sce)[,group_id])))
+    if(sum(is_make_names) != length(unique(sort((SummarizedExperiment::colData(sce)[,group_id]))))){
+      stop("All the group/condition labels in SummarizedExperiment::colData(sce)[,group_id] should be syntactically valid R names - see make.names")
     }
   }
   if(is.factor(SummarizedExperiment::colData(sce)[,sample_id])){
@@ -98,7 +109,13 @@ perform_muscat_de_analysis = function(sce, sample_id, celltype_id, group_id, bat
     if(sum(is_make_names) != length(levels(SummarizedExperiment::colData(sce)[,sample_id]))){
       stop("The levels of the factor SummarizedExperiment::colData(sce)[,sample_id] should be a syntactically valid R names - see make.names")
     }
+  } else{
+    is_make_names = unique(sort(SummarizedExperiment::colData(sce)[,sample_id])) == make.names(unique(sort(SummarizedExperiment::colData(sce)[,sample_id])))
+    if(sum(is_make_names) != length(unique(sort((SummarizedExperiment::colData(sce)[,sample_id]))))){
+      stop("All the sample_id labels in SummarizedExperiment::colData(sce)[,sample_id] should be syntactically valid R names - see make.names")
+    }
   }
+  
   
   if(!is.character(contrasts)){
     stop("contrasts should be a character vector")
@@ -173,9 +190,21 @@ perform_muscat_de_analysis = function(sce, sample_id, celltype_id, group_id, bat
                         sid = "id",   # sample IDs (ctrl/stim.1234)
                         drop = FALSE)  # drop all other SummarizedExperiment::colData columns ----------------- change to false
 
+  # test to see whether sample_ids are unique
+  if (sum(table(sce$sample_id, sce$group_id) %>% apply(1, function(row_oi){sum(row_oi > 0)}) > 1) > 0){
+    stop("One or more of your sample_ids belongs to more than one group/condition of interest. Please make sure that all sample_ids are uniquely divided over your groups/conditions.")
+  } 
+  
   pb = muscat::aggregateData(sce,
                              assay = assay_oi_pb, fun = fun_oi_pb,
                              by = c("cluster_id", "sample_id"))
+  
+  if(assay_oi_pb == "counts"){
+    libsizes = colSums(SummarizedExperiment::assay(pb))
+    if (!isTRUE(all(libsizes == floor(libsizes)))) {
+      warning("non-integer library sizes: are you sure you are working with raw counts?")
+    }
+  }
 
   # prepare the experiment info (ei) table if batches present
   if(length(batches) > 1){
