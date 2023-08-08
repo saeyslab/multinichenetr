@@ -305,10 +305,10 @@ perform_muscat_de_analysis = function(sce, sample_id, celltype_id, group_id, bat
   if(length(excluded_celltypes) > 0){
     print("excluded cell types are:")
     print(excluded_celltypes)
-    print("These celltypes are not considered in the analysis. After removing samples that contain less cells than the required minimal, some groups don't have 2 or more samples anymore. As a result the analysis cannot be run. To solve this: decrease the number of min_cells or change your group_id and pool all samples that belong to groups that are not of interest! ")
+    print("These celltypes are not considered in the analysis. After removing samples that contain less cells than the required minimal, some groups/conditions don't have 2 or more samples anymore or there are not all batch/categorical.covariate levels are present in all groups/conditions. As a result the analysis cannot be run. To solve this: decrease the number of min_cells or change your group_id and pool all samples that belong to groups that are not of interest or do not consider the batch/categorical.covariate! ")
   }
   if(length(excluded_celltypes) == length(celltypes)){
-    print("None of the cell types passed the check. This might be due to 2 reasons. 1) no cell type has enough cells in >=2 samples per group. 2) problem in batch definition: not all levels of your batch are in each group - Also for groups not included in your contrasts!")
+    print("None of the cell types passed the check. This might be due to 2 reasons. 1) no cell type has enough cells in >=2 samples per group. 2) problem in batch or categorical.covariate definition: not all levels of your batch/categorical.covariate are in each group - Also for groups not included in your contrasts! To solve this:pool all samples that belong to groups that are not of interest or do not consider the batch/categorical.covariate!")
   }
   
   
