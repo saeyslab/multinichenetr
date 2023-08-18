@@ -171,25 +171,26 @@ lr_target_prior_cor_inference = function(receivers_oi, abundance_expression_info
     common_samples = intersect(colnames(lr_prod_mat_oi), colnames(target_mat))
     if(length(common_samples) < 5){
       warning(paste0("not enough samples for a correlation analysis for the celltype ",receiver_oi))
-      return(NULL)
+      cor_df = NULL
+    } else {
+      lr_prod_mat_oi = lr_prod_mat_oi[,common_samples]
+      target_mat = target_mat[,common_samples]
+      
+      # pearson
+      cor_mat = Hmisc::rcorr(lr_prod_mat_oi %>% t(), target_mat %>% t())
+      
+      cor_df_pearson = cor_mat$r %>% .[,rownames(target_mat)] %>% data.frame() %>% tibble::rownames_to_column("id") %>% tidyr::gather(target, pearson, -id) %>% tibble::as_tibble()
+      cor_df_pearson_pval = cor_mat$P %>% .[,rownames(target_mat)] %>% data.frame() %>% tibble::rownames_to_column("id") %>% tidyr::gather(target, pearson_pval, -id) %>% tibble::as_tibble()
+      
+      # spearman
+      cor_mat = Hmisc::rcorr(lr_prod_mat_oi %>% t(), target_mat %>% t(), type = "spearman")
+      
+      cor_df_spearman = cor_mat$r %>% .[,rownames(target_mat)] %>% data.frame() %>% tibble::rownames_to_column("id") %>% tidyr::gather(target, spearman, -id) %>% tibble::as_tibble()
+      cor_df_spearman_pval = cor_mat$P %>% .[,rownames(target_mat)] %>% data.frame() %>% tibble::rownames_to_column("id") %>% tidyr::gather(target, spearman_pval, -id) %>% tibble::as_tibble()
+      
+      cor_df = lig_rec_send_rec_mapping %>% dplyr::inner_join(cor_df_pearson, by = "id") %>% dplyr::inner_join(cor_df_pearson_pval, by = c("id", "target")) %>% dplyr::inner_join(cor_df_spearman, by = c("id", "target")) %>% dplyr::inner_join(cor_df_spearman_pval, by = c("id", "target")) 
     }
-    lr_prod_mat_oi = lr_prod_mat_oi[,common_samples]
-    target_mat = target_mat[,common_samples]
-    
-    # pearson
-    cor_mat = Hmisc::rcorr(lr_prod_mat_oi %>% t(), target_mat %>% t())
-    
-    cor_df_pearson = cor_mat$r %>% .[,rownames(target_mat)] %>% data.frame() %>% tibble::rownames_to_column("id") %>% tidyr::gather(target, pearson, -id) %>% tibble::as_tibble()
-    cor_df_pearson_pval = cor_mat$P %>% .[,rownames(target_mat)] %>% data.frame() %>% tibble::rownames_to_column("id") %>% tidyr::gather(target, pearson_pval, -id) %>% tibble::as_tibble()
-    
-    # spearman
-    cor_mat = Hmisc::rcorr(lr_prod_mat_oi %>% t(), target_mat %>% t(), type = "spearman")
-    
-    cor_df_spearman = cor_mat$r %>% .[,rownames(target_mat)] %>% data.frame() %>% tibble::rownames_to_column("id") %>% tidyr::gather(target, spearman, -id) %>% tibble::as_tibble()
-    cor_df_spearman_pval = cor_mat$P %>% .[,rownames(target_mat)] %>% data.frame() %>% tibble::rownames_to_column("id") %>% tidyr::gather(target, spearman_pval, -id) %>% tibble::as_tibble()
-    
-    cor_df = lig_rec_send_rec_mapping %>% dplyr::inner_join(cor_df_pearson, by = "id") %>% dplyr::inner_join(cor_df_pearson_pval, by = c("id", "target")) %>% dplyr::inner_join(cor_df_spearman, by = c("id", "target")) %>% dplyr::inner_join(cor_df_spearman_pval, by = c("id", "target")) 
-
+    return(cor_df)
     # print(cor_df)
     # scaling of the correlation metric -- Don't do this for now
     #   cor_df = cor_df %>% dplyr::ungroup() %>% dplyr::mutate(scaled_pearson = nichenetr::scale_quantile(pearson, 0.05), scaled_spearman = nichenetr::scale_quantile(spearman, 0.05))  # is this  scaling necessary? 
