@@ -208,7 +208,7 @@ lr_target_prior_cor_inference = function(receivers_oi, abundance_expression_info
   if(nrow(lr_target_cor) > 0){
     cor_prior_df = lr_target_cor %>% dplyr::inner_join(ligand_target_df, by = c("ligand", "target")) %>% dplyr::mutate(id_target = paste(id, target, sep = "_")) %>% dplyr::ungroup() 
   } else {
-    cor_prior_df = NA
+    cor_prior_df = tibble()
     print("For no celltypes, sufficient samples (>= 5) were available for a correlation analysis. lr_target_prior_cor, the output of this function, will be NULL. As a result, not all types of downstream visualizations can be created.")
   }
   
