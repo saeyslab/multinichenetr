@@ -40,6 +40,22 @@ test_that("Pipeline for all-vs-all analysis works & plotting functions work", {
     contrast_tbl = contrast_tbl,
     findMarkers = TRUE)
   expect_type(output_naive,"list")
+  
+  sce_test_cor = sce[,SummarizedExperiment::colData(sce)[,sample_id] %in% c("HN25","HN26","HN17","HN6")]
+  output = multi_nichenet_analysis_combined(
+    sce = sce_test_cor,
+    celltype_id = celltype_id,
+    sample_id = sample_id,
+    group_id = group_id,
+    batches = batches,
+    covariates = covariates,
+    lr_network = lr_network,
+    ligand_target_matrix = ligand_target_matrix,
+    contrasts_oi = contrasts_oi,
+    contrast_tbl = contrast_tbl)
+  output = make_lite_output(output)
+  expect_type(output,"list")
+  
   output = multi_nichenet_analysis_combined(
        sce = sce,
        celltype_id = celltype_id,
@@ -58,6 +74,7 @@ test_that("Pipeline for all-vs-all analysis works & plotting functions work", {
   expect_type(output,"list")
   expect_type(output$prioritization_tables,"list")
   
+
   # test plotting functions
   group_oi = "High"
   prioritized_tbl_oi = output$prioritization_tables$group_prioritization_tbl %>% filter(fraction_expressing_ligand_receptor > 0) %>% filter(group == group_oi) %>% top_n(50, prioritization_score)
