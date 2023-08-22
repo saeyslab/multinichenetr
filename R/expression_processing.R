@@ -288,7 +288,7 @@ get_pseudobulk_logCPM_exprs = function(sce, sample_id, celltype_id, group_id, ba
 
 #' @title fix_frq_df
 #'
-#' @description \code{fix_frq_df}  Fix muscat-bug in fraction calculation in case that expression fraction would be NA / NaN. Change NA to 0.
+#' @description \code{fix_frq_df}  Fix muscat-feature/bug in fraction calculation: in case a there are no cells of a cell type in a sample, that expression fraction will be NA / NaN. Change these NA/NaN to 0.
 #' @usage fix_frq_df(sce, frq_celltype_samples)
 #'
 #' @inheritParams multi_nichenet_analysis_combined
@@ -322,6 +322,7 @@ fix_frq_df = function(sce, frq_celltype_samples){
 
   frq_celltype_samples_OK = frq_celltype_samples %>% dplyr::filter(gene %in% genes)
 
+  # Fix 0's incase gene names absent
   frq_celltype_samples_FIX = frq_celltype_samples %>% dplyr::filter(!gene %in% genes)
 
   frq_celltype_samples_FIX = frq_celltype_samples_FIX %>% dplyr::mutate(gene = gene_mapping[gene])
@@ -330,6 +331,14 @@ fix_frq_df = function(sce, frq_celltype_samples){
 
   frq_celltype_samples = frq_celltype_samples_OK %>% dplyr::bind_rows(frq_celltype_samples_FIX)
 
+  # Fix NA/NaNs to Os in case gene names present
+  frq_celltype_samples_OK = frq_celltype_samples %>% dplyr::filter(!is.na(fraction_sample)) 
+  
+  frq_celltype_samples_FIX = frq_celltype_samples %>% dplyr::filter(is.na(fraction_sample)) 
+  frq_celltype_samples_FIX = frq_celltype_samples_FIX %>% dplyr::mutate(fraction_sample = 0)
+  
+  frq_celltype_samples = frq_celltype_samples_OK %>% dplyr::bind_rows(frq_celltype_samples_FIX)
+  
   return(frq_celltype_samples)
 
 }
@@ -438,7 +447,7 @@ get_avg_frac_exprs_abund = function(sce, sample_id, celltype_id, group_id, batch
     warning("There are some genes with NA average expression.")
   }
   if(nrow(frq_df %>% dplyr::filter(is.na(fraction_sample))) > 0 | nrow(frq_df %>% dplyr::filter(is.nan(fraction_sample))) > 0) {
-    warning("There are some genes with NA fraction of expression. This is the result of the muscat function `calcExprFreqs` which will give NA when there are no cells of a particular cell type in a particular group. As a temporary fix, we give all these genes an expression fraction of 0 in that group for that cell type")
+    warning("There are some genes with NA/NaN fraction of expression. This is the result of the muscat function `calcExprFreqs` which will give NA/NaN when there are no cells of a particular cell type in a particular group or no cells of a cell type in one sample. As a temporary fix, we give all these genes an expression fraction of 0 in that group for that cell type")
     frq_df = fix_frq_df(sce, frq_df)
   }
 
