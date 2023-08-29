@@ -582,6 +582,7 @@ multi_nichenet_analysis_separate = function(sce_receiver,
     receivers_oi = receivers_oi,
     lr_network = lr_network
   )
+  sender_receiver_tbl = sender_receiver_de %>% dplyr::distinct(sender, receiver)
   
   ### Receiver abundance plots + Calculate expression information
   if(verbose == TRUE){
@@ -590,6 +591,17 @@ multi_nichenet_analysis_separate = function(sce_receiver,
   
   abundance_expression_info = get_abundance_expression_info_separate(sce_receiver = sce_receiver, sce_sender = sce_sender, sample_id = sample_id, group_id = group_id, celltype_id_receiver = celltype_id_receiver, celltype_id_sender = celltype_id_sender, senders_oi = senders_oi, receivers_oi = receivers_oi, lr_network = lr_network, batches = batches, min_cells = min_cells)
 
+  metadata_combined = SummarizedExperiment::colData(sce_receiver) %>% tibble::as_tibble()
+  
+  if(!is.na(batches)){
+    grouping_tbl = metadata_combined[,c(sample_id, group_id, batches)] %>% tibble::as_tibble() %>% dplyr::distinct()
+    colnames(grouping_tbl) = c("sample","group",batches)
+  } else {
+    grouping_tbl = metadata_combined[,c(sample_id, group_id)] %>% tibble::as_tibble() %>% dplyr::distinct()
+    colnames(grouping_tbl) = c("sample","group")
+  }
+  rm(sce_sender)
+  rm(sce_receiver)
   
   ### Use the DE analysis for defining the DE genes in the receiver cell type and perform NicheNet ligand activity and ligand-target inference ----------------------------------------------------------------
   if(verbose == TRUE){
@@ -613,19 +625,6 @@ multi_nichenet_analysis_separate = function(sce_receiver,
   }
   ### Remove types of information that we don't need anymore:
   
-  sender_receiver_tbl = sender_receiver_de %>% dplyr::distinct(sender, receiver)
-  
-  metadata_combined = SummarizedExperiment::colData(sce_receiver) %>% tibble::as_tibble()
-  
-  if(!is.na(batches)){
-    grouping_tbl = metadata_combined[,c(sample_id, group_id, batches)] %>% tibble::as_tibble() %>% dplyr::distinct()
-    colnames(grouping_tbl) = c("sample","group",batches)
-  } else {
-    grouping_tbl = metadata_combined[,c(sample_id, group_id)] %>% tibble::as_tibble() %>% dplyr::distinct()
-    colnames(grouping_tbl) = c("sample","group")
-  }
-  rm(sce_sender)
-  rm(sce_receiver)
   prioritization_tables = suppressMessages(generate_prioritization_tables(
     sender_receiver_info = abundance_expression_info$sender_receiver_info,
     sender_receiver_de = sender_receiver_de,
@@ -1078,13 +1077,24 @@ multi_nichenet_analysis_combined = function(sce,
     receivers_oi = receivers_oi,
     lr_network = lr_network
   ))
-
+  sender_receiver_tbl = sender_receiver_de %>% dplyr::distinct(sender, receiver)
+  
   ### Receiver abundance plots + Calculate expression information
   if(verbose == TRUE){
     print("Make diagnostic abundance plots + Calculate expression information")
   }
-  
   abundance_expression_info = get_abundance_expression_info(sce = sce, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id, min_cells = min_cells, senders_oi = senders_oi, receivers_oi = receivers_oi, lr_network = lr_network, batches = batches)
+  
+  metadata_combined = SummarizedExperiment::colData(sce) %>% tibble::as_tibble()
+  
+  if(!is.na(batches)){
+    grouping_tbl = metadata_combined[,c(sample_id, group_id, batches)] %>% tibble::as_tibble() %>% dplyr::distinct()
+    colnames(grouping_tbl) = c("sample","group",batches)
+  } else {
+    grouping_tbl = metadata_combined[,c(sample_id, group_id)] %>% tibble::as_tibble() %>% dplyr::distinct()
+    colnames(grouping_tbl) = c("sample","group")
+  }
+  
   rm(sce)
   ### Use the DE analysis for defining the DE genes in the receiver cell type and perform NicheNet ligand activity and ligand-target inference ----------------------------------------------------------------
   if(verbose == TRUE){
@@ -1105,19 +1115,6 @@ multi_nichenet_analysis_combined = function(sce,
   ### Combine the three types of information calculated above to prioritize ligand-receptor interactions ----------------------------------------------------------------
   if(verbose == TRUE){
     print("Combine all the information in prioritization tables")
-  }
-  ### Remove types of information that we don't need anymore:
-
-  sender_receiver_tbl = sender_receiver_de %>% dplyr::distinct(sender, receiver)
-  
-  metadata_combined = SummarizedExperiment::colData(sce) %>% tibble::as_tibble()
-  
-  if(!is.na(batches)){
-    grouping_tbl = metadata_combined[,c(sample_id, group_id, batches)] %>% tibble::as_tibble() %>% dplyr::distinct()
-    colnames(grouping_tbl) = c("sample","group",batches)
-  } else {
-    grouping_tbl = metadata_combined[,c(sample_id, group_id)] %>% tibble::as_tibble() %>% dplyr::distinct()
-    colnames(grouping_tbl) = c("sample","group")
   }
 
   prioritization_tables = suppressMessages(generate_prioritization_tables(

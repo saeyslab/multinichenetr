@@ -41,6 +41,7 @@ test_that("Pipeline for all-vs-all analysis works & plotting functions work", {
     findMarkers = TRUE)
   expect_type(output_naive,"list")
   
+  # test edge-case of only 4 samples
   sce_test_cor = sce[,SummarizedExperiment::colData(sce)[,sample_id] %in% c("HN25","HN26","HN17","HN6")]
   output = multi_nichenet_analysis_combined(
     sce = sce_test_cor,
@@ -74,7 +75,23 @@ test_that("Pipeline for all-vs-all analysis works & plotting functions work", {
   expect_type(output,"list")
   expect_type(output$prioritization_tables,"list")
   
-
+  # test edge-case of no cells in one sample
+  cells_remove = sce[, SummarizedExperiment::colData(sce)[,celltype_id] %in% c("CAF") & SummarizedExperiment::colData(sce)[,sample_id] %in% c("HN16")] %>% colnames()
+  other_cells = colnames(sce) %>% setdiff(cells_remove)
+  sce_test = sce[, other_cells]
+  output = multi_nichenet_analysis_combined(
+    sce = sce_test,
+    celltype_id = celltype_id,
+    sample_id = sample_id,
+    group_id = group_id,
+    batches = batches,
+    covariates = covariates,
+    lr_network = lr_network,
+    ligand_target_matrix = ligand_target_matrix,
+    contrasts_oi = contrasts_oi,
+    contrast_tbl = contrast_tbl)
+  output$prioritization_tables$group_prioritization_tbl %>% select(id, scaled_lfc_ligand, scaled_lfc_receptor, scaled_p_val_ligand_adapted, scaled_p_val_receptor_adapted, max_scaled_activity, scaled_pb_ligand, scaled_pb_receptor, fraction_expressing_ligand_receptor,  prioritization_score )
+  expect_type(output,"list")
   # test plotting functions
   group_oi = "High"
   prioritized_tbl_oi = output$prioritization_tables$group_prioritization_tbl %>% filter(fraction_expressing_ligand_receptor > 0) %>% filter(group == group_oi) %>% top_n(50, prioritization_score)
