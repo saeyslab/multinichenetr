@@ -737,9 +737,19 @@ get_DE_info = function(sce, sample_id, group_id, celltype_id, batches, covariate
     }
   }
   
-  if(!is.na(covariates)){
+  if(length(covariates) > 1){
+    covariates_present = TRUE
     if (sum(covariates %in% colnames(SummarizedExperiment::colData(sce))) != length(covariates) ) {
       stop("covariates should be NA or all present as column name(s) in the metadata dataframe of sce")
+    }
+  } else {
+    if(!is.na(covariates)){
+      covariates_present = TRUE
+      if (sum(covariates %in% colnames(SummarizedExperiment::colData(sce))) != length(covariates) ) {
+        stop("covariates should be NA or all present as column name(s) in the metadata dataframe of sce")
+      }
+    } else {
+      covariates_present = FALSE
     }
   }
   

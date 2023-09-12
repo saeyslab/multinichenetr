@@ -150,13 +150,22 @@ perform_muscat_de_analysis = function(sce, sample_id, celltype_id, group_id, bat
       stop("batches should be NA or all present as column name(s) in the metadata dataframe of sce")
     }
   }
-  
-  if(!is.na(covariates)){
+  if(length(covariates) > 1){
+    covariates_present = TRUE
     if (sum(covariates %in% colnames(SummarizedExperiment::colData(sce))) != length(covariates) ) {
       stop("covariates should be NA or all present as column name(s) in the metadata dataframe of sce")
     }
+  } else {
+    if(!is.na(covariates)){
+      covariates_present = TRUE
+      if (sum(covariates %in% colnames(SummarizedExperiment::colData(sce))) != length(covariates) ) {
+        stop("covariates should be NA or all present as column name(s) in the metadata dataframe of sce")
+      }
+    } else {
+      covariates_present = FALSE
+    }
   }
-  
+
   if(!is.character(assay_oi_pb)){
     stop("assay_oi_pb should be a character vector")
   } else {
