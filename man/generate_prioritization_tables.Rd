@@ -4,7 +4,7 @@
 \alias{generate_prioritization_tables}
 \title{generate_prioritization_tables}
 \usage{
-generate_prioritization_tables(sender_receiver_info, sender_receiver_de, ligand_activities_targets_DEgenes, contrast_tbl, sender_receiver_tbl, grouping_tbl, prioritizing_weights = c("de_ligand" = 1,"de_receptor" = 1,"activity_scaled" = 2,"exprs_ligand" = 2,"exprs_receptor" = 2, "frac_exprs_ligand_receptor" = 1,"abund_sender" = 0,"abund_receiver" = 0), fraction_cutoff, abundance_data_receiver, abundance_data_sender)
+generate_prioritization_tables(sender_receiver_info, sender_receiver_de, ligand_activities_targets_DEgenes, contrast_tbl, sender_receiver_tbl, grouping_tbl, prioritizing_weights = c("de_ligand" = 1,"de_receptor" = 1,"activity_scaled" = 2,"exprs_ligand" = 2,"exprs_receptor" = 2, "frac_exprs_ligand_receptor" = 1,"abund_sender" = 0,"abund_receiver" = 0), fraction_cutoff, abundance_data_receiver, abundance_data_sender, ligand_activity_down = TRUE)
 }
 \arguments{
 \item{sender_receiver_info}{Output of `combine_sender_receiver_info_ic`}
@@ -38,6 +38,8 @@ abund_receiver: importance of relative cell type abundance of the receiver cell 
 \item{abundance_data_receiver}{Data frame with number of cells per cell type - sample combination;  output of `process_info_to_ic`}
 
 \item{abundance_data_sender}{Data frame with number of cells per cell type - sample combination; output of `process_info_to_ic`}
+
+\item{ligand_activity_down}{For prioritization based on ligand activity: consider the max of up- and downregulation (`TRUE`, default) or consider only upregulated activity (`FALSE`).}
 }
 \value{
 List containing multiple data frames prioritized senderLigand-receiverReceptor interactions (with sample- and group-based expression information), ligand activities and ligand-target links.

@@ -15,7 +15,7 @@ fix_frq_df(sce, frq_celltype_samples)
 Fixed data frame with fraction of cells expressing a gene.
 }
 \description{
-\code{fix_frq_df}  Fix muscat-bug in fraction calculation in case that expression fraction would be NA / NaN. Change NA to 0.
+\code{fix_frq_df}  Fix muscat-feature/bug in fraction calculation: in case a there are no cells of a cell type in a sample, that expression fraction will be NA / NaN. Change these NA/NaN to 0.
 }
 \examples{
 \dontrun{

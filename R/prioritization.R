@@ -7,10 +7,11 @@ scale_quantile_adapted = function(x, outlier_cutoff = 0){
 #'
 #' @description \code{generate_prioritization_tables}  Perform the MultiNicheNet prioritization of cell-cell interactions. 
 #' User can choose the importance attached to each of the following prioritization criteria: differential expression of ligand and receptor, cell-type-condition-specificity of expression of ligand and receptor, NicheNet ligand activity, fraction of samples in a group that express a senderLigand-receiverReceptor pair, relative cell type abundance of sender/receiver.
-#' @usage generate_prioritization_tables(sender_receiver_info, sender_receiver_de, ligand_activities_targets_DEgenes, contrast_tbl, sender_receiver_tbl, grouping_tbl, prioritizing_weights = c("de_ligand" = 1,"de_receptor" = 1,"activity_scaled" = 2,"exprs_ligand" = 2,"exprs_receptor" = 2, "frac_exprs_ligand_receptor" = 1,"abund_sender" = 0,"abund_receiver" = 0), fraction_cutoff, abundance_data_receiver, abundance_data_sender)
+#' @usage generate_prioritization_tables(sender_receiver_info, sender_receiver_de, ligand_activities_targets_DEgenes, contrast_tbl, sender_receiver_tbl, grouping_tbl, prioritizing_weights = c("de_ligand" = 1,"de_receptor" = 1,"activity_scaled" = 2,"exprs_ligand" = 2,"exprs_receptor" = 2, "frac_exprs_ligand_receptor" = 1,"abund_sender" = 0,"abund_receiver" = 0), fraction_cutoff, abundance_data_receiver, abundance_data_sender, ligand_activity_down = TRUE)
 #'
 #' @inheritParams multi_nichenet_analysis_combined
 #' @inheritParams combine_sender_receiver_info_ic
+#' @param ligand_activity_down For prioritization based on ligand activity: consider the max of up- and downregulation (`TRUE`, default) or consider only upregulated activity (`FALSE`). 
 #' @param sender_receiver_info Output of `combine_sender_receiver_info_ic`
 #' @param sender_receiver_de Output of `combine_sender_receiver_de`
 #' @param ligand_activities_targets_DEgenes Output of `get_ligand_activities_targets_DEgenes`
@@ -97,7 +98,7 @@ scale_quantile_adapted = function(x, outlier_cutoff = 0){
 #'
 #'
 #'
-generate_prioritization_tables = function(sender_receiver_info, sender_receiver_de, ligand_activities_targets_DEgenes, contrast_tbl, sender_receiver_tbl, grouping_tbl, prioritizing_weights = c("de_ligand" = 1,"de_receptor" = 1,"activity_scaled" = 2,"exprs_ligand" = 2,"exprs_receptor" = 2, "frac_exprs_ligand_receptor" = 1,"abund_sender" = 0,"abund_receiver" = 0), fraction_cutoff, abundance_data_receiver, abundance_data_sender){
+generate_prioritization_tables = function(sender_receiver_info, sender_receiver_de, ligand_activities_targets_DEgenes, contrast_tbl, sender_receiver_tbl, grouping_tbl, prioritizing_weights = c("de_ligand" = 1,"de_receptor" = 1,"activity_scaled" = 2,"exprs_ligand" = 2,"exprs_receptor" = 2, "frac_exprs_ligand_receptor" = 1,"abund_sender" = 0,"abund_receiver" = 0), fraction_cutoff, abundance_data_receiver, abundance_data_sender, ligand_activity_down = TRUE){
 
   requireNamespace("dplyr")
   
@@ -143,28 +144,52 @@ generate_prioritization_tables = function(sender_receiver_info, sender_receiver_
 
 
   # final group-based prioritization
-  group_prioritization_tbl = contrast_tbl %>%
-    dplyr::inner_join(sender_receiver_de) %>%
-    dplyr::inner_join(ligand_activities_targets_DEgenes$ligand_activities %>% dplyr::select(-target, -ligand_target_weight) %>% dplyr::distinct()) %>%
-    dplyr::mutate(lr_interaction = paste(ligand, receptor, sep = "_")) %>% dplyr::mutate(id = paste(lr_interaction, sender, receiver, sep = "_")) %>%
-    dplyr::inner_join(sender_receiver_info$avg_df_group) %>%
-    dplyr::inner_join(sender_receiver_info$frq_df_group) %>%
-    dplyr::inner_join(sender_receiver_info$rel_abundance_df) %>%
-    dplyr::inner_join(sender_ligand_prioritization) %>%
-    dplyr::inner_join(receiver_receptor_prioritization) %>%
-    dplyr::inner_join(receiver_ligand_activity_prioritization_up) %>%
-    dplyr::inner_join(receiver_ligand_activity_prioritization_down) %>%
-    dplyr::inner_join(ligand_celltype_specificity_prioritization) %>%
-    dplyr::inner_join(ligand_celltype_specificity_prioritization_frq) %>%
-    dplyr::inner_join(ligand_celltype_specificity_prioritization_pb) %>%
-    dplyr::inner_join(receptor_celltype_specificity_prioritization) %>%
-    dplyr::inner_join(receptor_celltype_specificity_prioritization_frq) %>%
-    dplyr::inner_join(receptor_celltype_specificity_prioritization_pb) %>%
-    dplyr::inner_join(ligand_receptor_expressed_prioritization) %>%
-    dplyr::inner_join(sender_abundance_prioritization) %>%
-    dplyr::inner_join(receiver_abundance_prioritization) %>% 
-    mutate(max_scaled_activity = pmax(scaled_activity_scaled_up, scaled_activity_scaled_down), na.rm = TRUE)
-
+  if(ligand_activity_down == TRUE){
+    group_prioritization_tbl = contrast_tbl %>%
+      dplyr::inner_join(sender_receiver_de) %>%
+      dplyr::inner_join(ligand_activities_targets_DEgenes$ligand_activities %>% dplyr::select(-target, -ligand_target_weight) %>% dplyr::distinct()) %>%
+      dplyr::mutate(lr_interaction = paste(ligand, receptor, sep = "_")) %>% dplyr::mutate(id = paste(lr_interaction, sender, receiver, sep = "_")) %>%
+      dplyr::inner_join(sender_receiver_info$avg_df_group) %>%
+      dplyr::inner_join(sender_receiver_info$frq_df_group) %>%
+      dplyr::inner_join(sender_receiver_info$rel_abundance_df) %>%
+      dplyr::inner_join(sender_ligand_prioritization) %>%
+      dplyr::inner_join(receiver_receptor_prioritization) %>%
+      dplyr::inner_join(receiver_ligand_activity_prioritization_up) %>%
+      dplyr::inner_join(receiver_ligand_activity_prioritization_down) %>%
+      dplyr::inner_join(ligand_celltype_specificity_prioritization) %>%
+      dplyr::inner_join(ligand_celltype_specificity_prioritization_frq) %>%
+      dplyr::inner_join(ligand_celltype_specificity_prioritization_pb) %>%
+      dplyr::inner_join(receptor_celltype_specificity_prioritization) %>%
+      dplyr::inner_join(receptor_celltype_specificity_prioritization_frq) %>%
+      dplyr::inner_join(receptor_celltype_specificity_prioritization_pb) %>%
+      dplyr::inner_join(ligand_receptor_expressed_prioritization) %>%
+      dplyr::inner_join(sender_abundance_prioritization) %>%
+      dplyr::inner_join(receiver_abundance_prioritization) %>% 
+      mutate(max_scaled_activity = pmax(scaled_activity_scaled_up, scaled_activity_scaled_down, na.rm = TRUE))
+  } else {
+    group_prioritization_tbl = contrast_tbl %>%
+      dplyr::inner_join(sender_receiver_de) %>%
+      dplyr::inner_join(ligand_activities_targets_DEgenes$ligand_activities %>% dplyr::select(-target, -ligand_target_weight) %>% dplyr::distinct()) %>%
+      dplyr::mutate(lr_interaction = paste(ligand, receptor, sep = "_")) %>% dplyr::mutate(id = paste(lr_interaction, sender, receiver, sep = "_")) %>%
+      dplyr::inner_join(sender_receiver_info$avg_df_group) %>%
+      dplyr::inner_join(sender_receiver_info$frq_df_group) %>%
+      dplyr::inner_join(sender_receiver_info$rel_abundance_df) %>%
+      dplyr::inner_join(sender_ligand_prioritization) %>%
+      dplyr::inner_join(receiver_receptor_prioritization) %>%
+      dplyr::inner_join(receiver_ligand_activity_prioritization_up) %>%
+      dplyr::inner_join(receiver_ligand_activity_prioritization_down) %>%
+      dplyr::inner_join(ligand_celltype_specificity_prioritization) %>%
+      dplyr::inner_join(ligand_celltype_specificity_prioritization_frq) %>%
+      dplyr::inner_join(ligand_celltype_specificity_prioritization_pb) %>%
+      dplyr::inner_join(receptor_celltype_specificity_prioritization) %>%
+      dplyr::inner_join(receptor_celltype_specificity_prioritization_frq) %>%
+      dplyr::inner_join(receptor_celltype_specificity_prioritization_pb) %>%
+      dplyr::inner_join(ligand_receptor_expressed_prioritization) %>%
+      dplyr::inner_join(sender_abundance_prioritization) %>%
+      dplyr::inner_join(receiver_abundance_prioritization) %>% 
+      mutate(max_scaled_activity = scaled_activity_scaled_up)
+  }
+  
   # have a weighted average the final score (no product!!)
   sum_prioritization_weights = 2*prioritizing_weights["de_ligand"] + 2*prioritizing_weights["de_receptor"] + prioritizing_weights["activity_scaled"] + prioritizing_weights["exprs_ligand"] + prioritizing_weights["exprs_receptor"] + prioritizing_weights["frac_exprs_ligand_receptor"] + prioritizing_weights["abund_sender"] + prioritizing_weights["abund_receiver"]
   group_prioritization_tbl = group_prioritization_tbl %>%
