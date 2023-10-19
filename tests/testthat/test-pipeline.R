@@ -402,19 +402,7 @@ test_that("Pipeline for all-vs-all analysis works & plotting functions work", {
   #   contrast_tbl = tibble(contrast = c("High-Low","High-(Low+Low+Low)/3"), group = c("High","High"))
   # ))
   # other input checks
-  expect_error(multi_nichenet_analysis_combined(
-    sce = sce,
-    celltype_id = celltype_id,
-    sample_id = sample_id,
-    group_id = group_id,
-    batches = batches,
-    covariates = covariates,
-    lr_network = lr_network,
-    ligand_target_matrix = ligand_target_matrix,
-    contrasts_oi = contrasts_oi,
-    contrast_tbl = contrast_tbl,
-    prioritizing_weights = c("Anil" = 1, "Canalla" = 2, "Fuera De Mestalla" = 3, "Lim Vete Ya" = 4, "Marcelino OE OE" = 5)
-  ))
+
   expect_error(multi_nichenet_analysis_combined(
     sce = sce,
     celltype_id = celltype_id,
@@ -903,21 +891,7 @@ test_that("Pipeline for separate analysis works", {
   #   contrast_tbl = tibble(contrast = c("High-Low","High-(Low+Low+Low)/3"), group = c("High","High"))
   # ))
   # other input checks
-  expect_error(multi_nichenet_analysis_separate(
-    sce_receiver = sce_receiver,
-    sce_sender = sce_sender,
-    celltype_id_receiver = celltype_id_receiver,
-    celltype_id_sender = celltype_id_sender,
-    sample_id = sample_id,
-    group_id = group_id,
-    batches = batches,
-    covariates = covariates,
-    lr_network = lr_network,
-    ligand_target_matrix = ligand_target_matrix,
-    contrasts_oi = contrasts_oi,
-    contrast_tbl = contrast_tbl,
-    prioritizing_weights = c("Anil" = 1, "Canalla" = 2, "Fuera De Mestalla" = 3, "Lim Vete Ya" = 4, "Marcelino OE OE" = 5)
-  ))
+
   expect_error(multi_nichenet_analysis_separate(
     sce_receiver = sce_receiver,
     sce_sender = sce_sender,

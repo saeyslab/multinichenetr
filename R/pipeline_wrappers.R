@@ -980,6 +980,7 @@ make_lite_output = function(multinichenet_output, top_n_LR = 2500){
     # multinichenet_output$sender_receiver_de = multinichenet_output$sender_receiver_de %>% dplyr::inner_join(LR_subset, by = c("sender", "receiver", "ligand", "receptor"))
     
     multinichenet_output$prioritization_tables$group_prioritization_tbl = multinichenet_output$prioritization_tables$group_prioritization_tbl %>% dplyr::inner_join(LR_subset, by = c("sender", "receiver", "ligand", "receptor"))
+    multinichenet_output$prioritization_tables$group_prioritization_table_source = multinichenet_output$prioritization_tables$group_prioritization_table_source %>% dplyr::inner_join(LR_subset, by = c("sender", "receiver", "ligand", "receptor"))
     multinichenet_output$prioritization_tables$sample_prioritization_tbl = multinichenet_output$prioritization_tables$sample_prioritization_tbl %>% dplyr::inner_join(LR_subset, by = c("sender", "receiver", "ligand", "receptor"))
     
     if(nrow(multinichenet_output$lr_target_prior_cor) > 0){
@@ -1037,6 +1038,7 @@ make_lite_output = function(multinichenet_output, top_n_LR = 2500){
       # multinichenet_output$sender_receiver_de = multinichenet_output$sender_receiver_de %>% dplyr::inner_join(LR_subset, by = c("sender", "receiver", "ligand", "receptor"))
       
       multinichenet_output$prioritization_tables$group_prioritization_tbl = multinichenet_output$prioritization_tables$group_prioritization_tbl %>% dplyr::inner_join(LR_subset, by = c("sender", "receiver", "ligand", "receptor"))
+      multinichenet_output$prioritization_tables$group_prioritization_table_source = multinichenet_output$prioritization_tables$group_prioritization_table_source %>% dplyr::inner_join(LR_subset, by = c("sender", "receiver", "ligand", "receptor"))
       multinichenet_output$prioritization_tables$sample_prioritization_tbl = multinichenet_output$prioritization_tables$sample_prioritization_tbl %>% dplyr::inner_join(LR_subset, by = c("sender", "receiver", "ligand", "receptor"))
       
       if(nrow(multinichenet_output$lr_target_prior_cor) > 0){

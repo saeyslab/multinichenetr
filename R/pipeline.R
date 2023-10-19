@@ -60,7 +60,7 @@ multi_nichenet_analysis = function(sender_receiver_separate = TRUE, ...){
 #' @description \code{multi_nichenet_analysis_separate}  Perform a MultiNicheNet analysis between sender cell types and receiver cell types of interest.
 #' @usage multi_nichenet_analysis_separate(
 #' sce_receiver, sce_sender,celltype_id_receiver,celltype_id_sender,sample_id,group_id, batches, covariates, lr_network,ligand_target_matrix,contrasts_oi,contrast_tbl, fraction_cutoff = 0.05,
-#' prioritizing_weights = c("de_ligand" = 1,"de_receptor" = 1,"activity_scaled" = 2,"exprs_ligand" = 2,"exprs_receptor" = 2, "frac_exprs_ligand_receptor" = 1,"abund_sender" = 0,"abund_receiver" = 0),
+#' scenario = "regular",
 #' assay_oi_pb ="counts",fun_oi_pb = "sum",de_method_oi = "edgeR",min_cells = 10,logFC_threshold = 0.50,p_val_threshold = 0.05, p_val_adj = FALSE, empirical_pval = TRUE, top_n_target = 250, verbose = FALSE, n.cores = 1, return_lr_prod_matrix = FALSE, findMarkers = FALSE, filterByExpr.min.count = 7, filterByExpr.min.total.count = 15, filterByExpr.large.n = 4, filterByExpr.min.prop = 0.7, top_n_LR = 2500)
 #'
 #' @param sce_receiver SingleCellExperiment object containing the receiver cell types of interest
@@ -86,17 +86,7 @@ multi_nichenet_analysis = function(sender_receiver_separate = TRUE, ...){
 #' Example for `contrasts_oi = c("'A-(B+C+D)/3', 'B-(A+C+D)/3'")`:
 #' `contrast_tbl = tibble(contrast = c("A-(B+C+D)/3","B-(A+C+D)/3"), group = c("A","B"))`
 #' @param fraction_cutoff Cutoff indicating the minimum fraction of cells of a cell type in a specific sample that are necessary to consider the gene as expressed. 
-#' @param prioritizing_weights Named vector indicating the relative weights of each prioritization criterion included in MultiNicheNet.
-#' Default: prioritizing_weights = c("de_ligand" = 1,"de_receptor" = 1,"activity_scaled" = 2,"exprs_ligand" = 2,"exprs_receptor" = 2, "frac_exprs_ligand_receptor" = 1,"abund_sender" = 0,"abund_receiver" = 0)
-#' Details about the meaning of this naming: \cr
-#' de_ligand: importance of DE of the ligand in a certain sender (indicates upregulation of the ligand in condition of interest compared to other conditions): based on a scaling of the following calculation: -log10(p-value) and logFC. \cr
-#' de_receptor: importance of DE of the receptor in a certain receiver (indicates upregulation of the receptor in condition of interest compared to other conditions): : based on a scaling of the following calculation: -log10(p-value) and logFC.\cr
-#' activity_scaled: importance of the scaled ligand activity of the ligand in a certain receiver-condition combination (indicates active signaling of a ligand in a receiver cell type in a certain condition compared to other conditions). Scaled activity: indicates the ranking of ligands in a certain receiver-condition combination. \cr
-#' exprs_ligand: importance of the condition-and-sender specific expression of a ligand (taking into account average expression value and fraction of cells expressing a ligand).  \cr
-#' exprs_receptor: importance of the condition-and-receiver specific expression of a receptor (taking into account average expression value and fraction of cells expressing a receptor). \cr
-#' frac_exprs_ligand_receptor: importance of the fraction of samples in a group that show high enough expression of the specific ligand-receptor pair. \cr
-#' abund_sender: importance of relative cell type abundance of the sender cell type. \cr
-#' abund_receiver: importance of relative cell type abundance of the receiver cell type. \cr
+#' @param scenario Character vector indicating which prioritization weights should be used during the MultiNicheNet analysis. Currently 2 settings are implemented: "regular" (default) and "lower_DE". The setting "regular" is strongly recommended and gives each criterion equal weight. The setting "lower_DE" is recommended in cases your hypothesis is that the differential CCC patterns in your data are less likely to be driven by DE (eg in cases of differential migration into a niche). It halves the weight for DE criteria, and doubles the weight for ligand activity.
 #' @param assay_oi_pb Indicates which information of the assay of interest should be used (counts, scaled data,...). Default: "counts". See `muscat::aggregateData`.
 #' @param fun_oi_pb Indicates way of doing the pseudobulking. Default: "sum". See `muscat::aggregateData`.
 #' @param de_method_oi Indicates the DE method that will be used after pseudobulking. Default: "edgeR". See `muscat::pbDS`.
@@ -182,7 +172,7 @@ multi_nichenet_analysis_separate = function(sce_receiver,
                                             contrasts_oi,
                                             contrast_tbl,
                                             fraction_cutoff = 0.05,
-                                            prioritizing_weights = c("de_ligand" = 1,"de_receptor" = 1,"activity_scaled" = 2,"exprs_ligand" = 2,"exprs_receptor" = 2, "frac_exprs_ligand_receptor" = 1,"abund_sender" = 0,"abund_receiver" = 0),
+                                            scenario = "regular",
                                             assay_oi_pb ="counts",
                                             fun_oi_pb = "sum",
                                             de_method_oi = "edgeR",
@@ -396,21 +386,6 @@ multi_nichenet_analysis_separate = function(sce_receiver,
     warning("Less than 25 receptors from your ligand-receptor network are in your expression matrix of the receiver cell.\nDid you convert the gene symbols of the ligand-receptor network and the ligand-target matrix if your data is not from human?")
   }
 
-  if(length(prioritizing_weights) != 8 | !is.double(prioritizing_weights)) {
-    stop("prioritizing_weights should be a numeric vector with length 8")
-  }
-  names_prioritizing_weights = c("de_ligand",
-                                 "de_receptor",
-                                 "activity_scaled",
-                                 "exprs_ligand",
-                                 "exprs_receptor",
-                                 "frac_exprs_ligand_receptor",
-                                 "abund_sender",
-                                 "abund_receiver")
-  if(sum(names_prioritizing_weights %in% names(prioritizing_weights)) != length(names_prioritizing_weights)) {
-    stop("prioritizing_weights should be have the correct names. Check the vignettes and code documentation")
-  }
-  
   if(!is.character(assay_oi_pb)){
     stop("assay_oi_pb should be a character vector")
   } else {
@@ -623,8 +598,7 @@ multi_nichenet_analysis_separate = function(sce_receiver,
   if(verbose == TRUE){
     print("Combine all the information in prioritization tables")
   }
-  ### Remove types of information that we don't need anymore:
-  
+
   prioritization_tables = suppressMessages(generate_prioritization_tables(
     sender_receiver_info = abundance_expression_info$sender_receiver_info,
     sender_receiver_de = sender_receiver_de,
@@ -632,7 +606,7 @@ multi_nichenet_analysis_separate = function(sce_receiver,
     contrast_tbl = contrast_tbl,
     sender_receiver_tbl = sender_receiver_tbl,
     grouping_tbl = grouping_tbl,
-    prioritizing_weights = prioritizing_weights,
+    scenario = scenario,
     fraction_cutoff = fraction_cutoff, 
     abundance_data_receiver = abundance_expression_info$abundance_data_receiver,
     abundance_data_sender = abundance_expression_info$abundance_data_sender
@@ -689,8 +663,7 @@ multi_nichenet_analysis_separate = function(sce_receiver,
 #'
 #' @description \code{multi_nichenet_analysis_combined}  Perform a MultiNicheNet analysis in an all-vs-all setting: all cell types in the data will be considered both as sender and receiver.
 #' @usage multi_nichenet_analysis_combined(
-#' sce, celltype_id, sample_id,group_id, batches, covariates, lr_network,ligand_target_matrix,contrasts_oi,contrast_tbl, senders_oi = NULL,receivers_oi = NULL, fraction_cutoff = 0.05,
-#' prioritizing_weights = c("de_ligand" = 1,"de_receptor" = 1,"activity_scaled" = 2,"exprs_ligand" = 2,"exprs_receptor" = 2, "frac_exprs_ligand_receptor" = 1,"abund_sender" = 0,"abund_receiver" = 0),
+#' sce, celltype_id, sample_id,group_id, batches, covariates, lr_network,ligand_target_matrix,contrasts_oi,contrast_tbl, senders_oi = NULL,receivers_oi = NULL, fraction_cutoff = 0.05, scenario = "regular,
 #' assay_oi_pb ="counts",fun_oi_pb = "sum",de_method_oi = "edgeR",min_cells = 10,logFC_threshold = 0.50,p_val_threshold = 0.05,p_val_adj = FALSE, empirical_pval = TRUE, top_n_target = 250, verbose = FALSE, n.cores = 1, return_lr_prod_matrix = FALSE, findMarkers = FALSE, filterByExpr.min.count = 7, filterByExpr.min.total.count = 15, filterByExpr.large.n = 4, filterByExpr.min.prop = 0.7, top_n_LR = 2500)
 #'
 #' @param sce SingleCellExperiment object of the scRNAseq data of interest. Contains both sender and receiver cell types.
@@ -760,7 +733,7 @@ multi_nichenet_analysis_combined = function(sce,
                                             senders_oi = NULL,
                                             receivers_oi = NULL,
                                             fraction_cutoff = 0.05,
-                                            prioritizing_weights = c("de_ligand" = 1,"de_receptor" = 1,"activity_scaled" = 2,"exprs_ligand" = 2,"exprs_receptor" = 2, "frac_exprs_ligand_receptor" = 1,"abund_sender" = 0,"abund_receiver" = 0),
+                                            scenario = "regular",
                                             assay_oi_pb ="counts",
                                             fun_oi_pb = "sum",
                                             de_method_oi = "edgeR",
@@ -925,22 +898,6 @@ multi_nichenet_analysis_combined = function(sce,
   if(length(rownames(sce) %>% generics::intersect(receptors_lrnetwork)) < 25 ){
     warning("Less than 25 receptors from your ligand-receptor network are in your expression matrix of the receiver cell.\nDid you convert the gene symbols of the ligand-receptor network and the ligand-target matrix if your data is not from human?")
   }
-
-  if(length(prioritizing_weights) != 8 | !is.double(prioritizing_weights)) {
-    stop("prioritizing_weights should be a numeric vector with length 8")
-  }
-  names_prioritizing_weights = c("de_ligand",
-                                 "de_receptor",
-                                 "activity_scaled",
-                                 "exprs_ligand",
-                                 "exprs_receptor",
-                                 "frac_exprs_ligand_receptor",
-                                 "abund_sender",
-                                 "abund_receiver")
-  if(sum(names_prioritizing_weights %in% names(prioritizing_weights)) != length(names_prioritizing_weights)) {
-    stop("prioritizing_weights should be have the correct names. Check the vignettes and code documentation")
-  }
-
 
   if(!is.character(assay_oi_pb)){
     stop("assay_oi_pb should be a character vector")
@@ -1124,7 +1081,7 @@ multi_nichenet_analysis_combined = function(sce,
     contrast_tbl = contrast_tbl,
     sender_receiver_tbl = sender_receiver_tbl,
     grouping_tbl = grouping_tbl,
-    prioritizing_weights = prioritizing_weights,
+    scenario = scenario,
     fraction_cutoff = fraction_cutoff, 
     abundance_data_receiver = abundance_expression_info$abundance_data_receiver,
     abundance_data_sender = abundance_expression_info$abundance_data_sender

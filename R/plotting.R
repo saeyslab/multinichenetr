@@ -141,8 +141,7 @@ make_sample_lr_prod_activity_plots = function(prioritization_tables, prioritized
   sample_data = prioritization_tables$sample_prioritization_tbl %>% dplyr::filter(id %in% prioritized_tbl_oi$id) %>% dplyr::mutate(sender_receiver = paste(sender, receiver, sep = " --> "), lr_interaction = paste(ligand, receptor, sep = " - "))   %>%  dplyr::arrange(receiver) %>% dplyr::group_by(receiver) %>%  dplyr::arrange(sender, .by_group = TRUE)
   sample_data = sample_data %>% dplyr::mutate(sender_receiver = factor(sender_receiver, levels = sample_data$sender_receiver %>% unique()))
   
-  # group_data = prioritization_tables$group_prioritization_tbl %>% dplyr::mutate(sender_receiver = paste(sender, receiver, sep = " --> "), lr_interaction = paste(ligand, receptor, sep = " - "))  %>% dplyr::distinct(id, sender, receiver, sender_receiver, lr_interaction, group, ligand_receptor_lfc_avg, activity, activity_scaled, fraction_ligand_group, prioritization_score, scaled_avg_exprs_ligand) %>% dplyr::filter(id %in% sample_data$id) %>%  dplyr::arrange(receiver) %>% dplyr::group_by(receiver) %>%  dplyr::arrange(sender, .by_group = TRUE)
-  group_data = prioritization_tables$group_prioritization_tbl  %>% dplyr::mutate(sender_receiver = paste(sender, receiver, sep = " --> "), lr_interaction = paste(ligand, receptor, sep = " - "))  %>% dplyr::distinct(id, sender, receiver, sender_receiver, lr_interaction, group, ligand_receptor_lfc_avg, activity, activity_scaled, direction_regulation, fraction_ligand_group, prioritization_score, scaled_avg_exprs_ligand) %>% dplyr::filter(id %in% sample_data$id) %>%  dplyr::arrange(receiver) %>% dplyr::group_by(receiver) %>%  dplyr::arrange(sender, .by_group = TRUE)
+  group_data = prioritization_tables$group_prioritization_table_source  %>% dplyr::mutate(sender_receiver = paste(sender, receiver, sep = " --> "), lr_interaction = paste(ligand, receptor, sep = " - "))  %>% dplyr::distinct(id, sender, receiver, sender_receiver, lr_interaction, group, activity, activity_scaled, direction_regulation, prioritization_score) %>% dplyr::filter(id %in% sample_data$id) %>%  dplyr::arrange(receiver) %>% dplyr::group_by(receiver) %>%  dplyr::arrange(sender, .by_group = TRUE)
   
   group_data = group_data %>% dplyr::mutate(sender_receiver = factor(sender_receiver, levels = group_data$sender_receiver %>% unique()))
   
@@ -315,8 +314,7 @@ make_sample_lr_prod_activity_batch_plots = function(prioritization_tables, prior
   sample_data = prioritization_tables$sample_prioritization_tbl %>% dplyr::filter(id %in% prioritized_tbl_oi$id) %>% dplyr::mutate(sender_receiver = paste(sender, receiver, sep = " --> "), lr_interaction = paste(ligand, receptor, sep = " - "))   %>%  dplyr::arrange(receiver) %>% dplyr::group_by(receiver) %>%  dplyr::arrange(sender, .by_group = TRUE)
   sample_data = sample_data %>% dplyr::mutate(sender_receiver = factor(sender_receiver, levels = sample_data$sender_receiver %>% unique()))
   
-  # group_data = prioritization_tables$group_prioritization_tbl %>% dplyr::mutate(sender_receiver = paste(sender, receiver, sep = " --> "), lr_interaction = paste(ligand, receptor, sep = " - "))  %>% dplyr::distinct(id, sender, receiver, sender_receiver, lr_interaction, group, ligand_receptor_lfc_avg, activity, activity_scaled, fraction_ligand_group, prioritization_score, scaled_avg_exprs_ligand) %>% dplyr::filter(id %in% sample_data$id) %>%  dplyr::arrange(receiver) %>% dplyr::group_by(receiver) %>%  dplyr::arrange(sender, .by_group = TRUE)
-  group_data = prioritization_tables$group_prioritization_tbl  %>% dplyr::mutate(sender_receiver = paste(sender, receiver, sep = " --> "), lr_interaction = paste(ligand, receptor, sep = " - "))  %>% dplyr::distinct(id, sender, receiver, sender_receiver, lr_interaction, group, ligand_receptor_lfc_avg, activity, activity_scaled, direction_regulation, fraction_ligand_group, prioritization_score, scaled_avg_exprs_ligand) %>% dplyr::filter(id %in% sample_data$id) %>%  dplyr::arrange(receiver) %>% dplyr::group_by(receiver) %>%  dplyr::arrange(sender, .by_group = TRUE)
+  group_data = prioritization_tables$group_prioritization_table_source  %>% dplyr::mutate(sender_receiver = paste(sender, receiver, sep = " --> "), lr_interaction = paste(ligand, receptor, sep = " - "))  %>% dplyr::distinct(id, sender, receiver, sender_receiver, lr_interaction, group, activity, activity_scaled, direction_regulation, prioritization_score) %>% dplyr::filter(id %in% sample_data$id) %>%  dplyr::arrange(receiver) %>% dplyr::group_by(receiver) %>%  dplyr::arrange(sender, .by_group = TRUE)
   
   group_data = group_data %>% dplyr::mutate(sender_receiver = factor(sender_receiver, levels = group_data$sender_receiver %>% unique()))
   
@@ -1117,160 +1115,7 @@ make_DEgene_dotplot_pseudobulk_batch = function(genes_oi, celltype_info, priorit
   return(list(pseudobulk_plot = p1, singlecell_plot = p2))
   
 }
-#' @title make_group_lfc_exprs_activity_plot
-#'
-#' @description \code{make_group_lfc_exprs_activity_plot}  Summary plot showing the logFC of each ligand-receptor pair / group combination, complemented by the NicheNet scaled and normal ligand activities
-#' @usage make_group_lfc_exprs_activity_plot(prioritization_tables, prioritized_tbl_oi, receiver_oi, heights = NULL)
-#'
-#' @inheritParams make_sample_lr_prod_plots
-#' @param receiver_oi Name of the receiver cell type of interest for which ligand-receptor pair LFC and ligand activities should be shown
-#' @param heights Vector of 3 elements: Height of the LFC panel, normal ligand activity, and scaled ligand activity panel. Default NULL: automatically defined based on the nr of groups and sender-receiver combinations. If manual change: example format: c(5,1,1) 
-#'
-#' @return Summary plot showing the logFC of each ligand-receptor pair / group combination, complemented by the NicheNet scaled and normal ligand activities
-#'
-#' @import ggplot2
-#' @import dplyr
-#' @importFrom RColorBrewer brewer.pal
-#' @importFrom patchwork plot_layout wrap_plots
-#'
-#' @examples
-#' \dontrun{
-#' library(dplyr)
-#' lr_network = readRDS(url("https://zenodo.org/record/3260758/files/lr_network.rds"))
-#' lr_network = lr_network %>% dplyr::rename(ligand = from, receptor = to) %>% dplyr::distinct(ligand, receptor)
-#' ligand_target_matrix = readRDS(url("https://zenodo.org/record/3260758/files/ligand_target_matrix.rds"))
-#' sample_id = "tumor"
-#' group_id = "pEMT"
-#' celltype_id = "celltype"
-#' batches = NA
-#' contrasts_oi = c("'High-Low','Low-High'")
-#' contrast_tbl = tibble(contrast = c("High-Low","Low-High"), group = c("High","Low"))
-#' output = multi_nichenet_analysis(
-#'      sce = sce, 
-#'      celltype_id = celltype_id, 
-#'      sample_id = sample_id, 
-#'      group_id = group_id,
-#'      batches = batches,
-#'      lr_network = lr_network, 
-#'      ligand_target_matrix = ligand_target_matrix, 
-#'      contrasts_oi = contrasts_oi, 
-#'      contrast_tbl = contrast_tbl, 
-#'      sender_receiver_separate = FALSE
-#'      )
-#' group_oi = "High"
-#' receiver_oi = "Malignant"
-#' prioritized_tbl_oi = output$prioritization_tables$group_prioritization_tbl %>% filter(fraction_expressing_ligand_receptor > 0) %>% filter(group == group_oi) %>% top_n(50, prioritization_score) 
-#' plot_oi = make_group_lfc_exprs_activity_plot(output$prioritization_tables, prioritized_tbl_oi, receiver_oi = receiver_oi)
-#' plot_oi
-#' }
-#'
-#' @export
-#'
-make_group_lfc_exprs_activity_plot = function(prioritization_tables, prioritized_tbl_oi, receiver_oi, heights = NULL){
-  requireNamespace("dplyr")
-  requireNamespace("ggplot2")
-  
-  filtered_data = prioritization_tables$group_prioritization_tbl %>% dplyr::filter(id %in% prioritized_tbl_oi$id & receiver == receiver_oi) %>% dplyr::mutate(sender_receiver = paste(sender, receiver, sep = " to ")) %>%  dplyr::arrange(sender) %>% dplyr::group_by(sender) %>%  dplyr::arrange(receiver)
-  plot_data = prioritization_tables$group_prioritization_tbl %>% dplyr::mutate(sender_receiver = paste(sender, receiver, sep = " to ")) %>% dplyr::distinct(id, sender, receiver, sender_receiver, lr_interaction, group, ligand_receptor_lfc_avg, activity, activity_scaled, direction_regulation, fraction_ligand_group, prioritization_score, scaled_pb_ligand) %>% dplyr::filter(lr_interaction %in% filtered_data$lr_interaction & receiver == receiver_oi)  %>% dplyr::mutate(group_direction_regulation = paste(group, direction_regulation,sep = "-"))
 
-  p_exprs = plot_data %>%
-    ggplot(aes(lr_interaction, group, color = ligand_receptor_lfc_avg, size = scaled_pb_ligand)) +
-    geom_point() +
-    facet_grid(sender_receiver~., scales = "free", space = "free") +
-    scale_x_discrete(position = "top") +
-    theme_light() +
-    theme(
-      axis.ticks = element_blank(),
-      axis.title.x = element_text(size = 0),
-      axis.title.y = element_text(size = 0),
-      axis.text.y = element_text(face = "bold.italic", size = 9),
-      axis.text.x = element_text(size = 9,  angle = 90,hjust = 0),
-      strip.text.x.top = element_text(angle = 0),
-      panel.grid.major = element_blank(),
-      panel.grid.minor = element_blank(),
-      panel.spacing.x = unit(2.5, "lines"),
-      panel.spacing.y = unit(0.25, "lines"),
-      strip.text.x = element_text(size = 11, color = "black", face = "bold"),
-      strip.text.y = element_text(size = 9, color = "black", face = "bold", angle = 0),
-      strip.background = element_rect(color="darkgrey", fill="whitesmoke", size=1.5, linetype="solid")
-    ) + labs(color = "Average of\nLogFC ligand & \nLogFC receptor", size= "Scaled pseudobulk of\nligand expression") + xlab("") + ylab("")
-  max_lfc = abs(plot_data$ligand_receptor_lfc_avg) %>% max()
-  custom_scale_fill = scale_color_gradientn(colours = RColorBrewer::brewer.pal(n = 7, name = "RdBu") %>% rev(),values = c(0, 0.350, 0.4850, 0.5, 0.5150, 0.65, 1),  limits = c(-1*max_lfc, max_lfc))
-  p_exprs = p_exprs + custom_scale_fill
-
-  p_activity_scaled = plot_data %>%
-    ggplot(aes(lr_interaction, group_direction_regulation, fill = activity_scaled)) +
-    geom_tile(color = "white", size = 0.5) +
-    scale_fill_gradient2(low = "purple", mid = "whitesmoke", high = "orange") +
-    scale_x_discrete(position = "top") +
-    theme_light() +
-    theme(
-      axis.ticks = element_blank(),
-      axis.title.x = element_text(size = 0),
-      axis.title.y = element_text(size = 0),
-      axis.text.y = element_text(face = "bold.italic", size = 9),
-      axis.text.x = element_text(size = 9,  angle = 90,hjust = 0),
-      strip.text.x.top = element_text(angle = 0),
-      panel.grid.major = element_blank(),
-      panel.grid.minor = element_blank(),
-      panel.spacing.x = unit(2.5, "lines"),
-      panel.spacing.y = unit(0.25, "lines"),
-      strip.text.x = element_text(size = 11, color = "black", face = "bold"),
-      strip.text.y = element_text(size = 9, color = "black", face = "bold", angle = 0),
-      strip.background = element_rect(color="darkgrey", fill="whitesmoke", size=1.5, linetype="solid")
-    ) + labs(fill = "Scaled NicheNet\nligand activity") + ylab("") + xlab("")
-  max_activity = abs(plot_data$activity_scaled) %>% max(na.rm = TRUE)
-  custom_scale_fill = scale_fill_gradientn(colours = c("white", RColorBrewer::brewer.pal(n = 7, name = "PuRd") %>% .[-7]),values = c(0, 0.51, 0.575, 0.625, 0.675, 0.725, 1),  limits = c(-1*max_activity, max_activity))
-  p_activity_scaled = p_activity_scaled + custom_scale_fill
-
-  p_activity = plot_data %>%
-    ggplot(aes(lr_interaction, group_direction_regulation, fill = activity)) +
-    geom_tile(color = "white", size = 0.5) +
-    scale_fill_gradient2(low = "white", mid = "whitesmoke", high = "orange") +
-    scale_x_discrete(position = "top") +
-    theme_light() +
-    theme(
-      axis.ticks = element_blank(),
-      axis.title.x = element_text(size = 0),
-      axis.title.y = element_text(size = 0),
-      axis.text.y = element_text(face = "bold.italic", size = 9),
-      axis.text.x = element_text(size = 9,  angle = 90,hjust = 0),
-      strip.text.x.top = element_text(angle = 0),
-      panel.grid.major = element_blank(),
-      panel.grid.minor = element_blank(),
-      panel.spacing.x = unit(2.5, "lines"),
-      panel.spacing.y = unit(0.25, "lines"),
-      strip.text.x = element_text(size = 11, color = "black", face = "bold"),
-      strip.text.y = element_text(size = 9, color = "black", face = "bold", angle = 0),
-      strip.background = element_rect(color="darkgrey", fill="whitesmoke", size=1.5, linetype="solid")
-    ) + labs(fill = "NicheNet\nligand activity") + ylab("") + xlab("")
-  max_activity = (plot_data$activity) %>% max()
-  min_activity = (plot_data$activity) %>% min()
-  # custom_scale_fill = scale_fill_gradientn(colours = c("white", RColorBrewer::brewer.pal(n = 7, name = "OrRd") %>% .[-7]),values = c(0, 0.25, 0.40, 0.55, 0.70, 0.825, 1),  limits = c(min_activity-0.01, max_activity))
-  # custom_scale_fill = scale_fill_gradientn(colours = c("white", RColorBrewer::brewer.pal(n = 7, name = "Oranges") %>% .[-7]),values = c(0, 0.250, 0.5550, 0.675, 0.80, 0.925, 1),  limits = c(min_activity-0.01, max_activity))
-  custom_scale_fill = scale_fill_gradient2(low = "white", mid = "white",high = "darkorange",midpoint = 0)
-  
-  p_activity = p_activity + custom_scale_fill
-
-  if(!is.null(heights)){
-    # heights should be a vector of lenght 2
-    p = patchwork::wrap_plots(
-      p_exprs ,
-      p_activity + theme(axis.text.x = element_blank()),
-      p_activity_scaled + theme(axis.text.x = element_blank()),
-      nrow = 3,guides = "collect"
-    ) + patchwork::plot_layout(heights = heights)
-  } else {
-    p = patchwork::wrap_plots(
-      p_exprs ,
-      p_activity + theme(axis.text.x = element_blank()),
-      p_activity_scaled + theme(axis.text.x = element_blank()),
-      nrow = 3,guides = "collect"
-    ) + patchwork::plot_layout(heights = c(plot_data$sender %>% unique() %>% length(), 1, 1))
-  }
-
-  return(p)
-}
 #' @title make_featureplot
 #'
 #' @description \code{make_featureplot}  Make a panel of UMAP plots showing the expression of a gene of interest in the group of interest vs other groups
@@ -2019,7 +1864,7 @@ make_lr_target_correlation_plot = function(prioritization_tables, prioritized_tb
   lr_target_prior_cor_filtered = lr_target_prior_cor_filtered %>% dplyr::mutate(pearson = abs(pearson), direction_regulation = factor(direction_regulation, levels = c("up","down")))
   
   sample_data = prioritization_tables$sample_prioritization_tbl %>% dplyr::filter(id %in% prioritized_tbl_oi$id) %>% dplyr::mutate(sender_receiver = paste(sender, receiver, sep = " --> "), lr_interaction = paste(ligand, receptor, sep = " - ")) %>%  dplyr::arrange(sender)
-  group_data = prioritization_tables$group_prioritization_tbl %>% dplyr::distinct(id, group) %>% dplyr::filter(id %in% sample_data$id)
+  group_data = prioritization_tables$group_prioritization_table_source %>% dplyr::distinct(id, group) %>% dplyr::filter(id %in% sample_data$id)
   
   keep_sender_receiver_values = c(0.25, 0.9, 1.75, 4)
   names(keep_sender_receiver_values) = levels(sample_data$keep_sender_receiver)

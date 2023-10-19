@@ -62,7 +62,14 @@ devtools::install_github("saeyslab/nichenetr")
 devtools::install_github("saeyslab/multinichenetr")
 ```
 
-multinichenetr is tested via Github Actions version control on Windows, Linux (Ubuntu) and Mac (most recently tested R version: R 4.3.0.).
+It is possible that during installation the following warning is thrown:
+
+"glmmTMB was built with TMB version 1.9.4"
+"Current TMB version is 1.9.5
+
+This warning can be safely ignored since this does not affect multinichenetr's installation and functionalities.
+
+multinichenetr is tested via Github Actions version control on Windows, Linux (Ubuntu) and Mac (most recently tested R version: R 4.3.1.).
 
 ## Learning to use multinichenetr
 
