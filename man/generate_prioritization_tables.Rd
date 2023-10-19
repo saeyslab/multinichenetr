@@ -4,7 +4,7 @@
 \alias{generate_prioritization_tables}
 \title{generate_prioritization_tables}
 \usage{
-generate_prioritization_tables(sender_receiver_info, sender_receiver_de, ligand_activities_targets_DEgenes, contrast_tbl, sender_receiver_tbl, grouping_tbl, scenario = "regular, fraction_cutoff, abundance_data_receiver, abundance_data_sender, ligand_activity_down = TRUE)
+generate_prioritization_tables(sender_receiver_info, sender_receiver_de, ligand_activities_targets_DEgenes, contrast_tbl, sender_receiver_tbl, grouping_tbl, scenario = "regular", fraction_cutoff, abundance_data_receiver, abundance_data_sender, ligand_activity_down = TRUE)
 }
 \arguments{
 \item{sender_receiver_info}{Output of `combine_sender_receiver_info_ic`}

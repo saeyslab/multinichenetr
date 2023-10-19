@@ -663,7 +663,7 @@ multi_nichenet_analysis_separate = function(sce_receiver,
 #'
 #' @description \code{multi_nichenet_analysis_combined}  Perform a MultiNicheNet analysis in an all-vs-all setting: all cell types in the data will be considered both as sender and receiver.
 #' @usage multi_nichenet_analysis_combined(
-#' sce, celltype_id, sample_id,group_id, batches, covariates, lr_network,ligand_target_matrix,contrasts_oi,contrast_tbl, senders_oi = NULL,receivers_oi = NULL, fraction_cutoff = 0.05, scenario = "regular,
+#' sce, celltype_id, sample_id,group_id, batches, covariates, lr_network,ligand_target_matrix,contrasts_oi,contrast_tbl, senders_oi = NULL,receivers_oi = NULL, fraction_cutoff = 0.05, scenario = "regular",
 #' assay_oi_pb ="counts",fun_oi_pb = "sum",de_method_oi = "edgeR",min_cells = 10,logFC_threshold = 0.50,p_val_threshold = 0.05,p_val_adj = FALSE, empirical_pval = TRUE, top_n_target = 250, verbose = FALSE, n.cores = 1, return_lr_prod_matrix = FALSE, findMarkers = FALSE, filterByExpr.min.count = 7, filterByExpr.min.total.count = 15, filterByExpr.large.n = 4, filterByExpr.min.prop = 0.7, top_n_LR = 2500)
 #'
 #' @param sce SingleCellExperiment object of the scRNAseq data of interest. Contains both sender and receiver cell types.

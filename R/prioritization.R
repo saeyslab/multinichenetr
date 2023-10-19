@@ -7,7 +7,7 @@ scale_quantile_adapted = function(x, outlier_cutoff = 0){
 #'
 #' @description \code{generate_prioritization_tables}  Perform the MultiNicheNet prioritization of cell-cell interactions. 
 #' Combine the following prioritization criteria in a single aggregated prioritization score: differential expression of ligand and receptor, cell-type-condition-specificity of expression of ligand and receptor, NicheNet ligand activity, fraction of samples in a group that express a senderLigand-receiverReceptor pair.
-#' @usage generate_prioritization_tables(sender_receiver_info, sender_receiver_de, ligand_activities_targets_DEgenes, contrast_tbl, sender_receiver_tbl, grouping_tbl, scenario = "regular, fraction_cutoff, abundance_data_receiver, abundance_data_sender, ligand_activity_down = TRUE)
+#' @usage generate_prioritization_tables(sender_receiver_info, sender_receiver_de, ligand_activities_targets_DEgenes, contrast_tbl, sender_receiver_tbl, grouping_tbl, scenario = "regular", fraction_cutoff, abundance_data_receiver, abundance_data_sender, ligand_activity_down = TRUE)
 #'
 #' @inheritParams multi_nichenet_analysis_combined
 #' @inheritParams combine_sender_receiver_info_ic
