@@ -43,8 +43,8 @@ output = multi_nichenet_analysis(
      lr_network = lr_network, 
      ligand_target_matrix = ligand_target_matrix, 
      contrasts_oi = contrasts_oi, 
-     contrast_tbl = contrast_tbl, 
-     sender_receiver_separate = FALSE
+     contrast_tbl = contrast_tbl
+     
      )
 ligands_oi = output$prioritization_tables$ligand_activities_target_de_tbl \%>\% inner_join(contrast_tbl) \%>\% group_by(group, receiver) \%>\% distinct(ligand, receiver, group, activity) \%>\% top_n(5, activity) \%>\% pull(ligand) \%>\% unique()
 plot_oi = make_ligand_activity_plots(output$prioritization_tables, ligands_oi, contrast_tbl)

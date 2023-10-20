@@ -9,7 +9,7 @@ get_ligand_activities_targets_DEgenes(receiver_de, receivers_oi,  ligand_target_
 \arguments{
 \item{receiver_de}{Differential expression analysis output for the receiver cell types. `de_output_tidy` slot of the output of `perform_muscat_de_analysis`.}
 
-\item{receivers_oi}{Character vector indicating the names of the receiver cell types of interest}
+\item{receivers_oi}{Default NULL: all celltypes will be considered as receivers. If you want to select specific receivers_oi: you can add this here as character vector.}
 
 \item{ligand_target_matrix}{Prior knowledge model of ligand-target regulatory potential (matrix with ligands in columns and targets in rows). See https://github.com/saeyslab/nichenetr.}
 

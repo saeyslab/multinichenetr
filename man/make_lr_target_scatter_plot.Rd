@@ -50,8 +50,7 @@ output = multi_nichenet_analysis(
      lr_network = lr_network, 
      ligand_target_matrix = ligand_target_matrix, 
      contrasts_oi = contrasts_oi, 
-     contrast_tbl = contrast_tbl, 
-     sender_receiver_separate = FALSE
+     contrast_tbl = contrast_tbl
      )
 ligand_oi ="IL24"
 receptor_oi = "IL22RA1" 

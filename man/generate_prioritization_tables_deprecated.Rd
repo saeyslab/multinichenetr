@@ -21,7 +21,7 @@ Example for `contrasts_oi = c("'A-(B+C+D)/3', 'B-(A+C+D)/3'")`:
 
 \item{grouping_tbl}{Data frame showing the groups of each sample (and batches per sample if applicable) (columns: sample and group; and if applicable all batches of interest)}
 
-\item{fraction_cutoff}{Cutoff indicating the minimum fraction of cells of a cell type in a specific sample that are necessary to consider the gene as expressed.}
+\item{fraction_cutoff}{Cutoff indicating the minimum fraction of cells of a cell type in a specific sample that are necessary to consider the ligand/receptor as expressed for the final prioritization.}
 
 \item{abundance_data_receiver}{Data frame with number of cells per cell type - sample combination;  output of `process_info_to_ic`}
 

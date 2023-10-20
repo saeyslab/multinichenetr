@@ -3,7 +3,7 @@
 #' @description \code{perform_muscat_de_analysis} Perform differential expression analysis via Muscat - Pseudobulking approach - FOR ONE CELLTYPE.
 #' @usage perform_muscat_de_analysis(sce, sample_id, celltype_id, group_id, batches, covariates, contrasts, assay_oi_pb = "counts", fun_oi_pb = "sum", de_method_oi = "edgeR", min_cells = 10, filterByExpr.min.count = 7, filterByExpr.min.total.count = 15, filterByExpr.large.n = 4, filterByExpr.min.prop = 0.7)
 #'
-#' @inheritParams multi_nichenet_analysis_combined
+#' @inheritParams multi_nichenet_analysis
 #' @param contrasts String indicating the contrasts of interest (= which groups/conditions will be compared) for the differential expression and MultiNicheNet analysis. 
 #' We will demonstrate here a few examples to indicate how to write this. Check the limma package manuals for more information about defining design matrices and contrasts for differential expression analysis.
 #' If wanting to compare group A vs B: `contrasts_oi = c("'A-B'")`

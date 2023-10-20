@@ -4,12 +4,10 @@
 \alias{make_ligand_receptor_violin_plot}
 \title{make_ligand_receptor_violin_plot}
 \usage{
-make_ligand_receptor_violin_plot(sce_sender, sce_receiver, ligand_oi, receptor_oi, sender_oi, receiver_oi, group_oi, group_id, sample_id, celltype_id_sender, celltype_id_receiver, batch_oi = NA, background_groups = NULL)
+make_ligand_receptor_violin_plot(sce, ligand_oi, receptor_oi, sender_oi, receiver_oi, group_oi, group_id, sample_id, celltype_id, batch_oi = NA, background_groups = NULL)
 }
 \arguments{
-\item{sce_sender}{SingleCellExperiment object containing the sender cell types of interest}
-
-\item{sce_receiver}{SingleCellExperiment object containing the receiver cell types of interest}
+\item{sce}{SingleCellExperiment object}
 
 \item{ligand_oi}{Character vector of name of the ligand of interest}
 
@@ -21,13 +19,11 @@ make_ligand_receptor_violin_plot(sce_sender, sce_receiver, ligand_oi, receptor_o
 
 \item{group_oi}{Character vector of name of the group of interest}
 
-\item{group_id}{Name of the meta data column that indicates from which group/condition a cell comes from (in both sce_receiver and sce_sender)}
+\item{group_id}{Name of the meta data column that indicates from which group/condition a cell comes from}
 
 \item{sample_id}{Name of the colData(sce) column in which the id of the sample is defined}
 
-\item{celltype_id_sender}{Name of the meta data column that indicates the cell type of a cell (in sce_sender).}
-
-\item{celltype_id_receiver}{Name of the meta data column that indicates the cell type of a cell (in sce_receiver).}
+\item{celltype_id}{Name of the meta data column that indicates the cell type of a cell}
 
 \item{batch_oi}{Name of a batch of interest based on which the visualization will be split. Default: NA: no batch.}
 
@@ -60,15 +56,14 @@ output = multi_nichenet_analysis(
      lr_network = lr_network, 
      ligand_target_matrix = ligand_target_matrix, 
      contrasts_oi = contrasts_oi, 
-     contrast_tbl = contrast_tbl, 
-     sender_receiver_separate = FALSE
+     contrast_tbl = contrast_tbl
      )
 ligand_oi = "DLL1"
 receptor_oi = "NOTCH3"
 group_oi = "High"
 sender_oi = "Malignant"
 receiver_oi = "myofibroblast"
-p_violin = make_ligand_receptor_violin_plot(sce_sender = sce, sce_receiver = sce, ligand_oi = ligand_oi, receptor_oi = receptor_oi, group_oi = group_oi, group_id = group_id, sender_oi = sender_oi, receiver_oi = receiver_oi, sample_id = sample_id, celltype_id_sender = celltype_id, celltype_id_receiver = celltype_id)
+p_violin = make_ligand_receptor_violin_plot(sce = sce, ligand_oi = ligand_oi, receptor_oi = receptor_oi, group_oi = group_oi, group_id = group_id, sender_oi = sender_oi, receiver_oi = receiver_oi, sample_id = sample_id, celltype_id = celltype_id)
 
 }
 

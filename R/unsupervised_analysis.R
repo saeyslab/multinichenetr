@@ -3,8 +3,8 @@
 #' @description \code{calculate_LR_pb_prod_matrix} Calculate a matrix giving the pseudobulk expression product of each ligand-receptor-sender-receiver pair (that is expressed in at least one sample)
 #' @usage calculate_LR_pb_prod_matrix(sce, sample_id, celltype_id, group_id, senders_oi, receivers_oi, fraction_cutoff, lr_network, batches)
 #' 
-#' @inheritParams multi_nichenet_analysis_separate
-#' @inheritParams multi_nichenet_analysis_combined
+#' @inheritParams multi_nichenet_analysis
+#' @inheritParams multi_nichenet_analysis
 #' @param group_id Metadata column indicating group/condition. If not available: NULL.
 #' @param senders_oi character vector of the sender cell types of interest
 #' @param receivers_oi character vector of the receiver cell types of interest

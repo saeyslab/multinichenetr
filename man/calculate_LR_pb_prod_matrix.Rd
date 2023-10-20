@@ -9,7 +9,7 @@ calculate_LR_pb_prod_matrix(sce, sample_id, celltype_id, group_id, senders_oi, r
 \arguments{
 \item{sce}{SingleCellExperiment object of the scRNAseq data of interest. Contains both sender and receiver cell types.}
 
-\item{sample_id}{Name of the meta data column that indicates from which sample/patient a cell comes from (in both sce_receiver and sce_sender)}
+\item{sample_id}{Name of the meta data column that indicates from which sample/patient a cell comes from}
 
 \item{celltype_id}{Name of the column in the meta data of sce that indicates the cell type of a cell.}
 
@@ -19,7 +19,7 @@ calculate_LR_pb_prod_matrix(sce, sample_id, celltype_id, group_id, senders_oi, r
 
 \item{receivers_oi}{character vector of the receiver cell types of interest}
 
-\item{fraction_cutoff}{Cutoff indicating the minimum fraction of cells of a cell type in a specific sample that are necessary to consider the gene as expressed.}
+\item{fraction_cutoff}{Cutoff indicating the minimum fraction of cells of a cell type in a specific sample that are necessary to consider the ligand/receptor as expressed for the final prioritization.}
 
 \item{lr_network}{Prior knowledge Ligand-Receptor network (columns: ligand, receptor)}
 

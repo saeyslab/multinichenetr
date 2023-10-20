@@ -38,8 +38,8 @@ output = multi_nichenet_analysis(
      lr_network = lr_network, 
      ligand_target_matrix = ligand_target_matrix, 
      contrasts_oi = contrasts_oi, 
-     contrast_tbl = contrast_tbl, 
-     sender_receiver_separate = FALSE
+     contrast_tbl = contrast_tbl
+     
      )
 group_oi = "High"
 prioritized_tbl_oi = output$prioritization_tables$group_prioritization_tbl \%>\% filter(fraction_expressing_ligand_receptor > 0) \%>\% filter(group == group_oi) \%>\% top_n(50, prioritization_score) 

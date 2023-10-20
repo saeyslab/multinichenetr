@@ -3,7 +3,7 @@
 #' @description \code{get_muscat_exprs_frac} Calculate sample- and group-average of fraction of cells in a cell type expressing a gene.
 #' @usage get_muscat_exprs_frac(sce, sample_id, celltype_id, group_id)
 #'
-#' @inheritParams multi_nichenet_analysis_combined
+#' @inheritParams multi_nichenet_analysis
 #'
 #' @return List with two dataframes: one with fraction of cells in a cell type expressing a gene, averaged per sample; and one averaged per group.
 #'
@@ -79,7 +79,7 @@ get_muscat_exprs_frac = function(sce, sample_id, celltype_id, group_id){
 #' @description \code{get_muscat_exprs_avg}  Calculate sample- and group-average of gene expression per cell type.
 #' @usage get_muscat_exprs_avg(sce, sample_id, celltype_id, group_id)
 #'
-#' @inheritParams multi_nichenet_analysis_combined
+#' @inheritParams multi_nichenet_analysis
 #'
 #' @return Data frame with average gene expression per sample and per group.
 #'
@@ -139,7 +139,7 @@ get_muscat_exprs_avg = function(sce, sample_id, celltype_id, group_id){
 #' @description \code{get_pseudobulk_logCPM_exprs}  Calculate the 'library-size' normalized pseudbulk counts per sample for each gene - returned values are similar to logCPM. 
 #' @usage get_pseudobulk_logCPM_exprs(sce, sample_id, celltype_id, group_id, batches = NA, assay_oi_pb = "counts", fun_oi_pb = "sum")
 #'
-#' @inheritParams multi_nichenet_analysis_combined
+#' @inheritParams multi_nichenet_analysis
 #'
 #' @return Data frame with logCPM-like values of the library-size corrected pseudobulked counts (`pb_sample`) per gene per sample. pb_sample = log2( ((pb_raw/effective_library_size) \* 1000000) + 1). effective_library_size  = lib.size \* norm.factors (through edgeR::calcNormFactors).
 #'
@@ -291,7 +291,7 @@ get_pseudobulk_logCPM_exprs = function(sce, sample_id, celltype_id, group_id, ba
 #' @description \code{fix_frq_df}  Fix muscat-feature/bug in fraction calculation: in case a there are no cells of a cell type in a sample, that expression fraction will be NA / NaN. Change these NA/NaN to 0.
 #' @usage fix_frq_df(sce, frq_celltype_samples)
 #'
-#' @inheritParams multi_nichenet_analysis_combined
+#' @inheritParams multi_nichenet_analysis
 #' @param frq_celltype_samples Sample-average data frame output of `get_muscat_exprs_frac`
 #'
 #' @return Fixed data frame with fraction of cells expressing a gene.
@@ -348,7 +348,7 @@ fix_frq_df = function(sce, frq_celltype_samples){
 #' @description \code{get_avg_frac_exprs_abund}  Calculate the average and fraction of expression of each gene per sample and per group. Calculate relative abundances of cell types as well.
 #' @usage get_avg_frac_exprs_abund(sce, sample_id, celltype_id, group_id, batches = NA)
 #'
-#' @inheritParams multi_nichenet_analysis_combined
+#' @inheritParams multi_nichenet_analysis
 #' 
 #' @return List containing data frames with average and fraction of expression per sample and per group (and pseudobulked), and relative cell type abundances as well.
 #'
@@ -428,7 +428,7 @@ get_avg_frac_exprs_abund = function(sce, sample_id, celltype_id, group_id, batch
 
   if(!is.na(batches)){
     if (sum(batches %in% colnames(SummarizedExperiment::colData(sce))) != length(batches) ) {
-      stop("batches should be NA or all present as column name(s) in the metadata dataframe of sce_receiver")
+      stop("batches should be NA or all present as column name(s) in the metadata dataframe of sce")
     }
   }
   ## calculate averages, fractions, relative abundance of a cell type in a group
@@ -503,7 +503,7 @@ get_avg_frac_exprs_abund = function(sce, sample_id, celltype_id, group_id, batch
 #' @description \code{process_info_to_ic}  Process cell type expression information into intercellular communication focused information. Only keep information of ligands for the sender cell type setting, and information of receptors for the receiver cell type.
 #' @usage process_info_to_ic(info_object, ic_type = "sender", lr_network)
 #'
-#' @inheritParams multi_nichenet_analysis_combined
+#' @inheritParams multi_nichenet_analysis
 #' @param info_object Output of `get_avg_frac_exprs_abund`
 #' @param ic_type "sender" or "receiver": indicates whether we should keep ligands or receptors respectively.
 #'
@@ -622,7 +622,7 @@ process_abund_info = function(abund_data, ic_type = "sender"){
 #' @description \code{combine_sender_receiver_info_ic}  Link the ligand-expression information of the Sender cell type to the receptor-expression information of the Receiver cell type. Linking via prior knowledge ligand-receptor network.
 #' @usage combine_sender_receiver_info_ic(sender_info, receiver_info, senders_oi, receivers_oi, lr_network)
 #'
-#' @inheritParams multi_nichenet_analysis_combined
+#' @inheritParams multi_nichenet_analysis
 #' @param sender_info Output of `process_info_to_ic` with `ic_type = "sender"`
 #' @param receiver_info Output of `process_info_to_ic` with `ic_type = "receiver"`
 #' @param senders_oi Character vector indicating the names of the sender cell types of interest
@@ -714,7 +714,7 @@ combine_sender_receiver_info_ic = function(sender_info, receiver_info, senders_o
 #' @description \code{combine_sender_receiver_de}  Combine Muscat differential expression output for senders and receivers by linkgin ligands to receptors based on the prior knowledge ligand-receptor network.
 #' @usage combine_sender_receiver_de(sender_de, receiver_de, senders_oi, receivers_oi, lr_network)
 #'
-#' @inheritParams multi_nichenet_analysis_combined
+#' @inheritParams multi_nichenet_analysis
 #' @inheritParams combine_sender_receiver_info_ic
 #' @param sender_de Differential expression analysis output for the sender cell types. `de_output_tidy` slot of the output of `perform_muscat_de_analysis`.
 #' @param receiver_de Differential expression analysis output for the receiver cell types. `de_output_tidy` slot of the output of `perform_muscat_de_analysis`.

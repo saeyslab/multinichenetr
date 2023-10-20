@@ -15,7 +15,7 @@ make_sample_lr_prod_activity_batch_plots(prioritization_tables, prioritized_tbl_
 
 \item{batch_oi}{Name of the batch that needs to be visualized for each sample}
 
-\item{widths}{Vector of 3 elements: Width of the LR exprs product panel,  width of the scaled ligand activity panel, width of the ligand activity panel. Default NULL: automatically defined based on nr of samples vs nr of group-receiver combinations. If manual change: example format: c(5,1,1)}
+\item{widths}{Vector of 4 elements: Width of the LR exprs product panel,  width of the scaled ligand activity panel, width of the ligand activity panel & width of the cell-type specificity panel. Default NULL: automatically defined based on nr of samples vs nr of group-receiver combinations. If manual change: example format: c(6,2,2,1)}
 
 \item{heights}{Vector of 2 elements: Height of the batch panel and height of the ligand-receptor prod+activity panel. Default NULL: automatically defined based on the nr of Ligand-Receptor pairs. If manual change: example format: c(1,5)}
 }
@@ -46,8 +46,8 @@ output = multi_nichenet_analysis(
      lr_network = lr_network, 
      ligand_target_matrix = ligand_target_matrix, 
      contrasts_oi = contrasts_oi, 
-     contrast_tbl = contrast_tbl, 
-     sender_receiver_separate = FALSE
+     contrast_tbl = contrast_tbl
+     
      )
 group_oi = "High"
 batch_oi = "batch"

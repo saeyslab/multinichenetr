@@ -11,7 +11,7 @@ combine_sender_receiver_de(sender_de, receiver_de, senders_oi, receivers_oi, lr_
 
 \item{receiver_de}{Differential expression analysis output for the receiver cell types. `de_output_tidy` slot of the output of `perform_muscat_de_analysis`.}
 
-\item{senders_oi}{Default NULL: all celltypes will be considered as senders If you want to select specific senders_oi: you can add this here as character vector.}
+\item{senders_oi}{Default NULL: all celltypes will be considered as senders. If you want to select specific senders_oi: you can add this here as character vector.}
 
 \item{receivers_oi}{Default NULL: all celltypes will be considered as receivers. If you want to select specific receivers_oi: you can add this here as character vector.}
 

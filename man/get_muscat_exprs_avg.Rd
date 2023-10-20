@@ -9,11 +9,11 @@ get_muscat_exprs_avg(sce, sample_id, celltype_id, group_id)
 \arguments{
 \item{sce}{SingleCellExperiment object of the scRNAseq data of interest. Contains both sender and receiver cell types.}
 
-\item{sample_id}{Name of the meta data column that indicates from which sample/patient a cell comes from (in both sce_receiver and sce_sender)}
+\item{sample_id}{Name of the meta data column that indicates from which sample/patient a cell comes from}
 
 \item{celltype_id}{Name of the column in the meta data of sce that indicates the cell type of a cell.}
 
-\item{group_id}{Name of the meta data column that indicates from which group/condition a cell comes from (in both sce_receiver and sce_sender)}
+\item{group_id}{Name of the meta data column that indicates from which group/condition a cell comes from}
 }
 \value{
 Data frame with average gene expression per sample and per group.

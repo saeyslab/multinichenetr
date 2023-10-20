@@ -11,7 +11,7 @@ make_sample_lr_prod_activity_plots(prioritization_tables, prioritized_tbl_oi, wi
 
 \item{prioritized_tbl_oi}{Subset of `prioritization_tables$group_prioritization_tbl`: the ligand-receptor interactions shown in this subset will be visualized: recommended to consider the top n LR interactions of a group of interest, based on the prioritization_score (eg n = 50; see vignettes for examples).}
 
-\item{widths}{Vector of 3 elements: Width of the LR exprs product panel,  width of the scaled ligand activity panel, width of the ligand activity panel. Default NULL: automatically defined based on nr of samples vs nr of group-receiver combinations. If manual change: example format: c(5,1,1)}
+\item{widths}{Vector of 4 elements: Width of the LR exprs product panel,  width of the scaled ligand activity panel, width of the ligand activity panel & width of the cell-type specificity panel. Default NULL: automatically defined based on nr of samples vs nr of group-receiver combinations. If manual change: example format: c(6,2,2,1)}
 }
 \value{
 Ligand-Receptor Expression Product & Ligand Activities Dotplot/Heatmap
@@ -40,8 +40,8 @@ output = multi_nichenet_analysis(
      lr_network = lr_network, 
      ligand_target_matrix = ligand_target_matrix, 
      contrasts_oi = contrasts_oi, 
-     contrast_tbl = contrast_tbl, 
-     sender_receiver_separate = FALSE
+     contrast_tbl = contrast_tbl
+     
      )
 group_oi = "High"
 prioritized_tbl_oi = output$prioritization_tables$group_prioritization_tbl \%>\% filter(fraction_expressing_ligand_receptor > 0) \%>\% filter(group == group_oi) \%>\% top_n(50, prioritization_score) 

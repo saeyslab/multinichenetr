@@ -9,11 +9,11 @@ perform_muscat_de_analysis(sce, sample_id, celltype_id, group_id, batches, covar
 \arguments{
 \item{sce}{SingleCellExperiment object of the scRNAseq data of interest. Contains both sender and receiver cell types.}
 
-\item{sample_id}{Name of the meta data column that indicates from which sample/patient a cell comes from (in both sce_receiver and sce_sender)}
+\item{sample_id}{Name of the meta data column that indicates from which sample/patient a cell comes from}
 
 \item{celltype_id}{Name of the column in the meta data of sce that indicates the cell type of a cell.}
 
-\item{group_id}{Name of the meta data column that indicates from which group/condition a cell comes from (in both sce_receiver and sce_sender)}
+\item{group_id}{Name of the meta data column that indicates from which group/condition a cell comes from}
 
 \item{batches}{NA if no batches should be corrected for. If there should be corrected for batches during DE analysis and pseudobulk expression calculation, this argument should be the name(s) of the columns in the meta data that indicate the batch(s). Should be categorical. Pseudobulk expression values will be corrected for the first element of this vector.}
 

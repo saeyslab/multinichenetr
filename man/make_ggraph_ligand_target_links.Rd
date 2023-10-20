@@ -40,8 +40,8 @@ output = multi_nichenet_analysis(
      lr_network = lr_network, 
      ligand_target_matrix = ligand_target_matrix, 
      contrasts_oi = contrasts_oi, 
-     contrast_tbl = contrast_tbl, 
-     sender_receiver_separate = FALSE
+     contrast_tbl = contrast_tbl
+     
      )
 lr_target_prior_cor_filtered = output$lr_target_prior_cor \%>\% filter(scaled_prior_score > 0.50 & (pearson > 0.66 | spearman > 0.66))
  prioritized_tbl_oi = output$prioritization_tables$group_prioritization_tbl \%>\% distinct(id, ligand, receptor, sender, receiver, lr_interaction, group, ligand_receptor_lfc_avg, activity_scaled, fraction_expressing_ligand_receptor,  prioritization_score) \%>\% filter(fraction_expressing_ligand_receptor > 0 & ligand_receptor_lfc_avg > 0) \%>\% filter(group == group_oi & receiver == receiver_oi) \%>\% top_n(250, prioritization_score)

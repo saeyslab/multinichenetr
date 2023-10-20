@@ -77,7 +77,6 @@
 #' grouping_tbl = metadata_combined[,c(sample_id, group_id)] %>% tibble::as_tibble() %>% dplyr::distinct()
 #' colnames(grouping_tbl) = c("sample","group") 
 #' 
-#' prioritizing_weights = c("de_ligand" = 1,"de_receptor" = 1,"activity_scaled" = 1,"exprs_ligand" = 1,"exprs_receptor" = 1, "frac_exprs_ligand_receptor" = 1,"abund_sender" = 0,"abund_receiver" = 0)
 #' frac_cutoff = 0.05
 #' prioritization_tables = generate_prioritization_tables(
 #'     sender_receiver_info = sender_receiver_info,
@@ -86,7 +85,6 @@
 #'     contrast_tbl = contrast_tbl,
 #'     sender_receiver_tbl = sender_receiver_tbl,
 #'     grouping_tbl = grouping_tbl,
-#'     prioritizing_weights = prioritizing_weights,
 #'     fraction_cutoff = frac_cutoff, abundance_data_receiver, abundance_data_sender)
 #'
 #' receivers_oi = prioritization_tables$group_prioritization_tbl$receiver %>% unique()
