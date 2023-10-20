@@ -218,4 +218,95 @@ lr_target_prior_cor_inference = function(receivers_oi, abundance_expression_info
   return(cor_prior_df)
   
 }
+#' @title infer_intercellular_regulatory_network
+#'
+#' @description \code{infer_intercellular_regulatory_network} Infer a network showing the gene regulatory links between ligands from sender cell types to their induced ligands/receptors in receiver cell types. Links are only drawn if the ligand/receptor in the receiver is a potential downstream target of the ligand (based on prior knowledge, and optionally with sufficient correlation in expression across the different samples).
+#' @usage infer_intercellular_regulatory_network(lr_target_df, prioritized_tbl_oi)
+#'
+#' @param lr_target_df tibble with columns: group, sender, receiver, ligand, receptor, id, target, direction_regulation
+#' @inheritParams make_sample_lr_prod_plots
+#' 
+#' @return list containing 3 elements: links, nodes, prioritized_lr_interactions. Links is a tibble that can be used to create a network with igraph, together with the node tibble. prioritized_lr_interactions is the subset of the input prioritized_tbl_oi, focusing on interaction elements present in this network, and hereby further prioritizing.
+#'
+#' @import dplyr
+#' @importFrom magrittr set_rownames
+#'
+#' @examples
+#' \dontrun{
+#' library(dplyr)
+#' lr_network = readRDS(url("https://zenodo.org/record/3260758/files/lr_network.rds"))
+#' lr_network = lr_network %>% dplyr::rename(ligand = from, receptor = to) %>% dplyr::distinct(ligand, receptor)
+#' ligand_target_matrix = readRDS(url("https://zenodo.org/record/3260758/files/ligand_target_matrix.rds"))
+#' sample_id = "tumor"
+#' group_id = "pEMT"
+#' celltype_id = "celltype"
+#' batches = NA
+#' contrasts_oi = c("'High-Low','Low-High'")
+#' contrast_tbl = tibble(contrast = c("High-Low","Low-High"), group = c("High","Low"))
+#' output = multi_nichenet_analysis(
+#'      sce = sce, 
+#'      celltype_id = celltype_id, 
+#'      sample_id = sample_id, 
+#'      group_id = group_id,
+#'      batches = batches,
+#'      lr_network = lr_network, 
+#'      ligand_target_matrix = ligand_target_matrix, 
+#'      contrasts_oi = contrasts_oi, 
+#'      contrast_tbl = contrast_tbl
+#'      
+#'      )
+#' lr_target_prior_cor_filtered = output$lr_target_prior_cor %>% filter(scaled_prior_score > 0.50 & (pearson > 0.66 | spearman > 0.66))
+#'  prioritized_tbl_oi = output$prioritization_tables$group_prioritization_tbl %>% distinct(id, ligand, receptor, sender, receiver, lr_interaction, group, ligand_receptor_lfc_avg, activity_scaled, fraction_expressing_ligand_receptor,  prioritization_score) %>% filter(fraction_expressing_ligand_receptor > 0 & ligand_receptor_lfc_avg > 0) %>% filter(group == group_oi & receiver == receiver_oi) %>% top_n(250, prioritization_score)
+#'  prioritized_tbl_oi = prioritized_tbl_oi %>% filter(id %in% lr_target_prior_cor_filtered$id)
+#'  prioritized_tbl_oi = prioritized_tbl_oi %>% group_by(ligand, sender, group) %>% top_n(2, prioritization_score)
+#'  lr_target_df = lr_target_prior_cor_filtered  %>% distinct(group, sender, receiver, ligand, receptor, id, target, direction_regulation) 
+#'  network = infer_intercellular_regulatory_network(lr_target_df, prioritized_tbl_oi)
+#' }
+#'
+#' @export
+#'
+infer_intercellular_regulatory_network = function(lr_target_df, prioritized_tbl_oi){
+  
+  requireNamespace("dplyr")
+  
+  lr_target_df = lr_target_df %>% dplyr::inner_join(prioritized_tbl_oi, by = c("sender", "receiver", "ligand", "receptor", "id", "group"))
+  
+  source_df_lr = prioritized_tbl_oi %>% dplyr::mutate(
+    celltype_ligand = paste(sender, ligand, sep = "_"), 
+    celltype_receptor = paste(receiver, receptor, sep = "_")) %>% 
+    dplyr::select(group, sender, receiver, celltype_ligand, celltype_receptor, ligand, receptor) 
+  
+  source_df_lrt = lr_target_df %>% dplyr::mutate(
+    celltype_ligand = paste(sender, ligand, sep = "_"), 
+    celltype_target = paste(receiver, target, sep = "_"), 
+    celltype_receptor = paste(receiver, receptor, sep = "_")) %>% 
+    dplyr::select(group, sender, receiver, celltype_ligand, celltype_receptor, celltype_target, ligand, target, receptor, direction_regulation) 
+  
+  lr_gr_network = dplyr::bind_rows(
+    source_df_lrt %>% dplyr::filter(celltype_target %in% source_df_lr$celltype_ligand & !celltype_target %in% source_df_lr$celltype_receptor) %>% dplyr::mutate(type_target = "ligand"),
+    source_df_lrt %>% dplyr::filter(celltype_target %in% source_df_lr$celltype_receptor  & !celltype_target %in% source_df_lr$celltype_ligand) %>% dplyr::mutate(type_target = "receptor")
+  ) %>% dplyr::bind_rows(
+    source_df_lrt %>% dplyr::filter(celltype_target %in% source_df_lr$celltype_ligand & celltype_target %in% source_df_lr$celltype_receptor) %>% dplyr::mutate(type_target = "ligand/receptor")
+  )
+  
+  ligand_target_network = lr_gr_network %>% dplyr::select(celltype_ligand, celltype_target, direction_regulation, group) %>% dplyr::distinct() %>% dplyr::rename(sender_ligand = celltype_ligand, receiver_target = celltype_target) %>% dplyr::mutate(type = "Ligand-Target", weight = 1)
+  
+  nodes = 
+    lr_gr_network %>% dplyr::select(celltype_ligand, sender, ligand) %>% dplyr::rename(celltype = sender, node = celltype_ligand, gene = ligand) %>% dplyr::mutate(type_gene = "ligand") %>% 
+    dplyr::bind_rows(
+      lr_gr_network %>% dplyr::select(celltype_receptor, receiver, receptor) %>% dplyr::rename(celltype = receiver, node = celltype_receptor, gene = receptor) %>% dplyr::mutate(type_gene = "receptor")
+    ) %>% 
+    dplyr::bind_rows(
+      lr_gr_network %>% dplyr::select(celltype_target, receiver, target, type_target) %>% dplyr::rename(celltype = receiver, node = celltype_target, gene = target, type_gene = type_target)
+    ) %>% dplyr::distinct() %>% 
+    dplyr::filter(node %in% c(ligand_target_network$sender_ligand, ligand_target_network$receiver_target))
+  
+  double_nodes =  nodes %>% dplyr::group_by(node) %>% dplyr::count() %>% dplyr::filter(n > 1) %>% pull(node)
+  nodes = dplyr::bind_rows(
+    nodes %>% dplyr::filter(node %in% double_nodes) %>% dplyr::mutate(type_gene = "ligand/receptor") ,
+    nodes %>% dplyr::filter(!node %in% double_nodes)
+  ) %>% dplyr:: distinct()
+  
+  return(list(links = ligand_target_network, nodes = nodes, prioritized_lr_interactions = lr_gr_network %>% distinct(group, sender, receiver, ligand, receptor)))
+}
 

@@ -398,32 +398,7 @@ MultiNicheNet allows the user to define the weights of the following criteria to
 
 The different properties of the sender-ligand---receiver-receptor pairs can be weighted according to the user's preference and insight in the dataset at hand. 
 
-## Define the prioritization weights, and prepare grouping objects
-
-We will set our preference for this dataset as follows - and recommend the user to use the same weights by default:
-
-```{r}
-prioritizing_weights_DE = c("de_ligand" = 1,
-                         "de_receptor" = 1)
-prioritizing_weights_activity = c("activity_scaled" = 2)
-
-prioritizing_weights_expression_specificity = c("exprs_ligand" = 2,
-                         "exprs_receptor" = 2)
-
-prioritizing_weights_expression_sufficiency = c("frac_exprs_ligand_receptor" = 1)
-
-prioritizing_weights_relative_abundance = c( "abund_sender" = 0,
-                         "abund_receiver" = 0)
-
-```
-
-```{r}
-prioritizing_weights = c(prioritizing_weights_DE, 
-                         prioritizing_weights_activity, 
-                         prioritizing_weights_expression_specificity,
-                         prioritizing_weights_expression_sufficiency, 
-                         prioritizing_weights_relative_abundance)
-```
+## Prepare grouping objects
 
 Make necessary grouping data frame
 
@@ -454,7 +429,6 @@ prioritization_tables = suppressMessages(generate_prioritization_tables(
   contrast_tbl = contrast_tbl,
   sender_receiver_tbl = sender_receiver_tbl,
   grouping_tbl = grouping_tbl,
-  prioritizing_weights = prioritizing_weights,
   fraction_cutoff = fraction_cutoff, 
   abundance_data_receiver = abundance_expression_info$abundance_data_receiver,
   abundance_data_sender = abundance_expression_info$abundance_data_sender
@@ -771,16 +745,20 @@ lr_target_prior_cor_filtered = prioritization_tables$group_prioritization_tbl$gr
   lr_target_prior_cor_filtered = bind_rows(lr_target_prior_cor_filtered_up, lr_target_prior_cor_filtered_down)
 }) %>% bind_rows()
 
+lr_target_df = lr_target_prior_cor_filtered  %>% distinct(group, sender, receiver, ligand, receptor, id, target, direction_regulation) 
+```
+
+```{r}
+network = infer_intercellular_regulatory_network(lr_target_df, prioritized_tbl_oi)
+network$links %>% head()
+network$nodes %>% head()
 ```
 
 ```{r, fig.width=40, fig.height=12}
 colors_sender["L_T_TIM3._CD38._HLADR."] = "pink" # the  original yellow background with white font is not very readable
-graph_plot = make_ggraph_ligand_target_links(lr_target_prior_cor_filtered = lr_target_prior_cor_filtered, prioritized_tbl_oi = prioritized_tbl_oi, colors = colors_sender)
-graph_plot$plot
-graph_plot$source_df_lt %>% head()
-graph_plot$nodes_df %>% head()
+network_graph = visualize_network(network, colors_sender)
+network_graph$plot
 ```
-
 
 ## Show ligand activities for each receiver-group combination
 
@@ -818,7 +796,7 @@ receiver_oi = "M_Monocyte_CD16"
 ```
 
 ```{r, fig.width=13, fig.height=8}
-p_violin = make_ligand_receptor_violin_plot(sce_sender = sce, sce_receiver = sce, ligand_oi = ligand_oi, receptor_oi = receptor_oi, group_oi = group_oi, group_id = group_id, sender_oi = sender_oi, receiver_oi = receiver_oi, sample_id = sample_id, celltype_id_sender = celltype_id, celltype_id_receiver = celltype_id)
+p_violin = make_ligand_receptor_violin_plot(sce = sce, ligand_oi = ligand_oi, receptor_oi = receptor_oi, group_oi = group_oi, group_id = group_id, sender_oi = sender_oi, receiver_oi = receiver_oi, sample_id = sample_id, celltype_id = celltype_id)
 p_violin
 ```
 
@@ -833,5 +811,5 @@ LILRB1: interesting gene in MIS-C CD16+ monocytes
 ```{r, fig.width=18, fig.height=8}
 target_oi = "LILRB1"
 
-make_target_violin_plot(sce_receiver = sce, target_oi = target_oi, receiver_oi = receiver_oi, group_oi = group_oi, group_id = group_id, sample_id, celltype_id_receiver = celltype_id)
+make_target_violin_plot(sce = sce, target_oi = target_oi, receiver_oi = receiver_oi, group_oi = group_oi, group_id = group_id, sample_id, celltype_id = celltype_id)
 ```

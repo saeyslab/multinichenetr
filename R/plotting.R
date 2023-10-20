@@ -1919,12 +1919,89 @@ make_ggraph_ligand_target_links = function(lr_target_prior_cor_filtered, priorit
   set.seed(1919)
   plot =  ggraph::ggraph(graph, layout = 'dh') + 
     ggraph::geom_edge_fan(aes(color = direction_regulation), edge_width = 1, arrow = arrow(length = unit(3, 'mm')), end_cap = ggraph::circle(5.5, 'mm'), start_cap = ggraph::circle(3, 'mm')) + 
-    ggraph::geom_edge_loop(aes(color = direction_regulation), edge_width = 1, alpha = 0.70)  + 
+    # ggraph::geom_edge_loop(aes(color = direction_regulation), edge_width = 1, alpha = 0.70)  + 
+    ggraph::geom_node_label(aes(label = gene, fill = celltype), fontface = "bold", size = 3.5, nudge_x = 0, nudge_y = 0, color = "whitesmoke") +
+    ggraph::theme_graph(foreground = 'black', fg_text_colour = 'white', base_family = 'Helvetica') + facet_grid(. ~group)  + ggraph::scale_edge_color_manual(values = colors_regulation) + scale_fill_manual(values = colors)
+  
+  return(list(plot = plot, graph = graph, source_df_lr = source_df_lr, source_df_lt = links %>% dplyr::filter(type == "Ligand-Target"), nodes_df = nodes))
+}
+#' @title visualize_network
+#'
+#' @description \code{visualize_network} Visualize a network showing the gene regulatory links between ligands from sender cell types to their induced ligands/receptors in receiver cell types. Links are only drawn if the ligand/receptor in the receiver is a potential downstream target of the ligand (based on prior knowledge, and optionally with sufficient correlation in expression across the different samples).
+#' @usage visualize_network(network, colors)
+#'
+#' @param network Output of `infer_intercellular_regulatory_network`
+#' @param colors Named vector of colors associated to each sender cell type. Vector = color, names = sender names. 
+#' 
+#' @return ggplot object with plot of LR-->Target links, together with the tidygraph and igraph objects themselves
+#'
+#' @import ggplot2
+#' @import dplyr
+#' @importFrom magrittr set_rownames
+#' @importFrom igraph graph_from_data_frame
+#' @importFrom tidygraph as_tbl_graph
+#' @import ggraph
+#'
+#' @examples
+#' \dontrun{
+#' library(dplyr)
+#' lr_network = readRDS(url("https://zenodo.org/record/3260758/files/lr_network.rds"))
+#' lr_network = lr_network %>% dplyr::rename(ligand = from, receptor = to) %>% dplyr::distinct(ligand, receptor)
+#' ligand_target_matrix = readRDS(url("https://zenodo.org/record/3260758/files/ligand_target_matrix.rds"))
+#' sample_id = "tumor"
+#' group_id = "pEMT"
+#' celltype_id = "celltype"
+#' batches = NA
+#' contrasts_oi = c("'High-Low','Low-High'")
+#' contrast_tbl = tibble(contrast = c("High-Low","Low-High"), group = c("High","Low"))
+#' output = multi_nichenet_analysis(
+#'      sce = sce, 
+#'      celltype_id = celltype_id, 
+#'      sample_id = sample_id, 
+#'      group_id = group_id,
+#'      batches = batches,
+#'      lr_network = lr_network, 
+#'      ligand_target_matrix = ligand_target_matrix, 
+#'      contrasts_oi = contrasts_oi, 
+#'      contrast_tbl = contrast_tbl
+#'      
+#'      )
+#' lr_target_prior_cor_filtered = output$lr_target_prior_cor %>% filter(scaled_prior_score > 0.50 & (pearson > 0.66 | spearman > 0.66))
+#'  prioritized_tbl_oi = output$prioritization_tables$group_prioritization_tbl %>% distinct(id, ligand, receptor, sender, receiver, lr_interaction, group, ligand_receptor_lfc_avg, activity_scaled, fraction_expressing_ligand_receptor,  prioritization_score) %>% filter(fraction_expressing_ligand_receptor > 0 & ligand_receptor_lfc_avg > 0) %>% filter(group == group_oi & receiver == receiver_oi) %>% top_n(250, prioritization_score)
+#'  prioritized_tbl_oi = prioritized_tbl_oi %>% filter(id %in% lr_target_prior_cor_filtered$id)
+#'  prioritized_tbl_oi = prioritized_tbl_oi %>% group_by(ligand, sender, group) %>% top_n(2, prioritization_score)
+#'  lr_target_df = lr_target_prior_cor_filtered  %>% distinct(group, sender, receiver, ligand, receptor, id, target, direction_regulation) 
+#'  network = infer_intercellular_regulatory_network(lr_target_df, prioritized_tbl_oi)
+#' graph_plot = visualize_network(network, colors = c("purple","orange"))
+#' graph_plot$plot
+#' }
+#'
+#' @export
+#'
+visualize_network = function(network, colors){
+  
+  requireNamespace("dplyr")
+  requireNamespace("ggplot2")
+  requireNamespace("ggraph")
+  
+  nodes = network$nodes %>% data.frame() %>% magrittr::set_rownames(network$nodes$node)
+  
+  colors_regulation = NULL
+  colors_regulation["up"] = "indianred1"
+  colors_regulation["down"] = "steelblue2"
+  
+  # create the network object
+  network_igraph = igraph::graph_from_data_frame(d=network$links %>% dplyr::filter(type == "Ligand-Target"), vertices = nodes, directed=T)
+  network_tidygraph = tidygraph::as_tbl_graph(network_igraph) 
+  set.seed(1919)
+  plot =  ggraph::ggraph(network_tidygraph, layout = 'dh') + 
+    ggraph::geom_edge_fan(aes(color = direction_regulation), edge_width = 1, arrow = arrow(length = unit(3, 'mm')), end_cap = ggraph::circle(5.5, 'mm'), start_cap = ggraph::circle(3, 'mm')) + 
+    #ggraph::geom_edge_loop(aes(color = direction_regulation), edge_width = 1, alpha = 0.70)  + 
     ggraph::geom_node_label(aes(label = gene, fill = celltype), fontface = "bold", size = 3.5, nudge_x = 0, nudge_y = 0, color = "whitesmoke") +
     ggraph::theme_graph(foreground = 'black', fg_text_colour = 'white', base_family = 'Helvetica') + facet_grid(. ~group)  + ggraph::scale_edge_color_manual(values = colors_regulation) + scale_fill_manual(values = colors)
   
   
-  return(list(plot = plot, graph = graph, source_df_lr = source_df_lr, source_df_lt = links %>% dplyr::filter(type == "Ligand-Target"), nodes_df = nodes))
+  return(list(plot = plot, network_igraph = network_igraph, network_tidygraph = network_tidygraph))
 }
 #' @title make_ggraph_signaling_path
 #'

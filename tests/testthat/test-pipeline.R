@@ -174,6 +174,8 @@ test_that("Pipeline for all-vs-all analysis works & plotting functions work", {
   expect_type(lr_target_correlation_plot,"list")
 
   graph_plot = make_ggraph_ligand_target_links(lr_target_prior_cor_filtered = lr_target_prior_cor_filtered, prioritized_tbl_oi = prioritized_tbl_oi, colors = c("blue","red"))
+  network = infer_intercellular_regulatory_network(lr_target_prior_cor_filtered, prioritized_tbl_oi)
+  graph_plot = visualize_network(network1, colors = c("blue","red"))
   expect_type(graph_plot,"list")
   
   ligand_oi = "ADAM17"

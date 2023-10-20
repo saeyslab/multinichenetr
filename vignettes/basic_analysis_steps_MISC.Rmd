@@ -303,32 +303,7 @@ MultiNicheNet allows the user to define the weights of the following criteria to
 
 The different properties of the sender-ligand---receiver-receptor pairs can be weighted according to the user's preference and insight in the dataset at hand. 
 
-## Define the prioritization weights, and prepare grouping objects
-
-We will set our preference for this dataset as follows - and recommend the user to use the same weights by default:
-
-```{r}
-prioritizing_weights_DE = c("de_ligand" = 1,
-                         "de_receptor" = 1)
-prioritizing_weights_activity = c("activity_scaled" = 2)
-
-prioritizing_weights_expression_specificity = c("exprs_ligand" = 2,
-                         "exprs_receptor" = 2)
-
-prioritizing_weights_expression_sufficiency = c("frac_exprs_ligand_receptor" = 1)
-
-prioritizing_weights_relative_abundance = c( "abund_sender" = 0,
-                         "abund_receiver" = 0)
-
-```
-
-```{r}
-prioritizing_weights = c(prioritizing_weights_DE, 
-                         prioritizing_weights_activity, 
-                         prioritizing_weights_expression_specificity,
-                         prioritizing_weights_expression_sufficiency, 
-                         prioritizing_weights_relative_abundance)
-```
+## Prepare grouping objects
 
 Make necessary grouping data frame
 
@@ -359,10 +334,10 @@ prioritization_tables = suppressMessages(generate_prioritization_tables(
   contrast_tbl = contrast_tbl,
   sender_receiver_tbl = sender_receiver_tbl,
   grouping_tbl = grouping_tbl,
-  prioritizing_weights = prioritizing_weights,
   fraction_cutoff = fraction_cutoff, 
   abundance_data_receiver = abundance_expression_info$abundance_data_receiver,
   abundance_data_sender = abundance_expression_info$abundance_data_sender
+  
 ))
 ```
 
@@ -552,7 +527,7 @@ In the plots before, we demonstrated that some DE genes have both expression cor
 As last plot, we can generate a 'systems' view of these intercellular feedback and cascade processes than can be occuring between the different cell populations involved. In this plot, we will draw links between ligands of sender cell types their ligand/receptor-annotated target genes in receiver cell types. So links are ligand-target links (= gene regulatory links) and not ligand-receptor protein-protein interactions!
 
 ```{r}
-prioritized_tbl_oi = get_top_n_lr_pairs(prioritization_tables, 150, rank_per_group = FALSE)
+prioritized_tbl_oi = get_top_n_lr_pairs(prioritization_tables, 250, rank_per_group = FALSE)
 
 lr_target_prior_cor_filtered = prioritization_tables$group_prioritization_tbl$group %>% unique() %>% lapply(function(group_oi){
   lr_target_prior_cor_filtered = multinichenet_output$lr_target_prior_cor %>% inner_join(ligand_activities_targets_DEgenes$ligand_activities %>% distinct(ligand, target, direction_regulation, contrast)) %>% inner_join(contrast_tbl) %>% filter(group == group_oi)
@@ -561,12 +536,39 @@ lr_target_prior_cor_filtered = prioritization_tables$group_prioritization_tbl$gr
   lr_target_prior_cor_filtered = bind_rows(lr_target_prior_cor_filtered_up, lr_target_prior_cor_filtered_down)
 }) %>% bind_rows()
 
+lr_target_df = lr_target_prior_cor_filtered  %>% distinct(group, sender, receiver, ligand, receptor, id, target, direction_regulation) 
+```
+
+```{r}
+network = infer_intercellular_regulatory_network(lr_target_df, prioritized_tbl_oi)
+network$links %>% head()
+network$nodes %>% head()
 ```
 
 ```{r, fig.width=30, fig.height=12}
-colors_sender["L_T_TIM3._CD38._HLADR."] = "pink" # the  original yellow background color with white font is not very readable
-graph_plot = make_ggraph_ligand_target_links(lr_target_prior_cor_filtered = lr_target_prior_cor_filtered, prioritized_tbl_oi = prioritized_tbl_oi, colors = colors_sender)
-graph_plot$plot
-graph_plot$source_df_lt %>% head()
-graph_plot$nodes_df %>% head()
+colors_sender["L_T_TIM3._CD38._HLADR."] = "pink" # the  original yellow background with white font is not very readable
+network_graph = visualize_network(network, colors_sender)
+network_graph$plot
+```
+
+Interestingly, we can also use this network to further prioritize differential CCC interactions. Here we will assume that the most important LR interactions are the ones that are involved in this intercellular regulatory network. We can get these interactions as follows:
+```{r}
+network$prioritized_lr_interactions
+```
+
+```{r, fig.width=30, fig.height=12}
+prioritized_tbl_oi_network = prioritized_tbl_oi %>% inner_join(network$prioritized_lr_interactions)
+prioritized_tbl_oi_network
+```
+
+Visualize now the expression and activity of these interactions for the M group
+```{r}
+group_oi = "M"
+```
+
+```{r, fig.height=13, fig.width=15}
+prioritized_tbl_oi_M = prioritized_tbl_oi_network %>% filter(group == group_oi)
+
+plot_oi = make_sample_lr_prod_activity_plots(multinichenet_output$prioritization_tables, prioritized_tbl_oi_M)
+plot_oi
 ```
