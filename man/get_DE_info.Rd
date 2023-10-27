@@ -37,7 +37,7 @@ Note that the groups A, B, ... should be present in the meta data column 'group_
 
 \item{de_method_oi}{Indicates the DE method that will be used after pseudobulking. Default: "edgeR". See `muscat::pbDS`.}
 
-\item{findMarkers}{Indicate whether we should also calculate DE results with the classic scran::findMarkers approach. Default (recommended): FALSE.}
+\item{findMarkers}{Indicate whether we should also calculate DE results with the classic scran::findMarkers approach. Default (recommended): FALSE. if TRUE: both pseudobulk-based and cell-level based DE results will be generated.}
 
 \item{contrast_tbl}{see explanation in multi_nichenet_analysis function -- here: only required to give as input if findMarkers = TRUE.}
 

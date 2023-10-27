@@ -51,7 +51,10 @@ Imports:
     ggraph,
     scran,
     UpSetR,
-    factoextra
+    factoextra,
+    viridis,
+    foreach,
+    doParallel
 Suggests: 
     knitr,
     testthat,

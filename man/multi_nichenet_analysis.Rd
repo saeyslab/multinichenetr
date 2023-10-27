@@ -71,7 +71,7 @@ Example for `contrasts_oi = c("'A-(B+C+D)/3', 'B-(A+C+D)/3'")`:
 
 \item{return_lr_prod_matrix}{Indicate whether to calculate a senderLigand-receiverReceptor matrix, which could be used for unsupervised analysis of the cell-cell communication. Default FALSE. Setting to FALSE might be beneficial to avoid memory issues.}
 
-\item{findMarkers}{Indicate whether we should also calculate DE results with the classic scran::findMarkers approach. Default (recommended): FALSE.}
+\item{findMarkers}{Indicate whether we should also calculate DE results with the classic scran::findMarkers approach. Default (recommended): FALSE. if TRUE: both pseudobulk-based and cell-level based DE results will be generated.}
 
 \item{filterByExpr.min.count}{check edgeR::filterByExpr documentation - Default = 7. Increase this if you want more stringent filtering in terms of required counts per gene per sample.}
 

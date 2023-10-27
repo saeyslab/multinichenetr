@@ -55,6 +55,7 @@ usethis::use_package("ComplexHeatmap")
 usethis::use_package("grid")
 usethis::use_package("Nebulosa")
 usethis::use_package("Hmisc")
+usethis::use_package("viridis")
 
 usethis::use_package("muscat")
 usethis::use_package("limma")

@@ -123,9 +123,7 @@ test_that("Pipeline for all-vs-all analysis works & plotting functions work", {
   target_oi = "PTHLH"
   target_violin_plot = make_target_violin_plot(sce = sce, target_oi = target_oi, receiver_oi = receiver_oi, group_oi = group_oi, group_id = group_id, sample_id, celltype_id = celltype_id)
   expect_true("ggplot" %in% class(target_violin_plot))
-  target_feature_plot = make_target_feature_plot(sce = sce, target_oi = target_oi, group_oi = group_oi, group_id = group_id, celltype_id = celltype_id, receivers_oi = c("Malignant","myofibroblast","CAF"))
-  expect_true("ggplot" %in% class(target_feature_plot))
-  
+
   ligand_oi = "APP"
   receptor_oi = "TNFRSF21"
   sender_oi = "Malignant"

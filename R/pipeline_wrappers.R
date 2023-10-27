@@ -586,7 +586,12 @@ get_DE_info = function(sce, sample_id, group_id, celltype_id, batches, covariate
       warning("min_cells is now 0 or smaller. We recommend having a positive, non-zero value for this parameter")
     }
   }
-  
+  if(findMarkers == TRUE){
+    if(is.null(contrast_tbl)){
+      stop("Please provide an input to the argument `contrast_tbl` -- see documentation")
+    }
+  }
+
   celltypes = SummarizedExperiment::colData(sce)[,celltype_id] %>% unique()
   
   DE_list = celltypes %>% lapply(function(celltype_oi, sce){
@@ -649,7 +654,6 @@ get_DE_info = function(sce, sample_id, group_id, celltype_id, batches, covariate
     facet_grid(contrast~cluster_id) + ggtitle("P-value histograms") + theme_bw() 
   
   if(findMarkers == TRUE){
-
     celltypes = celltype_de$de_output_tidy %>% dplyr::pull(cluster_id) %>% unique()
     
     celltype_de_findmarkers = celltypes %>% lapply(function(celltype_oi, sce){
