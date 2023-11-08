@@ -22,7 +22,7 @@
 #' celltype_id = "celltype"
 #' senders_oi = SummarizedExperiment::colData(sce)[,celltype_id] %>% unique()  
 #' receivers_oi = SummarizedExperiment::colData(sce)[,celltype_id] %>% unique() 
-#' abundance_celltype_info = get_abundance_expression_info(sce = sce, sample_id = sample_id, group_id = group_id, celltype_id =  celltype_id, min_cells = 10, senders_oi = senders_oi, receivers_oi = receivers_oi)
+#' abundance_celltype_info = make_abundance_plots(sce = sce, sample_id = sample_id, group_id = group_id, celltype_id =  celltype_id, min_cells = 10, senders_oi = senders_oi, receivers_oi = receivers_oi)
 #' }
 #'
 #' @export

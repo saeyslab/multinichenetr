@@ -52,10 +52,11 @@ celltype_de = perform_muscat_de_analysis(
    batches = batches,
    contrasts = contrasts_oi)
 receiver_de = celltype_de$de_output_tidy
-ligand_activities_targets_DEgenes = get_ligand_activities_targets_DEgenes(
+ligand_activities_targets_DEgenes = get_ligand_activities_targets_DEgenes_beta(
    receiver_de = receiver_de,
    receivers_oi = receivers_oi,
-   ligand_target_matrix = ligand_target_matrix)
+   ligand_target_matrix = ligand_target_matrix,
+   n.cores = 2)
 }
 
 }

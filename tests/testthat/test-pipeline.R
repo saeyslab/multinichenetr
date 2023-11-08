@@ -41,10 +41,11 @@ test_that("Pipeline for all-vs-all analysis works & plotting functions work", {
     findMarkers = TRUE)
   expect_type(output_naive,"list")
   
-  # test edge-case of only 4 samples
-  sce_test_cor = sce[,SummarizedExperiment::colData(sce)[,sample_id] %in% c("HN25","HN26","HN17","HN6")]
+  # test condition-specific celltype functions
+  sce_subset = sce
+  
   output = multi_nichenet_analysis(
-    sce = sce_test_cor,
+    sce = sce_subset,
     celltype_id = celltype_id,
     sample_id = sample_id,
     group_id = group_id,
@@ -57,6 +58,53 @@ test_that("Pipeline for all-vs-all analysis works & plotting functions work", {
   output = make_lite_output(output)
   expect_type(output,"list")
   
+  senders_oi = SummarizedExperiment::colData(sce_subset)[,celltype_id] %>% unique()
+  receivers_oi = SummarizedExperiment::colData(sce_subset)[,celltype_id] %>% unique()
+  abundance_expression_info = get_abundance_expression_info(sce = sce_subset, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id, min_cells = 5, senders_oi = senders_oi, receivers_oi = receivers_oi, lr_network = lr_network, batches = batches)
+  
+  condition_specific_celltypes = "Malignant"
+  
+  sender_receiver_de = suppressMessages(combine_sender_receiver_de(
+    sender_de = output$celltype_de,
+    receiver_de = output$celltype_de,
+    senders_oi = senders_oi,
+    receivers_oi = receivers_oi,
+    lr_network = lr_network
+  ))
+  
+  abundance_info = make_abundance_plots(sce = sce, sample_id = sample_id, group_id = group_id, celltype_id =  celltype_id, min_cells = 10, senders_oi = senders_oi, receivers_oi = receivers_oi)
+  
+  prioritization_tables_with_condition_specific_celltype_receiver = prioritize_condition_specific_receiver(
+    abundance_info = abundance_info,
+    abundance_expression_info = abundance_expression_info, 
+    condition_specific_celltypes = condition_specific_celltypes, 
+    grouping_tbl = output$grouping_tbl, 
+    fraction_cutoff = 0.05, 
+    contrast_tbl = contrast_tbl, 
+    sender_receiver_de = sender_receiver_de, 
+    lr_network = lr_network, 
+    ligand_activities_targets_DEgenes = output$ligand_activities_targets_DEgenes,
+    scenario = "regular",
+    ligand_activity_down = FALSE
+  )
+  expect_type(prioritization_tables_with_condition_specific_celltype_receiver,"list")
+  
+  prioritization_tables_with_condition_specific_celltype_sender = prioritize_condition_specific_sender(
+    abundance_info = abundance_info,
+    abundance_expression_info = abundance_expression_info, 
+    condition_specific_celltypes = condition_specific_celltypes, 
+    grouping_tbl = output$grouping_tbl, 
+    fraction_cutoff = 0.05, 
+    contrast_tbl = contrast_tbl, 
+    sender_receiver_de = sender_receiver_de, 
+    lr_network = lr_network, 
+    ligand_activities_targets_DEgenes = output$ligand_activities_targets_DEgenes,
+    scenario = "regular",
+    ligand_activity_down = FALSE
+  )
+  expect_type(prioritization_tables_with_condition_specific_celltype_sender,"list")
+  
+  # test normal
   output = multi_nichenet_analysis(
        sce = sce,
        celltype_id = celltype_id,
@@ -74,6 +122,22 @@ test_that("Pipeline for all-vs-all analysis works & plotting functions work", {
   output = make_lite_output(output)
   expect_type(output,"list")
   expect_type(output$prioritization_tables,"list")
+  
+  # test edge-case of only 4 samples
+  sce_test_cor = sce[,SummarizedExperiment::colData(sce)[,sample_id] %in% c("HN25","HN26","HN17","HN6")]
+  output = multi_nichenet_analysis(
+    sce = sce_test_cor,
+    celltype_id = celltype_id,
+    sample_id = sample_id,
+    group_id = group_id,
+    batches = batches,
+    covariates = covariates,
+    lr_network = lr_network,
+    ligand_target_matrix = ligand_target_matrix,
+    contrasts_oi = contrasts_oi,
+    contrast_tbl = contrast_tbl)
+  output = make_lite_output(output)
+  expect_type(output,"list")
   
   # test edge-case of no cells in one sample
   cells_remove = sce[, SummarizedExperiment::colData(sce)[,celltype_id] %in% c("CAF") & SummarizedExperiment::colData(sce)[,sample_id] %in% c("HN16")] %>% colnames()
@@ -173,7 +237,7 @@ test_that("Pipeline for all-vs-all analysis works & plotting functions work", {
 
   graph_plot = make_ggraph_ligand_target_links(lr_target_prior_cor_filtered = lr_target_prior_cor_filtered, prioritized_tbl_oi = prioritized_tbl_oi, colors = c("blue","red"))
   network = infer_intercellular_regulatory_network(lr_target_prior_cor_filtered, prioritized_tbl_oi)
-  graph_plot = visualize_network(network1, colors = c("blue","red"))
+  graph_plot = visualize_network(network, colors = c("blue","red"))
   expect_type(graph_plot,"list")
   
   ligand_oi = "ADAM17"

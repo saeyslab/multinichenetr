@@ -235,7 +235,7 @@ generate_prioritization_tables = function(sender_receiver_info, sender_receiver_
                         "scaled_activity_down", "scaled_avg_exprs_ligand", "scaled_avg_frq_ligand", "scaled_avg_exprs_receptor", "scaled_avg_frq_receptor")
   columns_to_keep = group_prioritization_tbl %>% colnames() %>% setdiff(columns_to_remove)
   group_prioritization_table_source = group_prioritization_tbl %>% select(columns_to_keep) %>% distinct()
-  group_prioritization_tbl = group_prioritization_tbl %>% select(contrast, group, sender, receiver, ligand, receptor, lr_interaction, id, scaled_lfc_ligand, scaled_p_val_ligand_adapted, scaled_lfc_receptor, scaled_p_val_receptor_adapted, max_scaled_activity, scaled_pb_ligand, scaled_pb_receptor, fraction_expressing_ligand_receptor, prioritization_score, top_group) %>% distinct()
+  group_prioritization_tbl = group_prioritization_tbl %>% select(contrast, group, sender, receiver, ligand, receptor, lr_interaction, id, scaled_lfc_ligand, scaled_p_val_ligand_adapted, scaled_lfc_receptor, scaled_p_val_receptor_adapted, max_scaled_activity, scaled_pb_ligand, scaled_pb_receptor, fraction_expressing_ligand_receptor, prioritization_score, top_group) %>% distinct() 
   
   return(list(group_prioritization_tbl = group_prioritization_tbl, sample_prioritization_tbl = sample_prioritization_tbl, ligand_activities_target_de_tbl = ligand_activities_target_de_tbl, group_prioritization_table_source = group_prioritization_table_source))
 
@@ -484,9 +484,9 @@ add_extra_criterion = function(prioritization_tables, new_criteria_tbl, regular_
     dplyr::mutate(prioritization_score = prioritization_score/sum_prioritization_weights) %>% dplyr::arrange(-prioritization_score)
   
   # post-process group_prioritization   -----------------------------------------------
-  group_prioritization_tbl = group_prioritization_tbl %>% dplyr::inner_join(group_prioritization_tbl %>% dplyr::distinct(id, group, prioritization_score) %>% dplyr::group_by(id) %>% dplyr::top_n(1, prioritization_score) %>% dplyr::mutate(top_group = group) %>% dplyr::distinct(id, top_group) %>% dplyr::ungroup()) %>% dplyr::distinct()
+  group_prioritization_tbl = group_prioritization_tbl %>% dplyr::inner_join(group_prioritization_tbl %>% dplyr::distinct(id, group, prioritization_score) %>% dplyr::group_by(id) %>% dplyr::top_n(1, prioritization_score) %>% dplyr::mutate(top_group = group) %>% dplyr::distinct(id, top_group) %>% dplyr::ungroup()) %>% dplyr::distinct() 
   
-  prioritization_tables$group_prioritization_tbl = group_prioritization_tbl
+  prioritization_tables$group_prioritization_tbl = group_prioritization_tbl 
   
   return(prioritization_tables)
 }
@@ -499,6 +499,7 @@ add_extra_criterion = function(prioritization_tables, new_criteria_tbl, regular_
 #'
 #' @inheritParams multi_nichenet_analysis
 #' @inheritParams combine_sender_receiver_info_ic
+#' @param prioritizing_weights named numeric vector of prioritization weights.
 #' @param ligand_activity_down For prioritization based on ligand activity: consider the max of up- and downregulation (`TRUE`, default) or consider only upregulated activity (`FALSE`). 
 #' @param sender_receiver_info Output of `combine_sender_receiver_info_ic`
 #' @param sender_receiver_de Output of `combine_sender_receiver_de`

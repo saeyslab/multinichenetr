@@ -592,7 +592,7 @@ group_oi = "M"
 ```
 
 ```{r, fig.height=13, fig.width=15}
-prioritized_tbl_oi = prioritized_tbl_oi_all %>% filter(group == group_oi)
+prioritized_tbl_oi_M_50 = prioritized_tbl_oi_all %>% filter(group == group_oi)
 
 plot_oi = make_sample_lr_prod_activity_plots(multinichenet_output$prioritization_tables, prioritized_tbl_oi_M_50)
 plot_oi

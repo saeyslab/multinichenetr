@@ -1,0 +1,734 @@
+---
+title: "MultiNicheNet analysis: Workflow for condition-specific cell types"
+author: "Robin Browaeys"
+date: "2023-06-06"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{MultiNicheNet analysis: Workflow for condition-specific cell types}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+<!-- github markdown built using 
+rmarkdown::render("vignettes/condition_specific_celltype_MISC.Rmd", output_format = "github_document")
+-->
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  # comment = "#>",
+  warning = FALSE,
+  message = FALSE
+)
+```
+
+In this vignette, you can learn how to perform a MultiNicheNet analysis when you have one or more condition-specific cell types in your data. The core issue with analyzing condition-specific cell types lies in the impracticality of performing differential expression (DE) analysis. This is because condition-specific cell types, by their very nature, do not have a counterpart in other conditions against which differential expression can be measured.
+
+As one solution, we recommend - if possible and biologically sensible (eg sub cell type can be seen as a different state) - to annotate your cells at one level higher in the cell type annotation hierarchy. Hereby, you will not have this problem of condition-specific cell types anymore. 
+
+A a second solution, we propose the procedure as showcased in this vignette. This consists of 3 consecutive workflows: 
+Workflow General: This is the regular MultiNicheNet approach. 
+In the general workflow, condition-specific cell types are excluded from the analysis. This approach focuses on achieving the best prioritization for other cell types that are present across different conditions, allowing for a standard DE analysis. The exclusion of condition-specific cell types simplifies the analysis but at the expense of potentially missing out on valuable insights that these unique cell types could provide. Therefore you can go further with the next two workflows: 
+
+Workflow A (Sender Cell Types):
+This workflow adapts the analysis to include condition-specific cell types as sender cell types. It circumvents the need for DE analysis of the ligand by only focusing the ligand-prioritization on ligand cell type specificity and ligand activity. 
+
+Workflow B (Receiver Cell Types):
+Workflow B allows for the inclusion of condition-specific cell types as receiver cell types by forgoing the DE analysis of the receiver, meaning that we cannot consider receptor differential expresion and ligand activity. Instead, receptor prioritization is based solely on the receptor cell type specificity. 
+
+As example expression data of interacting cells, we will here use scRNAseq data of immune cells in MIS-C patients and healthy siblings from this paper of Hoste et al.: [TIM3+ TRBV11-2 T cells and IFNγ signature in patrolling monocytes and CD16+ NK cells delineate MIS-C](https://rupress.org/jem/article/219/2/e20211381/212918/TIM3-TRBV11-2-T-cells-and-IFN-signature-in) [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.6362434.svg)](https://doi.org/10.5281/zenodo.6362434)
+. MIS-C (multisystem inflammatory syndrome in children) is a novel rare immunodysregulation syndrome that can arise after SARS-CoV-2 infection in children. We will use NicheNet to explore immune cell crosstalk enriched in MIS-C compared to healthy siblings and patients with adult COVID-19. 
+
+# Step 0: Preparation of the analysis: load packages, NicheNet LR network & ligand-target matrix, single-cell expression data
+
+## Step 0.1: Load required packages and NicheNet ligand-receptor network and ligand-target matrix
+
+```{r}
+library(SingleCellExperiment)
+library(dplyr)
+library(ggplot2)
+library(nichenetr)
+library(multinichenetr)
+```
+
+The Nichenet v2 networks and matrices for both mouse and human can be downloaded from Zenodo [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.7074291.svg)](https://doi.org/10.5281/zenodo.7074291). 
+
+We will read these object in for human because our expression data is of human patients. 
+Gene names are here made syntactically valid via `make.names()` to avoid the loss of genes (eg H2-M3) in downstream visualizations.
+
+```{r}
+organism = "human"
+if(organism == "human"){
+  lr_network = readRDS(url("https://zenodo.org/record/7074291/files/lr_network_human_21122021.rds"))
+  lr_network = lr_network %>% dplyr::rename(ligand = from, receptor = to) %>% distinct(ligand, receptor) %>% mutate(ligand = make.names(ligand), receptor = make.names(receptor))
+  ligand_target_matrix = readRDS(url("https://zenodo.org/record/7074291/files/ligand_target_matrix_nsga2r_final.rds"))
+  colnames(ligand_target_matrix) = colnames(ligand_target_matrix) %>% make.names()
+  rownames(ligand_target_matrix) = rownames(ligand_target_matrix) %>% make.names()
+} else if(organism == "mouse"){
+  lr_network = readRDS(url("https://zenodo.org/record/7074291/files/lr_network_mouse_21122021.rds"))
+  lr_network = lr_network %>% dplyr::rename(ligand = from, receptor = to) %>% distinct(ligand, receptor) %>% mutate(ligand = make.names(ligand), receptor = make.names(receptor))
+  ligand_target_matrix = readRDS(url("https://zenodo.org/record/7074291/files/ligand_target_matrix_nsga2r_final_mouse.rds"))
+  colnames(ligand_target_matrix) = colnames(ligand_target_matrix) %>% make.names()
+  rownames(ligand_target_matrix) = rownames(ligand_target_matrix) %>% make.names()
+}
+```
+
+## Step 0.2: Read in SingleCellExperiment Objects 
+
+In this vignette, sender and receiver cell types are in the same SingleCellExperiment object, which we will load here. In this vignette, we will load in a subset of the scRNAseq data of the MIS-C [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.8010790.svg)](https://doi.org/10.5281/zenodo.8010790). For the sake of demonstration, this subset only contains 3 cell types. These celltypes are some of the cell types that were found to be most interesting related to MIS-C according to Hoste et al. 
+
+If you start from a Seurat object, you can convert it easily to a SingleCellExperiment via `sce = Seurat::as.SingleCellExperiment(seurat_obj, assay = "RNA")`.
+
+Because the NicheNet 2.0. networks are in the most recent version of the official gene symbols, we will make sure that the gene symbols used in the expression data are also updated (= converted from their "aliases" to official gene symbols). Afterwards, we will make them again syntactically valid. 
+
+```{r}
+sce = readRDS(url("https://zenodo.org/record/8010790/files/sce_subset_misc.rds"))
+sce = alias_to_symbol_SCE(sce, "human") %>% makenames_SCE()
+```
+
+## Step 0.3: Prepare settings of the MultiNicheNet cell-cell communication analysis
+
+### Define in which metadata columns we can find the **group**, **sample** and **cell type** IDs
+
+In this case study, we want to study differences in cell-cell communication patterns between MIS-C patients (M), their healthy siblings (S) and patiens with adult COVID-19 (A). The meta data columns that indicate this disease status is `MIS.C.AgeTier`.
+
+Cell type annotations are indicated in the `Annotation_v2.0` column, and the sample is indicated by the `ShortID` column. 
+If your cells are annotated in multiple hierarchical levels, we recommend using quite a high level in the hierarchy. This for 2 reasons: 1) MultiNicheNet focuses on differential expression and not differential abundance, and 2) there should be sufficient cells per sample-celltype combination.
+
+If you would have batch effects or covariates you can correct for, you can define this here as well. 
+
+Important: for categorical covariates and batches, there should be at least one sample for every group-batch combination. If one of your groups/conditions lacks a certain level of your batch, you won't be able to correct for the batch effect because the model is then not able to distinguish batch from group/condition effects.
+
+Important: the column names of group, sample, cell type, batches and covariates should be syntactically valid (`make.names`)
+
+Important: All group, sample, cell type, batch and covariate names should be syntactically valid as well (`make.names`) (eg through `SummarizedExperiment::colData(sce)$ShortID = SummarizedExperiment::colData(sce)$ShortID %>% make.names()`)
+
+```{r}
+sample_id = "ShortID"
+group_id = "MIS.C.AgeTier"
+celltype_id = "Annotation_v2.0"
+covariates = NA
+batches = NA
+```
+
+Sender and receiver cell types also need to be defined. Both are here all cell types in the dataset because we are interested in an All-vs-All analysis.
+
+```{r}
+senders_oi = SummarizedExperiment::colData(sce)[,celltype_id] %>% unique()
+receivers_oi = SummarizedExperiment::colData(sce)[,celltype_id] %>% unique()
+```
+
+If the user wants it, it is possible to use only a subset of senders and receivers. Senders and receivers can be entirely different, but also overlapping, or the same. If you don't use all the cell types in your data, we recommend to continue with a subset of your data.
+
+```{r}
+sce = sce[, SummarizedExperiment::colData(sce)[,celltype_id] %in% c(senders_oi, receivers_oi)]
+```
+
+In this vignette we will specifically demonstrate our workaround in case you are dealing with condition-specific cell types. These are cell types that are lacking in at least one condition, and are present in at least one other condition. 
+For demonstration purposes, we will here artificially remove L_T_TIM3._CD38._HLADR. from the sibling and adult samples, making these cells specific for the MIS-C group. 
+
+```{r}
+sce_T = sce[, SummarizedExperiment::colData(sce)[,celltype_id] == "L_T_TIM3._CD38._HLADR."]
+sce_T_Sibling =  sce_T[, SummarizedExperiment::colData(sce_T)[,group_id] %in% c("S","A")]
+sce = sce[, setdiff(colnames(sce), colnames(sce_T_Sibling))]
+```
+
+Now we will go to the first real step of the MultiNicheNet analysis
+
+# Step 1: Extract cell type abundance of receiver and sender cell types
+
+Since MultiNicheNet will infer group differences at the sample level for each cell type (currently via Muscat - pseudobulking + EdgeR), we need to have sufficient cells per sample of a cell type, and this for both groups. In the following analysis we will set this minimum number of cells per cell type per sample at 10 (recommended minimum). 
+
+```{r}
+min_cells = 10
+```
+
+Now we will calculate abundance and expression information for each cell type / sample / group combination with the following functions. In the output of this function, you can also find some 'Cell type abundance diagnostic plots' that will the users which celltype-sample combinations will be left out later on for DE calculation because the nr of cells is lower than de defined minimum defined here above. If too many celltype-sample combinations don't pass this threshold, we recommend to define your cell types in a more general way (use one level higher of the cell type ontology hierarchy) (eg TH17 CD4T cells --> CD4T cells).
+
+```{r}
+abundance_info = make_abundance_plots(sce = sce, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id, min_cells = min_cells, senders_oi = senders_oi, receivers_oi = receivers_oi, batches = batches)
+```
+
+First, we will check the cell type abundance diagnostic plots.
+
+### Interpretation of cell type abundance information
+
+The first plot visualizes the number of cells per celltype-sample combination, and indicates which combinations are removed during the DE analysis because there are less than `min_cells` in the celltype-sample combination. 
+
+```{r}
+abundance_info$abund_plot_sample
+```
+The red dotted line indicates the required minimum of cells as defined above in `min_cells`. We can see here that some sample-celltype combinations are left out. For the DE analysis in the next step, only cell types will be considered if there are at least two samples per group with a sufficient number of cells. For these cell types in this dataset, all cell types are retained.
+
+Given this plot, we can conclude that "L_T_TIM3._CD38._HLADR." cells are our condition-specific cell type since they are lacking in one or more conditions. They are present in sufficient samples in group M, but don't always reach enough cells in the S and A group
+
+We can automatically check for condition_specific_celltypes with the following code:
+
+```{r}
+sample_group_celltype_df = abundance_info$abundance_data %>% filter(n > min_cells) %>% ungroup() %>% distinct(sample_id, group_id) %>% cross_join(abundance_info$abundance_data %>% ungroup() %>% distinct(celltype_id)) %>% arrange(sample_id)
+abundance_df = sample_group_celltype_df %>% left_join(abundance_info$abundance_data %>% ungroup())
+abundance_df$n[is.na(abundance_df$n)] = 0
+abundance_df$keep[is.na(abundance_df$keep)] = FALSE
+abundance_df_summarized = abundance_df %>% mutate(keep = as.logical(keep)) %>% group_by(group_id, celltype_id) %>% summarise(samples_present = sum((keep)))
+condition_specific_celltypes = abundance_df_summarized %>% filter(samples_present == 0) %>% pull(celltype_id) %>% unique()
+condition_specific_celltypes
+```
+
+We recommend checking whether the automatically-defined condition-specific celltypes are relevant to you. You can always change `condition_specific_celltypes` manually.
+
+```{r}
+if(length(condition_specific_celltypes) > 0) {
+  print("There are condition specific cell types in the data. Continuing with the regular MultiNicheNet analysis will not include those. If preferred, the user can apply a specific worfklow tailored to analyze CCC events involving condition-specific cell types")
+} else {
+  print("There are no condition specific cell types in the data. MultiNicheNet analysis can be performed in the regular way for all cell types.")
+}
+```
+
+
+```{r}
+abundance_info$abund_plot_group
+```
+
+```{r}
+abundance_info$abund_barplot
+```
+__Important__: Based on the cell type abundance diagnostics, we recommend users to change their analysis settings if required (eg changing cell type annotation level, batches, ...), before proceeding with the rest of the analysis.
+
+# Step 2: Perform genome-wide differential expression analysis of receiver and sender cell types to define DE genes between the conditions of interest. Based on this analysis, we can define the logFC/p-value of ligands in senders and receptors in receivers, and define the set of affected target genes in the receiver.
+
+Now we will go over to the multi-group, multi-sample differential expression (DE) analysis (also called 'differential state' analysis by the developers of Muscat).
+
+### Define the contrasts and covariates of interest for the DE analysis.
+
+Here, we want to compare each patient group to the other groups, so the MIS-C (M) group vs healthy control siblins (S) and adult COVID19 patients (A) etcetera. 
+To do this comparison, we need to set the following contrasts:
+
+```{r}
+contrasts_oi = c("'M-(S+A)/2','S-(M+A)/2','A-(S+M)/2'")
+```
+
+__Very Important__ Note the format to indicate the contrasts! This formatting should be adhered to very strictly, and white spaces are not allowed!  Check `?get_DE_info` for explanation about how to define this well. The most important things are that: each contrast is surrounded by single quotation marks, contrasts are separated by a comma without any whitespace, and alle contrasts together are surrounded by double quotation marks. If you compare against two groups, you should divide by 2, if you compare against three groups, you should divide by 3 etcetera.
+
+For downstream visualizations and linking contrasts to their main group, you need to run the following:
+
+```{r}
+contrast_tbl = tibble(contrast = 
+                        c("M-(S+A)/2","S-(M+A)/2", "A-(S+M)/2"), 
+                      group = c("M","S","A"))
+```
+
+
+### Perform the DE analysis for each cell type.
+
+```{r}
+DE_info = get_DE_info(sce = sce, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id, batches = batches, covariates = covariates, contrasts_oi = contrasts_oi, min_cells = min_cells)
+```
+Logically, DE analysis cannot be performed for the condition-specific cell types. This results here in an error for the "L_T_TIM3._CD38._HLADR." cell type. 
+
+### Check DE results
+
+Table with logFC and p-values for each gene-celltype-contrast:
+
+```{r}
+DE_info$celltype_de$de_output_tidy %>% arrange(p_adj) %>% head()
+```
+
+```{r}
+celltype_de = DE_info$celltype_de$de_output_tidy
+```
+
+Only keep cell types in the SingleCellExperiment object if they were retained in the DE analysis; or if they were condition-specific.
+```{r}
+retained_celltypes = celltype_de$cluster_id %>% unique()
+retained_celltypes = c(retained_celltypes, condition_specific_celltypes) 
+sce = sce[, SummarizedExperiment::colData(sce)[,celltype_id] %in% retained_celltypes]
+```
+
+In the next step, we will combine the DE information of senders and receivers by linking their ligands and receptors together:
+
+### Combine DE information for ligand-senders and receptors-receivers (similar to step1 - `abundance_expression_info$sender_receiver_info`)
+
+```{r}
+sender_receiver_de = combine_sender_receiver_de(
+  sender_de = celltype_de,
+  receiver_de = celltype_de,
+  senders_oi = senders_oi,
+  receivers_oi = receivers_oi,
+  lr_network = lr_network
+)
+```
+
+```{r}
+sender_receiver_de %>% head(20)
+```
+### Prepare sender-receiver and sample-condition grouping tables necessary for downstream analyses
+
+```{r}
+sender_receiver_tbl = sender_receiver_de %>% dplyr::distinct(sender, receiver)
+
+metadata_combined = SummarizedExperiment::colData(sce) %>% tibble::as_tibble()
+
+if(!is.na(batches)){
+  grouping_tbl = metadata_combined[,c(sample_id, group_id, batches)] %>% tibble::as_tibble() %>% dplyr::distinct()
+  colnames(grouping_tbl) = c("sample","group",batches)
+} else {
+  grouping_tbl = metadata_combined[,c(sample_id, group_id)] %>% tibble::as_tibble() %>% dplyr::distinct()
+  colnames(grouping_tbl) = c("sample","group")
+}
+```
+
+Crucial note: grouping_tbl: group should be the same as in the contrast_tbl, and as in the expression info tables! Rename accordingly if this would not be the case. If you followed the guidelines of this tutorial closely, there should be no problem.
+
+# Step 3: Extract expression information from receiver and sender cell types, and link this expression information for ligands of the sender cell types to the corresponding receptors of the receiver cell types
+
+```{r}
+abundance_expression_info = get_abundance_expression_info(sce = sce, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id, min_cells = min_cells, senders_oi = senders_oi, receivers_oi = receivers_oi, lr_network = lr_network, batches = batches)
+```
+
+# Step 4: Predict NicheNet ligand activities and NicheNet ligand-target links based on these differential expression results
+
+## Define the parameters for the NicheNet ligand activity analysis 
+
+Here, we need to define the thresholds that will be used to consider genes as differentially expressed or not (logFC, p-value, decision whether to use adjusted or normal p-value, minimum fraction of cells that should express a gene in at least one sample in a group, whether to use the normal p-values or empirical p-values). 
+
+NicheNet ligand activity will then be calculated as the enrichment of predicted target genes of ligands in this set of DE genes compared to the genomic background. Here we choose for a minimum logFC of 0.50, maximum p-value of 0.05, and minimum fraction of expression of 0.05. 
+
+```{r}
+logFC_threshold = 0.50
+p_val_threshold = 0.05
+fraction_cutoff = 0.05
+```
+
+We will here choose for applying the p-value cutoff on the normal p-values, and not on the p-values corrected for multiple testing. This choice was made here because this dataset has only a few samples per group and we might have a lack of statistical power due to pseudobulking. In case of more samples per group, and a sufficient high number of DE genes per group-celltype (> 50), we would recommend using the adjusted p-values.
+
+```{r}
+# p_val_adj = TRUE 
+p_val_adj = FALSE 
+```
+
+For the NicheNet ligand-target inference, we also need to select which top n of the predicted target genes will be considered (here: top 250 targets per ligand).
+
+```{r}
+top_n_target = 250
+```
+
+The NicheNet ligand activity analysis can be run in parallel for each receiver cell type, by changing the number of cores as defined here. This is only recommended if you have many receiver cell type. 
+
+```{r}
+verbose = TRUE
+cores_system = 8
+n.cores = min(cores_system, sender_receiver_de$receiver %>% unique() %>% length()) # use one core per receiver cell type
+```
+
+## Run the NicheNet ligand activity analysis 
+
+(this might take some time)
+```{r}
+ligand_activities_targets_DEgenes = suppressMessages(suppressWarnings(get_ligand_activities_targets_DEgenes(
+  receiver_de = celltype_de,
+  receivers_oi = receivers_oi,
+  ligand_target_matrix = ligand_target_matrix,
+  logFC_threshold = logFC_threshold,
+  p_val_threshold = p_val_threshold,
+  p_val_adj = p_val_adj,
+  top_n_target = top_n_target,
+  verbose = verbose, 
+  n.cores = n.cores
+)))
+```
+
+Check the DE genes used for the activity analysis
+
+```{r}
+ligand_activities_targets_DEgenes$de_genes_df %>% head(20)
+```
+
+Check the output of the activity analysis
+
+```{r}
+ligand_activities_targets_DEgenes$ligand_activities %>% head(20)
+```
+
+# Step 5: Use the information collected above to prioritize all sender-ligand---receiver-receptor pairs.
+
+In the previous steps, we calculated expression, differential expression and NicheNet activity information. Now we will combine these different types of information in one prioritization scheme.
+
+MultiNicheNet uses the following criteria to prioritize ligand-receptor interactions:
+
+* Upregulation of the ligand in a sender cell type and/or upregulation of the receptor in a receiver cell type - in the condition of interest. : `de_ligand` and `de_receptor`
+* Sufficiently high expression levels of ligand and receptor in many samples of the same group (to mitigate the influence of outlier samples). : `frac_exprs_ligand_receptor`
+* Cell-type and condition specific expression of the ligand in the sender cell type and receptor in the receiver cell type (to mitigate the influence of upregulated but still relatively weakly expressed ligands/receptors) : `exprs_ligand` and `exprs_receptor`
+* High NicheNet ligand activity, to further prioritize ligand-receptor pairs based on their predicted effect of the ligand-receptor interaction on the gene expression in the receiver cell type : `activity_scaled` 
+
+## Run the prioritization 
+
+```{r}
+prioritization_tables = suppressMessages(generate_prioritization_tables(
+  sender_receiver_info = abundance_expression_info$sender_receiver_info,
+  sender_receiver_de = sender_receiver_de,
+  ligand_activities_targets_DEgenes = ligand_activities_targets_DEgenes,
+  contrast_tbl = contrast_tbl,
+  sender_receiver_tbl = sender_receiver_tbl,
+  grouping_tbl = grouping_tbl,
+  scenario = "regular", # all prioritization criteria will be weighted equally
+  fraction_cutoff = fraction_cutoff, 
+  abundance_data_receiver = abundance_expression_info$abundance_data_receiver,
+  abundance_data_sender = abundance_expression_info$abundance_data_sender,
+  ligand_activity_down = FALSE # use only upregulatory ligand activities to prioritize
+))
+```
+
+Check the output tables
+
+First: group-based summary table
+
+```{r}
+prioritization_tables$group_prioritization_tbl %>% head(20)
+```
+
+# Step 6: Add information on prior knowledge and expression correlation between LR and target expression. 
+
+In multi-sample datasets, we have the opportunity to look whether expression of ligand-receptor across all samples is correlated with the expression of their by NicheNet predicted target genes. This is what we will do with the following line of code:
+
+```{r}
+lr_target_prior_cor = lr_target_prior_cor_inference(prioritization_tables$group_prioritization_tbl$receiver %>% unique(), abundance_expression_info, celltype_de, grouping_tbl, prioritization_tables, ligand_target_matrix, logFC_threshold = logFC_threshold, p_val_threshold = p_val_threshold, p_val_adj = p_val_adj)
+```
+
+# Step 7: Save all the output of MultiNicheNet 
+
+To avoid needing to redo the analysis later.
+All the output written down here is sufficient to make all in-built downstream visualizations.
+
+```{r}
+path = "./"
+
+multinichenet_output = list(
+    celltype_info = abundance_expression_info$celltype_info,
+    celltype_de = celltype_de,
+    sender_receiver_info = abundance_expression_info$sender_receiver_info,
+    sender_receiver_de =  sender_receiver_de,
+    ligand_activities_targets_DEgenes = ligand_activities_targets_DEgenes,
+    prioritization_tables = prioritization_tables,
+    grouping_tbl = grouping_tbl,
+    lr_target_prior_cor = lr_target_prior_cor
+  ) 
+multinichenet_output = make_lite_output(multinichenet_output)
+
+save = FALSE
+if(save == TRUE){
+  saveRDS(multinichenet_output, paste0(path, "multinichenet_output.rds"))
+
+}
+```
+
+### Circos plot of top-prioritized links
+
+Now we will quickly look at the top 50 predictions across all contrasts, senders, and receivers of interest.
+
+```{r}
+prioritized_tbl_oi_all = get_top_n_lr_pairs(prioritization_tables, 50, rank_per_group = FALSE)
+```
+
+```{r, fig.width=15, fig.height=12}
+prioritized_tbl_oi = prioritization_tables$group_prioritization_tbl %>%
+  filter(id %in% prioritized_tbl_oi_all$id) %>%
+  distinct(id, sender, receiver, ligand, receptor, group) %>% left_join(prioritized_tbl_oi_all)
+prioritized_tbl_oi$prioritization_score[is.na(prioritized_tbl_oi$prioritization_score)] = 0 
+```
+
+```{r, fig.width=15, fig.height=12}
+senders_receivers = union(prioritized_tbl_oi$sender %>% unique(), prioritized_tbl_oi$receiver %>% unique()) %>% sort()
+
+colors_sender = RColorBrewer::brewer.pal(n = length(senders_receivers), name = 'Spectral') %>% magrittr::set_names(senders_receivers)
+colors_receiver = RColorBrewer::brewer.pal(n = length(senders_receivers), name = 'Spectral') %>% magrittr::set_names(senders_receivers)
+
+circos_list = make_circos_group_comparison(prioritized_tbl_oi, colors_sender, colors_receiver)
+```
+
+The above steps and prioritization are the same as for a regular MultiNicheNet analysis, and only focus on cell types present in all conditions. Now we will showcase two workflows that enable studying condition-specific cell types.
+
+The first one (workflow A) looks at condition-specific cell types as sender cell types. The second one (workflow B) looks at condition-specific cell types as receiver cell types.
+
+# Condition-specificity workflow mode A: investigating the role of condition-specific cell types as SENDER cell types
+
+## A-1: Add interactions potentially involving condition-specific cell types
+
+Here we will demonstrate how to look whether the condition-specific cell type(s) may contribute to important cell-cell communication patterns in your system of interest. 
+In MultiNicheNet, we prioritize ligand-receptor interactions based on: 1) ligand expression (condition/cell-type specific); 2) receptor expression (condition/cell-type specific); 3) ligand activity (downstream signature in receiver)
+
+For condition-specific cell type(s) we cannot calculate DE, meaning that we cannot infer ligand activities (= which ligands may influence gene expression in the condition-specific cell type). So we cannot consider them as receiver cell type. However, we can still consider them as sender cell type, focusing on cell-type specificity of ligands and their ligand activity on other cell types. 
+
+We will thus assume that following ligands from condition-specific cell types may be important:
+* ligands are cell-type specific for the condition-specific cell type(s); meaning that this cell type is potentially the predominant source of this ligand
+* these ligands have strong downstream target gene enrichment (high ligand activity) 
+
+Based on these criteria, we will add ligand-receptor pairs to the prioritization_table involving the condition-specific cell type as sender. 
+
+Now we will prioritize the interactions with the function: `prioritize_condition_specific_sender`. This function will not use the logFC & p-value for DE of the ligand anymore. For the ligand, only celltype specific expression in the condition of interest, and ligand activity will be considered.
+
+```{r}
+prioritization_tables_with_condition_specific_celltype_sender = prioritize_condition_specific_sender(
+  abundance_info = abundance_info,
+  abundance_expression_info = abundance_expression_info, 
+  condition_specific_celltypes = condition_specific_celltypes, 
+  grouping_tbl = grouping_tbl, 
+  fraction_cutoff = fraction_cutoff, 
+  contrast_tbl = contrast_tbl, 
+  sender_receiver_de = sender_receiver_de, 
+  lr_network = lr_network, 
+  ligand_activities_targets_DEgenes = ligand_activities_targets_DEgenes,
+  scenario = "regular",
+  ligand_activity_down = FALSE
+)
+```
+
+```{r}
+prioritization_tables_with_condition_specific_celltype_sender$group_prioritization_tbl %>% head(20)
+```
+We see that some top-predicted interactions are coming from the condition-specific cell type(s). This means that these ligands are the most strongly expressed by that cell type, and that they have quite high ligand activity.
+
+## Step A-2 Visualization of the results of the cell-cell communication analysis
+
+In a first instance, we will look at the broad overview of prioritized interactions via condition-specific Circos plots.
+
+### Circos plot of top-prioritized links
+
+We will look here at the top 50 predictions across all contrasts, senders, and receivers of interest.
+
+```{r}
+prioritized_tbl_oi_all = get_top_n_lr_pairs(prioritization_tables_with_condition_specific_celltype_sender, 50, rank_per_group = FALSE)
+```
+
+```{r, fig.width=15, fig.height=12}
+prioritized_tbl_oi = prioritization_tables_with_condition_specific_celltype_sender$group_prioritization_tbl %>%
+  filter(id %in% prioritized_tbl_oi_all$id) %>%
+  distinct(id, sender, receiver, ligand, receptor, group) %>% left_join(prioritized_tbl_oi_all)
+prioritized_tbl_oi$prioritization_score[is.na(prioritized_tbl_oi$prioritization_score)] = 0 
+```
+
+```{r, fig.width=15, fig.height=12}
+senders_receivers = union(prioritized_tbl_oi$sender %>% unique(), prioritized_tbl_oi$receiver %>% unique()) %>% sort()
+
+colors_sender = RColorBrewer::brewer.pal(n = length(senders_receivers), name = 'Spectral') %>% magrittr::set_names(senders_receivers)
+colors_receiver = RColorBrewer::brewer.pal(n = length(senders_receivers), name = 'Spectral') %>% magrittr::set_names(senders_receivers)
+
+circos_list = make_circos_group_comparison(prioritized_tbl_oi, colors_sender, colors_receiver)
+```
+### Visualization of scaled ligand-receptor pseudobulk products and ligand activity
+
+Now we will visualize per sample the scaled product of ligand and receptor expression. Samples that were left out of the DE analysis are indicated with a smaller dot (this helps to indicate the samples that did not contribute to the calculation of the logFC, and thus not contributed to the final prioritization)
+
+We will first visualize the interactions specific for the Sibling group that are part of the top50 differential interactions as shown in the above circos plots
+
+```{r}
+group_oi = "S"
+```
+
+```{r, fig.height=9, fig.width=13}
+prioritized_tbl_oi_S_50 = prioritized_tbl_oi_all %>% filter(group == group_oi)
+
+plot_oi = make_sample_lr_prod_activity_plots(prioritization_tables_with_condition_specific_celltype_sender, prioritized_tbl_oi_S_50)
+plot_oi
+```
+
+We will now check the MIS-C specific interactions
+
+```{r}
+group_oi = "M"
+```
+
+```{r, fig.height=5, fig.width=13}
+prioritized_tbl_oi_M_50 = prioritized_tbl_oi_all %>% filter(group == group_oi)
+
+plot_oi = make_sample_lr_prod_activity_plots(prioritization_tables_with_condition_specific_celltype_sender, prioritized_tbl_oi_M_50)
+plot_oi
+```
+Note: interpreting scaled expression values do not make much sense if only one condition where cell type is present.
+
+```{r}
+group_oi = "A"
+```
+
+```{r, fig.height=5, fig.width=13}
+prioritized_tbl_oi_A_50 = prioritized_tbl_oi_all %>% filter(group == group_oi)
+
+plot_oi = make_sample_lr_prod_activity_plots(prioritization_tables_with_condition_specific_celltype_sender, prioritized_tbl_oi_A_50)
+plot_oi
+```
+
+# Condition-specificity workflow mode B: investigating the role of condition-specific cell types as RECEIVER cell types
+
+## B-1: Add interactions potentially involving condition-specific cell types
+
+For condition-specific receiver cell type(s) we cannot calculate DE, meaning that we can only focus on cell-type specificity of receptors as prioritization criteria. 
+
+We will thus assume that following ligands from condition-specific cell types may be important:
+* receptors are cell-type specific for the condition-specific cell type(s); meaning that this cell type is potentially the predominant "sink" of this ligand
+-
+Based on these criteria, we will add ligand-receptor pairs to the prioritization_table involving the condition-specific cell type as receiver 
+
+Now we will prioritize the interactions with the function: `prioritize_condition_specific_receiver`. This function will not use the logFC & p-value for DE of the receptor anymore, nor ligand activity. For the receptor, only celltype specific expression in the condition of interest will be considered.
+
+```{r}
+prioritization_tables_with_condition_specific_celltype_receiver = prioritize_condition_specific_receiver(
+  abundance_info = abundance_info,
+  abundance_expression_info = abundance_expression_info, 
+  condition_specific_celltypes = condition_specific_celltypes, 
+  grouping_tbl = grouping_tbl, 
+  fraction_cutoff = fraction_cutoff, 
+  contrast_tbl = contrast_tbl, 
+  sender_receiver_de = sender_receiver_de, 
+  lr_network = lr_network, 
+  ligand_activities_targets_DEgenes = ligand_activities_targets_DEgenes,
+  scenario = "regular",
+  ligand_activity_down = FALSE
+)
+```
+
+```{r}
+prioritization_tables_with_condition_specific_celltype_receiver$group_prioritization_tbl %>% head(20)
+```
+We see that some top-predicted interactions are coming from the condition-specific cell type. This means that these ligands are the most strongly expressed by that cell type, and that they have quite high ligand activity.
+
+## Step B-2 Visualization of the results of the cell-cell communication analysis
+
+In a first instance, we will look at the broad overview of prioritized interactions via condition-specific Circos plots.
+
+### Circos plot of top-prioritized links
+
+We will look here at the top 50 predictions across all contrasts, senders, and receivers of interest.
+
+```{r}
+prioritized_tbl_oi_all = get_top_n_lr_pairs(prioritization_tables_with_condition_specific_celltype_receiver, 50, rank_per_group = FALSE)
+```
+
+```{r, fig.width=15, fig.height=12}
+prioritized_tbl_oi = prioritization_tables_with_condition_specific_celltype_receiver$group_prioritization_tbl %>%
+  filter(id %in% prioritized_tbl_oi_all$id) %>%
+  distinct(id, sender, receiver, ligand, receptor, group) %>% left_join(prioritized_tbl_oi_all)
+prioritized_tbl_oi$prioritization_score[is.na(prioritized_tbl_oi$prioritization_score)] = 0 
+```
+
+```{r, fig.width=15, fig.height=12}
+senders_receivers = union(prioritized_tbl_oi$sender %>% unique(), prioritized_tbl_oi$receiver %>% unique()) %>% sort()
+
+colors_sender = RColorBrewer::brewer.pal(n = length(senders_receivers), name = 'Spectral') %>% magrittr::set_names(senders_receivers)
+colors_receiver = RColorBrewer::brewer.pal(n = length(senders_receivers), name = 'Spectral') %>% magrittr::set_names(senders_receivers)
+
+circos_list = make_circos_group_comparison(prioritized_tbl_oi, colors_sender, colors_receiver)
+```
+### Visualization of scaled ligand-receptor pseudobulk products and ligand activity
+
+Now we will visualize per sample the scaled product of ligand and receptor expression. Samples that were left out of the DE analysis are indicated with a smaller dot (this helps to indicate the samples that did not contribute to the calculation of the logFC, and thus not contributed to the final prioritization)
+
+We will first visualize the interactions specific for the Sibling group that are part of the top50 differential interactions as shown in the above circos plots
+
+```{r}
+group_oi = "S"
+```
+
+```{r, fig.height=9, fig.width=13}
+prioritized_tbl_oi_S_50 = prioritized_tbl_oi_all %>% filter(group == group_oi)
+
+plot_oi = make_sample_lr_prod_activity_plots(prioritization_tables_with_condition_specific_celltype_receiver, prioritized_tbl_oi_S_50)
+plot_oi
+```
+
+We will now check the MIS-C specific interactions
+
+```{r}
+group_oi = "M"
+```
+
+```{r, fig.height=5, fig.width=13}
+prioritized_tbl_oi_M_50 = prioritized_tbl_oi_all %>% filter(group == group_oi)
+
+plot_oi = make_sample_lr_prod_activity_plots(prioritization_tables_with_condition_specific_celltype_receiver, prioritized_tbl_oi_M_50)
+plot_oi
+```
+
+```{r}
+group_oi = "A"
+```
+
+```{r, fig.height=5, fig.width=13}
+prioritized_tbl_oi_A_50 = prioritized_tbl_oi_all %>% filter(group == group_oi)
+
+plot_oi = make_sample_lr_prod_activity_plots(prioritization_tables_with_condition_specific_celltype_receiver, prioritized_tbl_oi_A_50)
+plot_oi
+```
+
+# Combine the condition-specific workflow with the regular one
+
+Finally we can combine the prioritization scores of the regular workflow with the scores from the workflows focusing on the condition-specific cell types. 
+
+This involves a strategic approach where:
+
+Regular scores are retained for interactions involving cell types that are present across all conditions.
+Workflow A scores are utilized for interactions that involve condition-specific cell types functioning as senders.
+Workflow B scores are applied for interactions with condition-specific cell types in the receiver role.
+
+Note that these scores are only semi-comparable because the scores are calculated from different combinations of prioritization criteria. We want to emphasize that you can only use these scores for visualizing all interactions together, not to make statements concerning which cell types are most likely to interact givenn the number of top-prioritized interactions between cell types. 
+
+```{r, fig.height=5, fig.width=13}
+combined_prioritization_tables = list(
+  group_prioritization_tbl = bind_rows(
+    prioritization_tables_with_condition_specific_celltype_receiver$group_prioritization_tbl %>% filter(receiver %in% condition_specific_celltypes),
+    prioritization_tables_with_condition_specific_celltype_sender$group_prioritization_tbl %>% filter(sender %in% condition_specific_celltypes)
+  ) %>% 
+    bind_rows(
+      prioritization_tables$group_prioritization_tbl
+  ) %>% arrange(-prioritization_score) %>% distinct()
+
+)
+```
+
+### Circos plot of top-prioritized links
+
+We will look here at the top 50 predictions across all contrasts, senders, and receivers of interest.
+
+```{r}
+prioritized_tbl_oi_all = get_top_n_lr_pairs(combined_prioritization_tables, 50, rank_per_group = FALSE)
+```
+
+```{r, fig.width=15, fig.height=12}
+prioritized_tbl_oi = combined_prioritization_tables$group_prioritization_tbl %>%
+  filter(id %in% prioritized_tbl_oi_all$id) %>%
+  distinct(id, sender, receiver, ligand, receptor, group) %>% left_join(prioritized_tbl_oi_all)
+prioritized_tbl_oi$prioritization_score[is.na(prioritized_tbl_oi$prioritization_score)] = 0 
+```
+
+```{r, fig.width=15, fig.height=12}
+senders_receivers = union(prioritized_tbl_oi$sender %>% unique(), prioritized_tbl_oi$receiver %>% unique()) %>% sort()
+
+colors_sender = RColorBrewer::brewer.pal(n = length(senders_receivers), name = 'Spectral') %>% magrittr::set_names(senders_receivers)
+colors_receiver = RColorBrewer::brewer.pal(n = length(senders_receivers), name = 'Spectral') %>% magrittr::set_names(senders_receivers)
+
+circos_list = make_circos_group_comparison(prioritized_tbl_oi, colors_sender, colors_receiver)
+```
+
+# Add the new prioritization tables to the saved output of MultiNicheNet 
+
+```{r}
+path = "./"
+
+multinichenet_output = list(
+    celltype_info = abundance_expression_info$celltype_info,
+    celltype_de = celltype_de,
+    sender_receiver_info = abundance_expression_info$sender_receiver_info,
+    sender_receiver_de =  sender_receiver_de,
+    ligand_activities_targets_DEgenes = ligand_activities_targets_DEgenes,
+    prioritization_tables = prioritization_tables,
+    prioritization_tables_with_condition_specific_celltype_sender = prioritization_tables_with_condition_specific_celltype_sender, 
+    prioritization_tables_with_condition_specific_celltype_receiver = prioritization_tables_with_condition_specific_celltype_receiver, 
+    combined_prioritization_tables = combined_prioritization_tables,
+    grouping_tbl = grouping_tbl,
+    lr_target_prior_cor = lr_target_prior_cor
+  ) 
+
+save = FALSE
+if(save == TRUE){
+  saveRDS(multinichenet_output, paste0(path, "multinichenet_output_with_condition_specific_celltypes.rds"))
+
+}
+```
