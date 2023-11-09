@@ -983,3 +983,78 @@ makenames_SCE = function(sce) {
   sce@assays@data = RNA
   return(sce)
 }
+#' @title make_lite_output_condition_specific
+#'
+#' @description \code{make_lite_output_condition_specific} Reduce the size of the MultiNicheNet output object (for memory efficiency), by only keeping expression information for present ligands, receptors, and genes DE in at least one probed condition. This function is specific for an object that contains the prioritization tables of the condition-specific cell type workflow as well.
+#' @usage make_lite_output_condition_specific(multinichenet_output, top_n_LR = 2500)
+#'
+#' @param  multinichenet_output Output of a MultiNicheNet analysis (result of `multi_nichenet_analysis()`).
+#' @param  top_n_LR top nr of LR pairs for which correlation with target genes will be calculated. Is 2500 by default. If you want to calculate correlation for all LR pairs, set this argument to NA.
+#' 
+#' @return multinichenet output list (= result of `multi_nichenet_analysis()`), but now filtered such that expression information is only returned for present ligands, receptors, and genes DE in at least one probed condition.
+#'
+#' @import dplyr
+#'
+#' @examples
+#' \dontrun{
+#' library(dplyr)
+#' multinichenet_output = multinichenet_output %>% make_lite_output_condition_specific()
+#' 
+#'}
+#'
+#' @export
+#'
+#'
+make_lite_output_condition_specific = function(multinichenet_output, top_n_LR = 2500){
+  
+  requireNamespace("dplyr")
+  
+  if("prioritization_tables_with_condition_specific_celltype_sender" %in% names(multinichenet_output)){
+    gene_subset = generics::union( ## to filter the output, keep only genes that are expressed ligands, receptors and/or DE genes
+      multinichenet_output$combined_prioritization_tables$group_prioritization_tbl %>% dplyr::filter(fraction_expressing_ligand_receptor > 0) %>% .$ligand, 
+      multinichenet_output$combined_prioritization_tables$group_prioritization_tbl %>% dplyr::filter(fraction_expressing_ligand_receptor > 0) %>% .$receptor) %>% generics::union(
+        multinichenet_output$ligand_activities_targets_DEgenes$de_genes_df %>% dplyr::pull(gene) %>% unique())
+    
+    multinichenet_output$celltype_info$avg_df = multinichenet_output$celltype_info$avg_df %>% dplyr::filter(gene %in% gene_subset)
+    multinichenet_output$celltype_info$frq_df = multinichenet_output$celltype_info$frq_df %>% dplyr::filter(gene %in% gene_subset)
+    multinichenet_output$celltype_info$pb_df = multinichenet_output$celltype_info$pb_df %>% dplyr::filter(gene %in% gene_subset)
+    
+    multinichenet_output$celltype_info$avg_df_group = multinichenet_output$celltype_info$avg_df_group %>% dplyr::filter(gene %in% gene_subset)
+    multinichenet_output$celltype_info$frq_df_group = multinichenet_output$celltype_info$frq_df_group %>% dplyr::filter(gene %in% gene_subset)
+    multinichenet_output$celltype_info$pb_df_group = multinichenet_output$celltype_info$pb_df_group %>% dplyr::filter(gene %in% gene_subset)
+    
+    multinichenet_output$celltype_de = multinichenet_output$celltype_de %>% dplyr::filter(gene %in% gene_subset)
+    
+    ## maybe also a subset of LR-Sender-Receiver pairs?
+    LR_subset = multinichenet_output$combined_prioritization_tables$group_prioritization_tbl %>% dplyr::filter(fraction_expressing_ligand_receptor  > 0) %>% dplyr::distinct(ligand, receptor, sender, receiver)
+    
+    if(is.na(top_n_LR)){
+      LR_subset_cor = LR_subset
+    } else {
+      LR_subset_cor = multinichenet_output$combined_prioritization_tables$group_prioritization_tbl %>% dplyr::filter(group == top_group & fraction_expressing_ligand_receptor > 0) %>% dplyr::distinct(group, sender, receiver, ligand, receptor, receiver, id, prioritization_score) %>% ungroup() %>% top_n(top_n_LR, prioritization_score) %>% dplyr::distinct(ligand, receptor, sender, receiver)  
+    }
+    
+    multinichenet_output$prioritization_tables$group_prioritization_tbl = multinichenet_output$prioritization_tables$group_prioritization_tbl %>% dplyr::inner_join(LR_subset, by = c("sender", "receiver", "ligand", "receptor"))
+    multinichenet_output$prioritization_tables$group_prioritization_table_source = multinichenet_output$prioritization_tables$group_prioritization_table_source %>% dplyr::inner_join(LR_subset, by = c("sender", "receiver", "ligand", "receptor"))
+    multinichenet_output$prioritization_tables$sample_prioritization_tbl = multinichenet_output$prioritization_tables$sample_prioritization_tbl %>% dplyr::inner_join(LR_subset, by = c("sender", "receiver", "ligand", "receptor"))
+    
+    multinichenet_output$prioritization_tables_with_condition_specific_celltype_sender$group_prioritization_tbl = multinichenet_output$prioritization_tables_with_condition_specific_celltype_sender$group_prioritization_tbl %>% dplyr::inner_join(LR_subset, by = c("sender", "receiver", "ligand", "receptor"))
+    multinichenet_output$prioritization_tables_with_condition_specific_celltype_sender$group_prioritization_table_source = multinichenet_output$prioritization_tables_with_condition_specific_celltype_sender$group_prioritization_table_source %>% dplyr::inner_join(LR_subset, by = c("sender", "receiver", "ligand", "receptor"))
+    multinichenet_output$prioritization_tables_with_condition_specific_celltype_sender$sample_prioritization_tbl = multinichenet_output$prioritization_tables_with_condition_specific_celltype_sender$sample_prioritization_tbl %>% dplyr::inner_join(LR_subset, by = c("sender", "receiver", "ligand", "receptor"))
+    
+    multinichenet_output$prioritization_tables_with_condition_specific_celltype_receiver$group_prioritization_tbl = multinichenet_output$prioritization_tables_with_condition_specific_celltype_receiver$group_prioritization_tbl %>% dplyr::inner_join(LR_subset, by = c("sender", "receiver", "ligand", "receptor"))
+    multinichenet_output$prioritization_tables_with_condition_specific_celltype_receiver$group_prioritization_table_source = multinichenet_output$prioritization_tables_with_condition_specific_celltype_receiver$group_prioritization_table_source %>% dplyr::inner_join(LR_subset, by = c("sender", "receiver", "ligand", "receptor"))
+    multinichenet_output$prioritization_tables_with_condition_specific_celltype_receiver$sample_prioritization_tbl = multinichenet_output$prioritization_tables_with_condition_specific_celltype_receiver$sample_prioritization_tbl %>% dplyr::inner_join(LR_subset, by = c("sender", "receiver", "ligand", "receptor"))
+    
+    multinichenet_output$combined_prioritization_tables$group_prioritization_tbl = multinichenet_output$combined_prioritization_tables$group_prioritization_tbl %>% dplyr::inner_join(LR_subset, by = c("sender", "receiver", "ligand", "receptor"))
+
+    if(nrow(multinichenet_output$lr_target_prior_cor) > 0){
+      multinichenet_output$lr_target_prior_cor = multinichenet_output$lr_target_prior_cor %>% dplyr::inner_join(LR_subset_cor, by = c("sender", "receiver", "ligand", "receptor")) %>% dplyr::filter(target %in% gene_subset)
+    } else{
+      multinichenet_output$lr_target_prior_cor = tibble()
+    }
+    
+  } 
+  
+  return(multinichenet_output)
+}
