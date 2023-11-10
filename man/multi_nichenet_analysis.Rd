@@ -5,8 +5,8 @@
 \title{multi_nichenet_analysis}
 \usage{
 multi_nichenet_analysis(
-sce, celltype_id, sample_id,group_id, batches, covariates, lr_network,ligand_target_matrix,contrasts_oi,contrast_tbl, senders_oi = NULL,receivers_oi = NULL, fraction_cutoff = 0.05, scenario = "regular",
-assay_oi_pb ="counts",fun_oi_pb = "sum",de_method_oi = "edgeR",min_cells = 10,logFC_threshold = 0.50,p_val_threshold = 0.05,p_val_adj = FALSE, empirical_pval = TRUE, top_n_target = 250, verbose = FALSE, n.cores = 1, return_lr_prod_matrix = FALSE, findMarkers = FALSE, filterByExpr.min.count = 7, filterByExpr.min.total.count = 15, filterByExpr.large.n = 4, filterByExpr.min.prop = 0.7, top_n_LR = 2500)
+sce, celltype_id, sample_id,group_id, batches, covariates, lr_network,ligand_target_matrix,contrasts_oi,contrast_tbl, senders_oi = NULL,receivers_oi = NULL, fraction_cutoff = 0.05, min_sample_prop = 0.5, scenario = "regular",
+assay_oi_pb ="counts",fun_oi_pb = "sum",de_method_oi = "edgeR",min_cells = 10,logFC_threshold = 0.50,p_val_threshold = 0.05,p_val_adj = FALSE, empirical_pval = TRUE, top_n_target = 250, verbose = FALSE, n.cores = 1, return_lr_prod_matrix = FALSE, findMarkers = FALSE, top_n_LR = 2500)
 }
 \arguments{
 \item{sce}{SingleCellExperiment object of the scRNAseq data of interest. Contains both sender and receiver cell types.}
@@ -43,7 +43,9 @@ Example for `contrasts_oi = c("'A-(B+C+D)/3', 'B-(A+C+D)/3'")`:
 
 \item{receivers_oi}{Default NULL: all celltypes will be considered as receivers. If you want to select specific receivers_oi: you can add this here as character vector.}
 
-\item{fraction_cutoff}{Cutoff indicating the minimum fraction of cells of a cell type in a specific sample that are necessary to consider the ligand/receptor as expressed for the final prioritization.}
+\item{fraction_cutoff}{Cutoff indicating the minimum fraction of cells of a cell type in a specific sample that are necessary to consider a gene (e.g. ligand/receptor) as expressed in a sample.}
+
+\item{min_sample_prop}{Parameter to define the minimal required nr of samples in which a gene should be expressed in more than `fraction_cutoff` of cells in that sample (per cell type). This nr of samples is calculated as the `min_sample_prop` fraction of the nr of samples of the smallest group (after considering samples with n_cells >= `min_cells`. Default: `min_sample_prop = 0.50`. Examples: if there are 8 samples in the smallest group, there should be min_sample_prop*8 (= 4 in this example) samples with sufficient fraction of expressing cells.}
 
 \item{scenario}{Character vector indicating which prioritization weights should be used during the MultiNicheNet analysis. Currently 2 settings are implemented: "regular" (default) and "lower_DE". The setting "regular" is strongly recommended and gives each criterion equal weight. The setting "lower_DE" is recommended in cases your hypothesis is that the differential CCC patterns in your data are less likely to be driven by DE (eg in cases of differential migration into a niche). It halves the weight for DE criteria, and doubles the weight for ligand activity.}
 
@@ -72,14 +74,6 @@ Example for `contrasts_oi = c("'A-(B+C+D)/3', 'B-(A+C+D)/3'")`:
 \item{return_lr_prod_matrix}{Indicate whether to calculate a senderLigand-receiverReceptor matrix, which could be used for unsupervised analysis of the cell-cell communication. Default FALSE. Setting to FALSE might be beneficial to avoid memory issues.}
 
 \item{findMarkers}{Indicate whether we should also calculate DE results with the classic scran::findMarkers approach. Default (recommended): FALSE. if TRUE: both pseudobulk-based and cell-level based DE results will be generated.}
-
-\item{filterByExpr.min.count}{check edgeR::filterByExpr documentation - Default = 7. Increase this if you want more stringent filtering in terms of required counts per gene per sample.}
-
-\item{filterByExpr.min.total.count}{check edgeR::filterByExpr documentation -Default = 15. Increase this if you want more stringent filtering in terms of required counts per gene per sample.}
-
-\item{filterByExpr.large.n}{check edgeR::filterByExpr documentation -Default = 4. Increase this if you want more stringent filtering in terms of required samples with expression of the gene.}
-
-\item{filterByExpr.min.prop}{check edgeR::filterByExpr documentation - Default = 0.7. Increase this if you want more stringent filtering in terms of required samples with expression of the gene.}
 
 \item{top_n_LR}{top nr of LR pairs for which correlation with target genes will be calculated. Is 2500 by default. If you want to calculate correlation for all expressed LR pairs, set this argument to NA.}
 }

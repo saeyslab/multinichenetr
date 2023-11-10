@@ -4,7 +4,7 @@
 \alias{perform_muscat_de_analysis}
 \title{perform_muscat_de_analysis}
 \usage{
-perform_muscat_de_analysis(sce, sample_id, celltype_id, group_id, batches, covariates, contrasts, assay_oi_pb = "counts", fun_oi_pb = "sum", de_method_oi = "edgeR", min_cells = 10, filterByExpr.min.count = 7, filterByExpr.min.total.count = 15, filterByExpr.large.n = 4, filterByExpr.min.prop = 0.7)
+perform_muscat_de_analysis(sce, sample_id, celltype_id, group_id, batches, covariates, contrasts, expressed_df, assay_oi_pb = "counts", fun_oi_pb = "sum", de_method_oi = "edgeR", min_cells = 10)
 }
 \arguments{
 \item{sce}{SingleCellExperiment object of the scRNAseq data of interest. Contains both sender and receiver cell types.}
@@ -29,6 +29,8 @@ If wanting to compare group A vs B, C and D: `contrasts_oi = c("'A-(B+C+D)/3'")`
 If wanting to compare group A vs B, C and D & B vs A,C,D: `contrasts_oi = c("'A-(B+C+D)/3', 'B-(A+C+D)/3'")`
 Note that the groups A, B, ... should be present in the meta data column 'group_id'.}
 
+\item{expressed_df}{tibble with three columns: gene, celltype, expressed; this data frame indicates which genes can be considered as expressed in each cell type.}
+
 \item{assay_oi_pb}{Indicates which information of the assay of interest should be used (counts, scaled data,...). Default: "counts". See `muscat::aggregateData`.}
 
 \item{fun_oi_pb}{Indicates way of doing the pseudobulking. Default: "sum". See `muscat::aggregateData`.}
@@ -36,14 +38,6 @@ Note that the groups A, B, ... should be present in the meta data column 'group_
 \item{de_method_oi}{Indicates the DE method that will be used after pseudobulking. Default: "edgeR". See `muscat::pbDS`.}
 
 \item{min_cells}{Indicates the minimal number of cells that a sample should have to be considered in the DE analysis. Default: 10. See `muscat::pbDS`.}
-
-\item{filterByExpr.min.count}{check edgeR::filterByExpr documentation - Default = 7. Increase this if you want more stringent filtering in terms of required counts per gene per sample.}
-
-\item{filterByExpr.min.total.count}{check edgeR::filterByExpr documentation -Default = 15. Increase this if you want more stringent filtering in terms of required counts per gene per sample.}
-
-\item{filterByExpr.large.n}{check edgeR::filterByExpr documentation -Default = 4. Increase this if you want more stringent filtering in terms of required samples with expression of the gene.}
-
-\item{filterByExpr.min.prop}{check edgeR::filterByExpr documentation - Default = 0.7. Increase this if you want more stringent filtering in terms of required samples with expression of the gene.}
 }
 \value{
 List with output of the differential expression analysis in 1) default format(`muscat::pbDS()`), and 2) in a tidy table format (`muscat::resDS()`).
@@ -58,10 +52,11 @@ lr_network = readRDS(url("https://zenodo.org/record/3260758/files/lr_network.rds
 lr_network = lr_network \%>\% dplyr::rename(ligand = from, receptor = to) \%>\% dplyr::distinct(ligand, receptor)
 sample_id = "tumor"
 group_id = "pEMT"
-celltype_id = "celltype"
+celltype_id = "CAF"
 batches = NA
 covariates = NA
 contrasts_oi = c("'High-Low','Low-High'")
+frq_list = get_frac_exprs(sce = sce, sample_id = sample_id, celltype_id =  celltype_id, group_id = group_id)
 celltype_de = perform_muscat_de_analysis(
    sce = sce,
    sample_id = sample_id,
@@ -69,7 +64,8 @@ celltype_de = perform_muscat_de_analysis(
    group_id = group_id,
    batches = batches,
    covariates = covariates,
-   contrasts = contrasts_oi)
+   contrasts = contrasts_oi,
+   expressed_df = frq_list$expressed_df)
 }
 
 }

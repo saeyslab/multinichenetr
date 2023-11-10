@@ -4,7 +4,7 @@
 \alias{get_DE_info}
 \title{get_DE_info}
 \usage{
-get_DE_info(sce, sample_id, group_id, celltype_id, batches, covariates, contrasts_oi, min_cells = 10, assay_oi_pb = "counts", fun_oi_pb = "sum", de_method_oi = "edgeR", findMarkers = FALSE, contrast_tbl = NULL, filterByExpr.min.count = 7, filterByExpr.min.total.count = 15, filterByExpr.large.n = 4, filterByExpr.min.prop = 0.7)
+get_DE_info(sce, sample_id, group_id, celltype_id, batches, covariates, contrasts_oi, expressed_df, min_cells = 10, assay_oi_pb = "counts", fun_oi_pb = "sum", de_method_oi = "edgeR", findMarkers = FALSE, contrast_tbl = NULL)
 }
 \arguments{
 \item{sce}{SingleCellExperiment object of the scRNAseq data of interest. Contains both sender and receiver cell types.}
@@ -29,6 +29,8 @@ If wanting to compare group A vs B, C and D: `contrasts_oi = c("'A-(B+C+D)/3'")`
 If wanting to compare group A vs B, C and D & B vs A,C,D: `contrasts_oi = c("'A-(B+C+D)/3', 'B-(A+C+D)/3'")` \cr
 Note that the groups A, B, ... should be present in the meta data column 'group_id'.}
 
+\item{expressed_df}{tibble with three columns: gene, celltype, expressed; this data frame indicates which genes can be considered as expressed in each cell type.}
+
 \item{min_cells}{Indicates the minimal number of cells that a sample should have to be considered in the DE analysis. Default: 10. See `muscat::pbDS`.}
 
 \item{assay_oi_pb}{Indicates which information of the assay of interest should be used (counts, scaled data,...). Default: "counts". See `muscat::aggregateData`.}
@@ -40,14 +42,6 @@ Note that the groups A, B, ... should be present in the meta data column 'group_
 \item{findMarkers}{Indicate whether we should also calculate DE results with the classic scran::findMarkers approach. Default (recommended): FALSE. if TRUE: both pseudobulk-based and cell-level based DE results will be generated.}
 
 \item{contrast_tbl}{see explanation in multi_nichenet_analysis function -- here: only required to give as input if findMarkers = TRUE.}
-
-\item{filterByExpr.min.count}{check edgeR::filterByExpr documentation - Default = 7. Increase this if you want more stringent filtering in terms of required counts per gene per sample.}
-
-\item{filterByExpr.min.total.count}{check edgeR::filterByExpr documentation -Default = 15. Increase this if you want more stringent filtering in terms of required counts per gene per sample.}
-
-\item{filterByExpr.large.n}{check edgeR::filterByExpr documentation -Default = 4. Increase this if you want more stringent filtering in terms of required samples with expression of the gene.}
-
-\item{filterByExpr.min.prop}{check edgeR::filterByExpr documentation - Default = 0.7. Increase this if you want more stringent filtering in terms of required samples with expression of the gene.}
 }
 \value{
 List with output of the differential expression analysis in 1) default format(`muscat::pbDS()`), and 2) in a tidy table format (`muscat::resDS()`) (both in the `celltype_de` slot); Histogram plot of the p-values is also returned.
@@ -64,7 +58,7 @@ celltype_id = "celltype"
 batches = NA
 covariates = NA
 contrasts_oi = c("'High-Low','Low-High'")
-avg_frac_exprs_abund = get_avg_frac_exprs_abund(sce = sce, sample_id = sample_id, celltype_id = celltype_id, group_id = group_id)
+frq_list = get_frac_exprs(sce = sce, sample_id = sample_id, celltype_id =  celltype_id, group_id = group_id)
 DE_info = get_DE_info(
    sce = sce,
    sample_id = sample_id,
@@ -72,7 +66,8 @@ DE_info = get_DE_info(
    group_id = group_id,
    batches = batches,
    covariates = covariates,
-   contrasts = contrasts_oi)
+   contrasts = contrasts_oi,
+   expressed_df = frq_list$expressed_df)
 }
 
 }

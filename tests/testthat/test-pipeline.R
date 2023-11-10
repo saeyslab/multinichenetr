@@ -740,21 +740,4 @@ test_that("Pipeline with wrapper function works - while correcting for batch eff
   expect_type(output$prioritization_tables,"list")
   
 })
-test_that("Unsupervised analysis functions work", {
 
-  sample_id = "tumor"
-  group_id = "pEMT"
-  celltype_id = "celltype"
-  senders_oi = "CAF"
-  receivers_oi = "Malignant"
-  fraction_cutoff = 0.05
-  batches = NA
-  lr_prod_mat = calculate_LR_pb_prod_matrix(sce, sample_id, celltype_id, group_id, senders_oi, receivers_oi, fraction_cutoff, lr_network, batches)
-  expect_true("matrix" %in% class(lr_prod_mat))
-  
-  metadata_tbl = SummarizedExperiment::colData(sce)[, c(sample_id, group_id)]  %>% data.frame() %>% tibble::as_tibble() %>% distinct()
-  colnames(metadata_tbl) = c("sample_id","group_id")
-  metadata_tbl2 = metadata_tbl %>% mutate(group_id = as.double(factor(group_id)))
-  output_pca = pca_LR_pb_prod_matrix(lr_prod_mat, metadata_tbl2)
-  expect_type(output_pca,"list")
-})

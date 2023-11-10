@@ -1,7 +1,7 @@
-#' @title make_abundance_plots
+#' @title get_abundance_info
 #'
-#' @description \code{make_abundance_plots} Visualize cell type abundances.
-#' @usage make_abundance_plots(sce, sample_id, group_id, celltype_id, min_cells, senders_oi, receivers_oi, batches = NA)
+#' @description \code{get_abundance_info} Visualize cell type abundances.
+#' @usage get_abundance_info(sce, sample_id, group_id, celltype_id, min_cells, senders_oi, receivers_oi, batches = NA)
 #'
 #' @inheritParams multi_nichenet_analysis
 #' @inheritParams combine_sender_receiver_info_ic
@@ -22,12 +22,12 @@
 #' celltype_id = "celltype"
 #' senders_oi = SummarizedExperiment::colData(sce)[,celltype_id] %>% unique()  
 #' receivers_oi = SummarizedExperiment::colData(sce)[,celltype_id] %>% unique() 
-#' abundance_celltype_info = make_abundance_plots(sce = sce, sample_id = sample_id, group_id = group_id, celltype_id =  celltype_id, min_cells = 10, senders_oi = senders_oi, receivers_oi = receivers_oi)
+#' abundance_celltype_info = get_abundance_info(sce = sce, sample_id = sample_id, group_id = group_id, celltype_id =  celltype_id, min_cells = 10, senders_oi = senders_oi, receivers_oi = receivers_oi)
 #' }
 #'
 #' @export
 #'
-make_abundance_plots = function(sce, sample_id, group_id, celltype_id, min_cells, senders_oi, receivers_oi, batches = NA){
+get_abundance_info = function(sce, sample_id, group_id, celltype_id, min_cells, senders_oi, receivers_oi, batches = NA){
   
   requireNamespace("dplyr")
   requireNamespace("ggplot2")
@@ -182,18 +182,46 @@ make_abundance_plots = function(sce, sample_id, group_id, celltype_id, min_cells
     
   }
   
-  return(list(abund_plot_sample = abund_plot, abund_plot_group = abund_plot_boxplot, abund_barplot = abund_barplot,  abundance_data = abundance_data))
+  # calculate relative abundance
+  metadata = SummarizedExperiment::colData(sce) %>% tibble::as_tibble()
+  if ("sample_id" != sample_id) {
+    metadata$sample_id = metadata[[sample_id]]
+  }
+  if ("group_id" != sample_id) {
+    metadata$group_id = metadata[[group_id]]
+  }
+  if ("celltype_id" != celltype_id) {
+    metadata$celltype_id = metadata[[celltype_id]]
+  }
+  n_celltypes = metadata$celltype_id %>% unique() %>% length()
+  if(n_celltypes > 1){
+    rel_abundance_celltype_vs_celltype = table(metadata$celltype_id, metadata$group_id) %>% apply(2, function(x){x/sum(x)})
+    rel_abundance_celltype_vs_group = rel_abundance_celltype_vs_celltype %>% apply(1, function(x){x/sum(x)})
+  } else {
+    rel_abundance_celltype_vs_group = table(metadata$celltype_id, metadata$group_id) %>% apply(1, function(x){x/sum(x)})
+  }
+  
+  # rel_ab_mean = rel_abundance_celltype_vs_group %>% apply(2, mean, na.rm = TRUE)
+  # rel_ab_sd = rel_abundance_celltype_vs_group %>% apply(2, sd, na.rm = TRUE)
+  # rel_ab_z = (rel_abundance_celltype_vs_group - rel_ab_mean) / rel_ab_sd
+  # rel_abundance_df = rel_ab_z %>% data.frame() %>% tibble::rownames_to_column("group") %>% tidyr::gather(celltype, rel_abundance_scaled, -group) %>% tibble::as_tibble()
+  rel_abundance_df = rel_abundance_celltype_vs_group %>% data.frame() %>% tibble::rownames_to_column("group") %>% tidyr::gather(celltype, rel_abundance_scaled, -group) %>% tibble::as_tibble() %>% dplyr::mutate(rel_abundance_scaled = scale_quantile_adapted(rel_abundance_scaled))
+  
+  
+  return(list(abund_plot_sample = abund_plot, abund_plot_group = abund_plot_boxplot, abund_barplot = abund_barplot,  abundance_data = abundance_data, rel_abundance_df = rel_abundance_df))
   
 }
-#' @title get_abundance_expression_info
+#' @title process_abundance_expression_info
 #'
-#' @description \code{get_abundance_expression_info} Visualize cell type abundances. Calculate the average and fraction of expression of each gene per sample and per group. Calculate relative abundances of cell types as well. Under the hood, the following functions are used: `get_avg_frac_exprs_abund`, `process_info_to_ic`, `combine_sender_receiver_info_ic`
-#' @usage get_abundance_expression_info(sce, sample_id, group_id, celltype_id, min_cells, senders_oi, receivers_oi, lr_network, batches = NA)
+#' @description \code{process_abundance_expression_info} Visualize cell type abundances. Calculate the average and fraction of expression of each gene per sample and per group. Calculate relative abundances of cell types as well. Under the hood, the following functions are used: `get_avg_frac_exprs_abund`, `process_info_to_ic`, `combine_sender_receiver_info_ic`
+#' @usage process_abundance_expression_info(sce, sample_id, group_id, celltype_id, min_cells, senders_oi, receivers_oi, lr_network, batches = NA, frq_list, rel_abundance_df)
 #'
 #' @inheritParams multi_nichenet_analysis
 #' @inheritParams combine_sender_receiver_info_ic
+#' @param frq_list output of `get_frac_exprs`
+#' @param rel_abundance_df `rel_abundance_df` slot of `get_abundance_info()` output.
 #' 
-#' @return List containing cell type abundance plots, and data frames with average and fraction of expression per sample and per group, and relative cell type abundances as well.
+#' @return List containing data frames with average and fraction of expression per sample and per group, and relative cell type abundances as well.
 #'
 #' @import dplyr
 #' @import tibble
@@ -211,12 +239,14 @@ make_abundance_plots = function(sce, sample_id, group_id, celltype_id, min_cells
 #' celltype_id = "celltype"
 #' senders_oi = SummarizedExperiment::colData(sce)[,celltype_id] %>% unique()  
 #' receivers_oi = SummarizedExperiment::colData(sce)[,celltype_id] %>% unique() 
-#' abundance_celltype_info = get_abundance_expression_info(sce = sce, sample_id = sample_id, group_id = group_id, celltype_id =  celltype_id, min_cells = 10, senders_oi = senders_oi, receivers_oi = receivers_oi, lr_network)
+#' abundance_info = get_abundance_info(sce = sce, sample_id = sample_id, group_id = group_id, celltype_id =  celltype_id, min_cells = 10, senders_oi = senders_oi, receivers_oi = receivers_oi)
+#' frq_list = get_frac_exprs(sce = sce, sample_id = sample_id, celltype_id =  celltype_id, group_id = group_id)
+#' abundance_celltype_info = process_abundance_expression_info(sce = sce, sample_id = sample_id, group_id = group_id, celltype_id =  celltype_id, min_cells = 10, senders_oi = senders_oi, receivers_oi = receivers_oi, lr_network, frq_list = frq_list, rel_abundance_df = abundance_info$rel_abundance_df)
 #' }
 #'
 #' @export
 #'
-get_abundance_expression_info = function(sce, sample_id, group_id, celltype_id, min_cells, senders_oi, receivers_oi, lr_network, batches = NA){
+process_abundance_expression_info = function(sce, sample_id, group_id, celltype_id, min_cells, senders_oi, receivers_oi, lr_network, batches = NA, frq_list, rel_abundance_df){
   
   requireNamespace("dplyr")
   requireNamespace("ggplot2")
@@ -257,129 +287,18 @@ get_abundance_expression_info = function(sce, sample_id, group_id, celltype_id, 
     }
   }
 
-  ### Receiver abundance plots
-
-  metadata_abundance = SummarizedExperiment::colData(sce)[,c(sample_id, group_id, celltype_id)] %>% tibble::as_tibble()
-  colnames(metadata_abundance) =c("sample_id", "group_id", "celltype_id")
-  
-  abundance_data = metadata_abundance %>% tibble::as_tibble() %>% dplyr::group_by(sample_id , celltype_id) %>% dplyr::count() %>% dplyr::inner_join(metadata_abundance %>% tibble::as_tibble() %>% dplyr::distinct(sample_id , group_id ), by = "sample_id")
-  abundance_data = abundance_data %>% dplyr::mutate(keep = n >= min_cells) %>% dplyr::mutate(keep = factor(keep, levels = c(TRUE,FALSE)))
-  
-  abundance_data_receiver = abundance_data %>% process_abund_info("receiver")
-  abundance_data_sender = abundance_data %>% process_abund_info("sender")
-  
-  if(is.na(batches)){
-    ## barplots
-    # celltype proportion per sample
-    abund_barplot = metadata_abundance %>% mutate(celltype_id = factor(celltype_id)) %>% ggplot() +
-      aes(x = sample_id, fill = celltype_id) +
-      geom_bar(position = "fill") +
-      facet_grid(. ~ group_id, scales = "free", space = "free_x") +
-      theme_light() +
-      theme(
-        axis.ticks = element_blank(),
-        axis.text.y = element_text(size = 9),
-        axis.text.x = element_text(size = 9,  angle = 90,hjust = 0),
-        strip.text.x.top = element_text(angle = 0),
-        panel.spacing.x = unit(1.5, "lines"),
-        strip.text.x = element_text(size = 11, color = "black", face = "bold"),
-        strip.text.y = element_text(size = 9, color = "black", face = "bold", angle = 0),
-        strip.background = element_rect(color="darkgrey", fill="whitesmoke", size=1.5, linetype="solid")
-      ) + ggtitle("Cell type proportions per sample") + ylab("proportion") + xlab("sample")
-    
-    
-    abund_plot = abundance_data %>% ggplot(aes(sample_id, n, fill = keep)) + geom_bar(stat="identity") + scale_fill_manual(values = c("royalblue", "lightcoral")) + facet_grid(celltype_id ~ group_id, scales = "free", space = "free_x") +
-      scale_x_discrete(position = "top") +
-      theme_light() +
-      theme(
-        axis.ticks = element_blank(),
-        axis.title.x = element_text(size = 0),
-        axis.text.y = element_text(size = 9),
-        axis.text.x = element_text(size = 9,  angle = 90,hjust = 0),
-        strip.text.x.top = element_text(angle = 0),
-        panel.spacing.x = unit(0.5, "lines"),
-        panel.spacing.y = unit(0.5, "lines"),
-        strip.text.x = element_text(size = 11, color = "black", face = "bold"),
-        strip.text.y = element_text(size = 9, color = "black", face = "bold", angle = 0),
-        strip.background = element_rect(color="darkgrey", fill="whitesmoke", size=1.5, linetype="solid")
-      ) + geom_hline(yintercept = min_cells, color = "red", linetype  = "longdash")  + ggtitle("Cell type abundances per sample") + ylab("# cells per sample-celltype combination") + xlab("")
-    
-    
-    abund_plot_boxplot = abundance_data %>% ggplot(aes(group_id, n, group = group_id, color = group_id)) + 
-      geom_boxplot(outlier.shape = NA) + geom_jitter(aes(alpha = keep), width = 0.15, height = 0.05) + scale_alpha_manual(values = c(1,0.30)) + facet_wrap( ~ celltype_id, scales = "free") + theme_bw() + 
-      scale_color_discrete("tomato","steelblue2") + geom_hline(yintercept = min_cells, color = "red", linetype  = "longdash") + ggtitle("Cell type abundances per group") + ylab("# cells per sample-celltype combination") + xlab("Group")
-    
-  } else {
-    batch_oi = batches[1]
-    extra_metadata = SummarizedExperiment::colData(sce) %>% tibble::as_tibble() %>% dplyr::select(all_of(sample_id), all_of(batch_oi)) %>% dplyr::distinct() %>% dplyr::mutate_all(factor)
-    colnames(extra_metadata) = c("sample_id","batch_oi")
-    metadata_abundance = metadata_abundance %>% dplyr::inner_join(extra_metadata, by = "sample_id") %>% mutate(group_batch_id = paste(group_id, batch_oi, sep = "_"))
-    
-    abundance_data = metadata_abundance %>% tibble::as_tibble() %>% dplyr::group_by(sample_id , celltype_id) %>% dplyr::count() %>% dplyr::inner_join(metadata_abundance %>% tibble::as_tibble() %>% dplyr::distinct(sample_id , group_batch_id), by = "sample_id")
-    abundance_data = abundance_data %>% dplyr::mutate(keep = n >= min_cells) %>% dplyr::mutate(keep = factor(keep, levels = c(TRUE,FALSE)))
-    abundance_data = abundance_data%>% dplyr::inner_join(metadata_abundance %>% distinct(sample_id, group_id, batch_oi), by = "sample_id")
-    
-    for(celltype_oi in abundance_data$celltype_id %>% unique()){
-      n_group_batch_id = abundance_data %>% dplyr::filter(keep == TRUE & celltype_id == celltype_oi) %>% pull(group_batch_id) %>% unique() %>% length()
-      n_groups = abundance_data %>% dplyr::inner_join(metadata_abundance %>% dplyr::distinct(sample_id, group_id, batch_oi), by = c("sample_id","group_id","batch_oi")) %>% dplyr::filter(keep == TRUE) %>% dplyr::pull(group_id) %>% unique() %>% length()
-      n_batches = abundance_data %>% dplyr::inner_join(metadata_abundance %>% dplyr::distinct(sample_id, group_id, batch_oi), by = c("sample_id","group_id","batch_oi")) %>% dplyr::filter(keep == TRUE) %>% dplyr::pull(batch_oi) %>% unique() %>% length()
-      
-      if(n_group_batch_id < n_groups*n_batches){
-        warning(paste("For celltype",celltype_oi,"not all group-batch combinations exist - this will likely lead to errors downstream in batch correction and DE analysis"))
-      }
-      
-    }
-    ## barplots
-    # celltype proportion per sample
-    abund_barplot = metadata_abundance %>% mutate(celltype_id = factor(celltype_id)) %>% ggplot() +
-      aes(x = sample_id, fill = celltype_id) +
-      geom_bar(position = "fill") +
-      facet_grid(. ~ group_batch_id, scales = "free", space = "free_x") +
-      theme_light() +
-      theme(
-        axis.ticks = element_blank(),
-        axis.text.y = element_text(size = 9),
-        axis.text.x = element_text(size = 9,  angle = 90,hjust = 0),
-        strip.text.x.top = element_text(angle = 0),
-        panel.spacing.x = unit(1.5, "lines"),
-        strip.text.x = element_text(size = 11, color = "black", face = "bold"),
-        strip.text.y = element_text(size = 9, color = "black", face = "bold", angle = 0),
-        strip.background = element_rect(color="darkgrey", fill="whitesmoke", size=1.5, linetype="solid")
-      ) + ggtitle("Cell type proportions per sample") + ylab("proportion") + xlab("sample")
-    
-    abund_plot = abundance_data %>% ggplot(aes(sample_id, n, fill = keep)) + geom_bar(stat="identity") + scale_fill_manual(values = c("royalblue", "lightcoral")) + facet_grid(celltype_id ~ group_batch_id, scales = "free", space = "free_x") +
-      scale_x_discrete(position = "top") +
-      theme_light() +
-      theme(
-        axis.ticks = element_blank(),
-        axis.title.x = element_text(size = 0),
-        axis.text.y = element_text(size = 9),
-        axis.text.x = element_text(size = 9,  angle = 90,hjust = 0),
-        strip.text.x.top = element_text(angle = 0),
-        panel.spacing.x = unit(0.5, "lines"),
-        panel.spacing.y = unit(0.5, "lines"),
-        strip.text.x = element_text(size = 11, color = "black", face = "bold"),
-        strip.text.y = element_text(size = 9, color = "black", face = "bold", angle = 0),
-        strip.background = element_rect(color="darkgrey", fill="whitesmoke", size=1.5, linetype="solid")
-      ) + geom_hline(yintercept = min_cells, color = "red", linetype  = "longdash")  + ggtitle("Cell type abundances per sample") + ylab("# cells per sample-celltype combination") + xlab("")
-    
-    
-    abund_plot_boxplot = abundance_data %>% ggplot(aes(group_batch_id, n, group = group_batch_id, color = group_batch_id)) + 
-      geom_boxplot(outlier.shape = NA) + geom_jitter(aes(alpha = keep), width = 0.15, height = 0.05) + scale_alpha_manual(values = c(1,0.30)) + facet_wrap( ~ celltype_id, scales = "free") + theme_bw() + 
-      scale_color_discrete("tomato","steelblue2") + geom_hline(yintercept = min_cells, color = "red", linetype  = "longdash") + ggtitle("Cell type abundances per group") + ylab("# cells per sample-celltype combination") + xlab("Group")
-    
-
-  }
-  
   ### Cell type Info
-  celltype_info = suppressMessages(get_avg_frac_exprs_abund(
+  celltype_info = suppressMessages(get_avg_pb_exprs(
     sce = sce,
     sample_id = sample_id,
     celltype_id =  celltype_id,
     group_id = group_id, 
     batches = batches))
   
-  
+  celltype_info$frq_df = frq_list$frq_df
+  celltype_info$frq_df_group = frq_list$frq_df_group
+  celltype_info$rel_abundance_df = rel_abundance_df
+
   ### Link LR network to Cell type info
   receiver_info_ic = suppressMessages(process_info_to_ic(
     info_object = celltype_info,
@@ -399,13 +318,13 @@ get_abundance_expression_info = function(sce, sample_id, group_id, celltype_id, 
     lr_network = lr_network))
   
   
-  return(list(abund_plot_sample = abund_plot, abund_plot_group = abund_plot_boxplot, abund_barplot = abund_barplot, abundance_data_receiver = abundance_data_receiver, abundance_data_sender = abundance_data_sender, celltype_info = celltype_info, receiver_info_ic = receiver_info_ic, sender_info_ic = sender_info_ic, sender_receiver_info = sender_receiver_info))
+  return(list(celltype_info = celltype_info, receiver_info_ic = receiver_info_ic, sender_info_ic = sender_info_ic, sender_receiver_info = sender_receiver_info))
   
 }
 #' @title get_DE_info
 #'
 #' @description \code{get_DE_info} Perform differential expression analysis via Muscat - Pseudobulking approach. Also visualize the p-value distribution. Under the hood, the following function is used: `perform_muscat_de_analysis`.
-#' @usage get_DE_info(sce, sample_id, group_id, celltype_id, batches, covariates, contrasts_oi, min_cells = 10, assay_oi_pb = "counts", fun_oi_pb = "sum", de_method_oi = "edgeR", findMarkers = FALSE, contrast_tbl = NULL, filterByExpr.min.count = 7, filterByExpr.min.total.count = 15, filterByExpr.large.n = 4, filterByExpr.min.prop = 0.7)
+#' @usage get_DE_info(sce, sample_id, group_id, celltype_id, batches, covariates, contrasts_oi, expressed_df, min_cells = 10, assay_oi_pb = "counts", fun_oi_pb = "sum", de_method_oi = "edgeR", findMarkers = FALSE, contrast_tbl = NULL)
 #'
 #' @inheritParams multi_nichenet_analysis
 #' @inheritParams perform_muscat_de_analysis
@@ -428,7 +347,7 @@ get_abundance_expression_info = function(sce, sample_id, group_id, celltype_id, 
 #' batches = NA
 #' covariates = NA
 #' contrasts_oi = c("'High-Low','Low-High'")
-#' avg_frac_exprs_abund = get_avg_frac_exprs_abund(sce = sce, sample_id = sample_id, celltype_id = celltype_id, group_id = group_id)
+#' frq_list = get_frac_exprs(sce = sce, sample_id = sample_id, celltype_id =  celltype_id, group_id = group_id)
 #' DE_info = get_DE_info(
 #'    sce = sce,
 #'    sample_id = sample_id,
@@ -436,13 +355,14 @@ get_abundance_expression_info = function(sce, sample_id, group_id, celltype_id, 
 #'    group_id = group_id,
 #'    batches = batches,
 #'    covariates = covariates,
-#'    contrasts = contrasts_oi)
+#'    contrasts = contrasts_oi,
+#'    expressed_df = frq_list$expressed_df)
 #'}
 #'
 #' @export
 #'
 #'
-get_DE_info = function(sce, sample_id, group_id, celltype_id, batches, covariates, contrasts_oi, min_cells = 10, assay_oi_pb = "counts", fun_oi_pb = "sum", de_method_oi = "edgeR", findMarkers = FALSE, contrast_tbl = NULL, filterByExpr.min.count = 7, filterByExpr.min.total.count = 15, filterByExpr.large.n = 4, filterByExpr.min.prop = 0.7){
+get_DE_info = function(sce, sample_id, group_id, celltype_id, batches, covariates, contrasts_oi, expressed_df, min_cells = 10, assay_oi_pb = "counts", fun_oi_pb = "sum", de_method_oi = "edgeR", findMarkers = FALSE, contrast_tbl = NULL){
   
   requireNamespace("dplyr")
   requireNamespace("ggplot2")
@@ -604,14 +524,11 @@ get_DE_info = function(sce, sample_id, group_id, celltype_id, batches, covariate
                                   batches = batches, 
                                   covariates = covariates, 
                                   contrasts = contrasts_oi, 
+                                  expressed_df = expressed_df, 
                                   assay_oi_pb = assay_oi_pb, 
                                   fun_oi_pb = fun_oi_pb, 
                                   de_method_oi = de_method_oi, 
-                                  min_cells = min_cells, 
-                                  filterByExpr.min.count = filterByExpr.min.count, 
-                                  filterByExpr.min.total.count = filterByExpr.min.total.count, 
-                                  filterByExpr.large.n = filterByExpr.large.n, 
-                                  filterByExpr.min.prop = filterByExpr.min.prop)
+                                  min_cells = min_cells)
         }, 
       error = function(cond){
         message(paste0("perform_muscat_de_analysis errored for celltype: ", celltype_oi))

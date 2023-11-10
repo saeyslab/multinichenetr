@@ -2,8 +2,8 @@
 #'
 #' @description \code{multi_nichenet_analysis}  Perform a MultiNicheNet analysis in an all-vs-all setting.
 #' @usage multi_nichenet_analysis(
-#' sce, celltype_id, sample_id,group_id, batches, covariates, lr_network,ligand_target_matrix,contrasts_oi,contrast_tbl, senders_oi = NULL,receivers_oi = NULL, fraction_cutoff = 0.05, scenario = "regular",
-#' assay_oi_pb ="counts",fun_oi_pb = "sum",de_method_oi = "edgeR",min_cells = 10,logFC_threshold = 0.50,p_val_threshold = 0.05,p_val_adj = FALSE, empirical_pval = TRUE, top_n_target = 250, verbose = FALSE, n.cores = 1, return_lr_prod_matrix = FALSE, findMarkers = FALSE, filterByExpr.min.count = 7, filterByExpr.min.total.count = 15, filterByExpr.large.n = 4, filterByExpr.min.prop = 0.7, top_n_LR = 2500)
+#' sce, celltype_id, sample_id,group_id, batches, covariates, lr_network,ligand_target_matrix,contrasts_oi,contrast_tbl, senders_oi = NULL,receivers_oi = NULL, fraction_cutoff = 0.05, min_sample_prop = 0.5, scenario = "regular",
+#' assay_oi_pb ="counts",fun_oi_pb = "sum",de_method_oi = "edgeR",min_cells = 10,logFC_threshold = 0.50,p_val_threshold = 0.05,p_val_adj = FALSE, empirical_pval = TRUE, top_n_target = 250, verbose = FALSE, n.cores = 1, return_lr_prod_matrix = FALSE, findMarkers = FALSE, top_n_LR = 2500)
 #'
 #' @param sce SingleCellExperiment object of the scRNAseq data of interest. Contains both sender and receiver cell types.
 #' @param celltype_id Name of the column in the meta data of sce that indicates the cell type of a cell.
@@ -27,7 +27,8 @@
 #' @param contrast_tbl Data frame providing names for each of the contrasts in contrasts_oi in the 'contrast' column, and the corresponding group of interest in the 'group' column. Entries in the 'group' column should thus be present in the group_id column in the metadata. 
 #' Example for `contrasts_oi = c("'A-(B+C+D)/3', 'B-(A+C+D)/3'")`:
 #' `contrast_tbl = tibble(contrast = c("A-(B+C+D)/3","B-(A+C+D)/3"), group = c("A","B"))`
-#' @param fraction_cutoff Cutoff indicating the minimum fraction of cells of a cell type in a specific sample that are necessary to consider the ligand/receptor as expressed for the final prioritization. 
+#' @param fraction_cutoff Cutoff indicating the minimum fraction of cells of a cell type in a specific sample that are necessary to consider a gene (e.g. ligand/receptor) as expressed in a sample. 
+#' @param min_sample_prop Parameter to define the minimal required nr of samples in which a gene should be expressed in more than `fraction_cutoff` of cells in that sample (per cell type). This nr of samples is calculated as the `min_sample_prop` fraction of the nr of samples of the smallest group (after considering samples with n_cells >= `min_cells`. Default: `min_sample_prop = 0.50`. Examples: if there are 8 samples in the smallest group, there should be min_sample_prop*8 (= 4 in this example) samples with sufficient fraction of expressing cells. 
 #' @param scenario Character vector indicating which prioritization weights should be used during the MultiNicheNet analysis. Currently 2 settings are implemented: "regular" (default) and "lower_DE". The setting "regular" is strongly recommended and gives each criterion equal weight. The setting "lower_DE" is recommended in cases your hypothesis is that the differential CCC patterns in your data are less likely to be driven by DE (eg in cases of differential migration into a niche). It halves the weight for DE criteria, and doubles the weight for ligand activity.
 #' @param assay_oi_pb Indicates which information of the assay of interest should be used (counts, scaled data,...). Default: "counts". See `muscat::aggregateData`.
 #' @param fun_oi_pb Indicates way of doing the pseudobulking. Default: "sum". See `muscat::aggregateData`.
@@ -42,10 +43,6 @@
 #' @param n.cores The number of cores used for parallel computation of the ligand activities per receiver cell type. Default: 1 - no parallel computation.
 #' @param return_lr_prod_matrix Indicate whether to calculate a senderLigand-receiverReceptor matrix, which could be used for unsupervised analysis of the cell-cell communication. Default FALSE. Setting to FALSE might be beneficial to avoid memory issues.
 #' @param findMarkers Indicate whether we should also calculate DE results with the classic scran::findMarkers approach. Default (recommended): FALSE. if TRUE: both pseudobulk-based and cell-level based DE results will be generated. 
-#' @param filterByExpr.min.count check edgeR::filterByExpr documentation - Default = 7. Increase this if you want more stringent filtering in terms of required counts per gene per sample.
-#' @param filterByExpr.min.total.count check edgeR::filterByExpr documentation -Default = 15. Increase this if you want more stringent filtering in terms of required counts per gene per sample.
-#' @param filterByExpr.large.n check edgeR::filterByExpr documentation -Default = 4. Increase this if you want more stringent filtering in terms of required samples with expression of the gene.
-#' @param filterByExpr.min.prop check edgeR::filterByExpr documentation - Default = 0.7. Increase this if you want more stringent filtering in terms of required samples with expression of the gene.
 #' @param top_n_LR top nr of LR pairs for which correlation with target genes will be calculated. Is 2500 by default. If you want to calculate correlation for all expressed LR pairs, set this argument to NA.
 #'
 #'
@@ -109,6 +106,7 @@ multi_nichenet_analysis = function(sce,
                                             senders_oi = NULL,
                                             receivers_oi = NULL,
                                             fraction_cutoff = 0.05,
+                                            min_sample_prop = 0.5,
                                             scenario = "regular",
                                             assay_oi_pb ="counts",
                                             fun_oi_pb = "sum",
@@ -118,7 +116,7 @@ multi_nichenet_analysis = function(sce,
                                             p_val_threshold = 0.05,
                                             p_val_adj = FALSE,
                                             empirical_pval = TRUE,
-                                            top_n_target = 250, verbose = FALSE, n.cores = 1, return_lr_prod_matrix = FALSE, findMarkers = FALSE, filterByExpr.min.count = 7, filterByExpr.min.total.count = 15, filterByExpr.large.n = 4, filterByExpr.min.prop = 0.7, top_n_LR = 2500){
+                                            top_n_target = 250, verbose = FALSE, n.cores = 1, return_lr_prod_matrix = FALSE, findMarkers = FALSE, top_n_LR = 2500){
 
 
   requireNamespace("dplyr")
@@ -337,9 +335,6 @@ multi_nichenet_analysis = function(sce,
     stop("return_lr_prod_matrix should be TRUE or FALSE")
   }
   
-
-  
-  
   if(!is.double(n.cores)){
     stop("n.cores should be numeric")
   } else {
@@ -353,7 +348,32 @@ multi_nichenet_analysis = function(sce,
   if(is.null(receivers_oi)){
     receivers_oi = SummarizedExperiment::colData(sce)[,celltype_id] %>% unique()
   }
+  
   sce = sce[, SummarizedExperiment::colData(sce)[,celltype_id] %in% c(senders_oi, receivers_oi)]
+  sce = sce[, SummarizedExperiment::colData(sce)[,group_id] %in% contrast_tbl$group] # keep only considered groups
+  
+  if(verbose == TRUE){
+    print("Make diagnostic abundance plots + define expressed genes")
+  }
+  ## check abundance info
+
+  abundance_info = get_abundance_info(sce = sce, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id, min_cells = min_cells, senders_oi = senders_oi, receivers_oi = receivers_oi, batches = batches)
+  
+  ## check for condition-specific cell types
+  sample_group_celltype_df = abundance_info$abundance_data %>% filter(n > min_cells) %>% ungroup() %>% distinct(sample_id, group_id) %>% cross_join(abundance_info$abundance_data %>% ungroup() %>% distinct(celltype_id)) %>% arrange(sample_id)
+  abundance_df = sample_group_celltype_df %>% left_join(abundance_info$abundance_data %>% ungroup())
+  abundance_df$n[is.na(abundance_df$n)] = 0
+  abundance_df$keep[is.na(abundance_df$keep)] = FALSE
+  abundance_df_summarized = abundance_df %>% mutate(keep = as.logical(keep)) %>% group_by(group_id, celltype_id) %>% summarise(samples_present = sum((keep)))
+  celltypes_absent_one_condition = abundance_df_summarized %>% filter(samples_present == 0) %>% pull(celltype_id) %>% unique()
+  celltypes_present_one_condition = abundance_df_summarized %>% filter(samples_present > 0) %>% pull(celltype_id) %>% unique()
+  condition_specific_celltypes = intersect(celltypes_absent_one_condition, celltypes_present_one_condition)
+
+  print("condition-specific celltypes:")
+  print(condition_specific_celltypes)
+  
+  ## define expressed genes
+  frq_list = get_frac_exprs(sce = sce, sample_id = sample_id, celltype_id =  celltype_id, group_id = group_id, batches = batches, min_cells = min_cells, fraction_cutoff = fraction_cutoff, min_sample_prop = min_sample_prop)
   
   ### Perform the DE analysis ----------------------------------------------------------------
 
@@ -362,22 +382,20 @@ multi_nichenet_analysis = function(sce,
   }
   
   if(findMarkers == FALSE){
-    DE_info = get_DE_info(sce = sce, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id, batches = batches, covariates = covariates, contrasts_oi = contrasts_oi, min_cells = min_cells,
+    DE_info = get_DE_info(sce = sce, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id, batches = batches, covariates = covariates, contrasts_oi = contrasts_oi, min_cells = min_cells, 
                           assay_oi_pb = assay_oi_pb,
                           fun_oi_pb = fun_oi_pb,
                           de_method_oi = de_method_oi,
                           findMarkers = findMarkers, 
-                          filterByExpr.min.count = filterByExpr.min.count, 
-                          filterByExpr.min.total.count = filterByExpr.min.total.count, 
-                          filterByExpr.large.n = filterByExpr.large.n, 
-                          filterByExpr.min.prop = filterByExpr.min.prop)
+                          expressed_df = frq_list$expressed_df)
   } else {
     DE_info = get_DE_info(sce = sce, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id, batches = batches, covariates = covariates, contrasts_oi = contrasts_oi, min_cells = min_cells,
                           assay_oi_pb = assay_oi_pb,
                           fun_oi_pb = fun_oi_pb,
                           de_method_oi = de_method_oi,
                           findMarkers = findMarkers,
-                          contrast_tbl = contrast_tbl)
+                          contrast_tbl = contrast_tbl,
+                          expressed_df = frq_list$expressed_df)
   }
 
   if(empirical_pval == TRUE){
@@ -398,10 +416,19 @@ multi_nichenet_analysis = function(sce,
     celltype_de = DE_info_emp$de_output_tidy_emp %>% dplyr::select(-p_val, -p_adj) %>% dplyr::rename(p_val = p_emp, p_adj = p_adj_emp)
   }
   
+  print(celltype_de %>% dplyr::group_by(cluster_id, contrast) %>% dplyr::filter(p_adj <= p_val_threshold & abs(logFC) >= logFC_threshold) %>% dplyr::count() %>% dplyr::arrange(-n))
+  
   senders_oi = celltype_de$cluster_id %>% unique()
   receivers_oi = celltype_de$cluster_id %>% unique()
   genes_oi = celltype_de$gene %>% unique()
-  sce = sce[genes_oi, SummarizedExperiment::colData(sce)[,celltype_id] %in% c(senders_oi, receivers_oi)]
+  
+  retained_celltypes = c(senders_oi, receivers_oi) %>% unique()
+  retained_celltypes = c(retained_celltypes, condition_specific_celltypes) 
+  
+  print("retained cell types")
+  print(retained_celltypes)
+  
+  sce = sce[genes_oi, SummarizedExperiment::colData(sce)[,celltype_id] %in% retained_celltypes]
   
   sender_receiver_de = suppressMessages(combine_sender_receiver_de(
     sender_de = celltype_de,
@@ -414,9 +441,9 @@ multi_nichenet_analysis = function(sce,
   
   ### Receiver abundance plots + Calculate expression information
   if(verbose == TRUE){
-    print("Make diagnostic abundance plots + Calculate expression information")
+    print("Calculate normalized average and pseudobulk expression")
   }
-  abundance_expression_info = get_abundance_expression_info(sce = sce, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id, min_cells = min_cells, senders_oi = senders_oi, receivers_oi = receivers_oi, lr_network = lr_network, batches = batches)
+  abundance_expression_info = process_abundance_expression_info(sce = sce, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id, min_cells = min_cells, senders_oi = senders_oi, receivers_oi = receivers_oi, lr_network = lr_network, batches = batches, frq_list = frq_list, rel_abundance_df = abundance_info$rel_abundance_df)
   
   metadata_combined = SummarizedExperiment::colData(sce) %>% tibble::as_tibble()
   
@@ -457,10 +484,11 @@ multi_nichenet_analysis = function(sce,
     contrast_tbl = contrast_tbl,
     sender_receiver_tbl = sender_receiver_tbl,
     grouping_tbl = grouping_tbl,
-    scenario = scenario,
+    scenario = scenario, # all prioritization criteria will be weighted equally
     fraction_cutoff = fraction_cutoff, 
     abundance_data_receiver = abundance_expression_info$abundance_data_receiver,
-    abundance_data_sender = abundance_expression_info$abundance_data_sender
+    abundance_data_sender = abundance_expression_info$abundance_data_sender,
+    ligand_activity_down = ligand_activity_down # use only upregulatory ligand activities to prioritize
   ))
 
   # Prepare Unsupervised analysis of samples! ------------------------------------------------------------------------------------------------------------
@@ -487,21 +515,75 @@ multi_nichenet_analysis = function(sce,
   }
   lr_target_prior_cor = lr_target_prior_cor_inference(prioritization_tables$group_prioritization_tbl$receiver %>% unique(), abundance_expression_info, celltype_de, grouping_tbl, prioritization_tables, ligand_target_matrix, logFC_threshold = logFC_threshold, p_val_threshold = p_val_threshold, p_val_adj = p_val_adj, top_n_LR = top_n_LR)
   
-  multinichenet_output = list(
-    celltype_info = abundance_expression_info$celltype_info,
-    abundance_data_receiver = abundance_expression_info$abundance_data_receiver, 
-    abundance_data_sender = abundance_expression_info$abundance_data_sender, 
-    celltype_de = celltype_de,
-    # sender_receiver_info = abundance_expression_info$sender_receiver_info,
-    # sender_receiver_de =  sender_receiver_de,
-    ligand_activities_targets_DEgenes = ligand_activities_targets_DEgenes,
-    prioritization_tables = prioritization_tables,
-    lr_prod_mat = lr_prod_mat,
-    grouping_tbl = grouping_tbl,
-    lr_target_prior_cor = lr_target_prior_cor
-  ) 
+  ## save output
   
-  multinichenet_output = multinichenet_output %>% make_lite_output(top_n_LR = top_n_LR)
+  if(length(condition_specific_celltypes) > 0) {
+    print("There are condition specific cell types in the data. Continuing with the regular MultiNicheNet analysis will not include those. If preferred, the user can apply a specific worfklow tailored to analyze CCC events involving condition-specific cell types")
+    print(condition_specific_celltypes)
+    prioritization_tables_with_condition_specific_celltype_sender = prioritize_condition_specific_sender(
+      abundance_info = abundance_info,
+      abundance_expression_info = abundance_expression_info, 
+      condition_specific_celltypes = condition_specific_celltypes, 
+      grouping_tbl = grouping_tbl, 
+      fraction_cutoff = fraction_cutoff, 
+      contrast_tbl = contrast_tbl, 
+      sender_receiver_de = sender_receiver_de, 
+      lr_network = lr_network, 
+      ligand_activities_targets_DEgenes = ligand_activities_targets_DEgenes,
+      scenario = "regular",
+      ligand_activity_down = FALSE
+    )
+    prioritization_tables_with_condition_specific_celltype_receiver = prioritize_condition_specific_receiver(
+      abundance_info = abundance_info,
+      abundance_expression_info = abundance_expression_info, 
+      condition_specific_celltypes = condition_specific_celltypes, 
+      grouping_tbl = grouping_tbl, 
+      fraction_cutoff = fraction_cutoff, 
+      contrast_tbl = contrast_tbl, 
+      sender_receiver_de = sender_receiver_de, 
+      lr_network = lr_network, 
+      ligand_activities_targets_DEgenes = ligand_activities_targets_DEgenes,
+      scenario = "regular",
+      ligand_activity_down = FALSE
+    )
+    combined_prioritization_tables = list(
+      group_prioritization_tbl = bind_rows(
+        prioritization_tables_with_condition_specific_celltype_receiver$group_prioritization_tbl %>% filter(receiver %in% condition_specific_celltypes),
+        prioritization_tables_with_condition_specific_celltype_sender$group_prioritization_tbl %>% filter(sender %in% condition_specific_celltypes)
+      ) %>% bind_rows(prioritization_tables$group_prioritization_tbl) %>% arrange(-prioritization_score) %>% distinct()
+    )
+    
+    multinichenet_output = list(
+      celltype_info = abundance_expression_info$celltype_info,
+      abundance_data_receiver = abundance_expression_info$abundance_data_receiver, 
+      abundance_data_sender = abundance_expression_info$abundance_data_sender, 
+      celltype_de = celltype_de,
+      ligand_activities_targets_DEgenes = ligand_activities_targets_DEgenes,
+      prioritization_tables = prioritization_tables,
+      prioritization_tables_with_condition_specific_celltype_sender = prioritization_tables_with_condition_specific_celltype_sender, 
+      prioritization_tables_with_condition_specific_celltype_receiver = prioritization_tables_with_condition_specific_celltype_receiver, 
+      combined_prioritization_tables = combined_prioritization_tables,
+      grouping_tbl = grouping_tbl,
+      lr_target_prior_cor = lr_target_prior_cor
+    ) 
+    
+    multinichenet_output = make_lite_output_condition_specific(multinichenet_output, top_n_LR = top_n_LR)
+    
+    
+  } else {
+    print("There are no condition specific cell types in the data. MultiNicheNet analysis is performed in the regular way for all cell types.")
+    multinichenet_output = list(
+      celltype_info = abundance_expression_info$celltype_info,
+      abundance_data_receiver = abundance_expression_info$abundance_data_receiver, 
+      abundance_data_sender = abundance_expression_info$abundance_data_sender, 
+      celltype_de = celltype_de,
+      ligand_activities_targets_DEgenes = ligand_activities_targets_DEgenes,
+      prioritization_tables = prioritization_tables,
+      grouping_tbl = grouping_tbl,
+      lr_target_prior_cor = lr_target_prior_cor
+    ) 
+    multinichenet_output = make_lite_output(multinichenet_output, top_n_LR = top_n_LR)
+  }
   
   return(multinichenet_output)
 

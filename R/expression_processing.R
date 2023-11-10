@@ -73,7 +73,6 @@ get_muscat_exprs_frac = function(sce, sample_id, celltype_id, group_id){
 
   return(list(frq_celltype_samples = frq_celltype_samples, frq_celltype_groups = frq_celltype_groups))
 }
-
 #' @title get_muscat_exprs_avg
 #'
 #' @description \code{get_muscat_exprs_avg}  Calculate sample- and group-average of gene expression per cell type.
@@ -283,9 +282,6 @@ get_pseudobulk_logCPM_exprs = function(sce, sample_id, celltype_id, group_id, ba
   
   return(pb_df)
 }
-
-
-
 #' @title fix_frq_df
 #'
 #' @description \code{fix_frq_df}  Fix muscat-feature/bug in fraction calculation: in case a there are no cells of a cell type in a sample, that expression fraction will be NA / NaN. Change these NA/NaN to 0.
@@ -342,15 +338,14 @@ fix_frq_df = function(sce, frq_celltype_samples){
   return(frq_celltype_samples)
 
 }
-
-#' @title get_avg_frac_exprs_abund
+#' @title get_avg_pb_exprs
 #'
-#' @description \code{get_avg_frac_exprs_abund}  Calculate the average and fraction of expression of each gene per sample and per group. Calculate relative abundances of cell types as well.
-#' @usage get_avg_frac_exprs_abund(sce, sample_id, celltype_id, group_id, batches = NA)
+#' @description \code{get_avg_pb_exprs}  Calculate the average and normalized pseudobulk expression of each gene per sample and per group.
+#' @usage get_avg_pb_exprs(sce, sample_id, celltype_id, group_id, batches = NA, min_cells = 10)
 #'
 #' @inheritParams multi_nichenet_analysis
 #' 
-#' @return List containing data frames with average and fraction of expression per sample and per group (and pseudobulked), and relative cell type abundances as well.
+#' @return List containing data frames with average and normalized pseudobulk of expression per sample and per group.
 #'
 #' @import dplyr
 #' @import tibble
@@ -363,12 +358,12 @@ fix_frq_df = function(sce, frq_celltype_samples){
 #' sample_id = "tumor"
 #' group_id = "pEMT"
 #' celltype_id = "celltype"
-#' celltype_info = get_avg_frac_exprs_abund(sce = sce, sample_id = sample_id, celltype_id =  celltype_id, group_id = group_id)
+#' celltype_info = get_avg_pb_exprs(sce = sce, sample_id = sample_id, celltype_id =  celltype_id, group_id = group_id)
 #' }
 #'
 #' @export
 #'
-get_avg_frac_exprs_abund = function(sce, sample_id, celltype_id, group_id, batches = NA){
+get_avg_pb_exprs = function(sce, sample_id, celltype_id, group_id, batches = NA, min_cells = 10){
   
   requireNamespace("dplyr")
   
@@ -436,19 +431,12 @@ get_avg_frac_exprs_abund = function(sce, sample_id, celltype_id, group_id, batch
   # calculate average expression
   avg_df = get_muscat_exprs_avg(sce, sample_id = sample_id, celltype_id =  celltype_id, group_id = group_id)
 
-  # calculate fraction of expression
-  frq_df = get_muscat_exprs_frac(sce, sample_id = sample_id, celltype_id = celltype_id, group_id = group_id) %>% .$frq_celltype_samples
-
   # calculate pseudobulked counts
   pb_df = get_pseudobulk_logCPM_exprs(sce, sample_id = sample_id, celltype_id = celltype_id, group_id = group_id, batches = batches, assay_oi_pb = "counts", fun_oi_pb = "sum") # should be these parameters
   
   # check whether something needs to be fixed
   if(nrow(avg_df %>% dplyr::filter(is.na(average_sample))) > 0 | nrow(avg_df %>% dplyr::filter(is.nan(average_sample))) > 0) {
     warning("There are some genes with NA average expression.")
-  }
-  if(nrow(frq_df %>% dplyr::filter(is.na(fraction_sample))) > 0 | nrow(frq_df %>% dplyr::filter(is.nan(fraction_sample))) > 0) {
-    warning("There are some genes with NA/NaN fraction of expression. This is the result of the muscat function `calcExprFreqs` which will give NA/NaN when there are no cells of a particular cell type in a particular group or no cells of a cell type in one sample. As a temporary fix, we give all these genes an expression fraction of 0 in that group for that cell type")
-    frq_df = fix_frq_df(sce, frq_df)
   }
 
   # calculate these above metrics per group
@@ -462,42 +450,174 @@ get_avg_frac_exprs_abund = function(sce, sample_id, celltype_id, group_id, batch
   if ("celltype_id" != celltype_id) {
     metadata$celltype_id = metadata[[celltype_id]]
   }
+  metadata_abundance = metadata %>% dplyr::select(sample_id, group_id, celltype_id) %>% tibble::as_tibble()
+  colnames(metadata_abundance) =c("sample", "group", "celltype")
+  abundance_data = metadata_abundance %>% tibble::as_tibble() %>% dplyr::group_by(sample , celltype) %>% dplyr::count() %>% dplyr::inner_join(metadata_abundance %>% tibble::as_tibble() %>% dplyr::distinct(sample , group ), by = "sample")
+  abundance_data = abundance_data %>% dplyr::mutate(keep_sample = n >= min_cells) %>% dplyr::mutate(keep_sample = factor(keep_sample, levels = c(TRUE,FALSE)))
+  
   grouping_df = metadata %>% dplyr::select(sample_id, group_id) %>% 
     tibble::as_tibble() %>% dplyr::distinct() %>% dplyr::rename(sample = sample_id, 
                                                                 group = group_id)
-  avg_df_group = avg_df %>% dplyr::inner_join(grouping_df) %>% 
+  
+  grouping_df_filtered = grouping_df %>% inner_join(abundance_data) %>% filter(keep_sample == TRUE) # continue only with samples that have sufficient cells of a cell type in a sample
+  
+  avg_df_group = avg_df %>% dplyr::inner_join(grouping_df_filtered) %>% 
     dplyr::group_by(group, celltype, gene) %>% dplyr::summarise(average_group = mean(average_sample))
-  frq_df_group = frq_df %>% dplyr::inner_join(grouping_df) %>% 
-    dplyr::group_by(group, celltype, gene) %>% dplyr::summarise(fraction_group = mean(fraction_sample))
-  pb_df_group = pb_df %>% dplyr::inner_join(grouping_df) %>% 
+  pb_df_group = pb_df %>% dplyr::inner_join(grouping_df_filtered) %>% 
     dplyr::group_by(group, celltype, gene) %>% dplyr::summarise(pb_group = mean(pb_sample))
   
-  # define whether genes are expressed - inspired by edgeR::filterByExprs but more suited for pseudobulk data  ------ but in the end not used before DE analysis because  edgeR::filterByExprs is used there!
-  # expressed in a cell type = for n samples: non-zero counts in >= 2.5% of cells in a sample
-  # n = 70% of samples of the smallest group
-  n_smallest_group = grouping_df %>% dplyr::group_by(group) %>% dplyr::count() %>% dplyr::pull(n) %>% min()
-  n_min = 0.70*n_smallest_group
-  frq_exprs = frq_df %>% dplyr::inner_join(grouping_df) %>% dplyr::mutate(expressed_sample = fraction_sample > 0.025)
-  frq_df = frq_exprs %>% dplyr::inner_join(frq_exprs %>% dplyr::group_by(gene, celltype) %>% dplyr::summarise(n_expressed = sum(expressed_sample)) %>% dplyr::mutate(expressed_celltype = n_expressed > n_min)) %>% dplyr::ungroup()
-  
-  # calculate relative abundance
-  n_celltypes = metadata$celltype_id %>% unique() %>% length()
-  if(n_celltypes > 1){
-    rel_abundance_celltype_vs_celltype = table(metadata$celltype_id, metadata$group_id) %>% apply(2, function(x){x/sum(x)})
-    rel_abundance_celltype_vs_group = rel_abundance_celltype_vs_celltype %>% apply(1, function(x){x/sum(x)})
-  } else {
-    rel_abundance_celltype_vs_group = table(metadata$celltype_id, metadata$group_id) %>% apply(1, function(x){x/sum(x)})
-  }
-
-  # rel_ab_mean = rel_abundance_celltype_vs_group %>% apply(2, mean, na.rm = TRUE)
-  # rel_ab_sd = rel_abundance_celltype_vs_group %>% apply(2, sd, na.rm = TRUE)
-  # rel_ab_z = (rel_abundance_celltype_vs_group - rel_ab_mean) / rel_ab_sd
-  # rel_abundance_df = rel_ab_z %>% data.frame() %>% tibble::rownames_to_column("group") %>% tidyr::gather(celltype, rel_abundance_scaled, -group) %>% tibble::as_tibble()
-  rel_abundance_df = rel_abundance_celltype_vs_group %>% data.frame() %>% tibble::rownames_to_column("group") %>% tidyr::gather(celltype, rel_abundance_scaled, -group) %>% tibble::as_tibble() %>% dplyr::mutate(rel_abundance_scaled = scale_quantile_adapted(rel_abundance_scaled))
-  return(list(avg_df = avg_df, frq_df = frq_df, pb_df = pb_df, avg_df_group = avg_df_group, frq_df_group = frq_df_group, pb_df_group = pb_df_group, rel_abundance_df = rel_abundance_df))
+  return(list(avg_df = avg_df, pb_df = pb_df, avg_df_group = avg_df_group, pb_df_group = pb_df_group))
 
 }
-
+#' @title get_frac_exprs
+#'
+#' @description \code{get_frac_exprs}  Calculate the average fraction of expression of each gene per sample and per group.
+#' @usage get_frac_exprs(sce, sample_id, celltype_id, group_id, batches = NA, min_cells = 10, fraction_cutoff = 0.05, min_sample_prop = 0.5)
+#'
+#' @inheritParams multi_nichenet_analysis
+#' 
+#' @return List containing data frames with the fraction of expression per sample and per group.
+#'
+#' @import dplyr
+#' @import tibble
+#' @importFrom tidyr gather
+#' @importFrom SummarizedExperiment colData
+#'
+#' @examples
+#' \dontrun{
+#' library(dplyr)
+#' sample_id = "tumor"
+#' group_id = "pEMT"
+#' celltype_id = "celltype"
+#' frac_info = get_frac_exprs(sce = sce, sample_id = sample_id, celltype_id =  celltype_id, group_id = group_id)
+#' }
+#'
+#' @export
+#'
+get_frac_exprs = function(sce, sample_id, celltype_id, group_id, batches = NA, min_cells = 10, fraction_cutoff = 0.05, min_sample_prop = 0.5){
+  
+  requireNamespace("dplyr")
+  
+  # input checks
+  
+  if (class(sce) != "SingleCellExperiment") {
+    stop("sce should be a SingleCellExperiment object")
+  }
+  if (!celltype_id %in% colnames(SummarizedExperiment::colData(sce))) {
+    stop("celltype_id should be a column name in the metadata dataframe of sce")
+  }
+  if (celltype_id != make.names(celltype_id)) {
+    stop("celltype_id should be a syntactically valid R name - check make.names")
+  }
+  if (!sample_id %in% colnames(SummarizedExperiment::colData(sce))) {
+    stop("sample_id should be a column name in the metadata dataframe of sce")
+  }
+  if (sample_id != make.names(sample_id)) {
+    stop("sample_id should be a syntactically valid R name - check make.names")
+  }
+  if (!group_id %in% colnames(SummarizedExperiment::colData(sce))) {
+    stop("group_id should be a column name in the metadata dataframe of sce")
+  }
+  if (group_id != make.names(group_id)) {
+    stop("group_id should be a syntactically valid R name - check make.names")
+  }
+  
+  if(is.double(SummarizedExperiment::colData(sce)[,celltype_id])){
+    stop("SummarizedExperiment::colData(sce)[,celltype_id] should be a character vector or a factor")
+  }
+  if(is.double(SummarizedExperiment::colData(sce)[,group_id])){
+    stop("SummarizedExperiment::colData(sce)[,group_id] should be a character vector or a factor")
+  }
+  if(is.double(SummarizedExperiment::colData(sce)[,sample_id])){
+    stop("SummarizedExperiment::colData(sce)[,sample_id] should be a character vector or a factor")
+  }
+  
+  # if some of these are factors, and not all levels have syntactically valid names - prompt to change this
+  if(is.factor(SummarizedExperiment::colData(sce)[,celltype_id])){
+    is_make_names = levels(SummarizedExperiment::colData(sce)[,celltype_id]) == make.names(levels(SummarizedExperiment::colData(sce)[,celltype_id]))
+    if(sum(is_make_names) != length(levels(SummarizedExperiment::colData(sce)[,celltype_id]))){
+      stop("The levels of the factor SummarizedExperiment::colData(sce)[,celltype_id] should be a syntactically valid R names - see make.names")
+    }
+  }
+  if(is.factor(SummarizedExperiment::colData(sce)[,group_id])){
+    is_make_names = levels(SummarizedExperiment::colData(sce)[,group_id]) == make.names(levels(SummarizedExperiment::colData(sce)[,group_id]))
+    if(sum(is_make_names) != length(levels(SummarizedExperiment::colData(sce)[,group_id]))){
+      stop("The levels of the factor SummarizedExperiment::colData(sce)[,group_id] should be a syntactically valid R names - see make.names")
+    }
+  }
+  if(is.factor(SummarizedExperiment::colData(sce)[,sample_id])){
+    is_make_names = levels(SummarizedExperiment::colData(sce)[,sample_id]) == make.names(levels(SummarizedExperiment::colData(sce)[,sample_id]))
+    if(sum(is_make_names) != length(levels(SummarizedExperiment::colData(sce)[,sample_id]))){
+      stop("The levels of the factor SummarizedExperiment::colData(sce)[,sample_id] should be a syntactically valid R names - see make.names")
+    }
+  }
+  
+  if(!is.na(batches)){
+    if (sum(batches %in% colnames(SummarizedExperiment::colData(sce))) != length(batches) ) {
+      stop("batches should be NA or all present as column name(s) in the metadata dataframe of sce")
+    }
+  }
+  # calculate fraction of expression
+  frq_df = get_muscat_exprs_frac(sce, sample_id = sample_id, celltype_id = celltype_id, group_id = group_id) %>% .$frq_celltype_samples
+  
+  if(nrow(frq_df %>% dplyr::filter(is.na(fraction_sample))) > 0 | nrow(frq_df %>% dplyr::filter(is.nan(fraction_sample))) > 0) {
+    warning("There are some genes with NA/NaN fraction of expression. This is the result of the muscat function `calcExprFreqs` which will give NA/NaN when there are no cells of a particular cell type in a particular group or no cells of a cell type in one sample. As a temporary fix, we give all these genes an expression fraction of 0 in that group for that cell type")
+    frq_df = fix_frq_df(sce, frq_df)
+  }
+  
+  # calculate these above metrics per group
+  metadata = SummarizedExperiment::colData(sce) %>% tibble::as_tibble()
+  if ("sample_id" != sample_id) {
+    metadata$sample_id = metadata[[sample_id]]
+  }
+  if ("group_id" != sample_id) {
+    metadata$group_id = metadata[[group_id]]
+  }
+  if ("celltype_id" != celltype_id) {
+    metadata$celltype_id = metadata[[celltype_id]]
+  }
+  metadata_abundance = metadata %>% dplyr::select(sample_id, group_id, celltype_id) %>% tibble::as_tibble()
+  colnames(metadata_abundance) =c("sample", "group", "celltype")
+  abundance_data = metadata_abundance %>% tibble::as_tibble() %>% dplyr::group_by(sample , celltype) %>% dplyr::count() %>% dplyr::inner_join(metadata_abundance %>% tibble::as_tibble() %>% dplyr::distinct(sample , group ), by = "sample")
+  abundance_data = abundance_data %>% dplyr::mutate(keep_sample = n >= min_cells) %>% dplyr::mutate(keep_sample = factor(keep_sample, levels = c(TRUE,FALSE)))
+  
+  grouping_df = metadata %>% dplyr::select(sample_id, group_id) %>% 
+    tibble::as_tibble() %>% dplyr::distinct() %>% dplyr::rename(sample = sample_id, 
+                                                                group = group_id)
+  
+  grouping_df_filtered = grouping_df %>% inner_join(abundance_data) %>% filter(keep_sample == TRUE) # continue only with samples that have sufficient cells of a cell type in a sample
+  
+  print(paste0("Samples are considered if they have more than ", min_cells, " cells of the cell type of interest")) 
+  
+  frq_df_group = frq_df %>% dplyr::inner_join(grouping_df_filtered) %>% 
+    dplyr::group_by(group, celltype, gene) %>% dplyr::summarise(fraction_group = mean(fraction_sample))
+  
+  # define whether genes are expressed - inspired by edgeR::filterByExprs but more suited for pseudobulk data  
+  # expressed in a cell type = for n samples: non-zero counts in >= fraction_cutoff% of cells in a sample
+  # n = min_sample_prop fraction of samples of the smallest group
+  # min_sample_prop = 0.5 by default
+  # fraction_cutoff = 0.05 by default
+  n_smallest_group_tbl = grouping_df_filtered %>% dplyr::group_by(group, celltype) %>% dplyr::count() %>% dplyr::group_by(celltype) %>% dplyr::summarize(n_smallest_group = min(n)) %>% dplyr::mutate(n_min = min_sample_prop * n_smallest_group) %>% distinct()
+  
+  print(paste0("Genes with non-zero counts in at least ",fraction_cutoff*100, "% of cells of a cell type of interest in a particular sample will be considered as expressed in that sample.")) 
+  
+  for(i in seq(length(unique(n_smallest_group_tbl$celltype)))){
+    celltype_oi = unique(n_smallest_group_tbl$celltype)[i]
+    n_min = n_smallest_group_tbl %>% filter(celltype == celltype_oi) %>% pull(n_min)
+    print(paste0("Genes expressed in at least ",n_min, " samples will considered as expressed in the cell type: ",celltype_oi)) 
+  }
+  
+  frq_df = frq_df %>% dplyr::inner_join(grouping_df) %>% dplyr::mutate(expressed_sample = fraction_sample > fraction_cutoff)
+  
+  expressed_df = frq_df %>% inner_join(n_smallest_group_tbl) %>% inner_join(abundance_data) %>% dplyr::group_by(gene, celltype) %>% dplyr::summarise(n_expressed = sum(expressed_sample)) %>% dplyr::mutate(expressed = n_expressed > n_min) %>% distinct(celltype, gene, expressed)
+  for(i in seq(length(unique(expressed_df$celltype)))){
+    celltype_oi = unique(expressed_df$celltype)[i]
+    n_genes = expressed_df %>% filter(celltype == celltype_oi) %>% filter(expressed == TRUE) %>% pull(gene) %>% unique() %>% length()
+    print(paste0(n_genes, " genes areconsidered as expressed in the cell type: ",celltype_oi)) 
+  }
+  return(list(frq_df = frq_df, frq_df_group = frq_df_group, expressed_df = expressed_df))
+  
+}
 #' @title process_info_to_ic
 #'
 #' @description \code{process_info_to_ic}  Process cell type expression information into intercellular communication focused information. Only keep information of ligands for the sender cell type setting, and information of receptors for the receiver cell type.

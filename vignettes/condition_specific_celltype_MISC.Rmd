@@ -487,76 +487,8 @@ prioritization_tables_with_condition_specific_celltype_sender = prioritize_condi
 ```{r}
 prioritization_tables_with_condition_specific_celltype_sender$group_prioritization_tbl %>% head(20)
 ```
+
 We see that some top-predicted interactions are coming from the condition-specific cell type(s). This means that these ligands are the most strongly expressed by that cell type, and that they have quite high ligand activity.
-
-## Step A-2 Visualization of the results of the cell-cell communication analysis
-
-In a first instance, we will look at the broad overview of prioritized interactions via condition-specific Circos plots.
-
-### Circos plot of top-prioritized links
-
-We will look here at the top 50 predictions across all contrasts, senders, and receivers of interest.
-
-```{r}
-prioritized_tbl_oi_all = get_top_n_lr_pairs(prioritization_tables_with_condition_specific_celltype_sender, 50, rank_per_group = FALSE)
-```
-
-```{r, fig.width=15, fig.height=12}
-prioritized_tbl_oi = prioritization_tables_with_condition_specific_celltype_sender$group_prioritization_tbl %>%
-  filter(id %in% prioritized_tbl_oi_all$id) %>%
-  distinct(id, sender, receiver, ligand, receptor, group) %>% left_join(prioritized_tbl_oi_all)
-prioritized_tbl_oi$prioritization_score[is.na(prioritized_tbl_oi$prioritization_score)] = 0 
-```
-
-```{r, fig.width=15, fig.height=12}
-senders_receivers = union(prioritized_tbl_oi$sender %>% unique(), prioritized_tbl_oi$receiver %>% unique()) %>% sort()
-
-colors_sender = RColorBrewer::brewer.pal(n = length(senders_receivers), name = 'Spectral') %>% magrittr::set_names(senders_receivers)
-colors_receiver = RColorBrewer::brewer.pal(n = length(senders_receivers), name = 'Spectral') %>% magrittr::set_names(senders_receivers)
-
-circos_list = make_circos_group_comparison(prioritized_tbl_oi, colors_sender, colors_receiver)
-```
-### Visualization of scaled ligand-receptor pseudobulk products and ligand activity
-
-Now we will visualize per sample the scaled product of ligand and receptor expression. Samples that were left out of the DE analysis are indicated with a smaller dot (this helps to indicate the samples that did not contribute to the calculation of the logFC, and thus not contributed to the final prioritization)
-
-We will first visualize the interactions specific for the Sibling group that are part of the top50 differential interactions as shown in the above circos plots
-
-```{r}
-group_oi = "S"
-```
-
-```{r, fig.height=9, fig.width=13}
-prioritized_tbl_oi_S_50 = prioritized_tbl_oi_all %>% filter(group == group_oi)
-
-plot_oi = make_sample_lr_prod_activity_plots(prioritization_tables_with_condition_specific_celltype_sender, prioritized_tbl_oi_S_50)
-plot_oi
-```
-
-We will now check the MIS-C specific interactions
-
-```{r}
-group_oi = "M"
-```
-
-```{r, fig.height=5, fig.width=13}
-prioritized_tbl_oi_M_50 = prioritized_tbl_oi_all %>% filter(group == group_oi)
-
-plot_oi = make_sample_lr_prod_activity_plots(prioritization_tables_with_condition_specific_celltype_sender, prioritized_tbl_oi_M_50)
-plot_oi
-```
-Note: interpreting scaled expression values do not make much sense if only one condition where cell type is present.
-
-```{r}
-group_oi = "A"
-```
-
-```{r, fig.height=5, fig.width=13}
-prioritized_tbl_oi_A_50 = prioritized_tbl_oi_all %>% filter(group == group_oi)
-
-plot_oi = make_sample_lr_prod_activity_plots(prioritization_tables_with_condition_specific_celltype_sender, prioritized_tbl_oi_A_50)
-plot_oi
-```
 
 # Condition-specificity workflow mode B: investigating the role of condition-specific cell types as RECEIVER cell types
 
@@ -590,75 +522,7 @@ prioritization_tables_with_condition_specific_celltype_receiver = prioritize_con
 ```{r}
 prioritization_tables_with_condition_specific_celltype_receiver$group_prioritization_tbl %>% head(20)
 ```
-We see that some top-predicted interactions are coming from the condition-specific cell type. This means that these ligands are the most strongly expressed by that cell type, and that they have quite high ligand activity.
-
-## Step B-2 Visualization of the results of the cell-cell communication analysis
-
-In a first instance, we will look at the broad overview of prioritized interactions via condition-specific Circos plots.
-
-### Circos plot of top-prioritized links
-
-We will look here at the top 50 predictions across all contrasts, senders, and receivers of interest.
-
-```{r}
-prioritized_tbl_oi_all = get_top_n_lr_pairs(prioritization_tables_with_condition_specific_celltype_receiver, 50, rank_per_group = FALSE)
-```
-
-```{r, fig.width=15, fig.height=12}
-prioritized_tbl_oi = prioritization_tables_with_condition_specific_celltype_receiver$group_prioritization_tbl %>%
-  filter(id %in% prioritized_tbl_oi_all$id) %>%
-  distinct(id, sender, receiver, ligand, receptor, group) %>% left_join(prioritized_tbl_oi_all)
-prioritized_tbl_oi$prioritization_score[is.na(prioritized_tbl_oi$prioritization_score)] = 0 
-```
-
-```{r, fig.width=15, fig.height=12}
-senders_receivers = union(prioritized_tbl_oi$sender %>% unique(), prioritized_tbl_oi$receiver %>% unique()) %>% sort()
-
-colors_sender = RColorBrewer::brewer.pal(n = length(senders_receivers), name = 'Spectral') %>% magrittr::set_names(senders_receivers)
-colors_receiver = RColorBrewer::brewer.pal(n = length(senders_receivers), name = 'Spectral') %>% magrittr::set_names(senders_receivers)
-
-circos_list = make_circos_group_comparison(prioritized_tbl_oi, colors_sender, colors_receiver)
-```
-### Visualization of scaled ligand-receptor pseudobulk products and ligand activity
-
-Now we will visualize per sample the scaled product of ligand and receptor expression. Samples that were left out of the DE analysis are indicated with a smaller dot (this helps to indicate the samples that did not contribute to the calculation of the logFC, and thus not contributed to the final prioritization)
-
-We will first visualize the interactions specific for the Sibling group that are part of the top50 differential interactions as shown in the above circos plots
-
-```{r}
-group_oi = "S"
-```
-
-```{r, fig.height=9, fig.width=13}
-prioritized_tbl_oi_S_50 = prioritized_tbl_oi_all %>% filter(group == group_oi)
-
-plot_oi = make_sample_lr_prod_activity_plots(prioritization_tables_with_condition_specific_celltype_receiver, prioritized_tbl_oi_S_50)
-plot_oi
-```
-
-We will now check the MIS-C specific interactions
-
-```{r}
-group_oi = "M"
-```
-
-```{r, fig.height=5, fig.width=13}
-prioritized_tbl_oi_M_50 = prioritized_tbl_oi_all %>% filter(group == group_oi)
-
-plot_oi = make_sample_lr_prod_activity_plots(prioritization_tables_with_condition_specific_celltype_receiver, prioritized_tbl_oi_M_50)
-plot_oi
-```
-
-```{r}
-group_oi = "A"
-```
-
-```{r, fig.height=5, fig.width=13}
-prioritized_tbl_oi_A_50 = prioritized_tbl_oi_all %>% filter(group == group_oi)
-
-plot_oi = make_sample_lr_prod_activity_plots(prioritization_tables_with_condition_specific_celltype_receiver, prioritized_tbl_oi_A_50)
-plot_oi
-```
+We see that some top-predicted interactions are coming from the condition-specific cell type. This means that these receptors are the most strongly expressed by that cell type.
 
 # Combine the condition-specific workflow with the regular one
 
@@ -683,30 +547,6 @@ combined_prioritization_tables = list(
   ) %>% arrange(-prioritization_score) %>% distinct()
 
 )
-```
-
-### Circos plot of top-prioritized links
-
-We will look here at the top 50 predictions across all contrasts, senders, and receivers of interest.
-
-```{r}
-prioritized_tbl_oi_all = get_top_n_lr_pairs(combined_prioritization_tables, 50, rank_per_group = FALSE)
-```
-
-```{r, fig.width=15, fig.height=12}
-prioritized_tbl_oi = combined_prioritization_tables$group_prioritization_tbl %>%
-  filter(id %in% prioritized_tbl_oi_all$id) %>%
-  distinct(id, sender, receiver, ligand, receptor, group) %>% left_join(prioritized_tbl_oi_all)
-prioritized_tbl_oi$prioritization_score[is.na(prioritized_tbl_oi$prioritization_score)] = 0 
-```
-
-```{r, fig.width=15, fig.height=12}
-senders_receivers = union(prioritized_tbl_oi$sender %>% unique(), prioritized_tbl_oi$receiver %>% unique()) %>% sort()
-
-colors_sender = RColorBrewer::brewer.pal(n = length(senders_receivers), name = 'Spectral') %>% magrittr::set_names(senders_receivers)
-colors_receiver = RColorBrewer::brewer.pal(n = length(senders_receivers), name = 'Spectral') %>% magrittr::set_names(senders_receivers)
-
-circos_list = make_circos_group_comparison(prioritized_tbl_oi, colors_sender, colors_receiver)
 ```
 
 # Add the new prioritization tables to the saved output of MultiNicheNet 
@@ -735,4 +575,172 @@ if(save == TRUE){
   saveRDS(multinichenet_output, paste0(path, "multinichenet_output_with_condition_specific_celltypes.rds"))
 
 }
+```
+
+# Visualizations of the output of the condition-specific cell types workflows
+
+## Step A-2 Visualization of the results of the cell-cell communication analysis for the SENDER
+
+In a first instance, we will look at the broad overview of prioritized interactions via condition-specific Circos plots.
+
+### Circos plot of top-prioritized links
+
+We will look here at the top 50 predictions across all contrasts, senders, and receivers of interest.
+
+```{r}
+prioritized_tbl_oi_all = get_top_n_lr_pairs(multinichenet_output$prioritization_tables_with_condition_specific_celltype_sender, 50, rank_per_group = FALSE)
+```
+
+```{r, fig.width=15, fig.height=12}
+prioritized_tbl_oi = multinichenet_output$prioritization_tables_with_condition_specific_celltype_sender$group_prioritization_tbl %>%
+  filter(id %in% prioritized_tbl_oi_all$id) %>%
+  distinct(id, sender, receiver, ligand, receptor, group) %>% left_join(prioritized_tbl_oi_all)
+prioritized_tbl_oi$prioritization_score[is.na(prioritized_tbl_oi$prioritization_score)] = 0 
+```
+
+```{r, fig.width=15, fig.height=12}
+senders_receivers = union(prioritized_tbl_oi$sender %>% unique(), prioritized_tbl_oi$receiver %>% unique()) %>% sort()
+
+colors_sender = RColorBrewer::brewer.pal(n = length(senders_receivers), name = 'Spectral') %>% magrittr::set_names(senders_receivers)
+colors_receiver = RColorBrewer::brewer.pal(n = length(senders_receivers), name = 'Spectral') %>% magrittr::set_names(senders_receivers)
+
+circos_list = make_circos_group_comparison(prioritized_tbl_oi, colors_sender, colors_receiver)
+```
+### Visualization of scaled ligand-receptor pseudobulk products and ligand activity
+
+Now we will visualize per sample the scaled product of ligand and receptor expression. Samples that were left out of the DE analysis are indicated with a smaller dot (this helps to indicate the samples that did not contribute to the calculation of the logFC, and thus not contributed to the final prioritization)
+
+We will first visualize the interactions specific for the Sibling group that are part of the top50 differential interactions as shown in the above circos plots
+
+```{r}
+group_oi = "S"
+```
+
+```{r, fig.height=9, fig.width=13}
+prioritized_tbl_oi_S_50 = prioritized_tbl_oi_all %>% filter(group == group_oi)
+
+plot_oi = make_sample_lr_prod_activity_plots(multinichenet_output$prioritization_tables_with_condition_specific_celltype_sender, prioritized_tbl_oi_S_50)
+plot_oi
+```
+
+We will now check the MIS-C specific interactions
+
+```{r}
+group_oi = "M"
+```
+
+```{r, fig.height=5, fig.width=13}
+prioritized_tbl_oi_M_50 = prioritized_tbl_oi_all %>% filter(group == group_oi)
+
+plot_oi = make_sample_lr_prod_activity_plots(multinichenet_output$prioritization_tables_with_condition_specific_celltype_sender, prioritized_tbl_oi_M_50)
+plot_oi
+```
+Note: interpreting scaled expression values do not make much sense if only one condition where cell type is present.
+
+```{r}
+group_oi = "A"
+```
+
+```{r, fig.height=5, fig.width=13}
+prioritized_tbl_oi_A_50 = prioritized_tbl_oi_all %>% filter(group == group_oi)
+
+plot_oi = make_sample_lr_prod_activity_plots(multinichenet_output$prioritization_tables_with_condition_specific_celltype_sender, prioritized_tbl_oi_A_50)
+plot_oi
+```
+
+## Step B-2 Visualization of the results of the cell-cell communication analysis for the RECEIVER
+
+In a first instance, we will look at the broad overview of prioritized interactions via condition-specific Circos plots.
+
+### Circos plot of top-prioritized links
+
+We will look here at the top 50 predictions across all contrasts, senders, and receivers of interest.
+
+```{r}
+prioritized_tbl_oi_all = get_top_n_lr_pairs(multinichenet_output$prioritization_tables_with_condition_specific_celltype_receiver, 50, rank_per_group = FALSE)
+```
+
+```{r, fig.width=15, fig.height=12}
+prioritized_tbl_oi = multinichenet_output$prioritization_tables_with_condition_specific_celltype_receiver$group_prioritization_tbl %>%
+  filter(id %in% prioritized_tbl_oi_all$id) %>%
+  distinct(id, sender, receiver, ligand, receptor, group) %>% left_join(prioritized_tbl_oi_all)
+prioritized_tbl_oi$prioritization_score[is.na(prioritized_tbl_oi$prioritization_score)] = 0 
+```
+
+```{r, fig.width=15, fig.height=12}
+senders_receivers = union(prioritized_tbl_oi$sender %>% unique(), prioritized_tbl_oi$receiver %>% unique()) %>% sort()
+
+colors_sender = RColorBrewer::brewer.pal(n = length(senders_receivers), name = 'Spectral') %>% magrittr::set_names(senders_receivers)
+colors_receiver = RColorBrewer::brewer.pal(n = length(senders_receivers), name = 'Spectral') %>% magrittr::set_names(senders_receivers)
+
+circos_list = make_circos_group_comparison(prioritized_tbl_oi, colors_sender, colors_receiver)
+```
+### Visualization of scaled ligand-receptor pseudobulk products and ligand activity
+
+Now we will visualize per sample the scaled product of ligand and receptor expression. Samples that were left out of the DE analysis are indicated with a smaller dot (this helps to indicate the samples that did not contribute to the calculation of the logFC, and thus not contributed to the final prioritization)
+
+We will first visualize the interactions specific for the Sibling group that are part of the top50 differential interactions as shown in the above circos plots
+
+```{r}
+group_oi = "S"
+```
+
+```{r, fig.height=9, fig.width=13}
+prioritized_tbl_oi_S_50 = prioritized_tbl_oi_all %>% filter(group == group_oi)
+
+plot_oi = make_sample_lr_prod_activity_plots(multinichenet_output$prioritization_tables_with_condition_specific_celltype_receiver, prioritized_tbl_oi_S_50)
+plot_oi
+```
+
+We will now check the MIS-C specific interactions
+
+```{r}
+group_oi = "M"
+```
+
+```{r, fig.height=5, fig.width=13}
+prioritized_tbl_oi_M_50 = prioritized_tbl_oi_all %>% filter(group == group_oi)
+
+plot_oi = make_sample_lr_prod_activity_plots(multinichenet_output$prioritization_tables_with_condition_specific_celltype_receiver, prioritized_tbl_oi_M_50)
+plot_oi
+```
+
+```{r}
+group_oi = "A"
+```
+
+```{r, fig.height=5, fig.width=13}
+prioritized_tbl_oi_A_50 = prioritized_tbl_oi_all %>% filter(group == group_oi)
+
+plot_oi = make_sample_lr_prod_activity_plots(multinichenet_output$prioritization_tables_with_condition_specific_celltype_receiver, prioritized_tbl_oi_A_50)
+plot_oi
+```
+
+### Circos plot of top-prioritized links combining the regular prioritization with the sender- and receiver focused ones
+
+We will look here at the top 50 predictions across all contrasts, senders, and receivers of interest.
+
+```{r}
+prioritized_tbl_oi_all = get_top_n_lr_pairs(multinichenet_output$combined_prioritization_tables, 50, rank_per_group = FALSE)
+```
+
+```{r, fig.width=15, fig.height=12}
+prioritized_tbl_oi = multinichenet_output$combined_prioritization_tables$group_prioritization_tbl %>%
+  filter(id %in% prioritized_tbl_oi_all$id) %>%
+  distinct(id, sender, receiver, ligand, receptor, group) %>% left_join(prioritized_tbl_oi_all)
+prioritized_tbl_oi$prioritization_score[is.na(prioritized_tbl_oi$prioritization_score)] = 0 
+```
+
+```{r, fig.width=15, fig.height=12}
+senders_receivers = union(prioritized_tbl_oi$sender %>% unique(), prioritized_tbl_oi$receiver %>% unique()) %>% sort()
+
+colors_sender = RColorBrewer::brewer.pal(n = length(senders_receivers), name = 'Spectral') %>% magrittr::set_names(senders_receivers)
+colors_receiver = RColorBrewer::brewer.pal(n = length(senders_receivers), name = 'Spectral') %>% magrittr::set_names(senders_receivers)
+
+circos_list = make_circos_group_comparison(prioritized_tbl_oi, colors_sender, colors_receiver)
+```
+
+
+```{r}
+print("done")
 ```

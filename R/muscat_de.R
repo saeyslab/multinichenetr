@@ -1,9 +1,10 @@
 #' @title perform_muscat_de_analysis
 #'
 #' @description \code{perform_muscat_de_analysis} Perform differential expression analysis via Muscat - Pseudobulking approach - FOR ONE CELLTYPE.
-#' @usage perform_muscat_de_analysis(sce, sample_id, celltype_id, group_id, batches, covariates, contrasts, assay_oi_pb = "counts", fun_oi_pb = "sum", de_method_oi = "edgeR", min_cells = 10, filterByExpr.min.count = 7, filterByExpr.min.total.count = 15, filterByExpr.large.n = 4, filterByExpr.min.prop = 0.7)
+#' @usage perform_muscat_de_analysis(sce, sample_id, celltype_id, group_id, batches, covariates, contrasts, expressed_df, assay_oi_pb = "counts", fun_oi_pb = "sum", de_method_oi = "edgeR", min_cells = 10)
 #'
 #' @inheritParams multi_nichenet_analysis
+#' @param expressed_df tibble with three columns: gene, celltype, expressed; this data frame indicates which genes can be considered as expressed in each cell type. 
 #' @param contrasts String indicating the contrasts of interest (= which groups/conditions will be compared) for the differential expression and MultiNicheNet analysis. 
 #' We will demonstrate here a few examples to indicate how to write this. Check the limma package manuals for more information about defining design matrices and contrasts for differential expression analysis.
 #' If wanting to compare group A vs B: `contrasts_oi = c("'A-B'")`
@@ -28,10 +29,11 @@
 #' lr_network = lr_network %>% dplyr::rename(ligand = from, receptor = to) %>% dplyr::distinct(ligand, receptor)
 #' sample_id = "tumor"
 #' group_id = "pEMT"
-#' celltype_id = "celltype"
+#' celltype_id = "CAF"
 #' batches = NA
 #' covariates = NA
 #' contrasts_oi = c("'High-Low','Low-High'")
+#' frq_list = get_frac_exprs(sce = sce, sample_id = sample_id, celltype_id =  celltype_id, group_id = group_id)
 #' celltype_de = perform_muscat_de_analysis(
 #'    sce = sce,
 #'    sample_id = sample_id,
@@ -39,13 +41,14 @@
 #'    group_id = group_id,
 #'    batches = batches,
 #'    covariates = covariates,
-#'    contrasts = contrasts_oi)
+#'    contrasts = contrasts_oi,
+#'    expressed_df = frq_list$expressed_df)
 #'}
 #'
 #' @export
 #'
 #'
-perform_muscat_de_analysis = function(sce, sample_id, celltype_id, group_id, batches, covariates, contrasts, assay_oi_pb = "counts", fun_oi_pb = "sum", de_method_oi = "edgeR", min_cells = 10, filterByExpr.min.count = 7, filterByExpr.min.total.count = 15, filterByExpr.large.n = 4, filterByExpr.min.prop = 0.7){
+perform_muscat_de_analysis = function(sce, sample_id, celltype_id, group_id, batches, covariates, contrasts, expressed_df, assay_oi_pb = "counts", fun_oi_pb = "sum", de_method_oi = "edgeR", min_cells = 10){
   requireNamespace("dplyr")
 
   if (class(sce) != "SingleCellExperiment") {
@@ -298,8 +301,9 @@ perform_muscat_de_analysis = function(sce, sample_id, celltype_id, group_id, bat
   contrast = eval(parse(text=paste("limma::makeContrasts(", contrasts, ",levels=design)",sep="")))
 
   # filter genes
-  celltype = SummarizedExperiment::assayNames(pb) %>% .[1]
-  pb = pb[edgeR::filterByExpr(y = SummarizedExperiment::assay(pb, celltype), design = design, min.count = filterByExpr.min.count, min.total.count = filterByExpr.min.total.count, large.n = filterByExpr.large.n, min.prop = filterByExpr.min.prop), ]
+  celltype_oi = SummarizedExperiment::assayNames(pb) %>% .[1]
+  genes_to_keep = expressed_df %>% filter(celltype == celltype_oi & expressed == TRUE) %>% pull(gene) %>% unique()
+  pb = pb[genes_to_keep, ]
   
   # run DS analysis
   res = muscat::pbDS(pb, method = de_method_oi , design = design, contrast = contrast, min_cells = min_cells, verbose = FALSE, filter = "none")
@@ -319,7 +323,6 @@ perform_muscat_de_analysis = function(sce, sample_id, celltype_id, group_id, bat
   if(length(excluded_celltypes) == length(celltypes)){
     print("None of the cell types passed the check. This might be due to 2 reasons. 1) no cell type has enough cells in >=2 samples per group. 2) problem in batch or categorical.covariate definition: not all levels of your batch/categorical.covariate are in each group - Also for groups not included in your contrasts! To solve this:pool all samples that belong to groups that are not of interest or do not consider the batch/categorical.covariate!")
   }
-  
   
   return(list(de_output = res, de_output_tidy = de_output_tidy))
 }
