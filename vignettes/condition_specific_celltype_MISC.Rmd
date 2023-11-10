@@ -228,7 +228,7 @@ sce = sce[, SummarizedExperiment::colData(sce)[,group_id] %in% contrast_tbl$grou
 
 #### Filtering of expressed genes
 
-We will keep genes that are expressed in at least half of the samples (`min_sample_prop`) of the smallest group. A gene is considered as being expressed in a sample if it has non-zero counts in at least 5% of cells (`fraction_cutoff`)
+We will keep genes that are expressed in at least half of the samples (`min_sample_prop`) of the smallest group (absolute minimum: 2 samples). A gene is considered as being expressed in a sample if it has non-zero counts in at least 5% of cells (`fraction_cutoff`)
 ```{r, error = TRUE}
 fraction_cutoff = 0.05
 min_sample_prop = 0.50

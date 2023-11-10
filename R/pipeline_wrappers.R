@@ -76,9 +76,6 @@ get_abundance_info = function(sce, sample_id, group_id, celltype_id, min_cells, 
   abundance_data = metadata_abundance %>% tibble::as_tibble() %>% dplyr::group_by(sample_id , celltype_id) %>% dplyr::count() %>% dplyr::inner_join(metadata_abundance %>% tibble::as_tibble() %>% dplyr::distinct(sample_id , group_id ), by = "sample_id")
   abundance_data = abundance_data %>% dplyr::mutate(keep = n >= min_cells) %>% dplyr::mutate(keep = factor(keep, levels = c(TRUE,FALSE)))
   
-  abundance_data_receiver = abundance_data %>% process_abund_info("receiver")
-  abundance_data_sender = abundance_data %>% process_abund_info("sender")
-  
   if(is.na(batches)){
     ## barplots
     # celltype proportion per sample
@@ -208,13 +205,13 @@ get_abundance_info = function(sce, sample_id, group_id, celltype_id, min_cells, 
   rel_abundance_df = rel_abundance_celltype_vs_group %>% data.frame() %>% tibble::rownames_to_column("group") %>% tidyr::gather(celltype, rel_abundance_scaled, -group) %>% tibble::as_tibble() %>% dplyr::mutate(rel_abundance_scaled = scale_quantile_adapted(rel_abundance_scaled))
   
   
-  return(list(abund_plot_sample = abund_plot, abund_plot_group = abund_plot_boxplot, abund_barplot = abund_barplot,  abundance_data = abundance_data, abundance_info = abundance_info))
+  return(list(abund_plot_sample = abund_plot, abund_plot_group = abund_plot_boxplot, abund_barplot = abund_barplot,  abundance_data = abundance_data, rel_abundance_df = rel_abundance_df))
   
 }
 #' @title process_abundance_expression_info
 #'
 #' @description \code{process_abundance_expression_info} Visualize cell type abundances. Calculate the average and fraction of expression of each gene per sample and per group. Calculate relative abundances of cell types as well. Under the hood, the following functions are used: `get_avg_frac_exprs_abund`, `process_info_to_ic`, `combine_sender_receiver_info_ic`
-#' @usage process_abundance_expression_info(sce, sample_id, group_id, celltype_id, min_cells, senders_oi, receivers_oi, lr_network, batches = NA, frq_list, rel_abundance_df)
+#' @usage process_abundance_expression_info(sce, sample_id, group_id, celltype_id, min_cells, senders_oi, receivers_oi, lr_network, batches = NA, frq_list, abundance_info)
 #'
 #' @inheritParams multi_nichenet_analysis
 #' @inheritParams combine_sender_receiver_info_ic

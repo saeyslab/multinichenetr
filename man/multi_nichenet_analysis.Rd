@@ -5,7 +5,7 @@
 \title{multi_nichenet_analysis}
 \usage{
 multi_nichenet_analysis(
-sce, celltype_id, sample_id,group_id, batches, covariates, lr_network,ligand_target_matrix,contrasts_oi,contrast_tbl, senders_oi = NULL,receivers_oi = NULL, fraction_cutoff = 0.05, min_sample_prop = 0.5, scenario = "regular",
+sce, celltype_id, sample_id,group_id, batches, covariates, lr_network,ligand_target_matrix,contrasts_oi,contrast_tbl, senders_oi = NULL,receivers_oi = NULL, fraction_cutoff = 0.05, min_sample_prop = 0.5, scenario = "regular", ligand_activity_down = FALSE,
 assay_oi_pb ="counts",fun_oi_pb = "sum",de_method_oi = "edgeR",min_cells = 10,logFC_threshold = 0.50,p_val_threshold = 0.05,p_val_adj = FALSE, empirical_pval = TRUE, top_n_target = 250, verbose = FALSE, n.cores = 1, return_lr_prod_matrix = FALSE, findMarkers = FALSE, top_n_LR = 2500)
 }
 \arguments{
@@ -48,6 +48,8 @@ Example for `contrasts_oi = c("'A-(B+C+D)/3', 'B-(A+C+D)/3'")`:
 \item{min_sample_prop}{Parameter to define the minimal required nr of samples in which a gene should be expressed in more than `fraction_cutoff` of cells in that sample (per cell type). This nr of samples is calculated as the `min_sample_prop` fraction of the nr of samples of the smallest group (after considering samples with n_cells >= `min_cells`. Default: `min_sample_prop = 0.50`. Examples: if there are 8 samples in the smallest group, there should be min_sample_prop*8 (= 4 in this example) samples with sufficient fraction of expressing cells.}
 
 \item{scenario}{Character vector indicating which prioritization weights should be used during the MultiNicheNet analysis. Currently 2 settings are implemented: "regular" (default) and "lower_DE". The setting "regular" is strongly recommended and gives each criterion equal weight. The setting "lower_DE" is recommended in cases your hypothesis is that the differential CCC patterns in your data are less likely to be driven by DE (eg in cases of differential migration into a niche). It halves the weight for DE criteria, and doubles the weight for ligand activity.}
+
+\item{ligand_activity_down}{Default: FALSE, downregulatory ligand activity is not considered for prioritization. TRUE: both up- and downregulatory activity are considered for prioritization.}
 
 \item{assay_oi_pb}{Indicates which information of the assay of interest should be used (counts, scaled data,...). Default: "counts". See `muscat::aggregateData`.}
 

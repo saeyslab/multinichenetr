@@ -38,7 +38,8 @@ test_that("Pipeline for all-vs-all analysis works & plotting functions work", {
     ligand_target_matrix = ligand_target_matrix,
     contrasts_oi = contrasts_oi,
     contrast_tbl = contrast_tbl,
-    findMarkers = TRUE)
+    findMarkers = TRUE, 
+    min_cells = 5)
   expect_type(output_naive,"list")
   
   # test condition-specific celltype functions
@@ -54,13 +55,17 @@ test_that("Pipeline for all-vs-all analysis works & plotting functions work", {
     lr_network = lr_network,
     ligand_target_matrix = ligand_target_matrix,
     contrasts_oi = contrasts_oi,
-    contrast_tbl = contrast_tbl)
+    contrast_tbl = contrast_tbl, 
+    min_cells = 5)
   output = make_lite_output(output)
   expect_type(output,"list")
   
   senders_oi = SummarizedExperiment::colData(sce_subset)[,celltype_id] %>% unique()
   receivers_oi = SummarizedExperiment::colData(sce_subset)[,celltype_id] %>% unique()
-  abundance_expression_info = get_abundance_expression_info(sce = sce_subset, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id, min_cells = 5, senders_oi = senders_oi, receivers_oi = receivers_oi, lr_network = lr_network, batches = batches)
+  
+  abundance_info = get_abundance_info(sce = sce, sample_id = sample_id, group_id = group_id, celltype_id =  celltype_id, min_cells = 5, senders_oi = senders_oi, receivers_oi = receivers_oi)
+  frq_list = get_frac_exprs(sce = sce, sample_id = sample_id, celltype_id =  celltype_id, group_id = group_id, min_cells = 5)
+  abundance_expression_info = process_abundance_expression_info(sce = sce_subset, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id, min_cells = 5, senders_oi = senders_oi, receivers_oi = receivers_oi, lr_network = lr_network, batches = batches, frq_list = frq_list, abundance_info = abundance_info)
   
   condition_specific_celltypes = "Malignant"
   
@@ -72,7 +77,6 @@ test_that("Pipeline for all-vs-all analysis works & plotting functions work", {
     lr_network = lr_network
   ))
   
-  abundance_info = make_abundance_plots(sce = sce, sample_id = sample_id, group_id = group_id, celltype_id =  celltype_id, min_cells = 10, senders_oi = senders_oi, receivers_oi = receivers_oi)
   
   prioritization_tables_with_condition_specific_celltype_receiver = prioritize_condition_specific_receiver(
     abundance_info = abundance_info,
@@ -115,7 +119,8 @@ test_that("Pipeline for all-vs-all analysis works & plotting functions work", {
        lr_network = lr_network,
        ligand_target_matrix = ligand_target_matrix,
        contrasts_oi = contrasts_oi,
-       contrast_tbl = contrast_tbl)
+       contrast_tbl = contrast_tbl, 
+       min_cells = 5)
   output$prioritization_tables$group_prioritization_tbl %>% select(id, scaled_lfc_ligand, scaled_lfc_receptor, scaled_p_val_ligand_adapted, scaled_p_val_receptor_adapted, max_scaled_activity, scaled_pb_ligand, scaled_pb_receptor, fraction_expressing_ligand_receptor,  prioritization_score )
   expect_type(output,"list")
   expect_type(output$prioritization_tables,"list")
@@ -135,7 +140,8 @@ test_that("Pipeline for all-vs-all analysis works & plotting functions work", {
     lr_network = lr_network,
     ligand_target_matrix = ligand_target_matrix,
     contrasts_oi = contrasts_oi,
-    contrast_tbl = contrast_tbl)
+    contrast_tbl = contrast_tbl, 
+    min_cells = 5)
   output = make_lite_output(output)
   expect_type(output,"list")
   
@@ -153,7 +159,8 @@ test_that("Pipeline for all-vs-all analysis works & plotting functions work", {
     lr_network = lr_network,
     ligand_target_matrix = ligand_target_matrix,
     contrasts_oi = contrasts_oi,
-    contrast_tbl = contrast_tbl)
+    contrast_tbl = contrast_tbl, 
+    min_cells = 5)
   output$prioritization_tables$group_prioritization_tbl %>% select(id, scaled_lfc_ligand, scaled_lfc_receptor, scaled_p_val_ligand_adapted, scaled_p_val_receptor_adapted, max_scaled_activity, scaled_pb_ligand, scaled_pb_receptor, fraction_expressing_ligand_receptor,  prioritization_score )
   expect_type(output,"list")
   # test plotting functions
@@ -283,7 +290,8 @@ test_that("Pipeline for all-vs-all analysis works & plotting functions work", {
     lr_network = lr_network,
     ligand_target_matrix = ligand_target_matrix,
     contrasts_oi = contrasts_oi,
-    contrast_tbl = contrast_tbl
+    contrast_tbl = contrast_tbl, 
+    min_cells = 5
   ))
   expect_error(multi_nichenet_analysis(
     sce = sce,
@@ -295,7 +303,8 @@ test_that("Pipeline for all-vs-all analysis works & plotting functions work", {
     lr_network = lr_network,
     ligand_target_matrix = ligand_target_matrix,
     contrasts_oi = contrasts_oi,
-    contrast_tbl = contrast_tbl
+    contrast_tbl = contrast_tbl, 
+    min_cells = 5
   ))
   expect_error(multi_nichenet_analysis(
     sce = sce,
@@ -307,7 +316,8 @@ test_that("Pipeline for all-vs-all analysis works & plotting functions work", {
     lr_network = lr_network,
     ligand_target_matrix = ligand_target_matrix,
     contrasts_oi = contrasts_oi,
-    contrast_tbl = contrast_tbl
+    contrast_tbl = contrast_tbl, 
+    min_cells = 5
   ))
 
   expect_error(multi_nichenet_analysis(
@@ -320,7 +330,8 @@ test_that("Pipeline for all-vs-all analysis works & plotting functions work", {
     lr_network = lr_network,
     ligand_target_matrix = ligand_target_matrix,
     contrasts_oi = contrasts_oi,
-    contrast_tbl = contrast_tbl
+    contrast_tbl = contrast_tbl, 
+    min_cells = 5
   ))
   expect_error(multi_nichenet_analysis(
     sce = sce,
@@ -332,7 +343,8 @@ test_that("Pipeline for all-vs-all analysis works & plotting functions work", {
     lr_network = lr_network,
     ligand_target_matrix = ligand_target_matrix,
     contrasts_oi = contrasts_oi,
-    contrast_tbl = contrast_tbl
+    contrast_tbl = contrast_tbl, 
+    min_cells = 5
   ))
   expect_error(multi_nichenet_analysis(
     sce = sce,
@@ -344,7 +356,8 @@ test_that("Pipeline for all-vs-all analysis works & plotting functions work", {
     lr_network = lr_network,
     ligand_target_matrix = ligand_target_matrix,
     contrasts_oi = contrasts_oi,
-    contrast_tbl = contrast_tbl
+    contrast_tbl = contrast_tbl, 
+    min_cells = 5
   ))
   expect_error(multi_nichenet_analysis(
     sce = sce,
@@ -356,7 +369,8 @@ test_that("Pipeline for all-vs-all analysis works & plotting functions work", {
     lr_network = lr_network,
     ligand_target_matrix = ligand_target_matrix,
     contrasts_oi = contrasts_oi,
-    contrast_tbl = contrast_tbl
+    contrast_tbl = contrast_tbl, 
+    min_cells = 5
   ))
   # test whether input checks are stringent enough: batches
   expect_error(multi_nichenet_analysis(
@@ -369,7 +383,8 @@ test_that("Pipeline for all-vs-all analysis works & plotting functions work", {
     lr_network = lr_network,
     ligand_target_matrix = ligand_target_matrix,
     contrasts_oi = contrasts_oi,
-    contrast_tbl = contrast_tbl
+    contrast_tbl = contrast_tbl, 
+    min_cells = 5
   ))
   
   # test whether input checks are stringent enough: ligand-target matrix and ligand-receptor network
@@ -384,7 +399,8 @@ test_that("Pipeline for all-vs-all analysis works & plotting functions work", {
     lr_network = ligand_target_matrix,
     ligand_target_matrix = lr_network,
     contrasts_oi = contrasts_oi,
-    contrast_tbl = contrast_tbl
+    contrast_tbl = contrast_tbl, 
+    min_cells = 5
   ))
   expect_error(multi_nichenet_analysis(
     sce = sce,
@@ -396,7 +412,8 @@ test_that("Pipeline for all-vs-all analysis works & plotting functions work", {
     lr_network = lr_network %>% rename(source = ligand, target = receptor),
     ligand_target_matrix = ligand_target_matrix,
     contrasts_oi = contrasts_oi,
-    contrast_tbl = contrast_tbl
+    contrast_tbl = contrast_tbl, 
+    min_cells = 5
   ))
   
   # test whether input checks are stringent enough: contrast definition and contrast tbl
@@ -410,7 +427,8 @@ test_that("Pipeline for all-vs-all analysis works & plotting functions work", {
     lr_network = lr_network,
     ligand_target_matrix = ligand_target_matrix,
     contrasts_oi = c("'High-Medium'"),
-    contrast_tbl = contrast_tbl
+    contrast_tbl = contrast_tbl, 
+    min_cells = 5
   ))
   expect_error(multi_nichenet_analysis(
     sce = sce,
@@ -422,7 +440,8 @@ test_that("Pipeline for all-vs-all analysis works & plotting functions work", {
     lr_network = lr_network,
     ligand_target_matrix = ligand_target_matrix,
     contrasts_oi = c("High-Low","Low-High"),
-    contrast_tbl = contrast_tbl
+    contrast_tbl = contrast_tbl, 
+    min_cells = 5
   ))
   expect_error(multi_nichenet_analysis(
     sce = sce,
@@ -433,7 +452,8 @@ test_that("Pipeline for all-vs-all analysis works & plotting functions work", {
     covariates = covariates,
     lr_network = lr_network,
     ligand_target_matrix = ligand_target_matrix,
-    contrasts_oi = contrasts_oi,
+    contrasts_oi = contrasts_oi, 
+    min_cells = 5,
     contrast_tbl = tibble(contrast = c("High-Medium","Low-High"), group = c("High","Low"))
   ))
   expect_error(multi_nichenet_analysis(
@@ -445,7 +465,8 @@ test_that("Pipeline for all-vs-all analysis works & plotting functions work", {
     covariates = covariates,
     lr_network = lr_network,
     ligand_target_matrix = ligand_target_matrix,
-    contrasts_oi = contrasts_oi,
+    contrasts_oi = contrasts_oi, 
+    min_cells = 5,
     contrast_tbl = tibble(contrast = c("High-Low","Low-High"), group = c("Medium","Low"))
   ))
   # expect_warning(multi_nichenet_analysis(
@@ -472,7 +493,8 @@ test_that("Pipeline for all-vs-all analysis works & plotting functions work", {
     lr_network = lr_network,
     ligand_target_matrix = ligand_target_matrix,
     contrasts_oi = contrasts_oi,
-    contrast_tbl = contrast_tbl,
+    contrast_tbl = contrast_tbl, 
+    min_cells = 5,
     assay_oi_sce = "Spatial"
   ))
   expect_error(multi_nichenet_analysis(
@@ -485,7 +507,8 @@ test_that("Pipeline for all-vs-all analysis works & plotting functions work", {
     lr_network = lr_network,
     ligand_target_matrix = ligand_target_matrix,
     contrasts_oi = contrasts_oi,
-    contrast_tbl = contrast_tbl,
+    contrast_tbl = contrast_tbl, 
+    min_cells = 5,
     assay_oi_pb = "Spatial"
   ))
   expect_error(multi_nichenet_analysis(
@@ -498,7 +521,8 @@ test_that("Pipeline for all-vs-all analysis works & plotting functions work", {
     lr_network = lr_network,
     ligand_target_matrix = ligand_target_matrix,
     contrasts_oi = contrasts_oi,
-    contrast_tbl = contrast_tbl,
+    contrast_tbl = contrast_tbl, 
+    min_cells = 5,
     de_method_oi = "EdgePython"
   ))
   # expect_warning(multi_nichenet_analysis(
@@ -548,7 +572,8 @@ test_that("Pipeline for all-vs-all analysis works & plotting functions work", {
     lr_network = lr_network,
     ligand_target_matrix = ligand_target_matrix,
     contrasts_oi = contrasts_oi,
-    contrast_tbl = contrast_tbl,
+    contrast_tbl = contrast_tbl, 
+    min_cells = 5,
     logFC_threshold = "0.25"
   ))
   # expect_warning(multi_nichenet_analysis(
@@ -573,7 +598,8 @@ test_that("Pipeline for all-vs-all analysis works & plotting functions work", {
     lr_network = lr_network,
     ligand_target_matrix = ligand_target_matrix,
     contrasts_oi = contrasts_oi,
-    contrast_tbl = contrast_tbl,
+    contrast_tbl = contrast_tbl, 
+    min_cells = 5,
     p_val_threshold = "0.1"
   ))
   # expect_warning(multi_nichenet_analysis(
@@ -598,7 +624,8 @@ test_that("Pipeline for all-vs-all analysis works & plotting functions work", {
     lr_network = lr_network,
     ligand_target_matrix = ligand_target_matrix,
     contrasts_oi = contrasts_oi,
-    contrast_tbl = contrast_tbl,
+    contrast_tbl = contrast_tbl, 
+    min_cells = 5,
     p_val_adj = "maybe"
   ))
   expect_error(multi_nichenet_analysis(
@@ -611,7 +638,8 @@ test_that("Pipeline for all-vs-all analysis works & plotting functions work", {
     lr_network = lr_network,
     ligand_target_matrix = ligand_target_matrix,
     contrasts_oi = contrasts_oi,
-    contrast_tbl = contrast_tbl,
+    contrast_tbl = contrast_tbl, 
+    min_cells = 5,
     top_n_target = "0"
   ))
   # check whether parallel computation works
@@ -649,7 +677,8 @@ test_that("Pipeline with wrapper function works", {
     lr_network = lr_network,
     ligand_target_matrix = ligand_target_matrix,
     contrasts_oi = contrasts_oi,
-    contrast_tbl = contrast_tbl
+    contrast_tbl = contrast_tbl, 
+    min_cells = 5
   )
   expect_type(output,"list")
   expect_type(output$prioritization_tables,"list")
@@ -690,7 +719,8 @@ test_that("Pipeline with wrapper function works - while correcting for batch eff
     lr_network = lr_network,
     ligand_target_matrix = ligand_target_matrix,
     contrasts_oi = contrasts_oi,
-    contrast_tbl = contrast_tbl
+    contrast_tbl = contrast_tbl, 
+    min_cells = 5
   )
   expect_type(output,"list")
   expect_type(output$prioritization_tables,"list")
@@ -734,7 +764,8 @@ test_that("Pipeline with wrapper function works - while correcting for batch eff
     lr_network = lr_network,
     ligand_target_matrix = ligand_target_matrix,
     contrasts_oi = contrasts_oi,
-    contrast_tbl = contrast_tbl
+    contrast_tbl = contrast_tbl, 
+    min_cells = 5
   )
   expect_type(output,"list")
   expect_type(output$prioritization_tables,"list")
