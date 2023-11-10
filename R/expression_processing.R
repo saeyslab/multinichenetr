@@ -597,7 +597,7 @@ get_frac_exprs = function(sce, sample_id, celltype_id, group_id, batches = NA, m
   # n = min_sample_prop fraction of samples of the smallest group
   # min_sample_prop = 0.5 by default
   # fraction_cutoff = 0.05 by default
-  n_smallest_group_tbl = grouping_df_filtered %>% dplyr::group_by(group, celltype) %>% dplyr::count() %>% dplyr::group_by(celltype) %>% dplyr::summarize(n_smallest_group = min(n)) %>% dplyr::mutate(n_min = min_sample_prop * n_smallest_group) %>% distinct()
+  n_smallest_group_tbl = grouping_df_filtered %>% dplyr::group_by(group, celltype) %>% dplyr::count() %>% dplyr::group_by(celltype) %>% dplyr::summarize(n_smallest_group = min(n)) %>% dplyr::mutate(n_min = min_sample_prop * n_smallest_group) %>% dplyr::mutate(n_min = pmax(n_min, 2)) %>% distinct()
   
   print(paste0("Genes with non-zero counts in at least ",fraction_cutoff*100, "% of cells of a cell type of interest in a particular sample will be considered as expressed in that sample.")) 
   

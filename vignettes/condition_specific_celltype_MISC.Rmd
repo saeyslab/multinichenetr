@@ -146,7 +146,7 @@ min_cells = 10
 Now we will calculate abundance and expression information for each cell type / sample / group combination with the following functions. In the output of this function, you can also find some 'Cell type abundance diagnostic plots' that will the users which celltype-sample combinations will be left out later on for DE calculation because the nr of cells is lower than de defined minimum defined here above. If too many celltype-sample combinations don't pass this threshold, we recommend to define your cell types in a more general way (use one level higher of the cell type ontology hierarchy) (eg TH17 CD4T cells --> CD4T cells).
 
 ```{r}
-abundance_info = make_abundance_plots(sce = sce, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id, min_cells = min_cells, senders_oi = senders_oi, receivers_oi = receivers_oi, batches = batches)
+abundance_info = get_abundance_info(sce = sce, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id, min_cells = min_cells, senders_oi = senders_oi, receivers_oi = receivers_oi, batches = batches)
 ```
 
 First, we will check the cell type abundance diagnostic plots.
@@ -165,15 +165,17 @@ Given this plot, we can conclude that "L_T_TIM3._CD38._HLADR." cells are our con
 We can automatically check for condition_specific_celltypes with the following code:
 
 ```{r}
-sample_group_celltype_df = abundance_info$abundance_data %>% filter(n > min_cells) %>% ungroup() %>% distinct(sample_id, group_id) %>% cross_join(abundance_info$abundance_data %>% ungroup() %>% distinct(celltype_id)) %>% arrange(sample_id)
-abundance_df = sample_group_celltype_df %>% left_join(abundance_info$abundance_data %>% ungroup())
-abundance_df$n[is.na(abundance_df$n)] = 0
-abundance_df$keep[is.na(abundance_df$keep)] = FALSE
-abundance_df_summarized = abundance_df %>% mutate(keep = as.logical(keep)) %>% group_by(group_id, celltype_id) %>% summarise(samples_present = sum((keep)))
-celltypes_absent_one_condition = abundance_df_summarized %>% filter(samples_present == 0) %>% pull(celltype_id) %>% unique()
-celltypes_present_one_condition = abundance_df_summarized %>% filter(samples_present > 0) %>% pull(celltype_id) %>% unique()
-condition_specific_celltypes = intersect(celltypes_absent_one_condition, celltypes_present_one_condition)
-condition_specific_celltypes
+  sample_group_celltype_df = abundance_info$abundance_data %>% filter(n > min_cells) %>% ungroup() %>% distinct(sample_id, group_id) %>% cross_join(abundance_info$abundance_data %>% ungroup() %>% distinct(celltype_id)) %>% arrange(sample_id)
+  abundance_df = sample_group_celltype_df %>% left_join(abundance_info$abundance_data %>% ungroup())
+  abundance_df$n[is.na(abundance_df$n)] = 0
+  abundance_df$keep[is.na(abundance_df$keep)] = FALSE
+  abundance_df_summarized = abundance_df %>% mutate(keep = as.logical(keep)) %>% group_by(group_id, celltype_id) %>% summarise(samples_present = sum((keep)))
+  celltypes_absent_one_condition = abundance_df_summarized %>% filter(samples_present == 0) %>% pull(celltype_id) %>% unique()
+  celltypes_present_one_condition = abundance_df_summarized %>% filter(samples_present > 0) %>% pull(celltype_id) %>% unique()
+  condition_specific_celltypes = intersect(celltypes_absent_one_condition, celltypes_present_one_condition)
+
+  print("condition-specific celltypes:")
+  print(condition_specific_celltypes)
 ```
 
 We recommend checking whether the automatically-defined condition-specific celltypes are relevant to you. You can always change `condition_specific_celltypes` manually.
@@ -217,13 +219,24 @@ For downstream visualizations and linking contrasts to their main group, you nee
 contrast_tbl = tibble(contrast = 
                         c("M-(S+A)/2","S-(M+A)/2", "A-(S+M)/2"), 
                       group = c("M","S","A"))
+sce = sce[, SummarizedExperiment::colData(sce)[,group_id] %in% contrast_tbl$group] # keep only considered groups/conditions
 ```
 
-
+  ## define expressed genes
+ 
 ### Perform the DE analysis for each cell type.
 
+#### Filtering of expressed genes
+
+We will keep genes that are expressed in at least half of the samples (`min_sample_prop`) of the smallest group. A gene is considered as being expressed in a sample if it has non-zero counts in at least 5% of cells (`fraction_cutoff`)
 ```{r, error = TRUE}
-DE_info = get_DE_info(sce = sce, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id, batches = batches, covariates = covariates, contrasts_oi = contrasts_oi, min_cells = min_cells)
+fraction_cutoff = 0.05
+min_sample_prop = 0.50
+frq_list = get_frac_exprs(sce = sce, sample_id = sample_id, celltype_id =  celltype_id, group_id = group_id, batches = batches, min_cells = min_cells, fraction_cutoff = fraction_cutoff, min_sample_prop = min_sample_prop)
+```
+
+```{r, error = TRUE}
+DE_info = get_DE_info(sce = sce, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id, batches = batches, covariates = covariates, contrasts_oi = contrasts_oi, min_cells = min_cells, expressed_df = frq_list$expressed_df)
 ```
 Logically, DE analysis cannot be performed for the condition-specific cell types. This results here in an error for the "L_T_TIM3._CD38._HLADR." cell type. 
 
@@ -284,7 +297,7 @@ Crucial note: grouping_tbl: group should be the same as in the contrast_tbl, and
 # Step 3: Extract expression information from receiver and sender cell types, and link this expression information for ligands of the sender cell types to the corresponding receptors of the receiver cell types
 
 ```{r}
-abundance_expression_info = get_abundance_expression_info(sce = sce, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id, min_cells = min_cells, senders_oi = senders_oi, receivers_oi = receivers_oi, lr_network = lr_network, batches = batches)
+abundance_expression_info = process_abundance_expression_info(sce = sce, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id, min_cells = min_cells, senders_oi = senders_oi, receivers_oi = receivers_oi, lr_network = lr_network, batches = batches , frq_list = frq_list, abundance_info = abundance_info)
 ```
 
 # Step 4: Predict NicheNet ligand activities and NicheNet ligand-target links based on these differential expression results
@@ -298,7 +311,6 @@ NicheNet ligand activity will then be calculated as the enrichment of predicted 
 ```{r}
 logFC_threshold = 0.50
 p_val_threshold = 0.05
-fraction_cutoff = 0.05
 ```
 
 We will here choose for applying the p-value cutoff on the normal p-values, and not on the p-values corrected for multiple testing. This choice was made here because this dataset has only a few samples per group and we might have a lack of statistical power due to pseudobulking. In case of more samples per group, and a sufficient high number of DE genes per group-celltype (> 50), we would recommend using the adjusted p-values.

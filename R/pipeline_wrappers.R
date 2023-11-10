@@ -208,7 +208,7 @@ get_abundance_info = function(sce, sample_id, group_id, celltype_id, min_cells, 
   rel_abundance_df = rel_abundance_celltype_vs_group %>% data.frame() %>% tibble::rownames_to_column("group") %>% tidyr::gather(celltype, rel_abundance_scaled, -group) %>% tibble::as_tibble() %>% dplyr::mutate(rel_abundance_scaled = scale_quantile_adapted(rel_abundance_scaled))
   
   
-  return(list(abund_plot_sample = abund_plot, abund_plot_group = abund_plot_boxplot, abund_barplot = abund_barplot,  abundance_data = abundance_data, rel_abundance_df = rel_abundance_df))
+  return(list(abund_plot_sample = abund_plot, abund_plot_group = abund_plot_boxplot, abund_barplot = abund_barplot,  abundance_data = abundance_data, abundance_info = abundance_info))
   
 }
 #' @title process_abundance_expression_info
@@ -241,12 +241,12 @@ get_abundance_info = function(sce, sample_id, group_id, celltype_id, min_cells, 
 #' receivers_oi = SummarizedExperiment::colData(sce)[,celltype_id] %>% unique() 
 #' abundance_info = get_abundance_info(sce = sce, sample_id = sample_id, group_id = group_id, celltype_id =  celltype_id, min_cells = 10, senders_oi = senders_oi, receivers_oi = receivers_oi)
 #' frq_list = get_frac_exprs(sce = sce, sample_id = sample_id, celltype_id =  celltype_id, group_id = group_id)
-#' abundance_celltype_info = process_abundance_expression_info(sce = sce, sample_id = sample_id, group_id = group_id, celltype_id =  celltype_id, min_cells = 10, senders_oi = senders_oi, receivers_oi = receivers_oi, lr_network, frq_list = frq_list, rel_abundance_df = abundance_info$rel_abundance_df)
+#' abundance_celltype_info = process_abundance_expression_info(sce = sce, sample_id = sample_id, group_id = group_id, celltype_id =  celltype_id, min_cells = 10, senders_oi = senders_oi, receivers_oi = receivers_oi, lr_network, frq_list = frq_list, abundance_info = abundance_info)
 #' }
 #'
 #' @export
 #'
-process_abundance_expression_info = function(sce, sample_id, group_id, celltype_id, min_cells, senders_oi, receivers_oi, lr_network, batches = NA, frq_list, rel_abundance_df){
+process_abundance_expression_info = function(sce, sample_id, group_id, celltype_id, min_cells, senders_oi, receivers_oi, lr_network, batches = NA, frq_list, abundance_info){
   
   requireNamespace("dplyr")
   requireNamespace("ggplot2")
@@ -297,7 +297,10 @@ process_abundance_expression_info = function(sce, sample_id, group_id, celltype_
   
   celltype_info$frq_df = frq_list$frq_df
   celltype_info$frq_df_group = frq_list$frq_df_group
-  celltype_info$rel_abundance_df = rel_abundance_df
+  celltype_info$rel_abundance_df = abundance_info$rel_abundance_df
+
+  abundance_data_receiver = abundance_info$abundance_data %>% process_abund_info("receiver")
+  abundance_data_sender = abundance_info$abundance_data %>% process_abund_info("sender")
 
   ### Link LR network to Cell type info
   receiver_info_ic = suppressMessages(process_info_to_ic(
@@ -318,7 +321,7 @@ process_abundance_expression_info = function(sce, sample_id, group_id, celltype_
     lr_network = lr_network))
   
   
-  return(list(celltype_info = celltype_info, receiver_info_ic = receiver_info_ic, sender_info_ic = sender_info_ic, sender_receiver_info = sender_receiver_info))
+  return(list(abundance_data_receiver = abundance_data_receiver, abundance_data_sender = abundance_data_sender, celltype_info = celltype_info, receiver_info_ic = receiver_info_ic, sender_info_ic = sender_info_ic, sender_receiver_info = sender_receiver_info))
   
 }
 #' @title get_DE_info

@@ -443,7 +443,7 @@ multi_nichenet_analysis = function(sce,
   if(verbose == TRUE){
     print("Calculate normalized average and pseudobulk expression")
   }
-  abundance_expression_info = process_abundance_expression_info(sce = sce, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id, min_cells = min_cells, senders_oi = senders_oi, receivers_oi = receivers_oi, lr_network = lr_network, batches = batches, frq_list = frq_list, rel_abundance_df = abundance_info$rel_abundance_df)
+  abundance_expression_info = process_abundance_expression_info(sce = sce, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id, min_cells = min_cells, senders_oi = senders_oi, receivers_oi = receivers_oi, lr_network = lr_network, batches = batches, frq_list = frq_list, abundance_info = abundance_info)
   
   metadata_combined = SummarizedExperiment::colData(sce) %>% tibble::as_tibble()
   
