@@ -688,6 +688,8 @@ test_that("Pipeline with wrapper function works", {
   top_pairs = get_top_n_lr_pairs(output$prioritization_tables, 50, groups_oi = NULL, senders_oi = NULL, receivers_oi = NULL, rank_per_group = FALSE)
   expect_type(top_pairs,"list")
   
+  frq_list = get_frac_exprs(sce = sce, sample_id = sample_id, celltype_id =  celltype_id, group_id = group_id, min_cells = 5)
+  
   DE_info = get_DE_info(
      sce = sce,
      sample_id = sample_id,
@@ -695,7 +697,7 @@ test_that("Pipeline with wrapper function works", {
      group_id = group_id,
      batches = batches,
      covariates = covariates,
-     contrasts = contrasts_oi)
+     contrasts = contrasts_oi, expressed_df = frq_list$expressed_df)
   DE_info_emp = get_empirical_pvals(DE_info$celltype_de$de_output_tidy)
   comparison_plots = compare_normal_emp_pvals(DE_info, DE_info_emp)
   
