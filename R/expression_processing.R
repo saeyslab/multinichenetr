@@ -613,7 +613,7 @@ get_frac_exprs = function(sce, sample_id, celltype_id, group_id, batches = NA, m
   for(i in seq(length(unique(expressed_df$celltype)))){
     celltype_oi = unique(expressed_df$celltype)[i]
     n_genes = expressed_df %>% filter(celltype == celltype_oi) %>% filter(expressed == TRUE) %>% pull(gene) %>% unique() %>% length()
-    print(paste0(n_genes, " genes areconsidered as expressed in the cell type: ",celltype_oi)) 
+    print(paste0(n_genes, " genes are considered as expressed in the cell type: ",celltype_oi)) 
   }
   return(list(frq_df = frq_df, frq_df_group = frq_df_group, expressed_df = expressed_df))
   

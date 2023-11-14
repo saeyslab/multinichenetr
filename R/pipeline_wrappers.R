@@ -317,6 +317,9 @@ process_abundance_expression_info = function(sce, sample_id, group_id, celltype_
     receivers_oi = receivers_oi,
     lr_network = lr_network))
   
+  sender_receiver_info$pb_df = sender_receiver_info$pb_df %>% dplyr::ungroup() %>% dplyr::inner_join(sender_receiver_info$pb_df_group %>% dplyr::ungroup() %>% dplyr::distinct(ligand, receptor, sender, receiver))
+  sender_receiver_info$avg_df = sender_receiver_info$avg_df %>% dplyr::ungroup() %>% dplyr::inner_join(sender_receiver_info$avg_df_group %>% dplyr::ungroup() %>% dplyr::distinct(ligand, receptor, sender, receiver))
+  sender_receiver_info$frq_df = sender_receiver_info$frq_df %>% dplyr::ungroup() %>% dplyr::inner_join(sender_receiver_info$frq_df_group %>% dplyr::ungroup() %>% dplyr::distinct(ligand, receptor, sender, receiver))
   
   return(list(abundance_data_receiver = abundance_data_receiver, abundance_data_sender = abundance_data_sender, celltype_info = celltype_info, receiver_info_ic = receiver_info_ic, sender_info_ic = sender_info_ic, sender_receiver_info = sender_receiver_info))
   

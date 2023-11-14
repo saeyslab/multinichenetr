@@ -170,8 +170,8 @@ We can automatically check for condition_specific_celltypes with the following c
   abundance_df$n[is.na(abundance_df$n)] = 0
   abundance_df$keep[is.na(abundance_df$keep)] = FALSE
   abundance_df_summarized = abundance_df %>% mutate(keep = as.logical(keep)) %>% group_by(group_id, celltype_id) %>% summarise(samples_present = sum((keep)))
-  celltypes_absent_one_condition = abundance_df_summarized %>% filter(samples_present == 0) %>% pull(celltype_id) %>% unique()
-  celltypes_present_one_condition = abundance_df_summarized %>% filter(samples_present > 0) %>% pull(celltype_id) %>% unique()
+  celltypes_absent_one_condition = abundance_df_summarized %>% filter(samples_present == 0) %>% pull(celltype_id) %>% unique() # focus only on cell types that are totally absent in at least one condition
+  celltypes_present_one_condition = abundance_df_summarized %>% filter(samples_present >= 2) %>% pull(celltype_id) %>% unique() # at least 2 samples in at least one condition should have sufficient cells of the cell type of interest
   condition_specific_celltypes = intersect(celltypes_absent_one_condition, celltypes_present_one_condition)
 
   print("condition-specific celltypes:")

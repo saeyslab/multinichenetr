@@ -368,12 +368,25 @@ multi_nichenet_analysis = function(sce,
   abundance_df$n[is.na(abundance_df$n)] = 0
   abundance_df$keep[is.na(abundance_df$keep)] = FALSE
   abundance_df_summarized = abundance_df %>% mutate(keep = as.logical(keep)) %>% group_by(group_id, celltype_id) %>% summarise(samples_present = sum((keep)))
-  celltypes_absent_one_condition = abundance_df_summarized %>% filter(samples_present == 0) %>% pull(celltype_id) %>% unique()
-  celltypes_present_one_condition = abundance_df_summarized %>% filter(samples_present > 0) %>% pull(celltype_id) %>% unique()
+  celltypes_absent_one_condition = abundance_df_summarized %>% filter(samples_present == 0) %>% pull(celltype_id) %>% unique() # find truly condition-specific cell types by searching for cell types truely absent in at least one condition
+  celltypes_present_one_condition = abundance_df_summarized %>% filter(samples_present >= 2) %>% pull(celltype_id) %>% unique() # require presence in at least 2 samples of one group so it is really present in at least one condition
   condition_specific_celltypes = intersect(celltypes_absent_one_condition, celltypes_present_one_condition)
 
+  total_nr_conditions = SummarizedExperiment::colData(sce)[,group_id] %>% unique() %>% length() 
+  absent_celltypes = abundance_df_summarized %>% dplyr::filter(samples_present < 2) %>% dplyr::group_by(celltype_id) %>% dplyr::count() %>% dplyr::filter(n == total_nr_conditions) %>% dplyr::pull(celltype_id)
+  
   print("condition-specific celltypes:")
   print(condition_specific_celltypes)
+  
+  print("absent celltypes:")
+  print(absent_celltypes)
+  
+  senders_oi = senders_oi %>% setdiff(absent_celltypes)
+  receivers_oi = receivers_oi %>% setdiff(absent_celltypes)
+
+  retained_celltypes = union(senders_oi, receivers_oi) 
+
+  sce = sce[, SummarizedExperiment::colData(sce)[,celltype_id] %in% retained_celltypes]
   
   ## define expressed genes
   frq_list = get_frac_exprs(sce = sce, sample_id = sample_id, celltype_id =  celltype_id, group_id = group_id, batches = batches, min_cells = min_cells, fraction_cutoff = fraction_cutoff, min_sample_prop = min_sample_prop)
@@ -419,7 +432,7 @@ multi_nichenet_analysis = function(sce,
     celltype_de = DE_info_emp$de_output_tidy_emp %>% dplyr::select(-p_val, -p_adj) %>% dplyr::rename(p_val = p_emp, p_adj = p_adj_emp)
   }
   
-  print(celltype_de %>% dplyr::group_by(cluster_id, contrast) %>% dplyr::filter(p_adj <= p_val_threshold & abs(logFC) >= logFC_threshold) %>% dplyr::count() %>% dplyr::arrange(-n))
+  # print(celltype_de %>% dplyr::group_by(cluster_id, contrast) %>% dplyr::filter(p_adj <= p_val_threshold & abs(logFC) >= logFC_threshold) %>% dplyr::count() %>% dplyr::arrange(-n))
   
   senders_oi = celltype_de$cluster_id %>% unique()
   receivers_oi = celltype_de$cluster_id %>% unique()
@@ -446,7 +459,7 @@ multi_nichenet_analysis = function(sce,
   if(verbose == TRUE){
     print("Calculate normalized average and pseudobulk expression")
   }
-  abundance_expression_info = process_abundance_expression_info(sce = sce, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id, min_cells = min_cells, senders_oi = senders_oi, receivers_oi = receivers_oi, lr_network = lr_network, batches = batches, frq_list = frq_list, abundance_info = abundance_info)
+  abundance_expression_info = process_abundance_expression_info(sce = sce, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id, min_cells = min_cells, senders_oi = union(senders_oi, condition_specific_celltypes), receivers_oi = union(receivers_oi, condition_specific_celltypes), lr_network = lr_network, batches = batches, frq_list = frq_list, abundance_info = abundance_info)
   
   metadata_combined = SummarizedExperiment::colData(sce) %>% tibble::as_tibble()
   
