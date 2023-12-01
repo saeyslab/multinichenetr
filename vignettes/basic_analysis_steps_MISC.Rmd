@@ -57,6 +57,7 @@ After the MultiNicheNet analysis is done, we will explore the output of the anal
 library(SingleCellExperiment)
 library(dplyr)
 library(ggplot2)
+library(nichenetr)
 library(multinichenetr)
 ```
 
@@ -68,17 +69,21 @@ Gene names are here made syntactically valid via `make.names()` to avoid the los
 ```{r}
 organism = "human"
 if(organism == "human"){
-  lr_network = readRDS(url("https://zenodo.org/record/7074291/files/lr_network_human_21122021.rds"))
-  lr_network = lr_network %>% dplyr::rename(ligand = from, receptor = to) %>% distinct(ligand, receptor) %>% mutate(ligand = make.names(ligand), receptor = make.names(receptor))
+  lr_network_all = readRDS(url("https://zenodo.org/record/10229222/files/lr_network_human_allInfo_30112033.rds")) %>% mutate(ligand = convert_alias_to_symbols(ligand, organism = organism), receptor = convert_alias_to_symbols(receptor, organism = organism))
+  lr_network = lr_network_all  %>% mutate(ligand = make.names(ligand), receptor = make.names(receptor)) %>% distinct(ligand, receptor)
   ligand_target_matrix = readRDS(url("https://zenodo.org/record/7074291/files/ligand_target_matrix_nsga2r_final.rds"))
-  colnames(ligand_target_matrix) = colnames(ligand_target_matrix) %>% make.names()
-  rownames(ligand_target_matrix) = rownames(ligand_target_matrix) %>% make.names()
+  colnames(ligand_target_matrix) = colnames(ligand_target_matrix) %>% convert_alias_to_symbols(organism = organism) %>% make.names()
+  rownames(ligand_target_matrix) = rownames(ligand_target_matrix) %>% convert_alias_to_symbols(organism = organism) %>% make.names()
+  lr_network = lr_network %>% filter(ligand %in% colnames(ligand_target_matrix))
+  ligand_target_matrix = ligand_target_matrix[, lr_network$ligand %>% unique()]
 } else if(organism == "mouse"){
-  lr_network = readRDS(url("https://zenodo.org/record/7074291/files/lr_network_mouse_21122021.rds"))
-  lr_network = lr_network %>% dplyr::rename(ligand = from, receptor = to) %>% distinct(ligand, receptor) %>% mutate(ligand = make.names(ligand), receptor = make.names(receptor))
+  lr_network_all = readRDS(url("https://zenodo.org/record/10229222/files/lr_network_mouse_allInfo_30112033.rds")) %>% mutate(ligand = convert_alias_to_symbols(ligand, organism = organism), receptor = convert_alias_to_symbols(receptor, organism = organism))
+  lr_network = lr_network_all  %>% mutate(ligand = make.names(ligand), receptor = make.names(receptor)) %>% distinct(ligand, receptor)
   ligand_target_matrix = readRDS(url("https://zenodo.org/record/7074291/files/ligand_target_matrix_nsga2r_final_mouse.rds"))
-  colnames(ligand_target_matrix) = colnames(ligand_target_matrix) %>% make.names()
-  rownames(ligand_target_matrix) = rownames(ligand_target_matrix) %>% make.names()
+  colnames(ligand_target_matrix) = colnames(ligand_target_matrix) %>% convert_alias_to_symbols(organism = organism) %>% make.names()
+  rownames(ligand_target_matrix) = rownames(ligand_target_matrix) %>% convert_alias_to_symbols(organism = organism) %>% make.names()
+  lr_network = lr_network %>% filter(ligand %in% colnames(ligand_target_matrix))
+  ligand_target_matrix = ligand_target_matrix[, lr_network$ligand %>% unique()]
 }
 ```
 
@@ -146,7 +151,7 @@ min_cells = 10
 Now we will calculate abundance and expression information for each cell type / sample / group combination with the following functions. In the output of this function, you can also find some 'Cell type abundance diagnostic plots' that will the users which celltype-sample combinations will be left out later on for DE calculation because the nr of cells is lower than de defined minimum defined here above. If too many celltype-sample combinations don't pass this threshold, we recommend to define your cell types in a more general way (use one level higher of the cell type ontology hierarchy) (eg TH17 CD4T cells --> CD4T cells).
 
 ```{r}
-abundance_expression_info = get_abundance_expression_info(sce = sce, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id, min_cells = min_cells, senders_oi = senders_oi, receivers_oi = receivers_oi, lr_network = lr_network, batches = batches)
+abundance_info = get_abundance_info(sce = sce, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id, min_cells = min_cells, senders_oi = senders_oi, receivers_oi = receivers_oi, batches = batches)
 ```
 
 First, we will check the cell type abundance diagnostic plots.
@@ -156,11 +161,13 @@ First, we will check the cell type abundance diagnostic plots.
 The first plot visualizes the number of cells per celltype-sample combination, and indicates which combinations are removed during the DE analysis because there are less than `min_cells` in the celltype-sample combination. 
 
 ```{r, fig.width=15, fig.height=12}
-abundance_expression_info$abund_plot_sample
+abundance_info$abund_plot_sample
 ```
 The red dotted line indicates the required minimum of cells as defined above in `min_cells`. We can see here that some sample-celltype combinations are left out. For the DE analysis in the next step, only cell types will be considered if there are at least two samples per group with a sufficient number of cells.
 
 __Important__: Based on the cell type abundance diagnostics, we recommend users to change their analysis settings if required (eg changing cell type annotation level, batches, ...), before proceeding with the rest of the analysis.
+
+as we can see here: no condition-specific cell types. In case you would have them...
 
 # Step 2: Perform genome-wide differential expression analysis of receiver and sender cell types to define DE genes between the conditions of interest. Based on this analysis, we can define the logFC/p-value of ligands in senders and receptors in receivers, and define the set of affected target genes in the receiver.
 
@@ -191,8 +198,15 @@ If you want to compare only two groups (eg M vs S), you can do like this:
 
 ### Perform the DE analysis for each cell type.
 
+First define expressed genes
 ```{r}
-DE_info = get_DE_info(sce = sce, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id, batches = batches, covariates = covariates, contrasts_oi = contrasts_oi, min_cells = min_cells)
+fraction_cutoff = 0.05
+min_sample_prop = 0.50
+frq_list = get_frac_exprs(sce = sce, sample_id = sample_id, celltype_id =  celltype_id, group_id = group_id, batches = batches, min_cells = min_cells, fraction_cutoff = fraction_cutoff, min_sample_prop = min_sample_prop)
+```
+
+```{r}
+DE_info = get_DE_info(sce = sce, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id, batches = batches, covariates = covariates, contrasts_oi = contrasts_oi, min_cells = min_cells, expressed_df = frq_list$expressed_df)
 ```
 
 ### Check DE results
@@ -225,6 +239,12 @@ sender_receiver_de = combine_sender_receiver_de(
 sender_receiver_de %>% head(20)
 ```
 
+# Calculate (pseudobulk) expression averages
+
+```{r}
+abundance_expression_info = process_abundance_expression_info(sce = sce, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id, min_cells = min_cells, senders_oi = senders_oi, receivers_oi = receivers_oi, lr_network = lr_network, batches = batches, frq_list = frq_list, abundance_info = abundance_info)
+```
+
 # Step 3: Predict NicheNet ligand activities and NicheNet ligand-target links based on these differential expression results
 
 ## Define the parameters for the NicheNet ligand activity analysis 
@@ -236,7 +256,6 @@ NicheNet ligand activity will then be calculated as the enrichment of predicted 
 ```{r}
 logFC_threshold = 0.50
 p_val_threshold = 0.05
-fraction_cutoff = 0.05
 ```
 
 We will here choose for applying the p-value cutoff on the normal p-values, and not on the p-values corrected for multiple testing. This choice was made here because this dataset has only a few samples per group and we might have a lack of statistical power due to pseudobulking. In case of more samples per group, and a sufficient high number of DE genes per group-celltype (> 50), we would recommend using the adjusted p-values.
@@ -327,18 +346,19 @@ Crucial note: grouping_tbl: group should be the same as in the contrast_tbl, and
 ## Run the prioritization 
 
 ```{r}
-prioritization_tables = suppressMessages(generate_prioritization_tables(
-  sender_receiver_info = abundance_expression_info$sender_receiver_info,
-  sender_receiver_de = sender_receiver_de,
-  ligand_activities_targets_DEgenes = ligand_activities_targets_DEgenes,
-  contrast_tbl = contrast_tbl,
-  sender_receiver_tbl = sender_receiver_tbl,
-  grouping_tbl = grouping_tbl,
-  fraction_cutoff = fraction_cutoff, 
-  abundance_data_receiver = abundance_expression_info$abundance_data_receiver,
-  abundance_data_sender = abundance_expression_info$abundance_data_sender
-  
-))
+  prioritization_tables = suppressMessages(generate_prioritization_tables(
+    sender_receiver_info = abundance_expression_info$sender_receiver_info,
+    sender_receiver_de = sender_receiver_de,
+    ligand_activities_targets_DEgenes = ligand_activities_targets_DEgenes,
+    contrast_tbl = contrast_tbl,
+    sender_receiver_tbl = sender_receiver_tbl,
+    grouping_tbl = grouping_tbl,
+    scenario = "regular", # all prioritization criteria will be weighted equally
+    fraction_cutoff = fraction_cutoff, 
+    abundance_data_receiver = abundance_expression_info$abundance_data_receiver,
+    abundance_data_sender = abundance_expression_info$abundance_data_sender,
+    ligand_activity_down = FALSE # use only upregulatory ligand activities to prioritize -- if you want to consider max of up and down: set this to TRUE
+  ))
 ```
 
 Check the output tables
@@ -425,7 +445,9 @@ group_oi = "M"
 
 ```{r, fig.height=13, fig.width=15}
 prioritized_tbl_oi_M_50 = get_top_n_lr_pairs(multinichenet_output$prioritization_tables, 50, groups_oi = group_oi)
+```
 
+```{r, fig.height=13, fig.width=18}
 plot_oi = make_sample_lr_prod_activity_plots(multinichenet_output$prioritization_tables, prioritized_tbl_oi_M_50)
 plot_oi
 ```
@@ -551,6 +573,48 @@ network_graph = visualize_network(network, colors_sender)
 network_graph$plot
 ```
 
+An interesting follow-up question would be to find nodes that are at the top of the hierarchy in this network, and could thus explain the cascade of intercellular communication events we observe.
+
+Using PageRank on the opposite-directionality graph can help identify important nodes that act as sources in the hierarchical structure. By running PageRank on the reversed graph (where edges point in the opposite direction), you can potentially pinpoint nodes that have significant influence or act as sources of information in your network.
+
+We will exemplify for the M-group
+
+```{r,}
+library(igraph)
+
+# Create the normal graph (normal directionality)
+normal_edges <- get.data.frame(network_graph$network_igraph) %>% filter(group == "M") %>% .[, c("from", "to")]  
+normal_graph <- graph_from_data_frame(normal_edges, directed = TRUE)
+# Calculate PageRank on the normal graph
+pagerank_scores <- page_rank(normal_graph)$vector %>% sort(decreasing = TRUE)
+pr_score_tbl = tibble(node = names(pagerank_scores), score_normal = pagerank_scores) %>% arrange(-score_normal)
+
+# Create the reversed graph (opposite directionality)
+reversed_edges <- get.data.frame(network_graph$network_igraph) %>% filter(group == "M") %>% .[, c("to", "from")]  # Swap 'from' and 'to' columns
+reversed_graph <- graph_from_data_frame(reversed_edges, directed = TRUE)
+# Calculate PageRank on the reversed graph
+reversed_pagerank_scores <- page_rank(reversed_graph)$vector %>% sort(decreasing = TRUE)
+
+pr_score_tbl = pr_score_tbl %>% inner_join(
+  tibble(node = names(reversed_pagerank_scores), score_reverse = reversed_pagerank_scores) 
+) %>% arrange(-score_reverse)
+pr_score_tbl
+```
+
+Let's zoom now in on the M-group network to check this
+
+```{r}
+network = infer_intercellular_regulatory_network(lr_target_df %>% filter(group == "M"), prioritized_tbl_oi %>% filter(group == "M"))
+network$links %>% head()
+network$nodes %>% head()
+```
+
+```{r, fig.width=30, fig.height=20}
+colors_sender["L_T_TIM3._CD38._HLADR."] = "pink" # the  original yellow background with white font is not very readable
+network_graph = visualize_network(network, colors_sender)
+network_graph$plot
+```
+
 Interestingly, we can also use this network to further prioritize differential CCC interactions. Here we will assume that the most important LR interactions are the ones that are involved in this intercellular regulatory network. We can get these interactions as follows:
 ```{r}
 network$prioritized_lr_interactions
@@ -566,9 +630,18 @@ Visualize now the expression and activity of these interactions for the M group
 group_oi = "M"
 ```
 
-```{r, fig.height=13, fig.width=15}
+```{r, fig.height=16, fig.width=18}
 prioritized_tbl_oi_M = prioritized_tbl_oi_network %>% filter(group == group_oi)
 
 plot_oi = make_sample_lr_prod_activity_plots(multinichenet_output$prioritization_tables, prioritized_tbl_oi_M)
 plot_oi
+```
+
+## Investingating the data sources behind the ligand-receptor interactions
+
+Now link the prioritized interactions to all the information of the ligand-receptor network. This can help to check which are the specific data sources behind the inferred interactions, which can aid in prioritizing interactions for further validation.  
+
+Check OmnipathR for more information with respect to how to interpret the different metrics specific for the interactions coming from the Omnipath database.
+```{r}
+prioritized_tbl_oi_M %>% inner_join(lr_network_all) %>% arrange(-n_resources) # sort interactions based on nr of resources that document them
 ```

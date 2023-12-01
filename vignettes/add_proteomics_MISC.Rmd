@@ -148,7 +148,7 @@ min_cells = 10
 Now we will calculate abundance and expression information for each cell type / sample / group combination with the following functions. In the output of this function, you can also find some 'Cell type abundance diagnostic plots' that will the users which celltype-sample combinations will be left out later on for DE calculation because the nr of cells is lower than de defined minimum defined here above. If too many celltype-sample combinations don't pass this threshold, we recommend to define your cell types in a more general way (use one level higher of the cell type ontology hierarchy) (eg TH17 CD4T cells --> CD4T cells).
 
 ```{r}
-abundance_info = make_abundance_plots(sce = sce, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id, min_cells = min_cells, senders_oi = senders_oi, receivers_oi = receivers_oi, batches = batches)
+abundance_info = get_abundance_info(sce = sce, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id, min_cells = min_cells, senders_oi = senders_oi, receivers_oi = receivers_oi, batches = batches)
 ```
 
 First, we will check the cell type abundance diagnostic plots.
@@ -197,8 +197,17 @@ contrast_tbl = tibble(contrast =
 
 ### Perform the DE analysis for each cell type.
 
-```{r}
-DE_info = get_DE_info(sce = sce, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id, batches = batches, covariates = covariates, contrasts_oi = contrasts_oi, min_cells = min_cells)
+#### Filtering of expressed genes
+
+We will keep genes that are expressed in at least half of the samples (`min_sample_prop`) of the smallest group (absolute minimum: 2 samples). A gene is considered as being expressed in a sample if it has non-zero counts in at least 5% of cells (`fraction_cutoff`)
+```{r, error = TRUE}
+fraction_cutoff = 0.05
+min_sample_prop = 0.50
+frq_list = get_frac_exprs(sce = sce, sample_id = sample_id, celltype_id =  celltype_id, group_id = group_id, batches = batches, min_cells = min_cells, fraction_cutoff = fraction_cutoff, min_sample_prop = min_sample_prop)
+```
+
+```{r, error = TRUE}
+DE_info = get_DE_info(sce = sce, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id, batches = batches, covariates = covariates, contrasts_oi = contrasts_oi, min_cells = min_cells, expressed_df = frq_list$expressed_df)
 ```
 
 ### Check DE results
@@ -257,7 +266,7 @@ Crucial note: grouping_tbl: group should be the same as in the contrast_tbl, and
 # Step 3: Extract expression information from receiver and sender cell types, and link this expression information for ligands of the sender cell types to the corresponding receptors of the receiver cell types
 
 ```{r}
-abundance_expression_info = get_abundance_expression_info(sce = sce, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id, min_cells = min_cells, senders_oi = senders_oi, receivers_oi = receivers_oi, lr_network = lr_network, batches = batches)
+abundance_expression_info = process_abundance_expression_info(sce = sce, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id, min_cells = min_cells, senders_oi = senders_oi, receivers_oi = receivers_oi, lr_network = lr_network, batches = batches , frq_list = frq_list, abundance_info = abundance_info)
 ```
 
 # Step 4: Predict NicheNet ligand activities and NicheNet ligand-target links based on these differential expression results
@@ -391,8 +400,8 @@ olink_df_ligands_receptors %>% head()
 Important: the provided logFC values in the OLINK data contrast MIS-C versus healthy siblings (M-vs-S). We will stil need to add the reverse logFC for the contrast S-vs-M. 
 
 ```{r}
-olink_df_ligand = prioritization_tables$group_prioritization_tbl %>% distinct(ligand) %>% left_join(olink_df_ligands_receptors %>% rename(ligand = gene)) %>% mutate(contrast = "M-S")
-olink_df_reverse_ligand = olink_df_ligand %>% mutate(contrast = "S-M", logFC = -1*logFC)
+olink_df_ligand = prioritization_tables$group_prioritization_tbl %>% distinct(ligand) %>% left_join(olink_df_ligands_receptors %>% rename(ligand = gene)) %>% mutate(contrast = contrast_tbl$contrast[1])
+olink_df_reverse_ligand = olink_df_ligand %>% mutate(contrast = contrast_tbl$contrast[2], logFC = -1*logFC)
 olink_df_ligand = olink_df_ligand %>% bind_rows(olink_df_reverse_ligand)
 olink_df_ligand %>% filter(ligand == "IFNG")
 ```
@@ -405,8 +414,6 @@ olink_df_ligand_scaled = olink_df_ligand %>% distinct(contrast, ligand, logFC, p
 olink_df_ligand_scaled = olink_df_ligand_scaled %>% distinct(contrast, ligand, scaled_lfc_ligand_OLINK, scaled_p_val_ligand_adapted_OLINK) %>% dplyr::arrange(-scaled_p_val_ligand_adapted_OLINK)
 olink_df_ligand_scaled
 ```
-
-
 
 Now we will calculate the aggregated prioritization score with inclusion of the scaled logFC and scaled p-value-based score from the OLINK data. 
 To do this, we first add these new scores to the existing prioritization_table and define the table of prioritization criteria and add the new criteria and their weights. It is recommended to give the new criteria the same weights as the original default. If you ran the analysis with the default weights (`scenario = "regular"` then these weights are 1)  
@@ -422,11 +429,18 @@ new_criteria_tbl = tibble(criterion = c("scaled_lfc_ligand_OLINK","scaled_p_val_
 ```
 
 ```{r}
+group_prioritization_tbl_withoutOLINK =  prioritization_tables$group_prioritization_tbl 
+
 prioritization_tables = add_extra_criterion(prioritization_tables, new_criteria_tbl, regular_criteria_tbl, scenario = "regular") 
 ```
 
 ```{r}
 prioritization_tables$group_prioritization_tbl %>% head(20)
+```
+```{r}
+group_prioritization_tbl_withoutOLINK %>% select(group, id, prioritization_score) %>% inner_join(prioritization_tables$group_prioritization_tbl %>%  select(group, id, prioritization_score) %>% rename(new_score = prioritization_score)) %>% mutate(difference = new_score - prioritization_score) %>% arrange(-difference) %>% filter(new_score > 0.80)
+group_prioritization_tbl_withoutOLINK %>% select(group, id, prioritization_score) %>% inner_join(prioritization_tables$group_prioritization_tbl %>%  select(group, id, prioritization_score) %>% rename(new_score = prioritization_score)) %>% mutate(difference = new_score - prioritization_score) %>% arrange(difference) %>% filter(prioritization_score > 0.80)
+
 ```
 
 ### Add additional ligand activity criterion

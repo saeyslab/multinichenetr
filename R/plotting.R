@@ -147,9 +147,13 @@ make_sample_lr_prod_activity_plots = function(prioritization_tables, prioritized
   group_data_celltype_specificity = prioritization_tables$group_prioritization_tbl  %>% dplyr::mutate(sender_receiver = paste(sender, receiver, sep = " --> "), lr_interaction = paste(ligand, receptor, sep = " - "))  %>% dplyr::distinct(id, sender, receiver, sender_receiver, lr_interaction, group, scaled_pb_ligand, scaled_pb_receptor) %>% dplyr::filter(id %in% sample_data$id) %>%  dplyr::arrange(receiver) %>% dplyr::group_by(receiver) %>%  dplyr::arrange(sender, .by_group = TRUE)
   group_data_celltype_specificity = group_data_celltype_specificity %>% dplyr::mutate(sender_receiver = factor(sender_receiver, levels = group_data_celltype_specificity$sender_receiver %>% unique()))
   
-  group_data = group_data %>% inner_join(group_data_celltype_specificity)
+  group_data_frac_expression = prioritization_tables$group_prioritization_table_source  %>% dplyr::mutate(sender_receiver = paste(sender, receiver, sep = " --> "), lr_interaction = paste(ligand, receptor, sep = " - "))  %>% dplyr::distinct(id, sender, receiver, sender_receiver, lr_interaction, group, fraction_ligand_group, fraction_receptor_group) %>% dplyr::filter(id %in% sample_data$id) %>%  dplyr::arrange(receiver) %>% dplyr::group_by(receiver) %>%  dplyr::arrange(sender, .by_group = TRUE)
+  group_data_frac_expression = group_data_frac_expression %>% dplyr::mutate(sender_receiver = factor(sender_receiver, levels = group_data$sender_receiver %>% unique()))
+  
+  group_data = group_data %>% inner_join(group_data_celltype_specificity) %>% inner_join(group_data_frac_expression)
   group_data = group_data %>% dplyr::mutate(sender_receiver = factor(sender_receiver, levels = group_data$sender_receiver %>% unique()))
   rm(group_data_celltype_specificity)
+  rm(group_data_frac_expression)
   
   keep_sender_receiver_values = c(0.25, 0.9, 1.75, 4)
   names(keep_sender_receiver_values) = levels(sample_data$keep_sender_receiver)
@@ -235,12 +239,18 @@ make_sample_lr_prod_activity_plots = function(prioritization_tables, prioritized
   p3 = p3 + custom_scale_fill
   
   # add the plot visualizing cell-type specificity
-  cs_data = group_data %>% filter(group %in% prioritized_tbl_oi$group) %>% distinct(sender_receiver, lr_interaction, group, scaled_pb_ligand, scaled_pb_receptor) %>% gather(LR, celltype_specificity, scaled_pb_ligand:scaled_pb_receptor)
+  # cs_data = group_data %>% filter(group %in% prioritized_tbl_oi$group) %>% distinct(sender_receiver, lr_interaction, group, scaled_pb_ligand, scaled_pb_receptor) %>% gather(LR, celltype_specificity, scaled_pb_ligand:scaled_pb_receptor)
+  cs_data = group_data %>% distinct(sender_receiver, lr_interaction, group, scaled_pb_ligand, scaled_pb_receptor) %>% tidyr::gather(LR, celltype_specificity, scaled_pb_ligand:scaled_pb_receptor)
   cs_data$LR[cs_data$LR == "scaled_pb_ligand"] = "ligand"
   cs_data$LR[cs_data$LR == "scaled_pb_receptor"] = "receptor"
+  frac_data = group_data %>% distinct(sender_receiver, lr_interaction, group, fraction_ligand_group, fraction_receptor_group) %>% tidyr::gather(LR, fraction_expression, fraction_ligand_group:fraction_receptor_group)
+  frac_data$LR[frac_data$LR == "fraction_ligand_group"] = "ligand"
+  frac_data$LR[frac_data$LR == "fraction_receptor_group"] = "receptor"
+  
+  cs_data = cs_data %>% inner_join(frac_data)
   
   p_cs = cs_data %>% 
-    ggplot(aes(LR , lr_interaction, color = celltype_specificity, size = celltype_specificity)) +
+    ggplot(aes(LR , lr_interaction, color = celltype_specificity, size = fraction_expression)) +
     geom_point() +
     facet_grid(sender_receiver ~ group, scales = "free", space = "free") +
     scale_x_discrete(position = "top") +
@@ -260,7 +270,7 @@ make_sample_lr_prod_activity_plots = function(prioritization_tables, prioritized
       strip.text.x = element_text(size = 10, color = "black", face = "bold"),
       strip.text.y = element_blank(),
       strip.background = element_rect(color="darkgrey", fill="whitesmoke", size=1.5, linetype="solid")
-    ) + labs(color = "Scaled celltype specificity") + labs(size = "Scaled celltype specificity")
+    ) + labs(color = "Scaled celltype specificity") + labs(size = "Fraction of expression")
   
   
   if(!is.null(widths)){
@@ -273,7 +283,7 @@ make_sample_lr_prod_activity_plots = function(prioritization_tables, prioritized
     p = patchwork::wrap_plots(
       p1,p2,p3,p_cs,
       nrow = 1,guides = "collect",
-      widths = c(sample_data$sample %>% unique() %>% length(), 2*(sample_data$group %>% unique() %>% length()), 2*(sample_data$group %>% unique() %>% length()),2)
+      widths = c(sample_data$sample %>% unique() %>% length(), 2*(sample_data$group %>% unique() %>% length()), 2*(sample_data$group %>% unique() %>% length()),2*(sample_data$group %>% unique() %>% length()))
     )
   }
   
@@ -343,9 +353,13 @@ make_sample_lr_prod_activity_batch_plots = function(prioritization_tables, prior
   group_data_celltype_specificity = prioritization_tables$group_prioritization_tbl  %>% dplyr::mutate(sender_receiver = paste(sender, receiver, sep = " --> "), lr_interaction = paste(ligand, receptor, sep = " - "))  %>% dplyr::distinct(id, sender, receiver, sender_receiver, lr_interaction, group, scaled_pb_ligand, scaled_pb_receptor) %>% dplyr::filter(id %in% sample_data$id) %>%  dplyr::arrange(receiver) %>% dplyr::group_by(receiver) %>%  dplyr::arrange(sender, .by_group = TRUE)
   group_data_celltype_specificity = group_data_celltype_specificity %>% dplyr::mutate(sender_receiver = factor(sender_receiver, levels = group_data_celltype_specificity$sender_receiver %>% unique()))
   
-  group_data = group_data %>% inner_join(group_data_celltype_specificity)
+  group_data_frac_expression = prioritization_tables$group_prioritization_table_source  %>% dplyr::mutate(sender_receiver = paste(sender, receiver, sep = " --> "), lr_interaction = paste(ligand, receptor, sep = " - "))  %>% dplyr::distinct(id, sender, receiver, sender_receiver, lr_interaction, group, fraction_ligand_group, fraction_receptor_group) %>% dplyr::filter(id %in% sample_data$id) %>%  dplyr::arrange(receiver) %>% dplyr::group_by(receiver) %>%  dplyr::arrange(sender, .by_group = TRUE)
+  group_data_frac_expression = group_data_frac_expression %>% dplyr::mutate(sender_receiver = factor(sender_receiver, levels = group_data$sender_receiver %>% unique()))
+  
+  group_data = group_data %>% inner_join(group_data_celltype_specificity) %>% inner_join(group_data_frac_expression)
   group_data = group_data %>% dplyr::mutate(sender_receiver = factor(sender_receiver, levels = group_data$sender_receiver %>% unique()))
   rm(group_data_celltype_specificity)
+  rm(group_data_frac_expression)
   
   keep_sender_receiver_values = c(0.25, 0.9, 1.75, 4)
   names(keep_sender_receiver_values) = levels(sample_data$keep_sender_receiver)
@@ -455,8 +469,19 @@ make_sample_lr_prod_activity_batch_plots = function(prioritization_tables, prior
   cs_data$LR[cs_data$LR == "scaled_pb_ligand"] = "ligand"
   cs_data$LR[cs_data$LR == "scaled_pb_receptor"] = "receptor"
   
+  # add the plot visualizing cell-type specificity
+  # cs_data = group_data %>% filter(group %in% prioritized_tbl_oi$group) %>% distinct(sender_receiver, lr_interaction, group, scaled_pb_ligand, scaled_pb_receptor) %>% gather(LR, celltype_specificity, scaled_pb_ligand:scaled_pb_receptor)
+  cs_data = group_data %>% distinct(sender_receiver, lr_interaction, group, scaled_pb_ligand, scaled_pb_receptor) %>% tidyr::gather(LR, celltype_specificity, scaled_pb_ligand:scaled_pb_receptor)
+  cs_data$LR[cs_data$LR == "scaled_pb_ligand"] = "ligand"
+  cs_data$LR[cs_data$LR == "scaled_pb_receptor"] = "receptor"
+  frac_data = group_data %>% distinct(sender_receiver, lr_interaction, group, fraction_ligand_group, fraction_receptor_group) %>% tidyr::gather(LR, fraction_expression, fraction_ligand_group:fraction_receptor_group)
+  frac_data$LR[frac_data$LR == "fraction_ligand_group"] = "ligand"
+  frac_data$LR[frac_data$LR == "fraction_receptor_group"] = "receptor"
+  
+  cs_data = cs_data %>% inner_join(frac_data)
+  
   p_cs = cs_data %>% 
-    ggplot(aes(LR , lr_interaction, color = celltype_specificity, size = celltype_specificity)) +
+    ggplot(aes(LR , lr_interaction, color = celltype_specificity, size = fraction_expression)) +
     geom_point() +
     facet_grid(sender_receiver ~ group, scales = "free", space = "free") +
     scale_x_discrete(position = "top") +
@@ -476,11 +501,11 @@ make_sample_lr_prod_activity_batch_plots = function(prioritization_tables, prior
       strip.text.x = element_text(size = 10, color = "black", face = "bold"),
       strip.text.y = element_blank(),
       strip.background = element_rect(color="darkgrey", fill="whitesmoke", size=1.5, linetype="solid")
-    ) + labs(color = "Scaled celltype specificity") + labs(size = "Scaled celltype specificity")
+    ) + labs(color = "Scaled celltype specificity") + labs(size = "Fraction of expression")
   
   
   if(is.null(widths)){
-    widths = c(sample_data$sample %>% unique() %>% length(), 2*(sample_data$group %>% unique() %>% length()), 2*(sample_data$group %>% unique() %>% length()), 2)
+    widths = c(sample_data$sample %>% unique() %>% length(), 2*(sample_data$group %>% unique() %>% length()), 2*(sample_data$group %>% unique() %>% length()), 2*(sample_data$group %>% unique() %>% length()))
   }
   if(is.null(heights)){
     heights = c(1, group_data$id %>% unique() %>% length())
