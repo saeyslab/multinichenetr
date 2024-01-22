@@ -506,6 +506,20 @@ combined_plot
 
 __Note__ Use `make_DEgene_dotplot_pseudobulk_batch` if you want to indicate the batch of each sample to the plot
 
+What if there is a specific ligand you are interested in?
+
+```{r}
+group_oi = "M"
+receiver_oi = "L_T_TIM3._CD38._HLADR."
+ligands_oi = c("IFNG","IL15")
+prioritized_tbl_ligands_oi = get_top_n_lr_pairs(multinichenet_output$prioritization_tables, 10000, groups_oi = group_oi, receivers_oi = receiver_oi) %>% filter(ligand %in% ligands_oi) # ligands should still be in the output tables of course
+```
+
+```{r, fig.width=20, fig.height=10}
+combined_plot = make_ligand_activity_target_plot(group_oi, receiver_oi, prioritized_tbl_ligands_oi, multinichenet_output$prioritization_tables, multinichenet_output$ligand_activities_targets_DEgenes, contrast_tbl, multinichenet_output$grouping_tbl, multinichenet_output$celltype_info, ligand_target_matrix, plot_legend = FALSE)
+combined_plot
+```
+
 ## Visualization of expression-correlated target genes of ligand-receptor pairs
 
 Before, we had calculated the correlation in expression between ligand-receptor pairs and DE genes. Now we will filter out correlated ligand-receptor --> target links that both show high expression correlation (spearman or activity > 0.50 in this example) and have some prior knowledge to support their link.

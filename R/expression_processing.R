@@ -607,9 +607,9 @@ get_frac_exprs = function(sce, sample_id, celltype_id, group_id, batches = NA, m
     print(paste0("Genes expressed in at least ",n_min, " samples will considered as expressed in the cell type: ",celltype_oi)) 
   }
   
-  frq_df = frq_df %>% dplyr::inner_join(grouping_df) %>% dplyr::mutate(expressed_sample = fraction_sample > fraction_cutoff)
+  frq_df = frq_df %>% dplyr::inner_join(grouping_df) %>% dplyr::mutate(expressed_sample = fraction_sample >= fraction_cutoff)
   
-  expressed_df = frq_df %>% inner_join(n_smallest_group_tbl) %>% inner_join(abundance_data) %>% dplyr::group_by(gene, celltype) %>% dplyr::summarise(n_expressed = sum(expressed_sample)) %>% dplyr::mutate(expressed = n_expressed > n_min) %>% distinct(celltype, gene, expressed)
+  expressed_df = frq_df %>% inner_join(n_smallest_group_tbl) %>% inner_join(abundance_data) %>% dplyr::group_by(gene, celltype) %>% dplyr::summarise(n_expressed = sum(expressed_sample)) %>% dplyr::mutate(expressed = n_expressed >= n_min) %>% distinct(celltype, gene, expressed)
   for(i in seq(length(unique(expressed_df$celltype)))){
     celltype_oi = unique(expressed_df$celltype)[i]
     n_genes = expressed_df %>% filter(celltype == celltype_oi) %>% filter(expressed == TRUE) %>% pull(gene) %>% unique() %>% length()
