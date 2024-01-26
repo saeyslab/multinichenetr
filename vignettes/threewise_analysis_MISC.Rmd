@@ -203,35 +203,8 @@ MultiNicheNet allows the user to define the weights of the following criteria to
 * Sufficiently high expression levels of ligand and receptor in many samples of the same group (to mitigate the influence of outlier samples). : `frac_exprs_ligand_receptor`
 * Cell-type and condition specific expression of the ligand in the sender cell type and receptor in the receiver cell type (to mitigate the influence of upregulated but still relatively weakly expressed ligands/receptors) : `exprs_ligand` and `exprs_receptor`
 * High NicheNet ligand activity, to further prioritize ligand-receptor pairs based on their predicted effect of the ligand-receptor interaction on the gene expression in the receiver cell type : `activity_scaled` 
-* High relative abundance of sender and/or receiver in the condition of interest: `abund_sender` and `abund_receiver` (experimental feature - not recommended to give non-zero weights for default analyses)
 
 The different properties of the sender-ligand---receiver-receptor pairs can be weighted according to the user's preference and insight in the dataset at hand. 
-
-We will set our preference for this dataset as follows - and recommend the user to use the same weights by default if they don't have specific reasons to change some of the parameters:
-
-```{r}
-prioritizing_weights_DE = c("de_ligand" = 1,
-                         "de_receptor" = 1)
-prioritizing_weights_activity = c("activity_scaled" = 2)
-
-prioritizing_weights_expression_specificity = c("exprs_ligand" = 2,
-                         "exprs_receptor" = 2)
-
-prioritizing_weights_expression_sufficiency = c("frac_exprs_ligand_receptor" = 1)
-
-prioritizing_weights_relative_abundance = c( "abund_sender" = 0,
-                         "abund_receiver" = 0)
-
-```
-
-```{r}
-prioritizing_weights = c(prioritizing_weights_DE, 
-                         prioritizing_weights_activity, 
-                         prioritizing_weights_expression_specificity,
-                         prioritizing_weights_expression_sufficiency, 
-                         prioritizing_weights_relative_abundance)
-```
-
 
 # Step 2: Perform MultiNicheNet's cell-cell communication analysis
 
@@ -244,9 +217,11 @@ This takes a few minutes for this vignette. The more cell types are considered, 
 ```{r}
 multinichenet_output = multi_nichenet_analysis(sce = sce, celltype_id = celltype_id, sample_id = sample_id, group_id = group_id, 
                                 lr_network = lr_network, ligand_target_matrix = ligand_target_matrix, contrasts_oi = contrasts_oi, contrast_tbl = contrast_tbl, batches = batches, covariates = covariates,
-                                prioritizing_weights = prioritizing_weights, min_cells = min_cells, logFC_threshold = logFC_threshold, p_val_threshold = p_val_threshold,  
-                                fraction_cutoff = fraction_cutoff, p_val_adj = p_val_adj, empirical_pval = empirical_pval, top_n_target = top_n_target, n.cores = n.cores, sender_receiver_separate = FALSE, verbose = TRUE)
+                                min_cells = min_cells, logFC_threshold = logFC_threshold, p_val_threshold = p_val_threshold,  
+                                fraction_cutoff = fraction_cutoff, p_val_adj = p_val_adj, empirical_pval = empirical_pval, top_n_target = top_n_target, n.cores = n.cores, verbose = TRUE)
+
 ```
+
 
 The output of the MultiNicheNet analysis contains much information. We will now go over this step-by-step
 
