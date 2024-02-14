@@ -784,7 +784,6 @@ make_DEgene_dotplot_pseudobulk = function(genes_oi, celltype_info, prioritizatio
       strip.text.y = element_text(size = 9, color = "black", face = "bold", angle = 0),
       strip.background = element_rect(color="darkgrey", fill="whitesmoke", size=1.5, linetype="solid")
     )  +
-    # labs(color = "Scaled gene\navg expression")
     labs(color = "Scaled pseudobulk\nexpression", size= "Fraction of\nexpressing cells") + xlab("Samples") +ylab("Genes") 
   max_lfc = abs(plot_data$scaled_gene_exprs) %>% max()
   custom_scale_fill = scale_color_gradientn(colours = RColorBrewer::brewer.pal(n = 7, name = "RdBu") %>% rev(),values = c(0, 0.35, 0.465, 0.5, 0.535, 0.65, 1),  limits = c(-1*max_lfc, max_lfc))
@@ -917,7 +916,6 @@ make_DEgene_dotplot_pseudobulk_reversed = function(genes_oi, celltype_info, prio
         strip.text.x = element_text(size = 9, color = "black", face = "bold"),
         strip.background = element_rect(color="darkgrey", fill="whitesmoke", size=1.5, linetype="solid")
       )  +
-      # labs(color = "Scaled gene\navg expression")
       labs(color = "Scaled pseudobulk\nexpression", size= "Fraction of\nexpressing cells") + xlab("Genes") +ylab("Samples") 
     max_lfc = abs(plot_data$scaled_gene_exprs) %>% max()
     custom_scale_fill = scale_color_gradientn(colours = RColorBrewer::brewer.pal(n = 7, name = "RdBu") %>% rev(),values = c(0, 0.35, 0.465, 0.5, 0.535, 0.65, 1),  limits = c(-1*max_lfc, max_lfc))
@@ -996,7 +994,6 @@ make_DEgene_dotplot_pseudobulk_reversed = function(genes_oi, celltype_info, prio
         strip.text.x = element_text(size = 9, color = "black", face = "bold"),
         strip.background = element_rect(color="darkgrey", fill="whitesmoke", size=1.5, linetype="solid")
       )  +
-      # labs(color = "Scaled gene\navg expression")
       labs(color = "Scaled pseudobulk\nexpression", size= "Fraction of\nexpressing cells") + xlab("Genes") +ylab("Samples")
     max_lfc = abs(plot_data$scaled_gene_exprs) %>% max()
     custom_scale_fill = scale_color_gradientn(colours = RColorBrewer::brewer.pal(n = 7, name = "RdBu") %>% rev(),values = c(0, 0.35, 0.465, 0.5, 0.535, 0.65, 1),  limits = c(-1*max_lfc, max_lfc))
@@ -1137,7 +1134,6 @@ make_DEgene_dotplot_pseudobulk_batch = function(genes_oi, celltype_info, priorit
       strip.text.y = element_text(size = 9, color = "black", face = "bold", angle = 0),
       strip.background = element_rect(color="darkgrey", fill="whitesmoke", size=1.5, linetype="solid")
     )  +
-    # labs(color = "Scaled gene\navg expression")
     labs(color = "Scaled pseudobulk\nexpression", size= "Fraction of\nexpressing cells") + xlab("") +ylab("Genes") 
   max_lfc = abs(plot_data$scaled_gene_exprs) %>% max()
   custom_scale_fill = scale_color_gradientn(colours = RColorBrewer::brewer.pal(n = 7, name = "RdBu") %>% rev(),values = c(0, 0.35, 0.465, 0.5, 0.535, 0.65, 1),  limits = c(-1*max_lfc, max_lfc))
