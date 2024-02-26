@@ -70,7 +70,8 @@ Gene names are here made syntactically valid via `make.names()` to avoid the los
 organism = "human"
 if(organism == "human"){
   lr_network_all = readRDS(url("https://zenodo.org/record/10229222/files/lr_network_human_allInfo_30112033.rds")) %>% mutate(ligand = convert_alias_to_symbols(ligand, organism = organism), receptor = convert_alias_to_symbols(receptor, organism = organism))
-  lr_network = lr_network_all  %>% mutate(ligand = make.names(ligand), receptor = make.names(receptor)) %>% distinct(ligand, receptor)
+  lr_network_all = lr_network_all  %>% mutate(ligand = make.names(ligand), receptor = make.names(receptor)) 
+  lr_network = lr_network_all %>% distinct(ligand, receptor)
   ligand_target_matrix = readRDS(url("https://zenodo.org/record/7074291/files/ligand_target_matrix_nsga2r_final.rds"))
   colnames(ligand_target_matrix) = colnames(ligand_target_matrix) %>% convert_alias_to_symbols(organism = organism) %>% make.names()
   rownames(ligand_target_matrix) = rownames(ligand_target_matrix) %>% convert_alias_to_symbols(organism = organism) %>% make.names()
@@ -452,7 +453,22 @@ plot_oi = make_sample_lr_prod_activity_plots(multinichenet_output$prioritization
 plot_oi
 ```
 
-Typically, there are way more than 50 differentially expressed and active ligand-receptor pairs per group across all sender-receiver combinations. Therefore it might be useful to zoom in on specific cell types as senders/receivers:
+As a further help for further prioritization, we can assess the level of curation of these LR pairs as defined by the Intercellular Communication part of the Omnipath database
+
+```{r}
+prioritized_tbl_oi_M_50_omnipath = prioritized_tbl_oi_M_50 %>% inner_join(lr_network_all)
+```
+
+```{r, fig.height=13, fig.width=16}
+plot_oi = make_sample_lr_prod_activity_plots_Omnipath(multinichenet_output$prioritization_tables, prioritized_tbl_oi_M_50_omnipath)
+plot_oi
+```
+
+As you can see, the HEBP1-FPR2 interaction has no Omnipath DB scores. This is because this LR pair was not documented by the Omnipath LR database. Instead it was documented by the original NicheNet LR network (source: Guide2Pharmacology) as can be seen in the table.  
+
+
+
+Further note: Typically, there are way more than 50 differentially expressed and active ligand-receptor pairs per group across all sender-receiver combinations. Therefore it might be useful to zoom in on specific cell types as senders/receivers:
 
 Eg M_Monocyte_CD16 as receiver:
 
