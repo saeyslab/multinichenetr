@@ -604,4 +604,571 @@ multi_nichenet_analysis = function(sce,
   return(multinichenet_output)
 
 }
+#' @title multi_nichenet_analysis_sampleAgnostic
+#'
+#' @description \code{multi_nichenet_analysis_sampleAgnostic}  Perform a sample-agnostic MultiNicheNet analysis in an all-vs-all setting. This means that all samples per group will be pooled. 
+#' @usage multi_nichenet_analysis_sampleAgnostic(
+#' sce, celltype_id, sample_id,group_id, batches, covariates, lr_network,ligand_target_matrix,contrasts_oi,contrast_tbl, senders_oi = NULL,receivers_oi = NULL, fraction_cutoff = 0.05, min_sample_prop = 0.5, scenario = "regular", ligand_activity_down = FALSE,
+#' assay_oi_pb ="counts",fun_oi_pb = "sum",de_method_oi = "edgeR",min_cells = 10,logFC_threshold = 0.50,p_val_threshold = 0.05,p_val_adj = FALSE, empirical_pval = TRUE, top_n_target = 250, verbose = FALSE, n.cores = 1, return_lr_prod_matrix = FALSE, top_n_LR = 2500)
+#'
+#' @inheritParams multi_nichenet_analysis
+#'
+#'
+#' @return List containing information and output of the MultiNicheNet analysis.
+#' celltype_info: contains average expression value and fraction of each cell type - sample combination,
+#' celltype_de: contains output of the differential expression analysis, 
+#' sender_receiver_info: links the expression information of the ligand in the sender cell types to the expression of the receptor in the receiver cell types, 
+#' sender_receiver_de: links the differential information of the ligand in the sender cell types to the expression of the receptor in the receiver cell types
+#' ligand_activities_targets_DEgenes: contains the output of the NicheNet ligand activity analysis, and the NicheNet ligand-target inference
+#' prioritization_tables: contains the tables with the final prioritization scores
+#' lr_prod_mat: matrix of the ligand-receptor expression product of the expressed senderLigand-receiverReceptor pairs,
+#' grouping_tbl: data frame showing the group per sample 
+#' lr_target_prior_cor: data frame showing the expression correlation between ligand-receptor pairs and DE genes + NicheNet regulatory potential scores indicating the amount of prior knowledge supporting a LR-target regulatory link
+#' 
+#' @import dplyr
+#' @import ggplot2
+#' @importFrom generics setdiff intersect union
+#' @importFrom stringr str_split
+#' @importFrom tibble as_tibble
+#' @importFrom tidyr spread
+#' @importFrom SummarizedExperiment colData
+#'
+#' @examples
+#' \dontrun{
+#' library(dplyr)
+#' lr_network = readRDS(url("https://zenodo.org/record/3260758/files/lr_network.rds"))
+#' lr_network = lr_network %>% dplyr::rename(ligand = from, receptor = to) %>% dplyr::distinct(ligand, receptor)
+#' ligand_target_matrix = readRDS(url("https://zenodo.org/record/3260758/files/ligand_target_matrix.rds"))
+#' sample_id = "tumor"
+#' group_id = "pEMT"
+#' celltype_id = "celltype"
+#' batches = NA
+#' covariates = NA
+#' contrasts_oi = c("'High-Low','Low-High'")
+#' contrast_tbl = tibble(contrast = c("High-Low","Low-High"), group = c("High","Low"))
+#' output = multi_nichenet_analysis(
+#'      sce = sce, 
+#'      celltype_id = celltype_id, 
+#'      sample_id = sample_id, 
+#'      group_id = group_id, 
+#'      batches = batches,
+#'      covariates = covariates,
+#'      lr_network = lr_network, 
+#'      ligand_target_matrix = ligand_target_matrix, 
+#'      contrasts_oi = contrasts_oi, 
+#'      contrast_tbl = contrast_tbl)
+#' }
+#'
+#' @export
+#'
+multi_nichenet_analysis_sampleAgnostic = function(sce,
+                                   celltype_id,
+                                   sample_id,
+                                   group_id,
+                                   batches,
+                                   covariates,
+                                   lr_network,
+                                   ligand_target_matrix,
+                                   contrasts_oi,
+                                   contrast_tbl,
+                                   senders_oi = NULL,
+                                   receivers_oi = NULL,
+                                   fraction_cutoff = 0.05,
+                                   min_sample_prop = 0.5,
+                                   scenario = "regular",
+                                   ligand_activity_down = FALSE,
+                                   assay_oi_pb ="counts",
+                                   fun_oi_pb = "sum",
+                                   de_method_oi = "edgeR",
+                                   min_cells = 10,
+                                   logFC_threshold = 0.50,
+                                   p_val_threshold = 0.05,
+                                   p_val_adj = FALSE,
+                                   empirical_pval = TRUE,
+                                   top_n_target = 250, verbose = FALSE, n.cores = 1, return_lr_prod_matrix = FALSE, top_n_LR = 2500){
+  
+  
+  requireNamespace("dplyr")
+  requireNamespace("ggplot2")
+  
+  # input checks
+  if (class(sce) != "SingleCellExperiment") {
+    stop("sce should be a SingleCellExperiment object")
+  }
+  
+  if (!celltype_id %in% colnames(SummarizedExperiment::colData(sce))) {
+    stop("celltype_id should be a column name in the metadata dataframe of sce")
+  }
+  if (celltype_id != make.names(celltype_id)) {
+    stop("celltype_id should be a syntactically valid R name - check make.names")
+  }
+  if (!sample_id %in% colnames(SummarizedExperiment::colData(sce))) {
+    stop("sample_id should be a column name in the metadata dataframe of sce")
+  }
+  if (sample_id != make.names(sample_id)) {
+    stop("sample_id should be a syntactically valid R name - check make.names")
+  }
+  if (!group_id %in% colnames(SummarizedExperiment::colData(sce))) {
+    stop("group_id should be a column name in the metadata dataframe of sce")
+  }
+  if (group_id != make.names(group_id)) {
+    stop("group_id should be a syntactically valid R name - check make.names")
+  }
+  
+  if(is.double(SummarizedExperiment::colData(sce)[,celltype_id])){
+    stop("SummarizedExperiment::colData(sce)[,celltype_id] should be a character vector or a factor")
+  }
+  if(is.double(SummarizedExperiment::colData(sce)[,group_id])){
+    stop("SummarizedExperiment::colData(sce)[,group_id] should be a character vector or a factor")
+  }
+  if(is.double(SummarizedExperiment::colData(sce)[,sample_id])){
+    stop("SummarizedExperiment::colData(sce)[,sample_id] should be a character vector or a factor")
+  }
+  
+  # if some of these are factors, and not all levels have syntactically valid names - prompt to change this
+  if(is.factor(SummarizedExperiment::colData(sce)[,celltype_id])){
+    is_make_names = levels(SummarizedExperiment::colData(sce)[,celltype_id]) == make.names(levels(SummarizedExperiment::colData(sce)[,celltype_id]))
+    if(sum(is_make_names) != length(levels(SummarizedExperiment::colData(sce)[,celltype_id]))){
+      stop("The levels of the factor SummarizedExperiment::colData(sce)[,celltype_id] should be a syntactically valid R names - see make.names")
+    }
+  }
+  
+  if(is.factor(SummarizedExperiment::colData(sce)[,group_id])){
+    is_make_names = levels(SummarizedExperiment::colData(sce)[,group_id]) == make.names(levels(SummarizedExperiment::colData(sce)[,group_id]))
+    if(sum(is_make_names) != length(levels(SummarizedExperiment::colData(sce)[,group_id]))){
+      stop("The levels of the factor SummarizedExperiment::colData(sce)[,group_id] should be a syntactically valid R names - see make.names")
+    }
+  }
+  
+  if(is.factor(SummarizedExperiment::colData(sce)[,sample_id])){
+    is_make_names = levels(SummarizedExperiment::colData(sce)[,sample_id]) == make.names(levels(SummarizedExperiment::colData(sce)[,sample_id]))
+    if(sum(is_make_names) != length(levels(SummarizedExperiment::colData(sce)[,sample_id]))){
+      stop("The levels of the factor SummarizedExperiment::colData(sce)[,sample_id] should be a syntactically valid R names - see make.names")
+    }
+  }
+  
+  
+  if(!is.character(contrasts_oi)){
+    stop("contrasts_oi should be a character vector")
+  }
+  if(!is.data.frame(contrast_tbl)){
+    stop("contrast_tbl should be a data frame / tibble")
+  }
+  # conditions of interest in the contrast should be present in the in the group column of the metadata
+  groups_oi = SummarizedExperiment::colData(sce)[,group_id] %>% unique()
+  conditions_oi = stringr::str_split(contrasts_oi, "'") %>% unlist() %>% unique() %>%
+    # stringr::str_split("[:digit:]") %>% unlist() %>% unique() %>%
+    stringr::str_split("\\)") %>% unlist() %>% unique() %>%
+    stringr::str_split("\\(") %>% unlist() %>% unique() %>%
+    stringr::str_split("-") %>% unlist() %>% unique() %>%
+    stringr::str_split("\\+") %>% unlist() %>% unique() %>%
+    stringr::str_split("\\*") %>% unlist() %>% unique() %>%
+    stringr::str_split("\\/") %>% unlist() %>% unique() %>% generics::setdiff(c("",","," ,", ", ")) %>% unlist() %>% unique()
+  conditions_oi = conditions_oi[is.na(suppressWarnings(as.numeric(conditions_oi)))]
+  
+  if(length(contrasts_oi) != 1 | !is.character(contrasts_oi)){
+    stop("contrasts_oi should be a character vector of length 1. See the documentation of the function for having an idea of the right format of setting your contrasts.")
+  }
+  
+  # conditions of interest in the contrast should be present in the in the contrast_tbl
+  contrasts_oi_simplified = stringr::str_split(contrasts_oi, "'") %>% unlist() %>% unique() %>%
+    stringr::str_split(",") %>% unlist() %>% unique() %>% generics::setdiff(c("",",")) %>% unlist() %>% unique()
+  
+  if (sum(conditions_oi %in% groups_oi) != length(conditions_oi)) {
+    stop("conditions written in contrasts_oi should be in the condition-indicating column! This is not the case, which can lead to errors downstream.")
+  }
+  if (sum(contrasts_oi_simplified %in% unique(contrast_tbl$contrast)) != length(contrasts_oi_simplified)) {
+    stop("conditions written in contrasts_oi should be in the contrast column of contrast_tbl column! This is not the case, which can lead to errors downstream.")
+  }
+  
+  #
+  groups_oi_contrast_tbl = contrast_tbl$group %>% unique()
+  if(sum(groups_oi_contrast_tbl %in% groups_oi) != length(groups_oi_contrast_tbl)){
+    stop("You have defined some groups in contrast_tbl$group that are not present SummarizedExperiment::colData(sce)[,group_id]. This will result in lack of information downstream. We recommend to change your metadata or this contrast_tbl appropriately.")
+  }
+  
+  if(length(groups_oi_contrast_tbl) != length(contrast_tbl$group)){
+    warning("According to your contrast_tbl, some of your contrasts will be assigned to the same group. This should not be a problem if this was intended, but be aware not to make mistakes in the further interpretation and plotting of the results.")
+  }
+  
+  if(!is.na(batches)){
+    if (sum(batches %in% colnames(SummarizedExperiment::colData(sce))) != length(batches) ) {
+      stop("batches should be NA or all present as column name(s) in the metadata dataframe of sce")
+    }
+  }
+  
+  # Check concordance ligand-receptor network and ligand-target network - and concordance with sce object features
+  if (!is.matrix(ligand_target_matrix)){
+    stop("ligand_target_matrix should be a matrix")
+  }
+  if (!is.data.frame(lr_network)){
+    stop("lr_network should be a data frame / tibble")
+  }
+  
+  if(! "ligand" %in% colnames(lr_network)){
+    if("from" %in% colnames(lr_network)){
+      lr_network = lr_network %>% dplyr::rename(ligand = from)
+    } else {
+      stop("The ligand-receptor network should have the columns ligand and receptor (or: from and to)")
+    }
+  }
+  if(! "receptor" %in% colnames(lr_network)){
+    if("to" %in% colnames(lr_network)){
+      lr_network = lr_network %>% dplyr::rename(receptor = to)
+    } else {
+      stop("The ligand-receptor network should have the columns ligand and receptor (or: from and to)")
+    }
+  }
+  
+  ligands_lrnetwork = lr_network$ligand %>% unique()
+  receptors_lrnetwork = lr_network$receptor %>% unique()
+  ligands_ligand_target_matrix = colnames(ligand_target_matrix)
+  
+  if(length(ligands_ligand_target_matrix) < length(ligands_lrnetwork)){
+    warning("Not all Ligands from your ligand-receptor network are in the ligand-target matrix")
+  }
+  if(length(ligands_lrnetwork) < length(ligands_ligand_target_matrix)){
+    warning("Not all Ligands from your ligand-target matrix are in the ligand-receptor network")
+  }
+  
+  
+  if(length(rownames(sce) %>% generics::intersect(ligands_lrnetwork)) < 25 ){
+    warning("Less than 25 ligands from your ligand-receptor network are in your expression matrix of the sender cell.\nDid you convert the gene symbols of the ligand-receptor network and the ligand-target matrix if your data is not from human?")
+  }
+  if(length(rownames(sce) %>% generics::intersect(ligands_ligand_target_matrix)) < 25 ){
+    warning("Less than 25 ligands from your ligand-target matrix are in your expression matrix of the sender cell.\nDid you convert the gene symbols of the ligand-receptor network and the ligand-target matrix if your data is not from human?")
+  }
+  if(length(rownames(sce) %>% generics::intersect(receptors_lrnetwork)) < 25 ){
+    warning("Less than 25 receptors from your ligand-receptor network are in your expression matrix of the receiver cell.\nDid you convert the gene symbols of the ligand-receptor network and the ligand-target matrix if your data is not from human?")
+  }
+  
+  if(!is.character(assay_oi_pb)){
+    stop("assay_oi_pb should be a character vector")
+  } else {
+    if(assay_oi_pb != "counts"){
+      warning("are you sure you don't want to use the counts assay?")
+    }
+  }
+  if(!is.character(fun_oi_pb)){
+    stop("fun_oi_pb should be a character vector")
+  }
+  if(!is.character(de_method_oi)){
+    stop("de_method_oi should be a character vector")
+  }
+  
+  if(!is.double(min_cells)){
+    stop("min_cells should be numeric")
+  } else {
+    if(min_cells <= 0) {
+      warning("min_cells is now 0 or smaller. We recommend having a positive, non-zero value for this parameter")
+    }
+  }
+  if(!is.double(logFC_threshold)){
+    stop("logFC_threshold should be numeric")
+  } else {
+    if(logFC_threshold <= 0) {
+      warning("logFC_threshold is now 0 or smaller. We recommend having a positive, non-zero value for this parameter")
+    }
+  }
+  if(!is.double(p_val_threshold)){
+    stop("p_val_threshold should be numeric")
+  } else {
+    if(p_val_threshold <= 0 | p_val_threshold > 1) {
+      warning("p_val_threshold is now 0 or smaller; or higher than 1. We recommend setting this parameter between 0 and 1 - preferably between 0 and 0.10, 0 excluded.")
+    }
+  }
+  if(!is.double(fraction_cutoff)){
+    stop("fraction_cutoff should be numeric")
+  } else {
+    if(fraction_cutoff <= 0 | fraction_cutoff > 1) {
+      stop("fraction_cutoff is now 0 or smaller; or higher than 1. We recommend setting this parameter between 0 and 1 - preferably between 0 and 0.25, 0 excluded.")
+    }
+  }
+  if(!is.double(top_n_target)){
+    stop("top_n_target should be numeric")
+  } else {
+    if(top_n_target <= 0 ) {
+      warning("top_n_target is now 0 or smaller. We recommend having a positive, non-zero value for this parameter.")
+    }
+  }
+  if(!is.logical(p_val_adj)){
+    stop("p_val_adj should be TRUE or FALSE")
+  }
+  if(!is.logical(verbose)){
+    stop("verbose should be TRUE or FALSE")
+  }
+  if(!is.logical(empirical_pval)){
+    stop("empirical_pval should be TRUE or FALSE")
+  }
+  if(!is.logical(return_lr_prod_matrix)){
+    stop("return_lr_prod_matrix should be TRUE or FALSE")
+  }
+  
+  if(!is.double(n.cores)){
+    stop("n.cores should be numeric")
+  } else {
+    if(n.cores <= 0 ) {
+      warning("n.cores is now 0 or smaller. We recommend having a positive, non-zero value for this parameter.")
+    }
+  }
+  if(is.null(senders_oi)){
+    senders_oi = SummarizedExperiment::colData(sce)[,celltype_id] %>% unique()
+  }
+  if(is.null(receivers_oi)){
+    receivers_oi = SummarizedExperiment::colData(sce)[,celltype_id] %>% unique()
+  }
+  
+  sce = sce[, SummarizedExperiment::colData(sce)[,celltype_id] %in% c(senders_oi, receivers_oi)]
+  # sce = sce[, SummarizedExperiment::colData(sce)[,group_id] %in% contrast_tbl$group] # keep only considered groups
+  # do not do this -- this could give errors if only interested in one contrast but multiple groups
+  
+  if(verbose == TRUE){
+    print("Make diagnostic abundance plots + define expressed genes")
+  }
+  ## check abundance info
+  
+  abundance_info = get_abundance_info(sce = sce, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id, min_cells = min_cells, senders_oi = senders_oi, receivers_oi = receivers_oi, batches = batches)
+  
+  ## check for condition-specific cell types
+  sample_group_celltype_df = abundance_info$abundance_data %>% filter(n > min_cells) %>% ungroup() %>% distinct(sample_id, group_id) %>% cross_join(abundance_info$abundance_data %>% ungroup() %>% distinct(celltype_id)) %>% arrange(sample_id)
+  abundance_df = sample_group_celltype_df %>% left_join(abundance_info$abundance_data %>% ungroup())
+  abundance_df$n[is.na(abundance_df$n)] = 0
+  abundance_df$keep[is.na(abundance_df$keep)] = FALSE
+  abundance_df_summarized = abundance_df %>% mutate(keep = as.logical(keep)) %>% group_by(group_id, celltype_id) %>% summarise(samples_present = sum((keep)))
+  celltypes_absent_one_condition = abundance_df_summarized %>% filter(samples_present == 0) %>% pull(celltype_id) %>% unique() # find truly condition-specific cell types by searching for cell types truely absent in at least one condition
+  celltypes_present_one_condition = abundance_df_summarized %>% filter(samples_present >= 2) %>% pull(celltype_id) %>% unique() # require presence in at least 2 samples of one group so it is really present in at least one condition
+  condition_specific_celltypes = intersect(celltypes_absent_one_condition, celltypes_present_one_condition)
+  
+  total_nr_conditions = SummarizedExperiment::colData(sce)[,group_id] %>% unique() %>% length() 
+  absent_celltypes = abundance_df_summarized %>% dplyr::filter(samples_present < 2) %>% dplyr::group_by(celltype_id) %>% dplyr::count() %>% dplyr::filter(n == total_nr_conditions) %>% dplyr::pull(celltype_id)
+  
+  print("condition-specific celltypes:")
+  print(condition_specific_celltypes)
+  
+  print("absent celltypes:")
+  print(absent_celltypes)
+  
+  senders_oi = senders_oi %>% setdiff(absent_celltypes)
+  receivers_oi = receivers_oi %>% setdiff(absent_celltypes)
+  
+  retained_celltypes = union(senders_oi, receivers_oi) 
+  
+  sce = sce[, SummarizedExperiment::colData(sce)[,celltype_id] %in% retained_celltypes]
+  
+  ## define expressed genes
+  frq_list = get_frac_exprs(sce = sce, sample_id = sample_id, celltype_id =  celltype_id, group_id = group_id, batches = batches, min_cells = min_cells, fraction_cutoff = fraction_cutoff, min_sample_prop = min_sample_prop)
+  
+  ### Perform the DE analysis ----------------------------------------------------------------
+  
+  if(verbose == TRUE){
+    print("Calculate differential expression for all cell types")
+  }
+  
+  if(findMarkers == FALSE){
+    DE_info = get_DE_info(sce = sce, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id, batches = batches, covariates = covariates, contrasts_oi = contrasts_oi, min_cells = min_cells, 
+                          assay_oi_pb = assay_oi_pb,
+                          fun_oi_pb = fun_oi_pb,
+                          de_method_oi = de_method_oi,
+                          findMarkers = findMarkers, 
+                          expressed_df = frq_list$expressed_df)
+  } else {
+    DE_info = get_DE_info(sce = sce, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id, batches = batches, covariates = covariates, contrasts_oi = contrasts_oi, min_cells = min_cells,
+                          assay_oi_pb = assay_oi_pb,
+                          fun_oi_pb = fun_oi_pb,
+                          de_method_oi = de_method_oi,
+                          findMarkers = findMarkers,
+                          contrast_tbl = contrast_tbl,
+                          expressed_df = frq_list$expressed_df)
+  }
+  
+  if(empirical_pval == TRUE){
+    if(findMarkers == TRUE){
+      DE_info_emp = get_empirical_pvals(DE_info$celltype_de_findmarkers)
+    } else {
+      DE_info_emp = get_empirical_pvals(DE_info$celltype_de$de_output_tidy)
+    }
+  } 
+  
+  if(empirical_pval == FALSE){
+    if(findMarkers == TRUE){
+      celltype_de = DE_info$celltype_de_findmarkers
+    } else {
+      celltype_de = DE_info$celltype_de$de_output_tidy
+    }
+  } else {
+    celltype_de = DE_info_emp$de_output_tidy_emp %>% dplyr::select(-p_val, -p_adj) %>% dplyr::rename(p_val = p_emp, p_adj = p_adj_emp)
+  }
+  
+  # print(celltype_de %>% dplyr::group_by(cluster_id, contrast) %>% dplyr::filter(p_adj <= p_val_threshold & abs(logFC) >= logFC_threshold) %>% dplyr::count() %>% dplyr::arrange(-n))
+  
+  senders_oi = celltype_de$cluster_id %>% unique()
+  receivers_oi = celltype_de$cluster_id %>% unique()
+  genes_oi = celltype_de$gene %>% unique()
+  
+  retained_celltypes = c(senders_oi, receivers_oi) %>% unique()
+  retained_celltypes = c(retained_celltypes, condition_specific_celltypes) 
+  
+  print("retained cell types")
+  print(retained_celltypes)
+  
+  sce = sce[genes_oi, SummarizedExperiment::colData(sce)[,celltype_id] %in% retained_celltypes]
+  
+  sender_receiver_de = suppressMessages(combine_sender_receiver_de(
+    sender_de = celltype_de,
+    receiver_de = celltype_de,
+    senders_oi = senders_oi,
+    receivers_oi = receivers_oi,
+    lr_network = lr_network
+  ))
+  sender_receiver_tbl = sender_receiver_de %>% dplyr::distinct(sender, receiver)
+  
+  ### Receiver abundance plots + Calculate expression information
+  if(verbose == TRUE){
+    print("Calculate normalized average and pseudobulk expression")
+  }
+  abundance_expression_info = process_abundance_expression_info(sce = sce, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id, min_cells = min_cells, senders_oi = union(senders_oi, condition_specific_celltypes), receivers_oi = union(receivers_oi, condition_specific_celltypes), lr_network = lr_network, batches = batches, frq_list = frq_list, abundance_info = abundance_info)
+  
+  metadata_combined = SummarizedExperiment::colData(sce) %>% tibble::as_tibble()
+  
+  if(!is.na(batches)){
+    grouping_tbl = metadata_combined[,c(sample_id, group_id, batches)] %>% tibble::as_tibble() %>% dplyr::distinct()
+    colnames(grouping_tbl) = c("sample","group",batches)
+  } else {
+    grouping_tbl = metadata_combined[,c(sample_id, group_id)] %>% tibble::as_tibble() %>% dplyr::distinct()
+    colnames(grouping_tbl) = c("sample","group")
+  }
+  
+  rm(sce)
+  ### Use the DE analysis for defining the DE genes in the receiver cell type and perform NicheNet ligand activity and ligand-target inference ----------------------------------------------------------------
+  if(verbose == TRUE){
+    print("Calculate NicheNet ligand activities and ligand-target links")
+  }
+  ligand_activities_targets_DEgenes = suppressMessages(suppressWarnings(get_ligand_activities_targets_DEgenes(
+    receiver_de = celltype_de,
+    receivers_oi = receivers_oi,
+    ligand_target_matrix = ligand_target_matrix,
+    logFC_threshold = logFC_threshold,
+    p_val_threshold = p_val_threshold,
+    p_val_adj = p_val_adj,
+    top_n_target = top_n_target,
+    verbose = verbose, 
+    n.cores = n.cores
+  )))
+  
+  ### Combine the three types of information calculated above to prioritize ligand-receptor interactions ----------------------------------------------------------------
+  if(verbose == TRUE){
+    print("Combine all the information in prioritization tables")
+  }
+  
+  prioritization_tables = suppressMessages(generate_prioritization_tables(
+    sender_receiver_info = abundance_expression_info$sender_receiver_info,
+    sender_receiver_de = sender_receiver_de,
+    ligand_activities_targets_DEgenes = ligand_activities_targets_DEgenes,
+    contrast_tbl = contrast_tbl,
+    sender_receiver_tbl = sender_receiver_tbl,
+    grouping_tbl = grouping_tbl,
+    scenario = scenario, # all prioritization criteria will be weighted equally
+    fraction_cutoff = fraction_cutoff, 
+    abundance_data_receiver = abundance_expression_info$abundance_data_receiver,
+    abundance_data_sender = abundance_expression_info$abundance_data_sender,
+    ligand_activity_down = ligand_activity_down # use only upregulatory ligand activities to prioritize
+  ))
+  
+  # Prepare Unsupervised analysis of samples! ------------------------------------------------------------------------------------------------------------
+  
+  if(return_lr_prod_matrix == TRUE){
+    
+    ids_oi = prioritization_tables$group_prioritization_tbl %>% dplyr::filter(fraction_expressing_ligand_receptor > 0)  %>% dplyr::pull(id) %>% unique()
+    
+    lr_prod_df = abundance_expression_info$sender_receiver_info$pb_df %>% dplyr::inner_join(grouping_tbl, by = "sample") %>% dplyr::mutate(lr_interaction = paste(ligand, receptor, sep = "_")) %>% dplyr::mutate(id = paste(lr_interaction, sender, receiver, sep = "_")) %>% dplyr::select(sample, id, ligand_receptor_pb_prod) %>% dplyr::filter(id %in% ids_oi) %>% dplyr::distinct() %>% tidyr::spread(id, ligand_receptor_pb_prod)
+    lr_prod_mat = lr_prod_df %>% dplyr::select(-sample) %>% data.frame() %>% as.matrix()
+    rownames(lr_prod_mat) = lr_prod_df$sample
+    
+    col_remove = lr_prod_mat %>% apply(2,function(x)sum(x != 0)) %>% .[. == 0] %>% names()
+    row_remove = lr_prod_mat %>% apply(1,function(x)sum(x != 0)) %>% .[. == 0] %>% names()
+    
+    lr_prod_mat = lr_prod_mat %>% .[rownames(.) %>% generics::setdiff(col_remove),colnames(.) %>% generics::setdiff(col_remove)]
+  } else {
+    lr_prod_mat = NULL
+  }
+  
+  # Add information on prior knowledge and expression correlation between LR and target expression ------------------------------------------------------------------------------------------------------------
+  if(verbose == TRUE){
+    print("Calculate correlation between LR pairs and target genes")
+  }
+  lr_target_prior_cor = lr_target_prior_cor_inference(prioritization_tables$group_prioritization_tbl$receiver %>% unique(), abundance_expression_info, celltype_de, grouping_tbl, prioritization_tables, ligand_target_matrix, logFC_threshold = logFC_threshold, p_val_threshold = p_val_threshold, p_val_adj = p_val_adj, top_n_LR = top_n_LR)
+  
+  ## save output
+  
+  if(length(condition_specific_celltypes) > 0) {
+    print("There are condition specific cell types in the data. Continuing with the regular MultiNicheNet analysis will not include those. If preferred, the user can apply a specific worfklow tailored to analyze CCC events involving condition-specific cell types")
+    print(condition_specific_celltypes)
+    prioritization_tables_with_condition_specific_celltype_sender = prioritize_condition_specific_sender(
+      abundance_info = abundance_info,
+      abundance_expression_info = abundance_expression_info, 
+      condition_specific_celltypes = condition_specific_celltypes, 
+      grouping_tbl = grouping_tbl, 
+      fraction_cutoff = fraction_cutoff, 
+      contrast_tbl = contrast_tbl, 
+      sender_receiver_de = sender_receiver_de, 
+      lr_network = lr_network, 
+      ligand_activities_targets_DEgenes = ligand_activities_targets_DEgenes,
+      scenario = scenario,
+      ligand_activity_down = ligand_activity_down
+    )
+    prioritization_tables_with_condition_specific_celltype_receiver = prioritize_condition_specific_receiver(
+      abundance_info = abundance_info,
+      abundance_expression_info = abundance_expression_info, 
+      condition_specific_celltypes = condition_specific_celltypes, 
+      grouping_tbl = grouping_tbl, 
+      fraction_cutoff = fraction_cutoff, 
+      contrast_tbl = contrast_tbl, 
+      sender_receiver_de = sender_receiver_de, 
+      lr_network = lr_network, 
+      ligand_activities_targets_DEgenes = ligand_activities_targets_DEgenes,
+      scenario = scenario,
+      ligand_activity_down = ligand_activity_down
+    )
+    combined_prioritization_tables = list(
+      group_prioritization_tbl = bind_rows(
+        prioritization_tables_with_condition_specific_celltype_receiver$group_prioritization_tbl %>% filter(receiver %in% condition_specific_celltypes),
+        prioritization_tables_with_condition_specific_celltype_sender$group_prioritization_tbl %>% filter(sender %in% condition_specific_celltypes)
+      ) %>% bind_rows(prioritization_tables$group_prioritization_tbl) %>% arrange(-prioritization_score) %>% distinct()
+    )
+    
+    multinichenet_output = list(
+      celltype_info = abundance_expression_info$celltype_info,
+      abundance_data_receiver = abundance_expression_info$abundance_data_receiver, 
+      abundance_data_sender = abundance_expression_info$abundance_data_sender, 
+      celltype_de = celltype_de,
+      ligand_activities_targets_DEgenes = ligand_activities_targets_DEgenes,
+      prioritization_tables = prioritization_tables,
+      prioritization_tables_with_condition_specific_celltype_sender = prioritization_tables_with_condition_specific_celltype_sender, 
+      prioritization_tables_with_condition_specific_celltype_receiver = prioritization_tables_with_condition_specific_celltype_receiver, 
+      combined_prioritization_tables = combined_prioritization_tables,
+      grouping_tbl = grouping_tbl,
+      lr_target_prior_cor = lr_target_prior_cor
+    ) 
+    
+    multinichenet_output = make_lite_output_condition_specific(multinichenet_output, top_n_LR = top_n_LR)
+    
+    
+  } else {
+    print("There are no condition specific cell types in the data. MultiNicheNet analysis is performed in the regular way for all cell types.")
+    multinichenet_output = list(
+      celltype_info = abundance_expression_info$celltype_info,
+      abundance_data_receiver = abundance_expression_info$abundance_data_receiver, 
+      abundance_data_sender = abundance_expression_info$abundance_data_sender, 
+      celltype_de = celltype_de,
+      ligand_activities_targets_DEgenes = ligand_activities_targets_DEgenes,
+      prioritization_tables = prioritization_tables,
+      grouping_tbl = grouping_tbl,
+      lr_target_prior_cor = lr_target_prior_cor
+    ) 
+    multinichenet_output = make_lite_output(multinichenet_output, top_n_LR = top_n_LR)
+  }
+  
+  return(multinichenet_output)
+  
+}
 
