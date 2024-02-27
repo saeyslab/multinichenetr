@@ -503,7 +503,6 @@ make_sample_lr_prod_activity_plots_Omnipath = function(prioritization_tables, pr
   return(p)
   
 }
-
 #' @title make_sample_lr_prod_activity_batch_plots
 #'
 #' @description \code{make_sample_lr_prod_activity_batch_plots}  Visualize the scaled product of Ligand-Receptor (pseudobulk) expression per sample, and compare the different groups. In addition, show the NicheNet ligand activities in each receiver-celltype combination. On top of this summary plot, a heatmap indicates the batch value for each displayed sample.
