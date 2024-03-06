@@ -27,7 +27,7 @@ Example for `contrasts_oi = c("'A-(B+C+D)/3', 'B-(A+C+D)/3'")`:
 
 \item{ligand_activities_targets_DEgenes}{Output of `get_ligand_activities_targets_DEgenes`}
 
-\item{scenario}{Character vector indicating which prioritization weights should be used during the MultiNicheNet analysis. Currently 2 settings are implemented: "regular" (default) and "lower_DE". The setting "regular" is strongly recommended and gives each criterion equal weight. The setting "lower_DE" is recommended in cases your hypothesis is that the differential CCC patterns in your data are less likely to be driven by DE (eg in cases of differential migration into a niche). It halves the weight for DE criteria, and doubles the weight for ligand activity.}
+\item{scenario}{Character vector indicating which prioritization weights should be used during the MultiNicheNet analysis. Currently 3 settings are implemented: "regular" (default),  "lower_DE", and "no_frac_LR_expr". The setting "regular" is strongly recommended and gives each criterion equal weight. The setting "lower_DE" is recommended in cases your hypothesis is that the differential CCC patterns in your data are less likely to be driven by DE (eg in cases of differential migration into a niche). It halves the weight for DE criteria, and doubles the weight for ligand activity. "no_frac_LR_expr" is the scenario that will exclude the criterion "fraction of samples expressing the LR pair'. This may be beneficial in case of few samples per group.}
 
 \item{ligand_activity_down}{For prioritization based on ligand activity: consider the max of up- and downregulation (`TRUE`) or consider only upregulated activity (`FALSE`, default from version 2 on).}
 }

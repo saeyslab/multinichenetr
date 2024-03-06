@@ -105,7 +105,10 @@ generate_prioritization_tables = function(sender_receiver_info, sender_receiver_
   }
   if(scenario == "lower_DE"){
     prioritizing_weights = c("de_ligand" = 0.5,"de_receptor" = 0.5,"activity_scaled" = 2,"exprs_ligand" = 1,"exprs_receptor" = 1, "frac_exprs_ligand_receptor" = 1)
-  }
+  } 
+  if(scenario == "no_frac_LR_expr"){
+    prioritizing_weights = c("de_ligand" = 1,"de_receptor" = 1,"activity_scaled" = 1,"exprs_ligand" = 1,"exprs_receptor" = 1, "frac_exprs_ligand_receptor" = 0)
+  } 
 
   # Group prioritization table -------------------------------------------------------------------------------------------------------------------------------------------
 

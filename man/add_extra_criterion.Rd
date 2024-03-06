@@ -13,7 +13,7 @@ add_extra_criterion(prioritization_tables, new_criteria_tbl, regular_criteria_tb
 
 \item{regular_criteria_tbl}{tibble with 3 columns: criterion, weight, regularization_factor. See example code and vignette for usage.}
 
-\item{scenario}{Character vector indicating which prioritization weights should be used during the MultiNicheNet analysis. Currently 2 settings are implemented: "regular" (default) and "lower_DE". The setting "regular" is strongly recommended and gives each criterion equal weight. The setting "lower_DE" is recommended in cases your hypothesis is that the differential CCC patterns in your data are less likely to be driven by DE (eg in cases of differential migration into a niche). It halves the weight for DE criteria, and doubles the weight for ligand activity.}
+\item{scenario}{Character vector indicating which prioritization weights should be used during the MultiNicheNet analysis. Currently 3 settings are implemented: "regular" (default),  "lower_DE", and "no_frac_LR_expr". The setting "regular" is strongly recommended and gives each criterion equal weight. The setting "lower_DE" is recommended in cases your hypothesis is that the differential CCC patterns in your data are less likely to be driven by DE (eg in cases of differential migration into a niche). It halves the weight for DE criteria, and doubles the weight for ligand activity. "no_frac_LR_expr" is the scenario that will exclude the criterion "fraction of samples expressing the LR pair'. This may be beneficial in case of few samples per group.}
 }
 \value{
 prioritization_tables with updated aggregated prioritization score based on the new criteria (same output as `generate_prioritization_tables`)

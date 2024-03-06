@@ -29,7 +29,7 @@
 #' `contrast_tbl = tibble(contrast = c("A-(B+C+D)/3","B-(A+C+D)/3"), group = c("A","B"))`
 #' @param fraction_cutoff Cutoff indicating the minimum fraction of cells of a cell type in a specific sample that are necessary to consider a gene (e.g. ligand/receptor) as expressed in a sample. 
 #' @param min_sample_prop Parameter to define the minimal required nr of samples in which a gene should be expressed in more than `fraction_cutoff` of cells in that sample (per cell type). This nr of samples is calculated as the `min_sample_prop` fraction of the nr of samples of the smallest group (after considering samples with n_cells >= `min_cells`. Default: `min_sample_prop = 0.50`. Examples: if there are 8 samples in the smallest group, there should be min_sample_prop*8 (= 4 in this example) samples with sufficient fraction of expressing cells. 
-#' @param scenario Character vector indicating which prioritization weights should be used during the MultiNicheNet analysis. Currently 2 settings are implemented: "regular" (default) and "lower_DE". The setting "regular" is strongly recommended and gives each criterion equal weight. The setting "lower_DE" is recommended in cases your hypothesis is that the differential CCC patterns in your data are less likely to be driven by DE (eg in cases of differential migration into a niche). It halves the weight for DE criteria, and doubles the weight for ligand activity.
+#' @param scenario Character vector indicating which prioritization weights should be used during the MultiNicheNet analysis. Currently 3 settings are implemented: "regular" (default),  "lower_DE", and "no_frac_LR_expr". The setting "regular" is strongly recommended and gives each criterion equal weight. The setting "lower_DE" is recommended in cases your hypothesis is that the differential CCC patterns in your data are less likely to be driven by DE (eg in cases of differential migration into a niche). It halves the weight for DE criteria, and doubles the weight for ligand activity. "no_frac_LR_expr" is the scenario that will exclude the criterion "fraction of samples expressing the LR pair'. This may be beneficial in case of few samples per group.
 #' @param ligand_activity_down Default: FALSE, downregulatory ligand activity is not considered for prioritization. TRUE: both up- and downregulatory activity are considered for prioritization.
 #' @param assay_oi_pb Indicates which information of the assay of interest should be used (counts, scaled data,...). Default: "counts". See `muscat::aggregateData`.
 #' @param fun_oi_pb Indicates way of doing the pseudobulking. Default: "sum". See `muscat::aggregateData`.
@@ -157,7 +157,6 @@ multi_nichenet_analysis = function(sce,
   if(is.double(SummarizedExperiment::colData(sce)[,sample_id])){
     stop("SummarizedExperiment::colData(sce)[,sample_id] should be a character vector or a factor")
   }
-
   # if some of these are factors, and not all levels have syntactically valid names - prompt to change this
   if(is.factor(SummarizedExperiment::colData(sce)[,celltype_id])){
     is_make_names = levels(SummarizedExperiment::colData(sce)[,celltype_id]) == make.names(levels(SummarizedExperiment::colData(sce)[,celltype_id]))
@@ -421,7 +420,6 @@ multi_nichenet_analysis = function(sce,
       DE_info_emp = get_empirical_pvals(DE_info$celltype_de$de_output_tidy)
     }
   } 
-
   if(empirical_pval == FALSE){
     if(findMarkers == TRUE){
       celltype_de = DE_info$celltype_de_findmarkers
@@ -584,7 +582,6 @@ multi_nichenet_analysis = function(sce,
     ) 
     
     multinichenet_output = make_lite_output_condition_specific(multinichenet_output, top_n_LR = top_n_LR)
-    
     
   } else {
     print("There are no condition specific cell types in the data. MultiNicheNet analysis is performed in the regular way for all cell types.")

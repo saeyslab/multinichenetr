@@ -547,4 +547,73 @@ get_ligand_activities_targets_DEgenes_beta = function(receiver_de, receivers_oi,
   return(list(ligand_activities = ligand_activities, de_genes_df = de_genes_df))  
   
 }
+#' @title process_geneset_data
+#'
+#' @description \code{process_geneset_data}  Determine ratio's of geneset_oi vs background for a certain logFC/p-val thresholds setting.
+#' @usage process_geneset_data(contrast_oi, receiver_de, logFC_threshold = 0.5, p_val_adj = FALSE, p_val_threshold = 0.05)
+#'
+#' @param contrast_oi Name of one of the contrasts in the celltype_DE / receiver_DE output tibble.
+#' @inheritParams get_ligand_activities_targets_DEgenes
+#'
+#' @return Tibble indicating the nr of up- and down genes per contrast/cell type combination, and an indication whether this is in the recommended ranges
+#'
+#' @import dplyr
+#' @import tidyr
+#'
+#' @examples
+#' \dontrun{
+#' library(dplyr)
+#' lr_network = readRDS(url("https://zenodo.org/record/3260758/files/lr_network.rds"))
+#' lr_network = lr_network %>% dplyr::rename(ligand = from, receptor = to) %>% dplyr::distinct(ligand, receptor)
+#' ligand_target_matrix = readRDS(url("https://zenodo.org/record/3260758/files/ligand_target_matrix.rds"))
+#' sample_id = "tumor"
+#' group_id = "pEMT"
+#' celltype_id = "celltype"
+#' batches = NA
+#' contrasts_oi = c("'High-Low','Low-High'")
+#' contrast_tbl = tibble(contrast = c("High-Low","Low-High"), group = c("High","Low"))
+#' receivers_oi = SummarizedExperiment::colData(sce)[,celltype_id] %>% unique() 
+#' celltype_info = get_avg_frac_exprs_abund(sce = sce, sample_id = sample_id, celltype_id =  celltype_id, group_id = group_id)
+#' celltype_de = perform_muscat_de_analysis(
+#'    sce = sce,
+#'    sample_id = sample_id,
+#'    celltype_id = celltype_id,
+#'    group_id = group_id,
+#'    batches = batches,
+#'    contrasts = contrasts_oi)
+#' receiver_de = celltype_de$de_output_tidy
+#' geneset_assessment = contrast_tbl$contrast %>% 
+#' lapply(process_geneset_data, receiver_de) %>% bind_rows() 
+#' }
+#'
+#' @export
+#'
+process_geneset_data = function(contrast_oi, receiver_de, logFC_threshold = 0.5, p_val_adj = FALSE, p_val_threshold = 0.05){
+  
+  requireNamespace("dplyr")
+  
+  celltype_de = receiver_de %>% filter(contrast == contrast_oi)
+  
+  background_df = celltype_de %>% group_by(cluster_id) %>% count() %>% ungroup() %>% rename(n_background = n)
+  if(p_val_adj == FALSE){
+    geneset_oi_up_df = celltype_de %>% filter(logFC >= logFC_threshold & p_val <= p_val_threshold) %>% group_by(cluster_id) %>% count() %>% ungroup() %>% rename(n_geneset_up = n)
+    geneset_oi_down_df = celltype_de %>% filter(logFC <= -logFC_threshold & p_val <= p_val_threshold) %>% group_by(cluster_id) %>% count() %>% ungroup() %>% rename(n_geneset_down = n)
+  } else {
+    geneset_oi_up_df = celltype_de %>% filter(logFC >= logFC_threshold & p_adj <= p_val_threshold) %>% group_by(cluster_id) %>% count() %>% ungroup() %>% rename(n_geneset_up = n)
+    geneset_oi_down_df = celltype_de %>% filter(logFC <= -logFC_threshold & p_adj <= p_val_threshold) %>% group_by(cluster_id) %>% count() %>% ungroup() %>% rename(n_geneset_down = n)
+  }
+  
+  n_df = background_df %>% left_join(geneset_oi_up_df) %>% left_join(geneset_oi_down_df) %>% mutate(n_geneset_up = n_geneset_up %>% tidyr::replace_na(0), n_geneset_down = n_geneset_down %>% tidyr::replace_na(0))
+  
+  geneset_df = n_df %>% mutate(prop_geneset_up = n_geneset_up/n_background, prop_geneset_down = n_geneset_down/n_background)
+  geneset_df = geneset_df %>% mutate(
+    in_range_up = prop_geneset_up >= 1/200 & prop_geneset_up <= 1/10,
+    in_range_down = prop_geneset_down >= 1/200 & prop_geneset_down <= 1/10, 
+    contrast = contrast_oi
+  )
+  
+  geneset_df = geneset_df %>% mutate(logFC_threshold = logFC_threshold, p_val_threshold = p_val_threshold, adjusted = p_val_adj)
+  
+  return(geneset_df)
+}
 
