@@ -105,7 +105,7 @@ batches = NA
 covariates = NA
 contrasts_oi = c("'High-Low','Low-High'")
 contrast_tbl = tibble(contrast = c("High-Low","Low-High"), group = c("High","Low"))
-output = multi_nichenet_analysis(
+output = multi_nichenet_analysis_sampleAgnostic(
      sce = sce, 
      celltype_id = celltype_id, 
      sample_id = sample_id, 

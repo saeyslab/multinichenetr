@@ -618,6 +618,94 @@ get_frac_exprs = function(sce, sample_id, celltype_id, group_id, batches = NA, m
   return(list(frq_df = frq_df, frq_df_group = frq_df_group, expressed_df = expressed_df))
   
 }
+#' @title get_frac_exprs_sampleAgnostic
+#'
+#' @description \code{get_frac_exprs_sampleAgnostic}  Calculate the average fraction of expression of each gene per group. All cells from all samples will be pooled per group/condition.
+#' @usage get_frac_exprs_sampleAgnostic(sce, sample_id, celltype_id, group_id, batches = NA, min_cells = 10, fraction_cutoff = 0.05, min_sample_prop = 0.5)
+#'
+#' @inheritParams get_frac_exprs
+#' @param min_sample_prop Default, and only recommended value = 1. Hereby, the gene should be expressed in at least one group/condition.
+#' 
+#' @return List containing data frames with the fraction of expression per sample and per group.
+#'
+#' @import dplyr
+#' @import tibble
+#' @importFrom tidyr gather
+#' @importFrom SummarizedExperiment colData
+#'
+#' @examples
+#' \dontrun{
+#' library(dplyr)
+#' sample_id = "tumor"
+#' group_id = "pEMT"
+#' celltype_id = "celltype"
+#' frac_info = get_frac_exprs_sampleAgnostic(sce = sce, sample_id = sample_id, celltype_id =  celltype_id, group_id = group_id)
+#' }
+#'
+#' @export
+#'
+get_frac_exprs_sampleAgnostic = function(sce, sample_id, celltype_id, group_id, batches = NA, 
+                                         min_cells = 10, fraction_cutoff = 0.05, min_sample_prop = 1){
+  
+  sample_id = group_id
+  frq_df = get_muscat_exprs_frac(sce, sample_id = sample_id, 
+                                 celltype_id = celltype_id, group_id = group_id) %>% .$frq_celltype_samples
+  metadata = SummarizedExperiment::colData(sce) %>% tibble::as_tibble()
+  metadata_abundance = metadata %>% dplyr::select(group_id, celltype_id) 
+  print(head(metadata_abundance))
+  metadata_abundance = cbind(metadata[, group_id], metadata_abundance) 
+  print(head(metadata_abundance))
+  colnames(metadata_abundance) = c("sample", "group", "celltype")
+  print(head(metadata_abundance))
+  metadata_abundance = metadata_abundance %>% tibble::as_tibble()
+  print(head(metadata_abundance))
+  
+  abundance_data = metadata_abundance %>% tibble::as_tibble() %>% 
+    dplyr::group_by(sample, celltype) %>% dplyr::count() %>% 
+    dplyr::inner_join(metadata_abundance %>% tibble::as_tibble() %>% 
+                        dplyr::distinct(sample, group), by = "sample")
+  abundance_data = abundance_data %>% dplyr::mutate(keep_sample = n >= 
+                                                      min_cells) %>% dplyr::mutate(keep_sample = factor(keep_sample, 
+                                                                                                        levels = c(TRUE, FALSE)))
+  grouping_df = abundance_data[,c("sample","group")] %>% 
+    tibble::as_tibble() %>% dplyr::distinct() 
+  grouping_df_filtered = grouping_df %>% inner_join(abundance_data) %>% 
+    filter(keep_sample == TRUE)
+  print(paste0("Groups are considered if they have more than ", 
+               min_cells, " cells of the cell type of interest"))
+  frq_df_group = frq_df %>% dplyr::inner_join(grouping_df_filtered) %>% 
+    dplyr::group_by(group, celltype, gene) %>% dplyr::summarise(fraction_group = mean(fraction_sample))
+  n_smallest_group_tbl = grouping_df_filtered %>% dplyr::group_by(group, 
+                                                                  celltype) %>% dplyr::count() %>% dplyr::group_by(celltype) %>% 
+    dplyr::summarize(n_smallest_group = min(n)) %>% dplyr::mutate(n_min = min_sample_prop * 
+                                                                    n_smallest_group) %>% distinct()
+  print(paste0("Genes with non-zero counts in at least ", fraction_cutoff * 
+                 100, "% of cells of a cell type of interest in a particular group/condition will be considered as expressed in that group/condition"))
+  for (i in seq(length(unique(n_smallest_group_tbl$celltype)))) {
+    celltype_oi = unique(n_smallest_group_tbl$celltype)[i]
+    n_min = n_smallest_group_tbl %>% filter(celltype == celltype_oi) %>% 
+      pull(n_min)
+    print(paste0("Genes expressed in at least ", n_min, " group will considered as expressed in the cell type: ", 
+                 celltype_oi))
+  }
+  frq_df = frq_df %>% dplyr::inner_join(grouping_df) %>% dplyr::mutate(expressed_sample = fraction_sample >= 
+                                                                         fraction_cutoff)
+  expressed_df = frq_df %>% inner_join(n_smallest_group_tbl) %>% 
+    inner_join(abundance_data) %>% dplyr::group_by(gene, 
+                                                   celltype) %>% dplyr::summarise(n_expressed = sum(expressed_sample)) %>% 
+    dplyr::mutate(expressed = n_expressed >= n_min) %>% distinct(celltype, 
+                                                                 gene, expressed)
+  for (i in seq(length(unique(expressed_df$celltype)))) {
+    celltype_oi = unique(expressed_df$celltype)[i]
+    n_genes = expressed_df %>% filter(celltype == celltype_oi) %>% 
+      filter(expressed == TRUE) %>% pull(gene) %>% unique() %>% 
+      length()
+    print(paste0(n_genes, " genes are considered as expressed in the cell type: ", 
+                 celltype_oi))
+  }
+  return(list(frq_df = frq_df, frq_df_group = frq_df_group, 
+              expressed_df = expressed_df))
+}
 #' @title process_info_to_ic
 #'
 #' @description \code{process_info_to_ic}  Process cell type expression information into intercellular communication focused information. Only keep information of ligands for the sender cell type setting, and information of receptors for the receiver cell type.

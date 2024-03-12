@@ -643,7 +643,7 @@ multi_nichenet_analysis = function(sce,
 #' covariates = NA
 #' contrasts_oi = c("'High-Low','Low-High'")
 #' contrast_tbl = tibble(contrast = c("High-Low","Low-High"), group = c("High","Low"))
-#' output = multi_nichenet_analysis(
+#' output = multi_nichenet_analysis_sampleAgnostic(
 #'      sce = sce, 
 #'      celltype_id = celltype_id, 
 #'      sample_id = sample_id, 
@@ -919,12 +919,15 @@ multi_nichenet_analysis_sampleAgnostic = function(sce,
   # sce = sce[, SummarizedExperiment::colData(sce)[,group_id] %in% contrast_tbl$group] # keep only considered groups
   # do not do this -- this could give errors if only interested in one contrast but multiple groups
   
+  sce = scuttle::logNormCounts(sce)
+  
+  
   if(verbose == TRUE){
     print("Make diagnostic abundance plots + define expressed genes")
   }
   ## check abundance info
   
-  abundance_info = get_abundance_info(sce = sce, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id, min_cells = min_cells, senders_oi = senders_oi, receivers_oi = receivers_oi, batches = batches)
+  abundance_info = get_abundance_info(sce = sce, sample_id = group_id, group_id = group_id, celltype_id = celltype_id, min_cells = min_cells, senders_oi = senders_oi, receivers_oi = receivers_oi, batches = batches)
   
   ## check for condition-specific cell types
   sample_group_celltype_df = abundance_info$abundance_data %>% filter(n > min_cells) %>% ungroup() %>% distinct(sample_id, group_id) %>% cross_join(abundance_info$abundance_data %>% ungroup() %>% distinct(celltype_id)) %>% arrange(sample_id)
@@ -933,11 +936,11 @@ multi_nichenet_analysis_sampleAgnostic = function(sce,
   abundance_df$keep[is.na(abundance_df$keep)] = FALSE
   abundance_df_summarized = abundance_df %>% mutate(keep = as.logical(keep)) %>% group_by(group_id, celltype_id) %>% summarise(samples_present = sum((keep)))
   celltypes_absent_one_condition = abundance_df_summarized %>% filter(samples_present == 0) %>% pull(celltype_id) %>% unique() # find truly condition-specific cell types by searching for cell types truely absent in at least one condition
-  celltypes_present_one_condition = abundance_df_summarized %>% filter(samples_present >= 2) %>% pull(celltype_id) %>% unique() # require presence in at least 2 samples of one group so it is really present in at least one condition
+  celltypes_present_one_condition = abundance_df_summarized %>% filter(samples_present >= 1) %>% pull(celltype_id) %>% unique() # require presence in at least 2 samples of one group so it is really present in at least one condition
   condition_specific_celltypes = intersect(celltypes_absent_one_condition, celltypes_present_one_condition)
   
   total_nr_conditions = SummarizedExperiment::colData(sce)[,group_id] %>% unique() %>% length() 
-  absent_celltypes = abundance_df_summarized %>% dplyr::filter(samples_present < 2) %>% dplyr::group_by(celltype_id) %>% dplyr::count() %>% dplyr::filter(n == total_nr_conditions) %>% dplyr::pull(celltype_id)
+  absent_celltypes = abundance_df_summarized %>% dplyr::filter(samples_present < 1) %>% dplyr::group_by(celltype_id) %>% dplyr::count() %>% dplyr::filter(n == total_nr_conditions) %>% dplyr::pull(celltype_id)
   
   print("condition-specific celltypes:")
   print(condition_specific_celltypes)
@@ -953,7 +956,7 @@ multi_nichenet_analysis_sampleAgnostic = function(sce,
   sce = sce[, SummarizedExperiment::colData(sce)[,celltype_id] %in% retained_celltypes]
   
   ## define expressed genes
-  frq_list = get_frac_exprs(sce = sce, sample_id = sample_id, celltype_id =  celltype_id, group_id = group_id, batches = batches, min_cells = min_cells, fraction_cutoff = fraction_cutoff, min_sample_prop = min_sample_prop)
+  frq_list = get_frac_exprs_sampleAgnostic(sce = sce, sample_id = sample_id, celltype_id =  celltype_id, group_id = group_id, batches = batches, min_cells = min_cells, fraction_cutoff = fraction_cutoff, min_sample_prop = min_sample_prop)
   
   ### Perform the DE analysis ----------------------------------------------------------------
   
@@ -961,41 +964,18 @@ multi_nichenet_analysis_sampleAgnostic = function(sce,
     print("Calculate differential expression for all cell types")
   }
   
-  if(findMarkers == FALSE){
-    DE_info = get_DE_info(sce = sce, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id, batches = batches, covariates = covariates, contrasts_oi = contrasts_oi, min_cells = min_cells, 
+  DE_info = get_DE_info(sce = sce, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id, batches = batches, covariates = covariates, contrasts_oi = contrasts_oi, min_cells = min_cells,
                           assay_oi_pb = assay_oi_pb,
                           fun_oi_pb = fun_oi_pb,
                           de_method_oi = de_method_oi,
-                          findMarkers = findMarkers, 
-                          expressed_df = frq_list$expressed_df)
-  } else {
-    DE_info = get_DE_info(sce = sce, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id, batches = batches, covariates = covariates, contrasts_oi = contrasts_oi, min_cells = min_cells,
-                          assay_oi_pb = assay_oi_pb,
-                          fun_oi_pb = fun_oi_pb,
-                          de_method_oi = de_method_oi,
-                          findMarkers = findMarkers,
+                          findMarkers = TRUE,
                           contrast_tbl = contrast_tbl,
                           expressed_df = frq_list$expressed_df)
-  }
   
-  if(empirical_pval == TRUE){
-    if(findMarkers == TRUE){
-      DE_info_emp = get_empirical_pvals(DE_info$celltype_de_findmarkers)
-    } else {
-      DE_info_emp = get_empirical_pvals(DE_info$celltype_de$de_output_tidy)
-    }
-  } 
+
   
-  if(empirical_pval == FALSE){
-    if(findMarkers == TRUE){
-      celltype_de = DE_info$celltype_de_findmarkers
-    } else {
-      celltype_de = DE_info$celltype_de$de_output_tidy
-    }
-  } else {
-    celltype_de = DE_info_emp$de_output_tidy_emp %>% dplyr::select(-p_val, -p_adj) %>% dplyr::rename(p_val = p_emp, p_adj = p_adj_emp)
-  }
-  
+  celltype_de = DE_info$celltype_de_findmarkers
+    
   # print(celltype_de %>% dplyr::group_by(cluster_id, contrast) %>% dplyr::filter(p_adj <= p_val_threshold & abs(logFC) >= logFC_threshold) %>% dplyr::count() %>% dplyr::arrange(-n))
   
   senders_oi = celltype_de$cluster_id %>% unique()
@@ -1023,16 +1003,20 @@ multi_nichenet_analysis_sampleAgnostic = function(sce,
   if(verbose == TRUE){
     print("Calculate normalized average and pseudobulk expression")
   }
-  abundance_expression_info = process_abundance_expression_info(sce = sce, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id, min_cells = min_cells, senders_oi = union(senders_oi, condition_specific_celltypes), receivers_oi = union(receivers_oi, condition_specific_celltypes), lr_network = lr_network, batches = batches, frq_list = frq_list, abundance_info = abundance_info)
+  abundance_expression_info = process_abundance_expression_info(sce = sce, sample_id = group_id, group_id = group_id, celltype_id = celltype_id, min_cells = min_cells, senders_oi = union(senders_oi, condition_specific_celltypes), receivers_oi = union(receivers_oi, condition_specific_celltypes), lr_network = lr_network, batches = batches, frq_list = frq_list, abundance_info = abundance_info)
   
   metadata_combined = SummarizedExperiment::colData(sce) %>% tibble::as_tibble()
   
   if(!is.na(batches)){
-    grouping_tbl = metadata_combined[,c(sample_id, group_id, batches)] %>% tibble::as_tibble() %>% dplyr::distinct()
-    colnames(grouping_tbl) = c("sample","group",batches)
+    grouping_tbl = metadata_combined[,c(group_id, batches)] %>% tibble::as_tibble() %>% dplyr::distinct()
+    colnames(grouping_tbl) = c("group",batches)
+    grouping_tbl = grouping_tbl %>% mutate(sample = group)
+    grouping_tbl = grouping_tbl %>% tibble::as_tibble()
   } else {
-    grouping_tbl = metadata_combined[,c(sample_id, group_id)] %>% tibble::as_tibble() %>% dplyr::distinct()
-    colnames(grouping_tbl) = c("sample","group")
+    grouping_tbl = metadata_combined[,c(group_id)] %>% tibble::as_tibble() %>% dplyr::distinct()
+    colnames(grouping_tbl) = c("group")
+    grouping_tbl = grouping_tbl %>% mutate(sample = group) %>% select(sample, group)
+    
   }
   
   rm(sce)
@@ -1040,6 +1024,7 @@ multi_nichenet_analysis_sampleAgnostic = function(sce,
   if(verbose == TRUE){
     print("Calculate NicheNet ligand activities and ligand-target links")
   }
+
   ligand_activities_targets_DEgenes = suppressMessages(suppressWarnings(get_ligand_activities_targets_DEgenes(
     receiver_de = celltype_de,
     receivers_oi = receivers_oi,
@@ -1072,29 +1057,13 @@ multi_nichenet_analysis_sampleAgnostic = function(sce,
   ))
   
   # Prepare Unsupervised analysis of samples! ------------------------------------------------------------------------------------------------------------
-  
-  if(return_lr_prod_matrix == TRUE){
-    
-    ids_oi = prioritization_tables$group_prioritization_tbl %>% dplyr::filter(fraction_expressing_ligand_receptor > 0)  %>% dplyr::pull(id) %>% unique()
-    
-    lr_prod_df = abundance_expression_info$sender_receiver_info$pb_df %>% dplyr::inner_join(grouping_tbl, by = "sample") %>% dplyr::mutate(lr_interaction = paste(ligand, receptor, sep = "_")) %>% dplyr::mutate(id = paste(lr_interaction, sender, receiver, sep = "_")) %>% dplyr::select(sample, id, ligand_receptor_pb_prod) %>% dplyr::filter(id %in% ids_oi) %>% dplyr::distinct() %>% tidyr::spread(id, ligand_receptor_pb_prod)
-    lr_prod_mat = lr_prod_df %>% dplyr::select(-sample) %>% data.frame() %>% as.matrix()
-    rownames(lr_prod_mat) = lr_prod_df$sample
-    
-    col_remove = lr_prod_mat %>% apply(2,function(x)sum(x != 0)) %>% .[. == 0] %>% names()
-    row_remove = lr_prod_mat %>% apply(1,function(x)sum(x != 0)) %>% .[. == 0] %>% names()
-    
-    lr_prod_mat = lr_prod_mat %>% .[rownames(.) %>% generics::setdiff(col_remove),colnames(.) %>% generics::setdiff(col_remove)]
-  } else {
-    lr_prod_mat = NULL
-  }
+  lr_prod_mat = NULL
   
   # Add information on prior knowledge and expression correlation between LR and target expression ------------------------------------------------------------------------------------------------------------
   if(verbose == TRUE){
     print("Calculate correlation between LR pairs and target genes")
   }
-  lr_target_prior_cor = lr_target_prior_cor_inference(prioritization_tables$group_prioritization_tbl$receiver %>% unique(), abundance_expression_info, celltype_de, grouping_tbl, prioritization_tables, ligand_target_matrix, logFC_threshold = logFC_threshold, p_val_threshold = p_val_threshold, p_val_adj = p_val_adj, top_n_LR = top_n_LR)
-  
+  lr_target_prior_cor = tibble()
   ## save output
   
   if(length(condition_specific_celltypes) > 0) {
@@ -1144,7 +1113,7 @@ multi_nichenet_analysis_sampleAgnostic = function(sce,
       prioritization_tables_with_condition_specific_celltype_receiver = prioritization_tables_with_condition_specific_celltype_receiver, 
       combined_prioritization_tables = combined_prioritization_tables,
       grouping_tbl = grouping_tbl,
-      lr_target_prior_cor = lr_target_prior_cor
+      lr_target_prior_cor = tibble()
     ) 
     
     multinichenet_output = make_lite_output_condition_specific(multinichenet_output, top_n_LR = top_n_LR)
@@ -1160,7 +1129,7 @@ multi_nichenet_analysis_sampleAgnostic = function(sce,
       ligand_activities_targets_DEgenes = ligand_activities_targets_DEgenes,
       prioritization_tables = prioritization_tables,
       grouping_tbl = grouping_tbl,
-      lr_target_prior_cor = lr_target_prior_cor
+      lr_target_prior_cor = tibble()
     ) 
     multinichenet_output = make_lite_output(multinichenet_output, top_n_LR = top_n_LR)
   }
