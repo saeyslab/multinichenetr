@@ -423,7 +423,7 @@ In this step, we will perform genome-wide differential expression analysis of re
 Because we don't have several samples per condition, we cannot apply pseudobulking followed by EdgeR as done in the regular MultiNicheNet workflow. Instead, we will here perform a classic FindMarkers approach. This has as consequence that you cannot perform DE on multifactorial experimental designs. You can only compare one group vs other group(s).  
 
 ```{r}
-DE_info = get_DE_info(
+DE_info = get_DE_info_sampleAgnostic(
   sce = sce, 
   sample_id = sample_id, group_id = group_id, celltype_id = celltype_id, 
   batches = batches, covariates = covariates, 

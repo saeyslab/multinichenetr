@@ -592,6 +592,9 @@ get_DE_info = function (sce, sample_id, group_id, celltype_id, batches, covariat
       sce_oi = sce[intersect(rownames(sce), genes_expressed), 
                    SummarizedExperiment::colData(sce)[, celltype_id] == 
                      celltype_oi]
+      sce_oi = sce_oi[, 
+                      SummarizedExperiment::colData(sce_oi)[, group_id] %in% 
+                        contrast_tbl$group]
       #DE_tables_list = scran::findMarkers(sce_oi@assays@data$counts, test.type = "binom", 
       #   groups = SummarizedExperiment::colData(sce_oi)[, 
       #    group_id])
@@ -630,6 +633,194 @@ get_DE_info = function (sce, sample_id, group_id, celltype_id, batches, covariat
   return(list(celltype_de = celltype_de, hist_pvals = hist_pvals, 
               celltype_de_findmarkers = celltype_de_findmarkers, hist_pvals_findmarkers = hist_pvals_findmarkers))
 }
+#' @title get_DE_info_sampleAgnostic
+#'
+#' @description \code{get_DE_info_sampleAgnostic} Perform differential expression analysis via scran::findMarkers approach. Also visualize the p-value distribution. 
+#' @usage get_DE_info_sampleAgnostic(sce, group_id, celltype_id, contrasts_oi, expressed_df, min_cells = 10, contrast_tbl)
+#'
+#' @inheritParams get_DE_info
+#' 
+#' @return List with output of the differential expression analysis in 1) default format(`muscat::pbDS()`), and 2) in a tidy table format (`muscat::resDS()`) (both in the `celltype_de` slot); Histogram plot of the p-values is also returned.
+#'
+#' @import dplyr
+#' @import muscat
+#' @import ggplot2
+#' @importFrom scran findMarkers
+#'
+#' @examples
+#' \dontrun{
+#' library(dplyr)
+#' sample_id = "tumor"
+#' group_id = "pEMT"
+#' celltype_id = "celltype"
+#' batches = NA
+#' covariates = NA
+#' contrasts_oi = c("'High-Low','Low-High'")
+#' contrast_tbl = tibble(contrast = c("High-Low","Low-High"), group = c("High","Low"))
+#' frq_list = get_frac_exprs_sampleAgnostic(sce = sce, sample_id = sample_id, celltype_id =  celltype_id, group_id = group_id)
+#' DE_info = get_DE_info_sampleAgnostic(
+#'    sce = sce,
+#'    celltype_id = celltype_id,
+#'    group_id = group_id,
+#'    contrasts = contrasts_oi,
+#'    expressed_df = frq_list$expressed_df,
+#'    contrast_tbl = contrast_tbl)
+#'}
+#'
+#' @export
+#'
+#'
+get_DE_info_sampleAgnostic = function (sce, group_id, celltype_id, contrasts_oi, expressed_df, min_cells = 10, contrast_tbl) {
+  requireNamespace("dplyr")
+  requireNamespace("ggplot2")
+  findMarkers = TRUE
+  if (class(sce) != "SingleCellExperiment") {
+    stop("sce should be a SingleCellExperiment object")
+  }
+  if (!celltype_id %in% colnames(SummarizedExperiment::colData(sce))) {
+    stop("celltype_id should be a column name in the metadata dataframe of sce")
+  }
+  if (celltype_id != make.names(celltype_id)) {
+    stop("celltype_id should be a syntactically valid R name - check make.names")
+  }
+  if (!group_id %in% colnames(SummarizedExperiment::colData(sce))) {
+    stop("group_id should be a column name in the metadata dataframe of sce")
+  }
+  if (group_id != make.names(group_id)) {
+    stop("group_id should be a syntactically valid R name - check make.names")
+  }
+  if (is.double(SummarizedExperiment::colData(sce)[, celltype_id])) {
+    stop("SummarizedExperiment::colData(sce)[,celltype_id] should be a character vector or a factor")
+  }
+  if (is.double(SummarizedExperiment::colData(sce)[, group_id])) {
+    stop("SummarizedExperiment::colData(sce)[,group_id] should be a character vector or a factor")
+  }
+  
+  if (is.factor(SummarizedExperiment::colData(sce)[, celltype_id])) {
+    is_make_names = levels(SummarizedExperiment::colData(sce)[, 
+                                                              celltype_id]) == make.names(levels(SummarizedExperiment::colData(sce)[, 
+                                                                                                                                    celltype_id]))
+    if (sum(is_make_names) != length(levels(SummarizedExperiment::colData(sce)[, 
+                                                                               celltype_id]))) {
+      stop("The levels of the factor SummarizedExperiment::colData(sce)[,celltype_id] should be a syntactically valid R names - see make.names")
+    }
+  }
+  else {
+    is_make_names = unique(sort(SummarizedExperiment::colData(sce)[, 
+                                                                   celltype_id])) == make.names(unique(sort(SummarizedExperiment::colData(sce)[, 
+                                                                                                                                               celltype_id])))
+    if (sum(is_make_names) != length(unique(sort((SummarizedExperiment::colData(sce)[, 
+                                                                                     celltype_id]))))) {
+      stop("All the cell type labels in SummarizedExperiment::colData(sce)[,celltype_id] should be syntactically valid R names - see make.names")
+    }
+  }
+  if (is.factor(SummarizedExperiment::colData(sce)[, group_id])) {
+    is_make_names = levels(SummarizedExperiment::colData(sce)[, 
+                                                              group_id]) == make.names(levels(SummarizedExperiment::colData(sce)[, 
+                                                                                                                                 group_id]))
+    if (sum(is_make_names) != length(levels(SummarizedExperiment::colData(sce)[, 
+                                                                               group_id]))) {
+      stop("The levels of the factor SummarizedExperiment::colData(sce)[,group_id] should be a syntactically valid R names - see make.names")
+    }
+  }
+  else {
+    is_make_names = unique(sort(SummarizedExperiment::colData(sce)[, 
+                                                                   group_id])) == make.names(unique(sort(SummarizedExperiment::colData(sce)[, 
+                                                                                                                                            group_id])))
+    if (sum(is_make_names) != length(unique(sort((SummarizedExperiment::colData(sce)[, 
+                                                                                     group_id]))))) {
+      stop("All the group/condition labels in SummarizedExperiment::colData(sce)[,group_id] should be syntactically valid R names - see make.names")
+    }
+  }
+  if (!is.character(contrasts_oi)) {
+    stop("contrasts should be a character vector")
+  }
+  groups_oi = SummarizedExperiment::colData(sce)[, group_id] %>% 
+    unique()
+  conditions_oi = stringr::str_split(contrasts_oi, "'") %>% 
+    unlist() %>% unique() %>% stringr::str_split("\\)") %>% 
+    unlist() %>% unique() %>% stringr::str_split("\\(") %>% 
+    unlist() %>% unique() %>% stringr::str_split("-") %>% 
+    unlist() %>% unique() %>% stringr::str_split("\\+") %>% 
+    unlist() %>% unique() %>% stringr::str_split("\\*") %>% 
+    unlist() %>% unique() %>% stringr::str_split("\\/") %>% 
+    unlist() %>% unique() %>% generics::setdiff(c("", ",", 
+                                                  " ,", ", ")) %>% unlist() %>% unique()
+  conditions_oi = conditions_oi[is.na(suppressWarnings(as.numeric(conditions_oi)))]
+  if (length(contrasts_oi) != 1 | !is.character(contrasts_oi)) {
+    stop("contrasts_oi should be a character vector of length 1. See the documentation of the function for having an idea of the right format of setting your contrasts.")
+  }
+  contrasts_simplified = stringr::str_split(contrasts_oi, "'") %>% 
+    unlist() %>% unique() %>% stringr::str_split(",") %>% 
+    unlist() %>% unique() %>% generics::setdiff(c("", ",")) %>% 
+    unlist() %>% unique()
+  if (sum(conditions_oi %in% groups_oi) != length(conditions_oi)) {
+    stop("conditions written in contrasts should be in the condition-indicating column! This is not the case, which can lead to errors downstream.")
+  }
+  if (!is.double(min_cells)) {
+    stop("min_cells should be numeric")
+  }
+  else {
+    if (min_cells <= 0) {
+      warning("min_cells is now 0 or smaller. We recommend having a positive, non-zero value for this parameter")
+    }
+  }
+  if (findMarkers == TRUE) {
+    if (is.null(contrast_tbl)) {
+      stop("Please provide an input to the argument `contrast_tbl` -- see documentation")
+    }
+  }
+  celltypes = SummarizedExperiment::colData(sce)[, celltype_id] %>% 
+    unique()
+  if (findMarkers == TRUE) {
+    
+    celltype_de_findmarkers = celltypes %>% lapply(function(celltype_oi, 
+                                                            sce) {
+      genes_expressed = expressed_df %>% filter(celltype == celltype_oi & 
+                                                  expressed == TRUE) %>% pull(gene) %>% unique()
+      sce_oi = sce[intersect(rownames(sce), genes_expressed), 
+                   SummarizedExperiment::colData(sce)[, celltype_id] == 
+                     celltype_oi]
+      sce_oi = sce_oi[, 
+                      SummarizedExperiment::colData(sce_oi)[, group_id] %in% 
+                        contrast_tbl$group]
+      
+      DE_tables_list = scran::findMarkers(sce_oi@assays@data$logcounts, test.type = "t", 
+                                          groups = SummarizedExperiment::colData(sce_oi)[,group_id])
+      
+      
+      conditions = names(DE_tables_list)
+      DE_tables_df = conditions %>% lapply(function(condition_oi, 
+                                                    DE_tables_list) {
+        DE_table_oi = DE_tables_list[[condition_oi]]
+        DE_table_oi = DE_table_oi %>% data.frame() %>% 
+          tibble::rownames_to_column("gene") %>% tibble::as_tibble() %>% 
+          dplyr::mutate(cluster_id = celltype_oi, group = condition_oi) %>% 
+          dplyr::select(gene, p.value, FDR, summary.logFC, 
+                        cluster_id, group)
+      }, DE_tables_list) %>% dplyr::bind_rows()
+    }, sce) %>% dplyr::bind_rows() %>% dplyr::rename(logFC = summary.logFC, 
+                                                     p_val = p.value, p_adj = FDR) %>% dplyr::inner_join(contrast_tbl, 
+                                                                                                         by = "group") %>% dplyr::select(gene, cluster_id, 
+                                                                                                                                         logFC, p_val, p_adj, contrast)
+    hist_pvals_findmarkers = celltype_de_findmarkers %>% 
+      dplyr::inner_join(celltype_de_findmarkers %>% dplyr::group_by(contrast, 
+                                                                    cluster_id) %>% dplyr::count(), by = c("cluster_id", 
+                                                                                                           "contrast")) %>% dplyr::mutate(cluster_id = paste0(cluster_id, 
+                                                                                                                                                              "\nnr of genes: ", n)) %>% dplyr::mutate(`p-value <= 0.05` = p_adj <= 
+                                                                                                                                                                                                         0.05) %>% ggplot(aes(x = p_val, fill = `p-value <= 0.05`)) + 
+      geom_histogram(binwidth = 0.05, boundary = 0, color = "grey35") + 
+      scale_fill_manual(values = c("grey90", "lightsteelblue1")) + 
+      facet_grid(contrast ~ cluster_id) + ggtitle("findMarker adj P-value histograms") + 
+      theme_bw()
+  }
+  else {
+    celltype_de_findmarkers = NA
+    hist_pvals_findmarkers = NA
+  }
+  return(list( celltype_de_findmarkers = celltype_de_findmarkers, hist_pvals_findmarkers = hist_pvals_findmarkers))
+}
+
 #' @title get_empirical_pvals
 #'
 #' @description \code{get_empirical_pvals} Calculate empirical p-values based on a DE output. Show p-value distribution histograms. Under the hood, the following functions are used: `add_empirical_pval_fdr` and `get_FDR_empirical_plots_all`

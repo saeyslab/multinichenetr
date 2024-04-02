@@ -222,7 +222,6 @@ multinichenet_output = multi_nichenet_analysis(sce = sce, celltype_id = celltype
 
 ```
 
-
 The output of the MultiNicheNet analysis contains much information. We will now go over this step-by-step
 
 ## Check the returned tables in the output

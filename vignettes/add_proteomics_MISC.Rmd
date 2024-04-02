@@ -1,17 +1,20 @@
 ---
-title: "MultiNicheNet analysis: MIS-C threewise comparison - step-by-step"
+title: "MultiNicheNet analysis: MIS-C: add serum proteomics data modality"
 author: "Robin Browaeys"
-date: "2023-06-06"
-output: rmarkdown::html_vignette
+package: "`r BiocStyle::pkg_ver('multinichenetr')`"
+output: 
+  BiocStyle::html_document
 vignette: >
-  %\VignetteIndexEntry{MultiNicheNet analysis: MIS-C threewise comparison - step-by-step}
+  %\VignetteIndexEntry{MultiNicheNet analysis: MIS-C: add serum proteomics data modality}
   %\VignetteEngine{knitr::rmarkdown}
-  %\VignetteEncoding{UTF-8}
+  %\VignetteEncoding{UTF-8} 
 ---
 
-<!-- github markdown built using 
-rmarkdown::render("vignettes/basic_analysis_steps_MISC.Rmd", output_format = "github_document")
--->
+<style type="text/css">
+.smaller {
+  font-size: 10px
+}
+</style>
 
 ```{r setup, include = FALSE}
 knitr::opts_chunk$set(
@@ -20,45 +23,27 @@ knitr::opts_chunk$set(
   warning = FALSE,
   message = FALSE
 )
+library(BiocStyle)
 ```
 
-In this vignette, you can learn how to perform an all-vs-all MultiNicheNet analysis. In this vignette, we start from one SingleCellExperiment object containing cells from both sender and receiver cell types and from different patients.
+In this vignette, you can learn how to extend the default MultiNicheNet prioritization scheme to **include suitable additional data modalities for prioritizing cell-cell communication patterns**. If you are new to MultiNicheNet, we recommend learning the basics first by reading and running this vignette: [basis_analysis_steps_MISC.md](basis_analysis_steps_MISC.md).In general we would always recommend users to run the analysis step-by-step, but the wrapper function is applied here to reduce the length of the vignette. In this vignette, we will use the MultiNicheNet wrapper function to perform all core steps of the analysis in one line of code. Afterwards, we will demonstrate one possible way to score interactions based on additional data modalities, and how you can incorporate these scorings in the prioritization. 
 
-A MultiNicheNet analysis can be performed if you have multi-sample, multi-group single-cell data. MultiNicheNet will look for cell-cell communication between the cell types in your data for each sample, and compare the cell-cell communication patterns between the groups of interest. Therefore, the absolute minimum of meta data you need to have, are following columns indicating for each cell: the **group**, **sample** and **cell type**.
- 
-As example expression data of interacting cells, we will here use scRNAseq data of immune cells in MIS-C patients and healthy siblings from this paper of Hoste et al.: [TIM3+ TRBV11-2 T cells and IFNγ signature in patrolling monocytes and CD16+ NK cells delineate MIS-C](https://rupress.org/jem/article/219/2/e20211381/212918/TIM3-TRBV11-2-T-cells-and-IFN-signature-in) [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.6362434.svg)](https://doi.org/10.5281/zenodo.6362434)
-. MIS-C (multisystem inflammatory syndrome in children) is a novel rare immunodysregulation syndrome that can arise after SARS-CoV-2 infection in children. We will use NicheNet to explore immune cell crosstalk enriched in MIS-C compared to healthy siblings. 
+As example expression data of interacting cells, we will here use scRNAseq data of immune cells in MIS-C patients and healthy siblings from this paper of Hoste et al.: [TIM3+ TRBV11-2 T cells and IFNγ signature in patrolling monocytes and CD16+ NK cells delineate MIS-C](https://rupress.org/jem/article/219/2/e20211381/212918/TIM3-TRBV11-2-T-cells-and-IFN-signature-in) [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.6362434.svg)](https://doi.org/10.5281/zenodo.6362434). 
+MIS-C (multisystem inflammatory syndrome in children) is a novel rare immunodysregulation syndrome that can arise after SARS-CoV-2 infection in children. We will use MultiNicheNet to explore immune cell crosstalk enriched in MIS-C compared to healthy siblings and adult COVID-19 patients. 
 
-In this vignette, we will prepare the data and analysis parameters, and then perform the MultiNicheNet analysis. 
+In addition to this dataset, we will use publicly available processed OLINK **serum proteomics data** from Diorio et al (https://www.nature.com/articles/s41467-021-27544-6) who profiled MIS-C patients and healthy controls. This data could be informative for prioritizing cell-cell interactions because it may give us information about which ligands are more strongly expressed at the protein level in MIS-C patients versus healthy siblings.   
 
-The different steps of the MultiNicheNet analysis are the following:
+# Preparation of the MultiNicheNet core analysis
 
-* 0. Preparation of the analysis: load packages, NicheNet LR network & ligand-target matrix, single-cell expression data, and define main settings of the MultiNicheNet analysis
-
-* 1. Extract cell type abundance and expression information from receiver and sender cell types, and link this expression information for ligands of the sender cell types to the corresponding receptors of the receiver cell types 
-
-* 2. Perform genome-wide differential expression analysis of receiver and sender cell types to define DE genes between the conditions of interest. Based on this analysis, we can define the logFC/p-value of ligands in senders and receptors in receivers, and define the set of affected target genes in the receiver.
-
-* 3. Predict NicheNet ligand activities and NicheNet ligand-target links based on these differential expression results
-
-* 4. Use the information collected above to prioritize all sender-ligand---receiver-receptor pairs.
-
-* 5. Calculate correlation in expression between ligand-receptor pairs and their predicted target genes
-
-In this vignette, we will demonstrate all these steps one by one.
-
-After the MultiNicheNet analysis is done, we will explore the output of the analysis with different ways of visualization. 
-
-# Step 0: Preparation of the analysis: load packages, NicheNet LR network & ligand-target matrix, single-cell expression data
-
-## Step 0.1: Load required packages and NicheNet ligand-receptor network and ligand-target matrix
-
-```{r}
+```{r load-libs, message = FALSE,  warning = FALSE}
 library(SingleCellExperiment)
 library(dplyr)
 library(ggplot2)
+library(nichenetr)
 library(multinichenetr)
 ```
+
+## Load NicheNet's ligand-receptor network and ligand-target matrix
 
 The Nichenet v2 networks and matrices for both mouse and human can be downloaded from Zenodo [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.7074291.svg)](https://doi.org/10.5281/zenodo.7074291). 
 
@@ -67,511 +52,341 @@ Gene names are here made syntactically valid via `make.names()` to avoid the los
 
 ```{r}
 organism = "human"
+```
+
+```{r, results='hide'}
+options(timeout = 120)
+
 if(organism == "human"){
-  lr_network = readRDS(url("https://zenodo.org/record/7074291/files/lr_network_human_21122021.rds"))
-  lr_network = lr_network %>% dplyr::rename(ligand = from, receptor = to) %>% distinct(ligand, receptor) %>% mutate(ligand = make.names(ligand), receptor = make.names(receptor))
-  ligand_target_matrix = readRDS(url("https://zenodo.org/record/7074291/files/ligand_target_matrix_nsga2r_final.rds"))
-  colnames(ligand_target_matrix) = colnames(ligand_target_matrix) %>% make.names()
-  rownames(ligand_target_matrix) = rownames(ligand_target_matrix) %>% make.names()
+  
+  lr_network_all = 
+    readRDS(url(
+      "https://zenodo.org/record/10229222/files/lr_network_human_allInfo_30112033.rds"
+      )) %>% 
+    mutate(
+      ligand = convert_alias_to_symbols(ligand, organism = organism), 
+      receptor = convert_alias_to_symbols(receptor, organism = organism))
+  
+  lr_network_all = lr_network_all  %>% 
+    mutate(ligand = make.names(ligand), receptor = make.names(receptor)) 
+  
+  lr_network = lr_network_all %>% 
+    distinct(ligand, receptor)
+  
+  ligand_target_matrix = readRDS(url(
+    "https://zenodo.org/record/7074291/files/ligand_target_matrix_nsga2r_final.rds"
+    ))
+  
+  colnames(ligand_target_matrix) = colnames(ligand_target_matrix) %>% 
+    convert_alias_to_symbols(organism = organism) %>% make.names()
+  rownames(ligand_target_matrix) = rownames(ligand_target_matrix) %>% 
+    convert_alias_to_symbols(organism = organism) %>% make.names()
+  
+  lr_network = lr_network %>% filter(ligand %in% colnames(ligand_target_matrix))
+  ligand_target_matrix = ligand_target_matrix[, lr_network$ligand %>% unique()]
+  
 } else if(organism == "mouse"){
-  lr_network = readRDS(url("https://zenodo.org/record/7074291/files/lr_network_mouse_21122021.rds"))
-  lr_network = lr_network %>% dplyr::rename(ligand = from, receptor = to) %>% distinct(ligand, receptor) %>% mutate(ligand = make.names(ligand), receptor = make.names(receptor))
-  ligand_target_matrix = readRDS(url("https://zenodo.org/record/7074291/files/ligand_target_matrix_nsga2r_final_mouse.rds"))
-  colnames(ligand_target_matrix) = colnames(ligand_target_matrix) %>% make.names()
-  rownames(ligand_target_matrix) = rownames(ligand_target_matrix) %>% make.names()
+  
+  lr_network_all = readRDS(url(
+    "https://zenodo.org/record/10229222/files/lr_network_mouse_allInfo_30112033.rds"
+    )) %>% 
+    mutate(
+      ligand = convert_alias_to_symbols(ligand, organism = organism), 
+      receptor = convert_alias_to_symbols(receptor, organism = organism))
+  
+  lr_network_all = lr_network_all  %>% 
+    mutate(ligand = make.names(ligand), receptor = make.names(receptor)) 
+  lr_network = lr_network_all %>% 
+    distinct(ligand, receptor)
+  
+  ligand_target_matrix = readRDS(url(
+    "https://zenodo.org/record/7074291/files/ligand_target_matrix_nsga2r_final_mouse.rds"
+    ))
+  
+  colnames(ligand_target_matrix) = colnames(ligand_target_matrix) %>% 
+    convert_alias_to_symbols(organism = organism) %>% make.names()
+  rownames(ligand_target_matrix) = rownames(ligand_target_matrix) %>% 
+    convert_alias_to_symbols(organism = organism) %>% make.names()
+  
+  lr_network = lr_network %>% filter(ligand %in% colnames(ligand_target_matrix))
+  ligand_target_matrix = ligand_target_matrix[, lr_network$ligand %>% unique()]
+  
 }
 ```
 
-## Step 0.2: Read in SingleCellExperiment Objects 
+## Read in SingleCellExperiment Object
 
-In this vignette, sender and receiver cell types are in the same SingleCellExperiment object, which we will load here. In this vignette, we will load in a subset of the scRNAseq data of the MIS-C [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.8010790.svg)](https://doi.org/10.5281/zenodo.8010790). For the sake of demonstration, this subset only contains 3 cell types. These celltypes are some of the cell types that were found to be most interesting related to MIS-C according to Hoste et al. 
-
-If you start from a Seurat object, you can convert it easily to a SingleCellExperiment via `sce = Seurat::as.SingleCellExperiment(seurat_obj, assay = "RNA")`.
+In this vignette, we will load in a subset of the scRNAseq data of the MIS-C [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.8010790.svg)](https://doi.org/10.5281/zenodo.8010790). For the sake of demonstration, this subset only contains 3 cell types. These celltypes are some of the cell types that were found to be most interesting related to MIS-C according to Hoste et al. 
 
 Because the NicheNet 2.0. networks are in the most recent version of the official gene symbols, we will make sure that the gene symbols used in the expression data are also updated (= converted from their "aliases" to official gene symbols). Afterwards, we will make them again syntactically valid. 
 
-```{r}
-sce = readRDS(url("https://zenodo.org/record/8010790/files/sce_subset_misc.rds"))
+```{r, results='hide'}
+sce = readRDS(url(
+  "https://zenodo.org/record/8010790/files/sce_subset_misc.rds"
+  ))
 sce = alias_to_symbol_SCE(sce, "human") %>% makenames_SCE()
 ```
 
-## Step 0.3: Prepare settings of the MultiNicheNet cell-cell communication analysis
+## Prepare the settings of the MultiNicheNet cell-cell communication analysis
+
+In this step, we will formalize our research question into MultiNicheNet input arguments.
 
 ### Define in which metadata columns we can find the **group**, **sample** and **cell type** IDs
 
-In this case study, we want to study differences in cell-cell communication patterns between MIS-C patients (M), their healthy siblings (S). The meta data columns that indicate this disease status is `MIS.C.AgeTier`. This datasets also contains cells from adult patients with severe COVID (A), however we are not interested in this comparison in this vignette because the additional data modality (proteomics) we have only covers MIS-C and healthy siblings.
+In this case study, we want to study differences in cell-cell communication patterns between MIS-C patients (M) and their healthy siblings (S). The meta data columns that indicate this disease status(=group/condition of interest) is `MIS.C.AgeTier`. 
 
 Cell type annotations are indicated in the `Annotation_v2.0` column, and the sample is indicated by the `ShortID` column. 
-If your cells are annotated in multiple hierarchical levels, we recommend using a high level in the hierarchy. This for 2 reasons: 1) MultiNicheNet focuses on differential expression and not differential abundance, and 2) there should be sufficient cells per sample-celltype combination.
-
-If you would have batch effects or covariates you can correct for, you can define this here as well. 
-
-Important: for categorical covariates and batches, there should be at least one sample for every group-batch combination. If one of your groups/conditions lacks a certain level of your batch, you won't be able to correct for the batch effect because the model is then not able to distinguish batch from group/condition effects.
-
-Important: the column names of group, sample, cell type, batches and covariates should be syntactically valid (`make.names`)
-
-Important: All group, sample, cell type, batch and covariate names should be syntactically valid as well (`make.names`) (eg through `SummarizedExperiment::colData(sce)$ShortID = SummarizedExperiment::colData(sce)$ShortID %>% make.names()`)
+If your cells are annotated in multiple hierarchical levels, we recommend using a relatively high level in the hierarchy. This for 2 reasons: 1) MultiNicheNet focuses on differential expression and not differential abundance, and 2) there should be sufficient cells per sample-celltype combination (see later).
 
 ```{r}
 sample_id = "ShortID"
 group_id = "MIS.C.AgeTier"
 celltype_id = "Annotation_v2.0"
-covariates = NA
-batches = NA
-sce = sce[, SummarizedExperiment::colData(sce)[,group_id] %in% c("M","S")]
 ```
 
-Sender and receiver cell types also need to be defined. Both are here all cell types in the dataset because we are interested in an All-vs-All analysis.
+__Important__: It is required that each sample-id is uniquely assigned to only one condition/group of interest. See the vignettes about paired and multifactorial analysis to see how to define your analysis input when you have multiple samples (and conditions) per patient.
+
+If you would have batch effects or covariates you can correct for, you can define this here as well. However, this is not applicable to this dataset. Therefore we will use the following NA settings:
+
+```{r}
+covariates = NA
+batches = NA
+```
+
+__Important__: for categorical covariates and batches, there should be at least one sample for every group-batch combination. If one of your groups/conditions lacks a certain level of your batch, you won't be able to correct for the batch effect because the model is then not able to distinguish batch from group/condition effects.
+
+__Important__: The column names of group, sample, cell type, batches and covariates should be syntactically valid (`make.names`)
+
+__Important__: All group, sample, cell type, batch and covariate names should be syntactically valid as well (`make.names`) (eg through `SummarizedExperiment::colData(sce)$ShortID = SummarizedExperiment::colData(sce)$ShortID %>% make.names()`)
+
+### Define the contrasts of interest.
+
+Here, we want to compare patients in the MIS-C (M) group vs healthy control siblings (S) (= M vs S). We want to know which cell-cell communication patterns are specific for the M vs S group, and the S vs M group. 
+
+To perform this comparison, we need to set the following contrasts:
+
+```{r}
+contrasts_oi = c("'M-S','S-M'") 
+```
+
+__Very Important__ Note the format to indicate the contrasts! This formatting should be adhered to very strictly, and white spaces are not allowed! Check `?get_DE_info` for explanation about how to define this well. The most important points are that: 
+*each contrast is surrounded by single quotation marks
+*contrasts are separated by a comma without any white space 
+*all contrasts together are surrounded by double quotation marks. 
+
+If you compare against two groups, you should divide by 2 (as demonstrated here), if you compare against three groups, you should divide by 3 and so on.
+
+For downstream visualizations and linking contrasts to their main condition, we also need to run the following:
+This is necessary because we will also calculate cell-type+condition specificity of ligands and receptors. 
+
+```{r}
+contrast_tbl = tibble(
+  contrast = c("M-S","S-M"), 
+  group = c("M","S")
+  )
+```
+
+### Define the sender and receiver cell types of interest.
+
+If you want to focus the analysis on specific cell types (e.g. because you know which cell types reside in the same microenvironments based on spatial data), you can define this here. If you have sufficient computational resources and no specific idea of cell-type colocalzations, we recommend to consider all cell types as potential senders and receivers. 
+
+Here we will consider all cell types in the data:
 
 ```{r}
 senders_oi = SummarizedExperiment::colData(sce)[,celltype_id] %>% unique()
 receivers_oi = SummarizedExperiment::colData(sce)[,celltype_id] %>% unique()
+sce = sce[, SummarizedExperiment::colData(sce)[,celltype_id] %in% 
+            c(senders_oi, receivers_oi)
+          ]
 ```
 
-If the user wants it, it is possible to use only a subset of senders and receivers. Senders and receivers can be entirely different, but also overlapping, or the same. If you don't use all the cell types in your data, we recommend to continue with a subset of your data.
+In case you would have samples in your data that do not belong to one of the groups/conditions of interest, we recommend removing them and only keeping conditions of interst:
 
 ```{r}
-sce = sce[, SummarizedExperiment::colData(sce)[,celltype_id] %in% c(senders_oi, receivers_oi)]
+conditions_keep = c("M", "S")
+sce = sce[, SummarizedExperiment::colData(sce)[,group_id] %in% 
+            conditions_keep
+          ]
 ```
 
-In this vignette we will focus on comparing the MI
-Now we will go to the first real step of the MultiNicheNet analysis
+# Running the MultiNicheNet core analysis
 
-# Step 1: Extract cell type abundance of receiver and sender cell types
+Now we will run the core of a MultiNicheNet analysis through the `multi_nichenet_analysis` wrapper function. Under the hood, the following steps are executed:
 
-Since MultiNicheNet will infer group differences at the sample level for each cell type (currently via Muscat - pseudobulking + EdgeR), we need to have sufficient cells per sample of a cell type, and this for both groups. In the following analysis we will set this minimum number of cells per cell type per sample at 10 (recommended minimum). 
+* 1. Cell-type filtering: determine which cell types are sufficiently present
+* 2. Gene filtering: determine which genes are sufficiently expressed in each present cell type
+* 3. Pseudobulk expression calculation: determine and normalize per-sample pseudobulk expression levels for each expressed gene in each present cell type
+* 4. Differential expression (DE) analysis: determine which genes are differentially expressed
+* 5. Ligand activity prediction: use the DE analysis output to predict the activity of ligands in receiver cell types and infer their potential target genes
+* 6. Prioritization: rank cell-cell communication patterns through multi-criteria prioritization
+* 7. Calculate the across-samples expression correlation between ligand-receptor pairs and target genes
+* 8. Prioritize communication patterns involving condition-specific cell types through an alternative prioritization scheme
+
+After these steps, the output can be further explored as we will demonstrate in the "Downstream analysis of the MultiNicheNet output" section.
+
+However, before we can start running the analysis, we need to define some parameters first.
+
+## Defining parameters for the MultiNicheNet wrapper function
+
+#### Parameters for step 1: Cell-type filtering:
+
+Since MultiNicheNet will infer group differences at the sample level for each cell type (currently via Muscat - pseudobulking + EdgeR), we need to have sufficient cells per sample of a cell type, and this for all groups. In the following analysis we will set this minimum number of cells per cell type per sample at 10. Samples that have less than `min_cells` cells will be excluded from the analysis for that specific cell type.
 
 ```{r}
 min_cells = 10
 ```
 
-Now we will calculate abundance and expression information for each cell type / sample / group combination with the following functions. In the output of this function, you can also find some 'Cell type abundance diagnostic plots' that will the users which celltype-sample combinations will be left out later on for DE calculation because the nr of cells is lower than de defined minimum defined here above. If too many celltype-sample combinations don't pass this threshold, we recommend to define your cell types in a more general way (use one level higher of the cell type ontology hierarchy) (eg TH17 CD4T cells --> CD4T cells).
+####  Parameters for step 2: Gene filtering
+
+For each cell type, we will consider genes expressed if they are expressed in at least a `min_sample_prop` fraction of samples in the condition with the lowest number of samples. By default, we set `min_sample_prop = 0.50`. 
 
 ```{r}
-abundance_info = get_abundance_info(sce = sce, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id, min_cells = min_cells, senders_oi = senders_oi, receivers_oi = receivers_oi, batches = batches)
-```
-
-First, we will check the cell type abundance diagnostic plots.
-
-### Interpretation of cell type abundance information
-
-The first plot visualizes the number of cells per celltype-sample combination, and indicates which combinations are removed during the DE analysis because there are less than `min_cells` in the celltype-sample combination. 
-
-```{r}
-abundance_info$abund_plot_sample
-```
-The red dotted line indicates the required minimum of cells as defined above in `min_cells`. We can see here that some sample-celltype combinations are left out. For the DE analysis in the next step, only cell types will be considered if there are at least two samples per group with a sufficient number of cells. For these cell types in this dataset, all cell types are retained.
-
-```{r}
-abundance_info$abund_plot_group
-```
-
-```{r}
-abundance_info$abund_barplot
-```
-__Important__: Based on the cell type abundance diagnostics, we recommend users to change their analysis settings if required (eg changing cell type annotation level, batches, ...), before proceeding with the rest of the analysis.
-
-# Step 2: Perform genome-wide differential expression analysis of receiver and sender cell types to define DE genes between the conditions of interest. Based on this analysis, we can define the logFC/p-value of ligands in senders and receptors in receivers, and define the set of affected target genes in the receiver.
-
-Now we will go over to the multi-group, multi-sample differential expression (DE) analysis (also called 'differential state' analysis by the developers of Muscat).
-
-### Define the contrasts and covariates of interest for the DE analysis.
-
-Here, we want to compare each patient group to the other groups, so the MIS-C (M) group vs healthy control siblins (S) and adult COVID19 patients (A) etcetera. 
-To do this comparison, we need to set the following contrasts:
-
-```{r}
-contrasts_oi = c("'M-S','S-M'")
-```
-
-__Very Important__ Note the format to indicate the contrasts! This formatting should be adhered to very strictly, and white spaces are not allowed!  Check `?get_DE_info` for explanation about how to define this well. The most important things are that: each contrast is surrounded by single quotation marks, contrasts are separated by a comma without any whitespace, and alle contrasts together are surrounded by double quotation marks. If you compare against two groups, you should divide by 2, if you compare against three groups, you should divide by 3 etcetera.
-
-For downstream visualizations and linking contrasts to their main group, you need to run the following:
-
-```{r}
-contrast_tbl = tibble(contrast = 
-                        c("M-S","S-M"), 
-                      group = c("M","S"))
-```
-
-
-### Perform the DE analysis for each cell type.
-
-#### Filtering of expressed genes
-
-We will keep genes that are expressed in at least half of the samples (`min_sample_prop`) of the smallest group (absolute minimum: 2 samples). A gene is considered as being expressed in a sample if it has non-zero counts in at least 5% of cells (`fraction_cutoff`)
-```{r, error = TRUE}
-fraction_cutoff = 0.05
 min_sample_prop = 0.50
-frq_list = get_frac_exprs(sce = sce, sample_id = sample_id, celltype_id =  celltype_id, group_id = group_id, batches = batches, min_cells = min_cells, fraction_cutoff = fraction_cutoff, min_sample_prop = min_sample_prop)
 ```
 
-```{r, error = TRUE}
-DE_info = get_DE_info(sce = sce, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id, batches = batches, covariates = covariates, contrasts_oi = contrasts_oi, min_cells = min_cells, expressed_df = frq_list$expressed_df)
-```
-
-### Check DE results
-
-Table with logFC and p-values for each gene-celltype-contrast:
+But how do we define which genes are expressed in a sample? For this we will consider genes as expressed if they have non-zero expression values in a `fraction_cutoff` fraction of cells of that cell type in that sample. By default, we set `fraction_cutoff = 0.05`, which means that genes should show non-zero expression values in at least 5% of cells in a sample. 
 
 ```{r}
-DE_info$celltype_de$de_output_tidy %>% arrange(p_adj) %>% head()
+fraction_cutoff = 0.05
 ```
+
+####  Parameters for step 4: DE analysis
+
+Output of the DE analysis step will be used to define the levels of differential expression of ligands in senders and receptors in receivers, and define the set of affected target genes in the receiver cell types (which will be used for the ligand activity analysis). We need to define whether we will use the regular or empirical p-values returned by this DE analysis. 
+By default, we will use the regular p-values. After running the analysis, users can inspect the DE output p-value distributions to assess possible deviations to the underlying assumption. Only when you observe aberrant distributions we recommend redoing the analysis with the empirical p-values instead of the regular p-values. In our experience, this is only required for a limited number of datasets. 
 
 ```{r}
-celltype_de = DE_info$celltype_de$de_output_tidy
+empirical_pval = FALSE
 ```
 
-Only keep cell types in the SingleCellExperiment object if they were retained in the DE analysis
-```{r}
-retained_celltypes = celltype_de$cluster_id %>% unique()
-sce = sce[, SummarizedExperiment::colData(sce)[,celltype_id] %in% retained_celltypes]
-```
+####  Parameters for step 5: Ligand activity prediction
 
-In the next step, we will combine the DE information of senders and receivers by linking their ligands and receptors together:
+One of the prioritization criteria is the predicted activity of ligands in receiver cell types. Similarly to base NicheNet (https://github.com/saeyslab/nichenetr), we use the DE output to create a "geneset of interest": here we assume that DE genes within a cell type may be DE because of differential cell-cell communication processes. To determine the genesets of interest based on DE output, we need to define which logFC and/or p-value thresholds we will use. 
 
-### Combine DE information for ligand-senders and receptors-receivers (similar to step1 - `abundance_expression_info$sender_receiver_info`)
-
-```{r}
-sender_receiver_de = combine_sender_receiver_de(
-  sender_de = celltype_de,
-  receiver_de = celltype_de,
-  senders_oi = senders_oi,
-  receivers_oi = receivers_oi,
-  lr_network = lr_network
-)
-```
-
-```{r}
-sender_receiver_de %>% head(20)
-```
-### Prepare sender-receiver and sample-condition grouping tables necessary for downstream analyses
-
-```{r}
-sender_receiver_tbl = sender_receiver_de %>% dplyr::distinct(sender, receiver)
-
-metadata_combined = SummarizedExperiment::colData(sce) %>% tibble::as_tibble()
-
-if(!is.na(batches)){
-  grouping_tbl = metadata_combined[,c(sample_id, group_id, batches)] %>% tibble::as_tibble() %>% dplyr::distinct()
-  colnames(grouping_tbl) = c("sample","group",batches)
-} else {
-  grouping_tbl = metadata_combined[,c(sample_id, group_id)] %>% tibble::as_tibble() %>% dplyr::distinct()
-  colnames(grouping_tbl) = c("sample","group")
-}
-```
-
-Crucial note: grouping_tbl: group should be the same as in the contrast_tbl, and as in the expression info tables! Rename accordingly if this would not be the case. If you followed the guidelines of this tutorial closely, there should be no problem.
-
-# Step 3: Extract expression information from receiver and sender cell types, and link this expression information for ligands of the sender cell types to the corresponding receptors of the receiver cell types
-
-```{r}
-abundance_expression_info = process_abundance_expression_info(sce = sce, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id, min_cells = min_cells, senders_oi = senders_oi, receivers_oi = receivers_oi, lr_network = lr_network, batches = batches , frq_list = frq_list, abundance_info = abundance_info)
-```
-
-# Step 4: Predict NicheNet ligand activities and NicheNet ligand-target links based on these differential expression results
-
-## Define the parameters for the NicheNet ligand activity analysis 
-
-Here, we need to define the thresholds that will be used to consider genes as differentially expressed or not (logFC, p-value, decision whether to use adjusted or normal p-value, minimum fraction of cells that should express a gene in at least one sample in a group, whether to use the normal p-values or empirical p-values). 
-
-NicheNet ligand activity will then be calculated as the enrichment of predicted target genes of ligands in this set of DE genes compared to the genomic background. Here we choose for a minimum logFC of 0.50, maximum p-value of 0.05, and minimum fraction of expression of 0.05. 
+By default, we will apply the p-value cutoff on the normal p-values, and not on the p-values corrected for multiple testing. This choice was made because most multi-sample single-cell transcriptomics datasets have just a few samples per group and we might have a lack of statistical power due to pseudobulking. But, if the smallest group >= 20 samples, we typically recommend using p_val_adj = TRUE. When the biological difference between the conditions is very large, we typically recommend increasing the logFC_threshold and/or using p_val_adj = TRUE.
 
 ```{r}
 logFC_threshold = 0.50
 p_val_threshold = 0.05
-fraction_cutoff = 0.05
 ```
 
-We will here choose for applying the p-value cutoff on the normal p-values, and not on the p-values corrected for multiple testing. This choice was made here because this dataset has only a few samples per group and we might have a lack of statistical power due to pseudobulking. In case of more samples per group, and a sufficient high number of DE genes per group-celltype (> 50), we would recommend using the adjusted p-values.
-
 ```{r}
-# p_val_adj = TRUE 
 p_val_adj = FALSE 
 ```
 
-For the NicheNet ligand-target inference, we also need to select which top n of the predicted target genes will be considered (here: top 250 targets per ligand).
+After the ligand activity prediction, we will also infer the predicted target genes of these ligands in each contrast. For this ligand-target inference procedure, we also need to select which top n of the predicted target genes will be considered (here: top 250 targets per ligand). This parameter will not affect the ligand activity predictions. It will only affect ligand-target visualizations and construction of the intercellular regulatory network during the downstream analysis. We recommend users to test other settings in case they would be interested in exploring fewer, but more confident target genes, or vice versa. 
 
 ```{r}
 top_n_target = 250
 ```
 
-The NicheNet ligand activity analysis can be run in parallel for each receiver cell type, by changing the number of cores as defined here. This is only recommended if you have many receiver cell type. 
+The NicheNet ligand activity analysis can be run in parallel for each receiver cell type, by changing the number of cores as defined here. Using more cores will speed up the analysis at the cost of needing more memory. This is only recommended if you have many receiver cell types of interest. You can define here the maximum number of cores you want to be used. 
 
 ```{r}
-verbose = TRUE
-cores_system = 8
-n.cores = min(cores_system, sender_receiver_de$receiver %>% unique() %>% length()) # use one core per receiver cell type
+n.cores = 8
 ```
 
-## Run the NicheNet ligand activity analysis 
+####  Parameters for step 6: Prioritization
 
-(this might take some time)
+We will use the following criteria to prioritize ligand-receptor interactions:
+
+* Upregulation of the ligand in a sender cell type and/or upregulation of the receptor in a receiver cell type - in the condition of interest.
+* Cell-type specific expression of the ligand in the sender cell type and receptor in the receiver cell type in the condition of interest (to mitigate the influence of upregulated but still relatively weakly expressed ligands/receptors). 
+* Sufficiently high expression levels of ligand and receptor in many samples of the same group.
+* High NicheNet ligand activity, to further prioritize ligand-receptor pairs based on their predicted effect of the ligand-receptor interaction on the gene expression in the receiver cell type. 
+
+We will combine these prioritization criteria in a single aggregated prioritization score. In the default setting, we will weigh each of these criteria equally (`scenario = "regular"`). This setting is strongly recommended. However, we also provide some additional setting to accomodate different biological scenarios. The setting `scenario = "lower_DE"` halves the weight for DE criteria and doubles the weight for ligand activity. This is recommended in case your hypothesis is that the differential CCC patterns in your data are less likely to be driven by DE (eg in cases of differential migration into a niche). The setting `scenario = "no_frac_LR_expr"` ignores the criterion "Sufficiently high expression levels of ligand and receptor in many samples of the same group". This may be interesting for users that have data with a limited number of samples and don’t want to penalize interactions if they are not sufficiently expressed in some samples. 
+
+Here we will choose for the regular setting.
+
 ```{r}
-ligand_activities_targets_DEgenes = suppressMessages(suppressWarnings(get_ligand_activities_targets_DEgenes(
-  receiver_de = celltype_de,
-  receivers_oi = receivers_oi,
-  ligand_target_matrix = ligand_target_matrix,
-  logFC_threshold = logFC_threshold,
-  p_val_threshold = p_val_threshold,
-  p_val_adj = p_val_adj,
-  top_n_target = top_n_target,
-  verbose = verbose, 
-  n.cores = n.cores
-)))
+scenario = "regular"
 ```
 
-Check the DE genes used for the activity analysis
+Finally, we still need to make one choice. For NicheNet ligand activity we can choose to prioritize ligands that only induce upregulation of target genes (`ligand_activity_down = FALSE`) or can lead potentially lead to both up- and downregulation (`ligand_activity_down = TRUE`). The benefit of `ligand_activity_down = FALSE` is ease of interpretability: prioritized ligand-receptor pairs will be upregulated in the condition of interest, just like their target genes.  `ligand_activity_down = TRUE` can be harder to interpret because target genes of some interactions may be upregulated in the other conditions compared to the condition of interest. This is harder to interpret, but may help to pick up interactions that can also repress gene expression. 
+
+Here we will choose for setting `ligand_activity_down = FALSE` and focus specifically on upregulating ligands.
 
 ```{r}
-ligand_activities_targets_DEgenes$de_genes_df %>% head(20)
+ligand_activity_down = FALSE
 ```
 
-Check the output of the activity analysis
+## Running the MultiNicheNet wrapper function
 
 ```{r}
-ligand_activities_targets_DEgenes$ligand_activities %>% head(20)
-```
-
-# Step 5: Use the information collected above to prioritize all sender-ligand---receiver-receptor pairs.
-
-In the previous steps, we calculated expression, differential expression and NicheNet activity information. Now we will combine these different types of information in one prioritization scheme.
-
-MultiNicheNet uses the following criteria to prioritize ligand-receptor interactions:
-
-* Upregulation of the ligand in a sender cell type and/or upregulation of the receptor in a receiver cell type - in the condition of interest. : `de_ligand` and `de_receptor`
-* Sufficiently high expression levels of ligand and receptor in many samples of the same group (to mitigate the influence of outlier samples). : `frac_exprs_ligand_receptor`
-* Cell-type and condition specific expression of the ligand in the sender cell type and receptor in the receiver cell type (to mitigate the influence of upregulated but still relatively weakly expressed ligands/receptors) : `exprs_ligand` and `exprs_receptor`
-* High NicheNet ligand activity, to further prioritize ligand-receptor pairs based on their predicted effect of the ligand-receptor interaction on the gene expression in the receiver cell type : `activity_scaled` 
-
-## Run the prioritization 
-
-```{r}
-prioritization_tables = suppressMessages(generate_prioritization_tables(
-  sender_receiver_info = abundance_expression_info$sender_receiver_info,
-  sender_receiver_de = sender_receiver_de,
-  ligand_activities_targets_DEgenes = ligand_activities_targets_DEgenes,
-  contrast_tbl = contrast_tbl,
-  sender_receiver_tbl = sender_receiver_tbl,
-  grouping_tbl = grouping_tbl,
-  scenario = "regular", # all prioritization criteria will be weighted equally
+multinichenet_output = multi_nichenet_analysis(
+  sce = sce, 
+  celltype_id = celltype_id, sample_id = sample_id, group_id = group_id, 
+  batches = batches, covariates = covariates, 
+  lr_network = lr_network, ligand_target_matrix = ligand_target_matrix, 
+  contrasts_oi = contrasts_oi, contrast_tbl = contrast_tbl, 
+  senders_oi = senders_oi, receivers_oi = receivers_oi,
+  min_cells = min_cells, 
   fraction_cutoff = fraction_cutoff, 
-  abundance_data_receiver = abundance_expression_info$abundance_data_receiver,
-  abundance_data_sender = abundance_expression_info$abundance_data_sender,
-  ligand_activity_down = FALSE # use only upregulatory ligand activities to prioritize
-))
+  min_sample_prop = min_sample_prop,
+  scenario = scenario, 
+  ligand_activity_down = ligand_activity_down,
+  logFC_threshold = logFC_threshold, 
+  p_val_threshold = p_val_threshold, 
+  p_val_adj = p_val_adj, 
+  empirical_pval = empirical_pval, 
+  top_n_target = top_n_target, 
+  n.cores = n.cores, 
+  verbose = TRUE
+  )
 ```
 
-Check the output tables
+# Inspecting the MultiNicheNet output
 
-First: group-based summary table
+Before incorporating the serum proteomics, we will have a look at the output of this regular MultiNicheNet analysis.
+
+## Normalized pseudobulk expression for each cell type - sample combination
 
 ```{r}
-prioritization_tables$group_prioritization_tbl %>% head(20)
+multinichenet_output$celltype_info$pb_df %>% head()
+multinichenet_output$celltype_info$pb_df_group %>% head()
 ```
 
-# Step 6: Add additional data modality information to the prioritization table 
-
-Here we will demonstrate how to tailor the prioritization to additional data modalities that you may have. How to do this exactly will stronglly depend on the type of data modality. Here we should an example we recommend for integrating "targeted" serum proteomics data.
-
-As additional data modality, we will use serum proteomics data (generated through the OLINK platform) that was published by a different research group based on serum samples of a different cohort of MIS-C patients. 
-Ligands that are also upregulated in the serum at the protein level may be interesting candidates for further follow-up. Therefore, we can use this data to help in the prioritization. We will here add an additional score to each interaction related to how strongly the ligand is differentially expressed at the protein level in the serum of patients. 
-
-Because we don't have OLINK information of each ligand, we will consider ligands without data as being not-differentially expressed at all (p-val = 1, logFC = 0). By doing this, these ligands will still be kept in the total prioritization analysis such that they could still be ranked high if the previous criteria strongly point to their importance. 
-
-Whereas we will only consider ligand upregulation for prioritization, we will still keep receptor information in the OLINK dataframe for later visualizations.
-
-## Read in additional data modality - here: OLINK serum proteomics data -- keep only ligands and receptors
+## DE information for each cell type - contrast combination
 
 ```{r}
-olink_df = xlsx::read.xlsx("/Users/robinb/Work/current_projects/MISC OLINK/data/summary_difference_diorioMIS-C-vs-HC.xlsx", 1) %>% as_tibble() %>% dplyr::rename(gene = variables, logFC = mean_diff_d0, pval = adj_p_values) %>% dplyr::select(gene, logFC, pval) %>% dplyr::mutate(gene = gene %>% make.names()) %>% mutate(olink_type = "Diorio")
-
-olink_df %>% filter(gene %in% lr_network$ligand) %>% nrow() # nr of ligands in OLINK data
-olink_df %>% filter(gene %in% lr_network$receptor) %>% nrow() # nr of receptors in OLINK data
-
-olink_df_ligands_receptors = olink_df %>% filter(gene %in% union(lr_network$ligand, lr_network$receptor))
-olink_df_ligands_receptors_NAs = tibble(gene = union(lr_network$ligand, lr_network$receptor) %>% setdiff(olink_df_ligands_receptors$gene), logFC = 0, pval = 1) 
-olink_df_ligands_receptors = bind_rows(olink_df_ligands_receptors, olink_df_ligands_receptors_NAs)
-olink_df_ligands_receptors %>% head()
+multinichenet_output$celltype_de %>% head()
 ```
 
-## Score sender/ligand-receiver/receptor interactions based on the alternative data modality
-
-Important: the provided logFC values in the OLINK data contrast MIS-C versus healthy siblings (M-vs-S). We will stil need to add the reverse logFC for the contrast S-vs-M. 
+## Output of the NicheNet ligand activity analysis, and the NicheNet ligand-target inference
 
 ```{r}
-olink_df_ligand = prioritization_tables$group_prioritization_tbl %>% distinct(ligand) %>% left_join(olink_df_ligands_receptors %>% rename(ligand = gene)) %>% mutate(contrast = contrast_tbl$contrast[1])
-olink_df_reverse_ligand = olink_df_ligand %>% mutate(contrast = contrast_tbl$contrast[2], logFC = -1*logFC)
-olink_df_ligand = olink_df_ligand %>% bind_rows(olink_df_reverse_ligand)
-olink_df_ligand %>% filter(ligand == "IFNG")
+multinichenet_output$ligand_activities_targets_DEgenes$ligand_activities %>% head()
 ```
 
-We will now score ligand-contrast combinations based on their OLINK logFC and p-values. We will do this in the exact same way as we did for differential expression at the RNA level.  
+## Tables with the final prioritization scores (results per group and per sample)
 
 ```{r}
-olink_df_ligand = olink_df_ligand %>% mutate(pval_adapted = -log10(pval)*sign(logFC)) 
-olink_df_ligand_scaled = olink_df_ligand %>% distinct(contrast, ligand, logFC, pval_adapted) %>% dplyr::mutate(scaled_lfc_ligand_OLINK = rank(logFC, ties.method = "average", na.last = FALSE)/max(rank(logFC, ties.method = "average", na.last = FALSE)), scaled_p_val_ligand_adapted_OLINK = rank(pval_adapted, ties.method = "average", na.last = FALSE)/max(rank(pval_adapted, ties.method = "average", na.last = FALSE))) 
-olink_df_ligand_scaled = olink_df_ligand_scaled %>% distinct(contrast, ligand, scaled_lfc_ligand_OLINK, scaled_p_val_ligand_adapted_OLINK) %>% dplyr::arrange(-scaled_p_val_ligand_adapted_OLINK)
-olink_df_ligand_scaled
+multinichenet_output$prioritization_tables$group_prioritization_tbl %>% head()
 ```
 
-Now we will calculate the aggregated prioritization score with inclusion of the scaled logFC and scaled p-value-based score from the OLINK data. 
-To do this, we first add these new scores to the existing prioritization_table and define the table of prioritization criteria and add the new criteria and their weights. It is recommended to give the new criteria the same weights as the original default. If you ran the analysis with the default weights (`scenario = "regular"` then these weights are 1)  
+## Visualization of differential cell-cell interactions
 
-```{r}
-prioritization_tables$group_prioritization_tbl = prioritization_tables$group_prioritization_tbl %>% inner_join(olink_df_ligand_scaled)
-```
+### Summarizing ChordDiagram circos plots
 
-```{r}
-regular_criteria_tbl = tibble(criterion = c("scaled_lfc_ligand","scaled_p_val_ligand_adapted","scaled_lfc_receptor","scaled_p_val_receptor_adapted", "max_scaled_activity", "scaled_pb_ligand", "scaled_pb_receptor", "fraction_expressing_ligand_receptor"), weight = NA, regularization_factor = c(0.5, 0.5, 0.5, 0.5, 1, 1, 1, 1)) # do not change this  - logFC and pval of ligand and receptor get 0.5 as regularization such that DE of the ligandcounts as one score, which is the sum of the scaled_score of the logFC and the p-value-based score. This also applies to the receptor.
-
-new_criteria_tbl = tibble(criterion = c("scaled_lfc_ligand_OLINK","scaled_p_val_ligand_adapted_OLINK"), weight = c(1,1), regularization_factor = c(0.5, 0.5)) # 0.5 as regularization such that DE of the ligand at the protein level counts as one score, which is the sum of the scaled_score of the logFC and the p-value-based score. 
-```
-
-```{r}
-group_prioritization_tbl_withoutOLINK =  prioritization_tables$group_prioritization_tbl 
-
-prioritization_tables = add_extra_criterion(prioritization_tables, new_criteria_tbl, regular_criteria_tbl, scenario = "regular") 
-```
-
-```{r}
-prioritization_tables$group_prioritization_tbl %>% head(20)
-```
-```{r}
-group_prioritization_tbl_withoutOLINK %>% select(group, id, prioritization_score) %>% inner_join(prioritization_tables$group_prioritization_tbl %>%  select(group, id, prioritization_score) %>% rename(new_score = prioritization_score)) %>% mutate(difference = new_score - prioritization_score) %>% arrange(-difference) %>% filter(new_score > 0.80)
-group_prioritization_tbl_withoutOLINK %>% select(group, id, prioritization_score) %>% inner_join(prioritization_tables$group_prioritization_tbl %>%  select(group, id, prioritization_score) %>% rename(new_score = prioritization_score)) %>% mutate(difference = new_score - prioritization_score) %>% arrange(difference) %>% filter(prioritization_score > 0.80)
-
-```
-
-### Add additional ligand activity criterion
-
-As last point, we will demonstrate how we can also use the serum proteomics data to determine ligand signatures in the entire serum proteome. 
-
-Calculate ligand activities on the serum proteome
-```{r}
-logFC_threshold = 1
-pval_threshold = 0.05
-top_n_target = 250
-verbose = TRUE
-olink_df = olink_df %>% mutate(contrast = contrast_tbl$contrast %>% .[1])
-  olink_df_reverse = olink_df %>% mutate(contrast = contrast_tbl$contrast %>% .[2], logFC = -1*logFC)
-  de_output_tidy = olink_df %>% bind_rows(olink_df_reverse)
-
-  background_expressed_genes = de_output_tidy$gene %>% unique() %>% dplyr::intersect(rownames(ligand_target_matrix))
-  ligand_target_matrix = ligand_target_matrix[rownames(ligand_target_matrix) %in% background_expressed_genes, ]
-  ligands = colnames(ligand_target_matrix)
-      
-  geneset_vs_ligand_activities = list()
-  ligand_activities_targets_geneset = list()
-  for(i in seq(length(de_output_tidy$contrast %>% unique()))){
-    contrast_oi = de_output_tidy$contrast %>% unique() %>% .[i]
-    de_tbl_geneset = de_output_tidy %>% dplyr::filter(contrast == contrast_oi) %>% dplyr::filter(logFC >= logFC_threshold & pval <= pval_threshold)
-    geneset_oi = de_tbl_geneset %>% dplyr::pull(gene) %>% unique() %>% dplyr::intersect(rownames(ligand_target_matrix))
-    
-    if(verbose == TRUE){
-      print("contrast_oi:")
-      print(contrast_oi)
-    }
-    if(length(geneset_oi) > 0){
-      if(verbose == TRUE){
-        print("Number of upregulated DE genes (gene set of interest): ")
-        print(length(geneset_oi))
-      }    
-
-      ligand_activities = nichenetr::predict_ligand_activities(geneset = geneset_oi, background_expressed_genes = background_expressed_genes, ligand_target_matrix = ligand_target_matrix, potential_ligands = ligands)
-
-      ligand_activities = ligand_activities %>% dplyr::mutate(contrast = contrast_oi) %>% tidyr::drop_na() %>% dplyr::rename(ligand = test_ligand, activity = aupr_corrected) %>% dplyr::select(-pearson, -auroc, -aupr)
-      ligand_target_df = ligand_activities$ligand %>% unique() %>% lapply(nichenetr::get_weighted_ligand_target_links, geneset_oi, ligand_target_matrix, top_n_target) %>% dplyr::bind_rows() %>% dplyr::mutate(contrast = contrast_oi) %>% dplyr::rename(ligand_target_weight = weight)
-      ligand_activities = ligand_activities %>% dplyr::inner_join(ligand_target_df)  %>% dplyr::mutate(direction_regulation = "up") %>% dplyr::group_by(contrast) %>% dplyr::mutate(activity_scaled = nichenetr::scaling_zscore(activity), direction_regulation = "up")
-    } else {
-      warning(paste0("In condition ", contrast_oi, " there seem to be no upregulated DE genes - so ligand activities will be NA. Please check the DE output."))
-      ligand_activities = tibble(ligand = ligands, activity = NA, contrast = contrast_oi, target = NA, direction_regulation = "up",  ligand_target_weight = NA, activity_scaled = NA)
-    }
-
-    de_genes_df = de_tbl_geneset %>% dplyr::mutate(contrast = contrast_oi) 
-    
-    ligand_activities_targets_geneset[[i]] = list(ligand_activities = ligand_activities, de_genes_df = de_genes_df)
-  }
-  
-  ligand_activities = ligand_activities_targets_geneset %>% purrr::map("ligand_activities") %>% dplyr::bind_rows()
-  de_genes_df = ligand_activities_targets_geneset %>% purrr::map("de_genes_df") %>% dplyr::bind_rows()
-```
-
-```{r}
-# OLINK lignand activity prioritization
-OLINK_ligand_activity_prioritization_up = ligand_activities %>% dplyr::ungroup() %>% dplyr::distinct(contrast, ligand, activity_scaled) %>% dplyr::mutate(scaled_activity_scaled_up_OLINK = nichenetr::scale_quantile_adapted(activity_scaled, outlier_cutoff = 0.01)) %>% dplyr::arrange(-scaled_activity_scaled_up_OLINK) %>% dplyr::distinct(contrast, ligand, scaled_activity_scaled_up_OLINK) 
-```
-
-```{r}
-prioritization_tables$group_prioritization_tbl = prioritization_tables$group_prioritization_tbl %>% inner_join(OLINK_ligand_activity_prioritization_up)
-```
-
-```{r}
-regular_criteria_tbl = bind_rows(regular_criteria_tbl, new_criteria_tbl)
-
-new_criteria_tbl = tibble(criterion = c("scaled_activity_scaled_up_OLINK"), weight = 1, regularization_factor = 1) 
-```
-
-```{r}
-prioritization_tables = add_extra_criterion(prioritization_tables, new_criteria_tbl, regular_criteria_tbl, scenario = "regular") 
-```
-
-```{r}
-prioritization_tables$group_prioritization_tbl %>% head(20)
-```
-
-# Step 7: Add information on prior knowledge and expression correlation between LR and target expression. 
-
-In multi-sample datasets, we have the opportunity to look whether expression of ligand-receptor across all samples is correlated with the expression of their by NicheNet predicted target genes. This is what we will do with the following line of code:
-
-```{r}
-lr_target_prior_cor = lr_target_prior_cor_inference(prioritization_tables$group_prioritization_tbl$receiver %>% unique(), abundance_expression_info, celltype_de, grouping_tbl, prioritization_tables, ligand_target_matrix, logFC_threshold = logFC_threshold, p_val_threshold = p_val_threshold, p_val_adj = p_val_adj)
-```
-
-# Step 8: Save all the output of MultiNicheNet 
-
-To avoid needing to redo the analysis later.
-All the output written down here is sufficient to make all in-built downstream visualizations.
-
-```{r}
-path = "./"
-
-multinichenet_output = list(
-    celltype_info = abundance_expression_info$celltype_info,
-    celltype_de = celltype_de,
-    sender_receiver_info = abundance_expression_info$sender_receiver_info,
-    sender_receiver_de =  sender_receiver_de,
-    ligand_activities_targets_DEgenes = ligand_activities_targets_DEgenes,
-    prioritization_tables = prioritization_tables,
-    grouping_tbl = grouping_tbl,
-    lr_target_prior_cor = lr_target_prior_cor
-  ) 
-multinichenet_output = make_lite_output(multinichenet_output)
-
-save = FALSE
-if(save == TRUE){
-  saveRDS(multinichenet_output, paste0(path, "multinichenet_output.rds"))
-
-}
-```
-
-
-# Visualization of the results of the cell-cell communication analysis
-
-In a first instance, we will look at the broad overview of prioritized interactions via condition-specific Circos plots.
-
-## Circos plot of top-prioritized links
+In a first instance, we will look at the broad overview of prioritized interactions via condition-specific Chordiagram circos plots.
 
 We will look here at the top 50 predictions across all contrasts, senders, and receivers of interest.
 
 ```{r}
-prioritized_tbl_oi_all = get_top_n_lr_pairs(multinichenet_output$prioritization_tables, 50, rank_per_group = FALSE)
+prioritized_tbl_oi_all = get_top_n_lr_pairs(
+  multinichenet_output$prioritization_tables, 
+  top_n = 50, 
+  rank_per_group = FALSE
+  )
 ```
 
-```{r, fig.width=15, fig.height=12}
-prioritized_tbl_oi = multinichenet_output$prioritization_tables$group_prioritization_tbl %>%
+```{r}
+prioritized_tbl_oi = 
+  multinichenet_output$prioritization_tables$group_prioritization_tbl %>%
   filter(id %in% prioritized_tbl_oi_all$id) %>%
-  distinct(id, sender, receiver, ligand, receptor, group) %>% left_join(prioritized_tbl_oi_all)
+  distinct(id, sender, receiver, ligand, receptor, group) %>% 
+  left_join(prioritized_tbl_oi_all)
 prioritized_tbl_oi$prioritization_score[is.na(prioritized_tbl_oi$prioritization_score)] = 0
 
 senders_receivers = union(prioritized_tbl_oi$sender %>% unique(), prioritized_tbl_oi$receiver %>% unique()) %>% sort()
@@ -582,7 +397,235 @@ colors_receiver = RColorBrewer::brewer.pal(n = length(senders_receivers), name =
 circos_list = make_circos_group_comparison(prioritized_tbl_oi, colors_sender, colors_receiver)
 ```
 
-## Visualization of scaled ligand-receptor pseudobulk products and ligand activity
+### Interpretable bubble plots
+
+Whereas these ChordDiagrams show the most specific interactions per group, they don't give insights into the data behind these predictions. Therefore we will now look at visualizations that indicate the different prioritization criteria used in MultiNicheNet. 
+
+In the next type of plots, we will 1) visualize the per-sample scaled product of normalized ligand and receptor pseudobulk expression, 2) visualize the scaled ligand activities, 3) cell-type specificity. 
+
+We will now check the top 50 interactions specific for the MIS-C group
+
+```{r}
+group_oi = "M"
+```
+
+```{r}
+prioritized_tbl_oi_M_50 = get_top_n_lr_pairs(
+  multinichenet_output$prioritization_tables, 
+  top_n = 50, 
+  groups_oi = group_oi)
+```
+
+```{r, fig.height=13, fig.width=16}
+plot_oi = make_sample_lr_prod_activity_plots(
+  multinichenet_output$prioritization_tables, 
+  prioritized_tbl_oi_M_50)
+plot_oi
+```
+
+Samples that were left out of the DE analysis are indicated with a smaller dot (this helps to indicate the samples that did not contribute to the calculation of the logFC, and thus not contributed to the final prioritization)
+
+As a further help for further prioritization, we can assess the level of curation of these LR pairs as defined by the Intercellular Communication part of the Omnipath database
+
+```{r}
+prioritized_tbl_oi_M_50_omnipath = prioritized_tbl_oi_M_50 %>% 
+  inner_join(lr_network_all)
+```
+
+Now we add this to the bubble plot visualization:
+```{r, fig.height=13, fig.width=16}
+plot_oi = make_sample_lr_prod_activity_plots_Omnipath(
+  multinichenet_output$prioritization_tables, 
+  prioritized_tbl_oi_M_50_omnipath)
+plot_oi
+```
+
+# Using serum proteomics data to prioritize cell-cell communication patterns
+
+Here we will demonstrate how to tailor the prioritization to additional data modalities that you may have. How to do this exactly will stronglly depend on the type of data modality. Here we should an example we recommend for integrating "targeted" serum proteomics data.
+
+As additional data modality, we will use serum proteomics data (generated through the OLINK platform) that was published by a different research group based on serum samples of a different cohort of MIS-C patients (Diorio et al. - https://www.nature.com/articles/s41467-021-27544-6). 
+Ligands that are also upregulated in the serum at the protein level may be interesting candidates for further follow-up. Therefore, we can use this data to help in the prioritization. We will here add an additional score to each interaction related to how strongly the ligand is differentially expressed at the protein level in the serum of patients. 
+
+Because we don't have OLINK information of each ligand, we will consider ligands without data as being not-differentially expressed at all (p-val = 1, logFC = 0). By doing this, these ligands will still be kept in the total prioritization analysis such that they could still be ranked high if the previous criteria strongly point to their importance. 
+
+Whereas we will only consider ligand upregulation for prioritization, we will still keep receptor information in the OLINK dataframe for later visualizations.
+
+## Read in additional data modality - here: OLINK serum proteomics data 
+
+Of this data, we will only keep information about ligands and receptors
+
+```{r}
+olink_df = xlsx::read.xlsx(
+  "/Users/robinb/Work/current_projects/MISC OLINK/data/summary_difference_diorioMIS-C-vs-HC.xlsx", 1
+  ) %>% as_tibble() %>% 
+  dplyr::rename(gene = variables, logFC = mean_diff_d0, pval = adj_p_values) %>% 
+  dplyr::select(gene, logFC, pval) %>% 
+  dplyr::mutate(gene = gene %>% make.names()) %>% 
+  mutate(olink_type = "Diorio")
+
+olink_df %>% filter(gene %in% lr_network$ligand) %>% nrow() # nr of ligands in OLINK data
+olink_df %>% filter(gene %in% lr_network$receptor) %>% nrow() # nr of receptors in OLINK data
+
+olink_df_ligands_receptors = olink_df %>% 
+  filter(gene %in% union(lr_network$ligand, lr_network$receptor))
+
+olink_df_ligands_receptors_NAs = tibble(
+  gene = union(
+    lr_network$ligand, lr_network$receptor
+    ) %>% setdiff(olink_df_ligands_receptors$gene), 
+  logFC = 0, 
+  pval = 1) 
+
+olink_df_ligands_receptors = bind_rows(
+  olink_df_ligands_receptors, 
+  olink_df_ligands_receptors_NAs)
+olink_df_ligands_receptors %>% head()
+```
+
+## Score sender/ligand-receiver/receptor interactions based on the alternative data modality
+
+Important: the provided logFC values in the OLINK data contrast MIS-C versus healthy siblings (M-vs-S). We will stil need to add the reverse logFC for the contrast S-vs-M. 
+
+```{r}
+olink_df_ligand = multinichenet_output$prioritization_tables$group_prioritization_tbl %>% 
+  distinct(ligand) %>% 
+  left_join(olink_df_ligands_receptors %>% rename(ligand = gene)) %>% 
+  mutate(contrast = contrast_tbl$contrast[1])
+
+olink_df_reverse_ligand = olink_df_ligand %>% 
+  mutate(contrast = contrast_tbl$contrast[2], logFC = -1*logFC)
+olink_df_ligand = olink_df_ligand %>% 
+  bind_rows(olink_df_reverse_ligand)
+olink_df_ligand %>% filter(ligand == "IFNG") # sanity check
+```
+
+We will now score ligand-contrast combinations based on their OLINK logFC and p-values. We will do this in the exact same way as we did for differential expression at the RNA level.  
+
+```{r}
+olink_df_ligand = olink_df_ligand %>% 
+  mutate(pval_adapted = -log10(pval)*sign(logFC)) 
+
+olink_df_ligand_scaled = olink_df_ligand %>% 
+  distinct(contrast, ligand, logFC, pval_adapted) %>% 
+  dplyr::mutate(
+    scaled_lfc_ligand_OLINK = rank(logFC, ties.method = "average", na.last = FALSE)/max(rank(logFC, ties.method = "average", na.last = FALSE)), 
+    scaled_p_val_ligand_adapted_OLINK = rank(pval_adapted, ties.method = "average", na.last = FALSE)/max(rank(pval_adapted, ties.method = "average", na.last = FALSE))) 
+
+olink_df_ligand_scaled = olink_df_ligand_scaled %>% 
+  distinct(contrast, ligand, scaled_lfc_ligand_OLINK, scaled_p_val_ligand_adapted_OLINK) %>%
+  dplyr::arrange(-scaled_p_val_ligand_adapted_OLINK)
+
+olink_df_ligand_scaled
+```
+
+## Calculate the new prioritization score by including the score of the criterion based on the additional data modality
+
+Now we will calculate the aggregated prioritization score with inclusion of the scaled logFC and scaled p-value-based score from the OLINK data. 
+To do this, we first add these new scores to the existing prioritization_table and define the table of prioritization criteria and add the new criteria and their weights. It is recommended to give the new criteria the same weights as the original default. If you ran the analysis with the default weights (`scenario = "regular"` then these weights are 1)  
+
+```{r}
+multinichenet_output$prioritization_tables$group_prioritization_tbl = 
+  multinichenet_output$prioritization_tables$group_prioritization_tbl %>% 
+  inner_join(olink_df_ligand_scaled)
+```
+
+```{r}
+regular_criteria_tbl = tibble(
+  criterion = 
+    c("scaled_lfc_ligand",
+      "scaled_p_val_ligand_adapted",
+      "scaled_lfc_receptor",
+      "scaled_p_val_receptor_adapted", 
+      "max_scaled_activity", 
+      "scaled_pb_ligand", 
+      "scaled_pb_receptor", 
+      "fraction_expressing_ligand_receptor"
+      ), 
+  weight = NA, 
+  regularization_factor = c(0.5, 0.5, 0.5, 0.5, 1, 1, 1, 1)
+  ) # do not change this  - logFC and pval of ligand and receptor get 0.5 as regularization such that DE of the ligandcounts as one score, which is the sum of the scaled_score of the logFC and the p-value-based score. This also applies to the receptor.
+
+new_criteria_tbl = tibble(
+  criterion = c("scaled_lfc_ligand_OLINK","scaled_p_val_ligand_adapted_OLINK"), weight = c(1,1), regularization_factor = c(0.5, 0.5)) # 0.5 as regularization such that DE of the ligand at the protein level counts as one score, which is the sum of the scaled_score of the logFC and the p-value-based score. 
+```
+
+```{r}
+group_prioritization_tbl_withoutOLINK = multinichenet_output$prioritization_tables$group_prioritization_tbl 
+
+prioritization_tables = add_extra_criterion(
+  multinichenet_output$prioritization_tables, 
+  new_criteria_tbl, 
+  regular_criteria_tbl, 
+  scenario = "regular") 
+```
+
+```{r}
+prioritization_tables$group_prioritization_tbl %>% head(20)
+```
+
+```{r}
+group_prioritization_tbl_withoutOLINK %>% select(group, id, prioritization_score) %>%
+  inner_join(
+    prioritization_tables$group_prioritization_tbl %>% 
+      select(group, id, prioritization_score) %>% 
+      rename(new_score = prioritization_score)) %>% 
+  mutate(difference = new_score - prioritization_score) %>% 
+  arrange(-difference) %>% 
+  filter(new_score > 0.80)
+
+group_prioritization_tbl_withoutOLINK %>% 
+  select(group, id, prioritization_score) %>% 
+  inner_join(
+    prioritization_tables$group_prioritization_tbl %>% 
+      select(group, id, prioritization_score) %>% 
+      rename(new_score = prioritization_score)
+    ) %>% 
+  mutate(difference = new_score - prioritization_score) %>% 
+  arrange(difference) %>% 
+  filter(prioritization_score > 0.80)
+```
+## Visualization of the updated cell-cell communication prioritization
+
+In a first instance, we will look at the broad overview of prioritized interactions via condition-specific Circos plots.
+
+### Circos plot of top-prioritized links
+
+We will look here at the top 50 predictions across all contrasts, senders, and receivers of interest.
+
+```{r}
+prioritized_tbl_oi_all = get_top_n_lr_pairs(
+  multinichenet_output$prioritization_tables, 
+  50, 
+  rank_per_group = FALSE)
+```
+
+```{r, fig.width=15, fig.height=12}
+prioritized_tbl_oi = 
+  multinichenet_output$prioritization_tables$group_prioritization_tbl %>%
+  filter(id %in% prioritized_tbl_oi_all$id) %>%
+  distinct(id, sender, receiver, ligand, receptor, group) %>% 
+  left_join(prioritized_tbl_oi_all)
+prioritized_tbl_oi$prioritization_score[is.na(prioritized_tbl_oi$prioritization_score)] = 0
+
+senders_receivers = union(
+  prioritized_tbl_oi$sender %>% unique(), 
+  prioritized_tbl_oi$receiver %>% unique()) %>% 
+  sort()
+
+colors_sender = RColorBrewer::brewer.pal(
+  n = length(senders_receivers), name = 'Spectral') %>% 
+  magrittr::set_names(senders_receivers)
+colors_receiver = RColorBrewer::brewer.pal(
+  n = length(senders_receivers), name = 'Spectral') %>% 
+  magrittr::set_names(senders_receivers)
+
+circos_list = make_circos_group_comparison(
+  prioritized_tbl_oi, 
+  colors_sender, colors_receiver)
+```
+
+### Visualization of scaled ligand-receptor pseudobulk products and ligand activity
 
 Now we will visualize per sample the scaled product of ligand and receptor expression. Samples that were left out of the DE analysis are indicated with a smaller dot (this helps to indicate the samples that did not contribute to the calculation of the logFC, and thus not contributed to the final prioritization)
 
@@ -595,7 +638,9 @@ group_oi = "S"
 ```{r, fig.height=5, fig.width=13}
 prioritized_tbl_oi_S_50 = prioritized_tbl_oi_all %>% filter(group == group_oi)
 
-plot_oi = make_sample_lr_prod_activity_plots(multinichenet_output$prioritization_tables, prioritized_tbl_oi_S_50)
+plot_oi = make_sample_lr_prod_activity_plots(
+  multinichenet_output$prioritization_tables, 
+  prioritized_tbl_oi_S_50)
 plot_oi
 ```
 
@@ -606,9 +651,12 @@ group_oi = "M"
 ```
 
 ```{r, fig.height=13, fig.width=15}
-prioritized_tbl_oi_M_50 = prioritized_tbl_oi_all %>% filter(group == group_oi)
+prioritized_tbl_oi_M_50 = prioritized_tbl_oi_all %>% 
+  filter(group == group_oi)
 
-plot_oi = make_sample_lr_prod_activity_plots(multinichenet_output$prioritization_tables, prioritized_tbl_oi_M_50)
+plot_oi = make_sample_lr_prod_activity_plots(
+  multinichenet_output$prioritization_tables, 
+  prioritized_tbl_oi_M_50)
 plot_oi
 ```
 
@@ -696,46 +744,7 @@ group_data = prioritization_tables$group_prioritization_table_source  %>%
 p2
 ```    
 
-Third: scaled ligand activity based on OLINK data
-
-```{r, fig.width=3, fig.height=8}
-OLINK_ligand_activities_processed = ligand_activities %>% distinct(ligand, direction_regulation, activity_scaled, contrast) %>% inner_join(contrast_tbl) %>% rename(OLINK_activity_scaled = activity_scaled) %>% mutate(direction_regulation = factor(direction_regulation, levels = c("up","down")))
-
-group_data = group_data %>% left_join(OLINK_ligand_activities_processed)
-  
-p3 = group_data %>% filter(direction_regulation == "up") %>%
-    # ggplot(aes(receiver, lr_interaction, color = activity_scaled, size = activity)) +
-    # geom_point() +
-    ggplot(aes(direction_regulation , lr_interaction, fill = OLINK_activity_scaled)) +
-    geom_tile(color = "whitesmoke") +
-    facet_grid(sender_receiver~group, scales = "free", space = "free") +
-    scale_x_discrete(position = "top") +
-    # xlab("Ligand activities in receiver cell types\n\n") +
-    theme_light() +
-    theme(
-      axis.ticks = element_blank(),
-      axis.title = element_blank(),
-      # axis.title.x = element_text(face = "bold", size = 11),       axis.title.y = element_blank(),
-      # axis.text.y = element_blank(),
-      axis.text.y = element_text(face = "bold.italic", size = 0),
-      axis.text.x = element_text(size = 9,  angle = 90,hjust = 0),
-      strip.text.x.top = element_text(angle = 0),
-      panel.grid.major = element_blank(),
-      panel.grid.minor = element_blank(),
-      panel.spacing.x = unit(0.20, "lines"),
-      panel.spacing.y = unit(0.25, "lines"),
-      strip.text.x = element_text(size = 10, color = "black", face = "bold"),
-      strip.text.y = element_blank(),
-      strip.background = element_rect(color="darkgrey", fill="whitesmoke", size=1.5, linetype="solid")
-    ) + labs(fill = "Scaled Ligand\nActivity OLINK")
-  max_activity = abs(group_data$OLINK_activity_scaled) %>% max(na.rm = TRUE)
-  custom_scale_fill = scale_fill_gradientn(colours = c("white", RColorBrewer::brewer.pal(n = 7, name = "BuGn") %>% .[-7]),values = c(0, 0.51, 0.575, 0.625, 0.675, 0.725, 1),  limits = c(-1*max_activity, max_activity))
-  
-  p3 = p3 + custom_scale_fill
-p3  
-```      
-  
-Fourth: OLINK logFC MISC-vs-Sibling
+Third: OLINK logFC MISC-vs-Sibling
 
 ```{r, fig.width=3, fig.height=8}
   
