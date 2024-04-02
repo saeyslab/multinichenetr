@@ -138,7 +138,7 @@ TEST TEST TEST TEST
     step-by-step](vignettes/basic_analysis_steps_MISC.html):
     `vignette("basic_analysis_steps_MISC", package="multinichenetr")`
 -   [MultiNicheNet analysis: MIS-C threewise comparison -
-    step-by-step](vignettes/basic_analysis_steps_MISC.md):
+    step-by-step](vignettes/basic_analysis_steps_MISC.knit.md):
     `vignette("basic_analysis_steps_MISC", package="multinichenetr")`
 
 TEST TEST TEST TEST

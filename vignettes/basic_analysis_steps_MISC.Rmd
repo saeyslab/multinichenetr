@@ -17,6 +17,10 @@ vignette: >
 }
 </style>
 
+<!-- github markdown built using
+rmarkdown::render("vignettes/basic_analysis_steps_MISC.Rmd", clean = FALSE )
+-->
+
 ```{r setup, include = FALSE}
 knitr::opts_chunk$set(
   collapse = TRUE,
@@ -26,10 +30,6 @@ knitr::opts_chunk$set(
 )
 library(BiocStyle)
 ```
-
-<!-- github markdown built using
-rmarkdown::render("vignettes/basic_analysis_steps_MISC.Rmd",output_format = "md_document")
--->
 
 In this vignette, you can learn how to perform a MultiNicheNet analysis to compare cell-cell communication between conditions of interest. A MultiNicheNet analysis can be performed if you have multi-sample, multi-condition/group single-cell data. We strongly recommend having at least 4 samples in each of the groups/conditions you want to compare. With less samples, the benefits of performing a pseudobulk-based DE analysis are less clear. For those datasets, you can check and run our alternative workflow that makes use of cell-level sample-agnostic differential expression tools.
 

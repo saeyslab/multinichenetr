@@ -451,7 +451,6 @@ add_extra_criterion = function(prioritization_tables, new_criteria_tbl, regular_
   group_prioritization_tbl = prioritization_tables$group_prioritization_tbl %>% dplyr::mutate(prioritization_score = 0) # because we will recalculate this again
   
   if(scenario == "regular"){
-    #regular_criteria_tbl = regular_criteria_tbl %>% mutate(weight = c(1,1,1,1,1,1,1,1))
     regular_criteria_tbl$weight[regular_criteria_tbl$criterion == "scaled_lfc_ligand"] = 1
     regular_criteria_tbl$weight[regular_criteria_tbl$criterion == "scaled_p_val_ligand_adapted"] = 1
     regular_criteria_tbl$weight[regular_criteria_tbl$criterion == "scaled_lfc_receptor"] = 1
@@ -462,7 +461,6 @@ add_extra_criterion = function(prioritization_tables, new_criteria_tbl, regular_
     regular_criteria_tbl$weight[regular_criteria_tbl$criterion == "fraction_expressing_ligand_receptor"] = 1
   }
   if(scenario == "lower_DE"){
-    #regular_criteria_tbl = regular_criteria_tbl %>% mutate(weight = c(0.5,0.5,0.5,0.5,2,1,1,1))
     regular_criteria_tbl$weight[regular_criteria_tbl$criterion == "scaled_lfc_ligand"] = 0.5
     regular_criteria_tbl$weight[regular_criteria_tbl$criterion == "scaled_p_val_ligand_adapted"] = 0.5
     regular_criteria_tbl$weight[regular_criteria_tbl$criterion == "scaled_lfc_receptor"] = 0.5
@@ -471,6 +469,16 @@ add_extra_criterion = function(prioritization_tables, new_criteria_tbl, regular_
     regular_criteria_tbl$weight[regular_criteria_tbl$criterion == "scaled_pb_ligand"] = 1
     regular_criteria_tbl$weight[regular_criteria_tbl$criterion == "scaled_pb_receptor"] = 1
     regular_criteria_tbl$weight[regular_criteria_tbl$criterion == "fraction_expressing_ligand_receptor"] = 1
+  }
+  if(scenario == "no_frac_LR_expr"){
+    regular_criteria_tbl$weight[regular_criteria_tbl$criterion == "scaled_lfc_ligand"] = 1
+    regular_criteria_tbl$weight[regular_criteria_tbl$criterion == "scaled_p_val_ligand_adapted"] = 1
+    regular_criteria_tbl$weight[regular_criteria_tbl$criterion == "scaled_lfc_receptor"] = 1
+    regular_criteria_tbl$weight[regular_criteria_tbl$criterion == "scaled_p_val_receptor_adapted"] = 1
+    regular_criteria_tbl$weight[regular_criteria_tbl$criterion == "max_scaled_activity"] = 1
+    regular_criteria_tbl$weight[regular_criteria_tbl$criterion == "scaled_pb_ligand"] = 1
+    regular_criteria_tbl$weight[regular_criteria_tbl$criterion == "scaled_pb_receptor"] = 1
+    regular_criteria_tbl$weight[regular_criteria_tbl$criterion == "fraction_expressing_ligand_receptor"] = 0
   }
   
   criteria_tbl = dplyr::bind_rows(regular_criteria_tbl, new_criteria_tbl)

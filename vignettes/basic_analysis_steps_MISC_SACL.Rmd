@@ -16,6 +16,10 @@ vignette: >
 }
 </style>
 
+<!-- github markdown built using
+rmarkdown::render("vignettes/basic_analysis_steps_MISC.Rmd", clean = FALSE )
+-->
+
 ```{r setup, include = FALSE}
 knitr::opts_chunk$set(
   collapse = TRUE,
