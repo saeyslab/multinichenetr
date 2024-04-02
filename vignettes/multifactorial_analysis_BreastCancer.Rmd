@@ -1,17 +1,25 @@
 ---
 title: "MultiNicheNet analysis: anti-PD1 Breast cancer multifactorial comparison - wrapper function"
 author: "Robin Browaeys"
-date: "2023-06-06"
-output: rmarkdown::html_vignette
+package: "`r BiocStyle::pkg_ver('multinichenetr')`"
+output: 
+  BiocStyle::html_document
+  keep_md: 
+    true
+  self_contained:
+    true
+output_dir: "/Users/robinb/Work/multinichenetr/vignettes"
 vignette: >
   %\VignetteIndexEntry{MultiNicheNet analysis: anti-PD1 Breast cancer multifactorial comparison - wrapper function}
   %\VignetteEngine{knitr::rmarkdown}
-  %\VignetteEncoding{UTF-8}
+  %\VignetteEncoding{UTF-8} 
 ---
 
-<!-- github markdown built using 
-rmarkdown::render("vignettes/multifactorial_analysis_BreastCancer.Rmd", output_format = "github_document")
--->
+<style type="text/css">
+.smaller {
+  font-size: 10px
+}
+</style>
 
 ```{r setup, include = FALSE}
 knitr::opts_chunk$set(
@@ -20,6 +28,7 @@ knitr::opts_chunk$set(
   warning = FALSE,
   message = FALSE
 )
+library(BiocStyle)
 ```
 
 In this vignette, you can learn how to perform a MultiNicheNet analysis comparing cell-cell communication between multiple groups of patients/conditions, from data with complex multifcatorial experimental designs. In this vignette, we start from one SingleCellExperiment object containing cells from both sender and receiver cell types and from different patients.
@@ -147,22 +156,28 @@ min_cells = 10
 
 For this analysis, we want to compare how cell-cell communication changes On-vs-Pre anti-PD1 therapy are different between responder/expander patients vs non-responder/expander patients. In other words, we want to study how both patient groups react differently to the therapy. 
 
-To do this comparison, we need to set the following contrasts:
+To perform this comparison, we need to set the following contrasts:
 
 ```{r}
-contrasts_oi = c("'(OnE-PreE)-(OnNE-PreNE)','(OnNE-PreNE)-(OnE-PreE)'")
+contrasts_oi = c("'(OnE-PreE)-(OnNE-PreNE)','(OnNE-PreNE)-(OnE-PreE)','(PreE-OnE)-(PreNE-OnNE)','(PreNE-OnNE)-(PreE-OnE)'")
 ```
 
 To understand this, let's take a look at the first contrasts of interest: `(OnE-PreE)-(OnNE-PreNE)`. As you can see, the first part of the expression: `(OnE-PreE)` will cover differences on-vs-pre therapy in the E group, the second part `(OnNE-PreNE)` in the NE group. By adding the minus sign, we can compare these differences between the E and NE group.
 
-__Very Important__ Note the format to indicate the contrasts! This formatting should be adhered to very strictly, and white spaces are not allowed!  Check `?get_DE_info` for explanation about how to define this well. The most important things are that: each contrast is surrounded by single quotation marks, contrasts are separated by a comma without any whitespace, and alle contrasts together are surrounded by double quotation marks. If you compare against two groups, you should divide by 2, if you compare against three groups, you should divide by 3 etcetera. See some of the other MultiNicheNet tutorials that demonstrate how to do this.
+__Very Important__ Note the format to indicate the contrasts! This formatting should be adhered to very strictly, and white spaces are not allowed! Check `?get_DE_info` for explanation about how to define this well. The most important points are that: 
+*each contrast is surrounded by single quotation marks
+*contrasts are separated by a comma without any white space 
+*all contrasts together are surrounded by double quotation marks. 
 
-For downstream visualizations and linking contrasts to their main group, you need to run the following:
+If you compare against two groups, you should divide by 2 (as demonstrated here), if you compare against three groups, you should divide by 3 and so on.
+
+For downstream visualizations and linking contrasts to their main condition, we also need to run the following:
+This is necessary because we will also calculate cell-type+condition specificity of ligands and receptors. 
 
 ```{r}
 contrast_tbl = tibble(contrast =
-                        c("(OnE-PreE)-(OnNE-PreNE)", "(OnNE-PreNE)-(OnE-PreE)"),
-                      group = c("OnE","OnNE")) 
+                        c("(OnE-PreE)-(OnNE-PreNE)", "(OnNE-PreNE)-(OnE-PreE)", "(PreE-OnE)-(PreNE-OnNE)", "(PreNE-OnNE)-(PreE-OnE)"),
+                      group = c("OnE","OnNE","PreE","PreNE")) 
 ```
 
 ### Define the parameters for the NicheNet ligand activity analysis 

@@ -425,12 +425,10 @@ Because we don't have several samples per condition, we cannot apply pseudobulki
 ```{r}
 DE_info = get_DE_info_sampleAgnostic(
   sce = sce, 
-  sample_id = sample_id, group_id = group_id, celltype_id = celltype_id, 
-  batches = batches, covariates = covariates, 
+  group_id = group_id, celltype_id = celltype_id, 
   contrasts_oi = contrasts_oi, 
-  min_cells = min_cells, 
   expressed_df = frq_list$expressed_df, 
-  findMarkers = TRUE, 
+  min_cells = min_cells, 
   contrast_tbl = contrast_tbl)
 ```
 
@@ -791,4 +789,76 @@ combined_plot = make_ligand_activity_target_plot(
   ligand_target_matrix, 
   plot_legend = FALSE)
 combined_plot
+```
+
+## Intercellular regulatory network inference and visualization
+
+In the plots before, we visualized target genes that are supported by prior knowledge to be downstream of ligand-receptor pairs. Interestingly, some target genes can be ligands or receptors themselves. This illustrates that cells can send signals to other cells, who as a response to these signals produce signals themselves to feedback to the original sender cells, or who will effect other cell types. 
+
+As last plot, we can generate a 'systems' view of these intercellular feedback and cascade processes than can be occuring between the different cell populations involved. In this plot, we will draw links between ligands of sender cell types their ligand/receptor-annotated target genes in receiver cell types. So links are ligand-target links (= gene regulatory links) and not ligand-receptor protein-protein interactions! We will infer this intercellular regulatory network here for the top50 interactions.
+
+__Important__ In the default MultiNicheNet workflow for datasets with multiple samples per condition, we further filter out target genes based on expression correlation before generating this plot. However, this would not be meaningful here since we don't have multiple samples. As a consequence, we will have many ligand-target links here in these plots, making the plots less readable if we would consider more than the top 50 or 100 interactions. 
+
+```{r}
+prioritized_tbl_oi = get_top_n_lr_pairs(
+  multinichenet_output$prioritization_tables, 
+  50, 
+  rank_per_group = FALSE)
+```
+
+```{r}
+lr_target_prior = prioritized_tbl_oi %>% inner_join(
+        multinichenet_output$ligand_activities_targets_DEgenes$ligand_activities %>%
+          distinct(ligand, target, direction_regulation, contrast) %>% inner_join(contrast_tbl) %>% ungroup() 
+        ) 
+      
+
+lr_target_df = lr_target_prior %>% distinct(group, sender, receiver, ligand, receptor, id, target, direction_regulation) 
+```
+
+```{r}
+network = infer_intercellular_regulatory_network(lr_target_df, prioritized_tbl_oi)
+network$links %>% head()
+network$nodes %>% head()
+```
+
+```{r, fig.width=30, fig.height=12}
+colors_sender["L_T_TIM3._CD38._HLADR."] = "pink" # the  original yellow background with white font is not very readable
+network_graph = visualize_network(network, colors_sender)
+network_graph$plot
+```
+
+If you want to know the exact set of top-ranked ligands that are potentially regulated by one ligand of interest, you can run following code:
+
+```{r}
+ligand_oi = "IFNG"
+group_oi = "M"
+lr_target_df %>% filter(ligand == ligand_oi & group == group_oi) %>% pull(target) %>% unique() %>% intersect(lr_network$ligand)
+```
+
+Interestingly, we can also use this network to further prioritize differential CCC interactions. Here we will assume that the most important LR interactions are the ones that are involved in this intercellular regulatory network. We can get these interactions as follows:
+
+```{r}
+network$prioritized_lr_interactions
+```
+
+```{r, fig.width=30, fig.height=12}
+prioritized_tbl_oi_network = prioritized_tbl_oi %>% inner_join(
+  network$prioritized_lr_interactions)
+prioritized_tbl_oi_network
+```
+
+Visualize now the expression and activity of these interactions for the M group
+```{r}
+group_oi = "M"
+```
+
+```{r, fig.height=11, fig.width=16}
+prioritized_tbl_oi_M = prioritized_tbl_oi_network %>% filter(group == group_oi)
+
+plot_oi = make_sample_lr_prod_activity_plots_Omnipath(
+  multinichenet_output$prioritization_tables, 
+  prioritized_tbl_oi_M %>% inner_join(lr_network_all)
+  )
+plot_oi
 ```

@@ -457,8 +457,8 @@ Of this data, we will only keep information about ligands and receptors
 
 ```{r}
 olink_df = xlsx::read.xlsx(
-  "/Users/robinb/Work/current_projects/MISC OLINK/data/summary_difference_diorioMIS-C-vs-HC.xlsx", 1
-  ) %>% as_tibble() %>% 
+  url("https://zenodo.org/records/10908003/files/summary_difference_diorioMIS-C-vs-HC.xlsx"),
+  1) %>% as_tibble() %>% 
   dplyr::rename(gene = variables, logFC = mean_diff_d0, pval = adj_p_values) %>% 
   dplyr::select(gene, logFC, pval) %>% 
   dplyr::mutate(gene = gene %>% make.names()) %>% 

@@ -111,8 +111,15 @@ with:
     devtools::install_github("saeyslab/nichenetr")
     devtools::install_github("saeyslab/multinichenetr")
 
+It is possible that during installation the following warning is thrown:
+
+“glmmTMB was built with TMB version 1.9.4” “Current TMB version is 1.9.5
+
+This warning can be safely ignored since this does not affect
+multinichenetr’s installation and functionalities.
+
 multinichenetr is tested via Github Actions version control on Windows,
-Linux (Ubuntu) and Mac (most recently tested R version: R 4.3.0.).
+Linux (Ubuntu) and Mac (most recently tested R version: R 4.3.1.).
 
 ## Learning to use multinichenetr
 
@@ -125,9 +132,16 @@ demonstrates the different steps in the analysis without too many
 details yet. This is the recommended vignette to learn the basics of
 MultiNicheNet.
 
+TEST TEST TEST TEST
+
+-   [MultiNicheNet analysis: MIS-C threewise comparison -
+    step-by-step](vignettes/basic_analysis_steps_MISC.html):
+    `vignette("basic_analysis_steps_MISC", package="multinichenetr")`
 -   [MultiNicheNet analysis: MIS-C threewise comparison -
     step-by-step](vignettes/basic_analysis_steps_MISC.md):
     `vignette("basic_analysis_steps_MISC", package="multinichenetr")`
+
+TEST TEST TEST TEST
 
 This vignette provides an example of a comparison between 3 groups. The
 following vignettes demonstrate how to analyze cell-cell communication

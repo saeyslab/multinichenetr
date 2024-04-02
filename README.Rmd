@@ -77,7 +77,18 @@ We provide several vignettes demonstrating the different types of analysis that 
 
 We recommend users to start with the following vignette, which demonstrates the different steps in the analysis without too many details yet. This is the recommended vignette to learn the basics of MultiNicheNet.
 
+TEST 
+TEST
+TEST
+TEST
+
+* [MultiNicheNet analysis: MIS-C threewise comparison - step-by-step](vignettes/basic_analysis_steps_MISC.html): `vignette("basic_analysis_steps_MISC", package="multinichenetr")`
 * [MultiNicheNet analysis: MIS-C threewise comparison - step-by-step](vignettes/basic_analysis_steps_MISC.md): `vignette("basic_analysis_steps_MISC", package="multinichenetr")`
+
+TEST 
+TEST
+TEST
+TEST
 
 This vignette provides an example of a comparison between 3 groups. The following vignettes demonstrate how to analyze cell-cell communication differences in other settings. For sake of simplicity, these vignettes also use a MultiNicheNet wrapper function, which encompasses the different steps demonstrated in the previous vignette. These vignettes are the best vignettes to learn how to apply MultiNicheNet to different datastes for addressing different questions.
 
