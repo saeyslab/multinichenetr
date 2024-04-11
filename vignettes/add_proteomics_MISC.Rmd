@@ -1,11 +1,12 @@
 ---
-title: "MultiNicheNet analysis: MIS-C: add serum proteomics data modality"
+title: "MultiNicheNet analysis: include additional data modalities: serum proteomics in MIS-C"
 author: "Robin Browaeys"
 package: "`r BiocStyle::pkg_ver('multinichenetr')`"
 output: 
   BiocStyle::html_document
+output_dir: "/Users/robinb/Work/multinichenetr/vignettes"
 vignette: >
-  %\VignetteIndexEntry{MultiNicheNet analysis: MIS-C: add serum proteomics data modality}
+  %\VignetteIndexEntry{MultiNicheNet analysis: include additional data modalities: serum proteomics in MIS-C}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8} 
 ---
@@ -15,6 +16,10 @@ vignette: >
   font-size: 10px
 }
 </style>
+
+<!-- github markdown built using
+rmarkdown::render("vignettes/add_proteomics_MISC.Rmd", clean = FALSE )
+-->
 
 ```{r setup, include = FALSE}
 knitr::opts_chunk$set(
@@ -26,12 +31,14 @@ knitr::opts_chunk$set(
 library(BiocStyle)
 ```
 
-In this vignette, you can learn how to extend the default MultiNicheNet prioritization scheme to **include suitable additional data modalities for prioritizing cell-cell communication patterns**. If you are new to MultiNicheNet, we recommend learning the basics first by reading and running this vignette: [basis_analysis_steps_MISC.md](basis_analysis_steps_MISC.md).In general we would always recommend users to run the analysis step-by-step, but the wrapper function is applied here to reduce the length of the vignette. In this vignette, we will use the MultiNicheNet wrapper function to perform all core steps of the analysis in one line of code. Afterwards, we will demonstrate one possible way to score interactions based on additional data modalities, and how you can incorporate these scorings in the prioritization. 
+In this vignette, you can learn how to extend the default MultiNicheNet prioritization scheme to **include suitable additional data modalities for prioritizing cell-cell communication patterns**. If you are new to MultiNicheNet, we recommend learning the basics first by reading and running this vignette: [basis_analysis_steps_MISC.knit.md](basis_analysis_steps_MISC.knit.md). In general we would always recommend users to run the analysis step-by-step, but the wrapper function is applied here to reduce the length of the vignette. In this vignette, we will use the MultiNicheNet wrapper function to perform all core steps of the analysis in one line of code. Afterwards, we will demonstrate one possible way to score interactions based on additional data modalities, and how you can incorporate these scorings in the prioritization. 
 
 As example expression data of interacting cells, we will here use scRNAseq data of immune cells in MIS-C patients and healthy siblings from this paper of Hoste et al.: [TIM3+ TRBV11-2 T cells and IFNγ signature in patrolling monocytes and CD16+ NK cells delineate MIS-C](https://rupress.org/jem/article/219/2/e20211381/212918/TIM3-TRBV11-2-T-cells-and-IFN-signature-in) [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.6362434.svg)](https://doi.org/10.5281/zenodo.6362434). 
 MIS-C (multisystem inflammatory syndrome in children) is a novel rare immunodysregulation syndrome that can arise after SARS-CoV-2 infection in children. We will use MultiNicheNet to explore immune cell crosstalk enriched in MIS-C compared to healthy siblings and adult COVID-19 patients. 
 
 In addition to this dataset, we will use publicly available processed OLINK **serum proteomics data** from Diorio et al (https://www.nature.com/articles/s41467-021-27544-6) who profiled MIS-C patients and healthy controls. This data could be informative for prioritizing cell-cell interactions because it may give us information about which ligands are more strongly expressed at the protein level in MIS-C patients versus healthy siblings.   
+
+In this vignette, we will first prepare the MultiNicheNet core analysis, run the MultiNicheNet core analysis, then extend the prioritization with serum proteomics data, and finally interpret the output. All steps before the the incorporation of proteomics data, are exactly the same as described in this vignette: [pairwise_analysis_MISC.knit.md](pairwise_analysis_MISC.knit.md)
 
 # Preparation of the MultiNicheNet core analysis
 
@@ -338,26 +345,10 @@ multinichenet_output = multi_nichenet_analysis(
 
 # Inspecting the MultiNicheNet output
 
-Before incorporating the serum proteomics, we will have a look at the output of this regular MultiNicheNet analysis.
 
-## Normalized pseudobulk expression for each cell type - sample combination
+## Inspecting the MultiNicheNet output
 
-```{r}
-multinichenet_output$celltype_info$pb_df %>% head()
-multinichenet_output$celltype_info$pb_df_group %>% head()
-```
-
-## DE information for each cell type - contrast combination
-
-```{r}
-multinichenet_output$celltype_de %>% head()
-```
-
-## Output of the NicheNet ligand activity analysis, and the NicheNet ligand-target inference
-
-```{r}
-multinichenet_output$ligand_activities_targets_DEgenes$ligand_activities %>% head()
-```
+Before incorporating the serum proteomics, we will quickly inspect the output of this regular MultiNicheNet analysis. Please check other vignettes for a more detailed breakdown of these different steps.
 
 ## Tables with the final prioritization scores (results per group and per sample)
 
@@ -381,7 +372,7 @@ prioritized_tbl_oi_all = get_top_n_lr_pairs(
   )
 ```
 
-```{r}
+```{r, fig.width = 12, fig.height = 12}
 prioritized_tbl_oi = 
   multinichenet_output$prioritization_tables$group_prioritization_tbl %>%
   filter(id %in% prioritized_tbl_oi_all$id) %>%
@@ -423,31 +414,14 @@ plot_oi = make_sample_lr_prod_activity_plots(
 plot_oi
 ```
 
-Samples that were left out of the DE analysis are indicated with a smaller dot (this helps to indicate the samples that did not contribute to the calculation of the logFC, and thus not contributed to the final prioritization)
-
-As a further help for further prioritization, we can assess the level of curation of these LR pairs as defined by the Intercellular Communication part of the Omnipath database
-
-```{r}
-prioritized_tbl_oi_M_50_omnipath = prioritized_tbl_oi_M_50 %>% 
-  inner_join(lr_network_all)
-```
-
-Now we add this to the bubble plot visualization:
-```{r, fig.height=13, fig.width=16}
-plot_oi = make_sample_lr_prod_activity_plots_Omnipath(
-  multinichenet_output$prioritization_tables, 
-  prioritized_tbl_oi_M_50_omnipath)
-plot_oi
-```
-
 # Using serum proteomics data to prioritize cell-cell communication patterns
 
-Here we will demonstrate how to tailor the prioritization to additional data modalities that you may have. How to do this exactly will stronglly depend on the type of data modality. Here we should an example we recommend for integrating "targeted" serum proteomics data.
+Here we will demonstrate how to tailor the prioritization to additional data modalities that you may have. How to do this exactly will stronglly depend on the type of data modality. Here we show an example on how you can incorporate "targeted" serum proteomics data.
 
 As additional data modality, we will use serum proteomics data (generated through the OLINK platform) that was published by a different research group based on serum samples of a different cohort of MIS-C patients (Diorio et al. - https://www.nature.com/articles/s41467-021-27544-6). 
 Ligands that are also upregulated in the serum at the protein level may be interesting candidates for further follow-up. Therefore, we can use this data to help in the prioritization. We will here add an additional score to each interaction related to how strongly the ligand is differentially expressed at the protein level in the serum of patients. 
 
-Because we don't have OLINK information of each ligand, we will consider ligands without data as being not-differentially expressed at all (p-val = 1, logFC = 0). By doing this, these ligands will still be kept in the total prioritization analysis such that they could still be ranked high if the previous criteria strongly point to their importance. 
+Because we don't have OLINK information of each ligand, we will consider ligands without data as being not-differentially expressed at the protein level (p-val = 1, logFC = 0). By doing this, these ligands will still be kept in the total prioritization analysis such that they could still be ranked high if the previous criteria strongly point to their importance. 
 
 Whereas we will only consider ligand upregulation for prioritization, we will still keep receptor information in the OLINK dataframe for later visualizations.
 
@@ -456,9 +430,12 @@ Whereas we will only consider ligand upregulation for prioritization, we will st
 Of this data, we will only keep information about ligands and receptors
 
 ```{r}
-olink_df = xlsx::read.xlsx(
-  url("https://zenodo.org/records/10908003/files/summary_difference_diorioMIS-C-vs-HC.xlsx"),
-  1) %>% as_tibble() %>% 
+file_path = "summary_difference_diorioMIS-C-vs-HC.xlsx"
+download.file("https://zenodo.org/records/10908003/files/summary_difference_diorioMIS-C-vs-HC.xlsx", 
+              file_path, 
+              mode = "wb")
+olink_df = xlsx::read.xlsx(file_path, 1) %>% 
+  as_tibble() %>% 
   dplyr::rename(gene = variables, logFC = mean_diff_d0, pval = adj_p_values) %>% 
   dplyr::select(gene, logFC, pval) %>% 
   dplyr::mutate(gene = gene %>% make.names()) %>% 
@@ -485,7 +462,7 @@ olink_df_ligands_receptors %>% head()
 
 ## Score sender/ligand-receiver/receptor interactions based on the alternative data modality
 
-Important: the provided logFC values in the OLINK data contrast MIS-C versus healthy siblings (M-vs-S). We will stil need to add the reverse logFC for the contrast S-vs-M. 
+Important: the provided logFC values in the OLINK data represent the contrast MIS-C versus healthy siblings (M-vs-S). We will still need to add the reverse logFC for the contrast S-vs-M. 
 
 ```{r}
 olink_df_ligand = multinichenet_output$prioritization_tables$group_prioritization_tbl %>% 
@@ -498,6 +475,7 @@ olink_df_reverse_ligand = olink_df_ligand %>%
 olink_df_ligand = olink_df_ligand %>% 
   bind_rows(olink_df_reverse_ligand)
 olink_df_ligand %>% filter(ligand == "IFNG") # sanity check
+olink_df_ligand %>% arrange(-logFC) # sanity check
 ```
 
 We will now score ligand-contrast combinations based on their OLINK logFC and p-values. We will do this in the exact same way as we did for differential expression at the RNA level.  
@@ -509,26 +487,34 @@ olink_df_ligand = olink_df_ligand %>%
 olink_df_ligand_scaled = olink_df_ligand %>% 
   distinct(contrast, ligand, logFC, pval_adapted) %>% 
   dplyr::mutate(
-    scaled_lfc_ligand_OLINK = rank(logFC, ties.method = "average", na.last = FALSE)/max(rank(logFC, ties.method = "average", na.last = FALSE)), 
-    scaled_p_val_ligand_adapted_OLINK = rank(pval_adapted, ties.method = "average", na.last = FALSE)/max(rank(pval_adapted, ties.method = "average", na.last = FALSE))) 
+    scaled_lfc_ligand_OLINK = 
+      rank(logFC, ties.method = "average", na.last = FALSE)/
+      max(rank(logFC, ties.method = "average", na.last = FALSE)), 
+    scaled_p_val_ligand_adapted_OLINK = 
+      rank(pval_adapted, ties.method = "average", na.last = FALSE)/
+      max(rank(pval_adapted, ties.method = "average", na.last = FALSE))) 
 
 olink_df_ligand_scaled = olink_df_ligand_scaled %>% 
   distinct(contrast, ligand, scaled_lfc_ligand_OLINK, scaled_p_val_ligand_adapted_OLINK) %>%
-  dplyr::arrange(-scaled_p_val_ligand_adapted_OLINK)
+  dplyr::arrange(-scaled_lfc_ligand_OLINK)
 
 olink_df_ligand_scaled
 ```
 
+As you can see here, we scored each contrast-ligand combination by a between-0-and-1 scaled value for the logFC and p-value of differential expression in the OLINK proteomics data. 
+
 ## Calculate the new prioritization score by including the score of the criterion based on the additional data modality
 
 Now we will calculate the aggregated prioritization score with inclusion of the scaled logFC and scaled p-value-based score from the OLINK data. 
-To do this, we first add these new scores to the existing prioritization_table and define the table of prioritization criteria and add the new criteria and their weights. It is recommended to give the new criteria the same weights as the original default. If you ran the analysis with the default weights (`scenario = "regular"` then these weights are 1)  
+To do this, we first add these new scores to the existing prioritization_table. 
 
 ```{r}
 multinichenet_output$prioritization_tables$group_prioritization_tbl = 
   multinichenet_output$prioritization_tables$group_prioritization_tbl %>% 
   inner_join(olink_df_ligand_scaled)
 ```
+
+Then we will define the table of prioritization criteria and add the new criteria and their weights. It is recommended to give the new criteria the same weights as the original default. If you ran the analysis with the default weights (`scenario = "regular"` then these weights are 1)  
 
 ```{r}
 regular_criteria_tbl = tibble(
@@ -544,11 +530,20 @@ regular_criteria_tbl = tibble(
       ), 
   weight = NA, 
   regularization_factor = c(0.5, 0.5, 0.5, 0.5, 1, 1, 1, 1)
-  ) # do not change this  - logFC and pval of ligand and receptor get 0.5 as regularization such that DE of the ligandcounts as one score, which is the sum of the scaled_score of the logFC and the p-value-based score. This also applies to the receptor.
+  ) # do not change this  - 
+# logFC and pval of ligand and receptor get 0.5 as regularization such that DE of the ligand counts as one score, 
+# which is the sum of the scaled_score of the logFC and the p-value-based score. 
+# This also applies to the receptor.
 
 new_criteria_tbl = tibble(
-  criterion = c("scaled_lfc_ligand_OLINK","scaled_p_val_ligand_adapted_OLINK"), weight = c(1,1), regularization_factor = c(0.5, 0.5)) # 0.5 as regularization such that DE of the ligand at the protein level counts as one score, which is the sum of the scaled_score of the logFC and the p-value-based score. 
+  criterion = c("scaled_lfc_ligand_OLINK","scaled_p_val_ligand_adapted_OLINK"), 
+  weight = c(1,1), 
+  regularization_factor = c(0.5, 0.5)) # 0.5 as regularization factor
+# such that DE of the ligand at the protein level counts as one score, 
+# which is the sum of the scaled_score of the logFC and the p-value-based score. 
 ```
+
+Now recalculate the aggregated prioritization score
 
 ```{r}
 group_prioritization_tbl_withoutOLINK = multinichenet_output$prioritization_tables$group_prioritization_tbl 
@@ -564,27 +559,37 @@ prioritization_tables = add_extra_criterion(
 prioritization_tables$group_prioritization_tbl %>% head(20)
 ```
 
+Here we see the updated prioritization table with updated scores after inclusion of the additional data modality.
+
+We can also make a table where we compare the original prioritization scores with the updated ones.
+
 ```{r}
-group_prioritization_tbl_withoutOLINK %>% select(group, id, prioritization_score) %>%
+comparison_table = group_prioritization_tbl_withoutOLINK %>% select(group, id, prioritization_score) %>%
   inner_join(
     prioritization_tables$group_prioritization_tbl %>% 
       select(group, id, prioritization_score) %>% 
       rename(new_score = prioritization_score)) %>% 
-  mutate(difference = new_score - prioritization_score) %>% 
+  mutate(difference = new_score - prioritization_score) 
+```
+
+Let's now inspect the top interactions that got the highest increase in ranking because of the OLINK data
+
+```{r}
+comparison_table %>% 
   arrange(-difference) %>% 
   filter(new_score > 0.80)
-
-group_prioritization_tbl_withoutOLINK %>% 
-  select(group, id, prioritization_score) %>% 
-  inner_join(
-    prioritization_tables$group_prioritization_tbl %>% 
-      select(group, id, prioritization_score) %>% 
-      rename(new_score = prioritization_score)
-    ) %>% 
-  mutate(difference = new_score - prioritization_score) %>% 
-  arrange(difference) %>% 
-  filter(prioritization_score > 0.80)
 ```
+
+Let's now inspect the top interactions that got penalized the most because of the OLINK data. Note here: interactions can be penalized because they are less upregulated at the protein level, or because there was no protein expression information for them.
+
+```{r}
+comparison_table %>% 
+  arrange(difference) %>% 
+  filter(new_score > 0.80)
+```
+
+Let's now look at some visualizations of the updated prioritized condition-specific interactions.
+
 ## Visualization of the updated cell-cell communication prioritization
 
 In a first instance, we will look at the broad overview of prioritized interactions via condition-specific Circos plots.
@@ -635,7 +640,7 @@ We will first visualize the interactions specific for the Sibling group that are
 group_oi = "S"
 ```
 
-```{r, fig.height=5, fig.width=13}
+```{r, fig.height=5, fig.width=14}
 prioritized_tbl_oi_S_50 = prioritized_tbl_oi_all %>% filter(group == group_oi)
 
 plot_oi = make_sample_lr_prod_activity_plots(
@@ -650,17 +655,19 @@ We will now check the MIS-C specific interactions
 group_oi = "M"
 ```
 
-```{r, fig.height=13, fig.width=15}
-prioritized_tbl_oi_M_50 = prioritized_tbl_oi_all %>% 
+```{r, fig.height=8, fig.width=14}
+prioritized_tbl_oi = prioritized_tbl_oi_all %>% 
   filter(group == group_oi)
 
 plot_oi = make_sample_lr_prod_activity_plots(
   multinichenet_output$prioritization_tables, 
-  prioritized_tbl_oi_M_50)
+  prioritized_tbl_oi)
 plot_oi
 ```
 
 Whereas these are the classical plots with default multinichenetr code, we can also adapt this function to visualize the additional criteria that we used for prioritization. 
+
+### Add additional data modality information to the interpretable bubble blot visualization
 
 We will show example code to make this multi-panel plot step-by-step
 
@@ -668,8 +675,20 @@ First: ligand-receptor pseudobulk product expression panel
 
 ```{r, fig.width=10, fig.height=8}
 # ligand-receptor pseudobulk product expression panel
-sample_data = prioritization_tables$sample_prioritization_tbl %>% dplyr::filter(id %in% prioritized_tbl_oi$id) %>% dplyr::mutate(sender_receiver = paste(sender, receiver, sep = " --> "), lr_interaction = paste(ligand, receptor, sep = " - "))   %>%  dplyr::arrange(receiver) %>% dplyr::group_by(receiver) %>%  dplyr::arrange(sender, .by_group = TRUE)
-sample_data = sample_data %>% dplyr::mutate(sender_receiver = factor(sender_receiver, levels = sample_data$sender_receiver %>% unique()))
+sample_data = prioritization_tables$sample_prioritization_tbl %>% 
+  dplyr::filter(id %in% prioritized_tbl_oi$id) %>% 
+  dplyr::mutate(
+    sender_receiver = paste(sender, receiver, sep = " --> "), 
+    lr_interaction = paste(ligand, receptor, sep = " - ")) %>%
+  dplyr::arrange(receiver) %>% 
+  dplyr::group_by(receiver) %>%  
+  dplyr::arrange(sender, .by_group = TRUE)
+
+sample_data = sample_data %>% 
+  dplyr::mutate(sender_receiver = factor(
+    sender_receiver, 
+    levels = sample_data$sender_receiver %>% unique()
+    ))
   
 keep_sender_receiver_values = c(0.25, 0.9, 1.75, 4)
 names(keep_sender_receiver_values) = levels(sample_data$keep_sender_receiver)
@@ -679,12 +698,10 @@ p1 = sample_data %>%
     geom_point() +
     facet_grid(sender_receiver~group, scales = "free", space = "free", switch = "y") +
     scale_x_discrete(position = "top") +
-    # xlab("Ligand-Receptor expression in samples\n\n") +
     theme_light() +
     theme(
       axis.ticks = element_blank(),
       axis.title = element_blank(),
-      # axis.title.x = element_text(face = "bold", size = 11),       axis.title.y = element_blank(),
       axis.text.y = element_text(face = "bold.italic", size = 9),
       axis.text.x = element_text(size = 9,  angle = 90,hjust = 0),
       panel.grid.major = element_blank(),
@@ -697,7 +714,10 @@ p1 = sample_data %>%
     ) + labs(color = "Scaled L-R\npseudobulk exprs product", size= "Sufficient presence\nof sender & receiver") + 
     scale_size_manual(values = keep_sender_receiver_values)
   max_lfc = abs(sample_data$scaled_LR_pb_prod) %>% max()
-  custom_scale_fill = scale_color_gradientn(colours = RColorBrewer::brewer.pal(n = 7, name = "RdBu") %>% rev(),values = c(0, 0.350, 0.4850, 0.5, 0.5150, 0.65, 1),  limits = c(-1*max_lfc, max_lfc))
+  custom_scale_fill = scale_color_gradientn(
+    colours = RColorBrewer::brewer.pal(n = 7, name = "RdBu") %>% rev(),
+    values = c(0, 0.350, 0.4850, 0.5, 0.5150, 0.65, 1),  
+    limits = c(-1*max_lfc, max_lfc))
   
   p1 = p1 + custom_scale_fill
 p1
@@ -707,25 +727,29 @@ Second: scaled ligand activity based on RNA data
 ```{r, fig.width=4, fig.height=8}
 # scaled ligand activity based on RNA
 group_data = prioritization_tables$group_prioritization_table_source  %>% 
-    dplyr::mutate(sender_receiver = paste(sender, receiver, sep = " --> "), lr_interaction = paste(ligand, receptor, sep = " - "))  %>% 
-    dplyr::distinct(id, sender, receiver, sender_receiver, ligand, receptor, lr_interaction, group, activity_scaled, direction_regulation, prioritization_score ) %>% dplyr::filter(id %in% sample_data$id) %>%  dplyr::arrange(receiver) %>% dplyr::group_by(receiver) %>%  dplyr::arrange(sender, .by_group = TRUE)
+    dplyr::mutate(
+      sender_receiver = paste(sender, receiver, sep = " --> "), 
+      lr_interaction = paste(ligand, receptor, sep = " - "))  %>% 
+    dplyr::distinct(id, sender, receiver, sender_receiver, ligand, receptor, lr_interaction, group, activity_scaled, direction_regulation, prioritization_score) %>% 
+  dplyr::filter(id %in% sample_data$id) %>% 
+  dplyr::arrange(receiver) %>% 
+  dplyr::group_by(receiver) %>% 
+  dplyr::arrange(sender, .by_group = TRUE)
 
-  group_data = group_data %>% dplyr::mutate(sender_receiver = factor(sender_receiver, levels = group_data$sender_receiver %>% unique()))
-
-  p2 = group_data %>%
-    # ggplot(aes(receiver, lr_interaction, color = activity_scaled, size = activity)) +
-    # geom_point() +
+  group_data = group_data %>% dplyr::mutate(
+    sender_receiver = factor(
+      sender_receiver, 
+      levels = group_data$sender_receiver %>% unique()
+      ))
+p2 = group_data %>%
     ggplot(aes(direction_regulation , lr_interaction, fill = activity_scaled)) +
     geom_tile(color = "whitesmoke") +
     facet_grid(sender_receiver~group, scales = "free", space = "free") +
     scale_x_discrete(position = "top") +
-    # xlab("Ligand activities in receiver cell types\n\n") +
     theme_light() +
     theme(
       axis.ticks = element_blank(),
       axis.title = element_blank(),
-      # axis.title.x = element_text(face = "bold", size = 11),       axis.title.y = element_blank(),
-      # axis.text.y = element_blank(),
       axis.text.y = element_text(face = "bold.italic", size = 9),
       axis.text.x = element_text(size = 9,  angle = 90,hjust = 0),
       strip.text.x.top = element_text(angle = 0),
@@ -738,7 +762,10 @@ group_data = prioritization_tables$group_prioritization_table_source  %>%
       strip.background = element_rect(color="darkgrey", fill="whitesmoke", size=1.5, linetype="solid")
     ) + labs(fill = "Scaled Ligand\nActivity RNA")
   max_activity = abs(group_data$activity_scaled) %>% max(na.rm = TRUE)
-  custom_scale_fill = scale_fill_gradientn(colours = c("white", RColorBrewer::brewer.pal(n = 7, name = "PuRd") %>% .[-7]),values = c(0, 0.51, 0.575, 0.625, 0.675, 0.725, 1),  limits = c(-1*max_activity, max_activity))
+  custom_scale_fill = scale_fill_gradientn(
+    colours = c("white", RColorBrewer::brewer.pal(n = 7, name = "PuRd") %>% .[-7]),
+    values = c(0, 0.51, 0.575, 0.625, 0.675, 0.725, 1),  
+    limits = c(-1*max_activity, max_activity))
   
   p2 = p2 + custom_scale_fill
 p2
@@ -746,15 +773,52 @@ p2
 
 Third: OLINK logFC MISC-vs-Sibling
 
+```{r}
+olink_df = olink_df %>% 
+  mutate(contrast = contrast_tbl$contrast[1])
+
+olink_df_reverse = olink_df %>% 
+  mutate(contrast = contrast_tbl$contrast[2], logFC = -1*logFC)
+olink_df = olink_df %>% 
+  bind_rows(olink_df_reverse)
+olink_df %>% filter(gene == "IFNG") # sanity check
+olink_df %>% arrange(-logFC) # sanity check
+```
 ```{r, fig.width=3, fig.height=8}
-  
-group_data_olink = inner_join(
-    group_data %>% left_join(olink_df %>% filter(contrast == "M-S") %>% select(gene, olink_type, logFC) %>% dplyr::rename(ligand = gene, `ligand ` = logFC)) %>% left_join(olink_df %>% select(gene, olink_type, logFC) %>% dplyr::rename(receptor = gene, `receptor ` = logFC))  %>% gather(LR, logFC,`ligand `:`receptor `),
-    group_data %>% left_join(olink_df %>% filter(contrast == "M-S") %>% select(gene, olink_type, pval) %>% dplyr::rename(ligand = gene, `ligand ` = pval)) %>% left_join(olink_df %>% select(gene, olink_type, pval) %>% dplyr::rename(receptor = gene, `receptor ` = pval))  %>% gather(LR, pval,`ligand `:`receptor `) %>% mutate(neg_log_pval = -log10(pval))
+group_data_olink = 
+  inner_join(
+    
+    group_data %>% 
+      left_join(
+        olink_df %>% filter(contrast == "M-S") %>% 
+          select(gene, olink_type, logFC) %>% 
+          dplyr::rename(ligand = gene, `ligand ` = logFC)
+        ) %>% 
+      left_join(
+        olink_df %>% filter(contrast == "M-S") %>% 
+          select(gene, olink_type, logFC) %>% 
+          dplyr::rename(receptor = gene, `receptor ` = logFC)
+        ) %>% 
+      tidyr::gather(LR, logFC,`ligand `:`receptor `),
+    
+    group_data %>% 
+      left_join(
+        olink_df %>% filter(contrast == "M-S") %>% 
+          select(gene, olink_type, pval) %>% 
+          dplyr::rename(ligand = gene, `ligand ` = pval)
+        ) %>% 
+      left_join(
+        olink_df %>% filter(contrast == "M-S") %>% 
+          select(gene, olink_type, pval) %>% 
+          dplyr::rename(receptor = gene, `receptor ` = pval)
+        ) %>% 
+      tidyr::gather(LR, pval,`ligand `:`receptor `) %>% mutate(neg_log_pval = -log10(pval))
+    
   )
-  group_data_olink = group_data_olink %>% mutate(olink_type = "Diorio")
   
-  p_olink = group_data_olink %>% 
+group_data_olink = group_data_olink %>% mutate(olink_type = "Diorio")
+  
+p_olink = group_data_olink %>% 
     ggplot(aes(LR , lr_interaction, color = logFC, size = neg_log_pval)) +
     geom_point() +
     facet_grid(sender_receiver ~ olink_type, scales = "free", space = "free") +
@@ -776,18 +840,245 @@ group_data_olink = inner_join(
       strip.background = element_rect(color="darkgrey", fill="whitesmoke", size=1.5, linetype="solid")
     ) + labs(color = "OLink LogFC M-vs-S") + labs(size = "OLink -log10(pval)")
   max_lfc = abs(group_data_olink$logFC) %>% max(na.rm = TRUE)
-  custom_scale_fill = scale_color_gradientn(colours = RColorBrewer::brewer.pal(n = 7, name = "RdBu") %>% rev(),values = c(0, 0.30, 0.40, 0.5, 0.60, 0.70, 1),  limits = c(-1*max_lfc, max_lfc))
+  custom_scale_fill = scale_color_gradientn(
+    colours = RColorBrewer::brewer.pal(n = 7, name = "RdBu") %>% rev(),
+    values = c(0, 0.30, 0.40, 0.5, 0.60, 0.70, 1), 
+    limits = c(-1*max_lfc, max_lfc))
   
-  p_olink = p_olink + custom_scale_fill + scale_size_binned_area(max_size = 4)
+p_olink = p_olink + custom_scale_fill + scale_size_binned_area(max_size = 4)
 p_olink
 ```      
 And now we will put everything together:
-```{r, fig.width=15, fig.height=10}
+```{r, fig.width=12, fig.height=10}
 p = patchwork::wrap_plots(
-      p1,p2,p3,p_olink,
+      p1,p2,p_olink,
       nrow = 1,guides = "collect",
-      widths = c(sample_data$sample %>% unique() %>% length(), 1*(sample_data$group %>% unique() %>% length()), 1*(sample_data$group %>% unique() %>% length()), 2*length(unique(olink_df$olink_type)))
+      widths = c(sample_data$sample %>% unique() %>% length(), 2*(sample_data$group %>% unique() %>% length()), 2*length(unique(olink_df$olink_type)))
 )
 p
 ```      
+Let's now put all this code to generate this visualization in a function we will use to visualize the interactions of which the ranking was most strongly affected by the incorporation of the additional data modality.
+
+```{r}
+make_sample_lr_prod_activity_OLINK_plots = function(prioritization_tables, prioritized_tbl_oi){
+  # ligand-receptor pseudobulk product expression panel
+  sample_data = prioritization_tables$sample_prioritization_tbl %>% 
+    dplyr::filter(id %in% prioritized_tbl_oi$id) %>% 
+    dplyr::mutate(
+      sender_receiver = paste(sender, receiver, sep = " --> "), 
+      lr_interaction = paste(ligand, receptor, sep = " - ")) %>%
+    dplyr::arrange(receiver) %>% 
+    dplyr::group_by(receiver) %>%  
+    dplyr::arrange(sender, .by_group = TRUE)
+  
+  sample_data = sample_data %>% 
+    dplyr::mutate(sender_receiver = factor(
+      sender_receiver, 
+      levels = sample_data$sender_receiver %>% unique()
+      ))
+    
+  keep_sender_receiver_values = c(0.25, 0.9, 1.75, 4)
+  names(keep_sender_receiver_values) = levels(sample_data$keep_sender_receiver)
+    
+  p1 = sample_data %>%
+      ggplot(aes(sample, lr_interaction, color = scaled_LR_pb_prod, size = keep_sender_receiver)) +
+      geom_point() +
+      facet_grid(sender_receiver~group, scales = "free", space = "free", switch = "y") +
+      scale_x_discrete(position = "top") +
+      theme_light() +
+      theme(
+        axis.ticks = element_blank(),
+        axis.title = element_blank(),
+        axis.text.y = element_text(face = "bold.italic", size = 9),
+        axis.text.x = element_text(size = 9,  angle = 90,hjust = 0),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.spacing.x = unit(0.40, "lines"),
+        panel.spacing.y = unit(0.25, "lines"),
+        strip.text.x.top = element_text(size = 10, color = "black", face = "bold", angle = 0),
+        strip.text.y.left = element_text(size = 9, color = "black", face = "bold", angle = 0),
+        strip.background = element_rect(color="darkgrey", fill="whitesmoke", size=1.5, linetype="solid")
+      ) + labs(color = "Scaled L-R\npseudobulk exprs product", size= "Sufficient presence\nof sender & receiver") + 
+      scale_size_manual(values = keep_sender_receiver_values)
+    max_lfc = abs(sample_data$scaled_LR_pb_prod) %>% max()
+    custom_scale_fill = scale_color_gradientn(
+      colours = RColorBrewer::brewer.pal(n = 7, name = "RdBu") %>% rev(),
+      values = c(0, 0.350, 0.4850, 0.5, 0.5150, 0.65, 1),  
+      limits = c(-1*max_lfc, max_lfc))
+    
+    p1 = p1 + custom_scale_fill
+  p1
+  # scaled ligand activity based on RNA
+  group_data = prioritization_tables$group_prioritization_table_source  %>% 
+      dplyr::mutate(
+        sender_receiver = paste(sender, receiver, sep = " --> "), 
+        lr_interaction = paste(ligand, receptor, sep = " - "))  %>% 
+      dplyr::distinct(id, sender, receiver, sender_receiver, ligand, receptor, lr_interaction, group, activity_scaled, direction_regulation, prioritization_score) %>% 
+    dplyr::filter(id %in% sample_data$id) %>% 
+    dplyr::arrange(receiver) %>% 
+    dplyr::group_by(receiver) %>% 
+    dplyr::arrange(sender, .by_group = TRUE)
+  
+    group_data = group_data %>% dplyr::mutate(
+      sender_receiver = factor(
+        sender_receiver, 
+        levels = group_data$sender_receiver %>% unique()
+        ))
+  p2 = group_data %>%
+      ggplot(aes(direction_regulation , lr_interaction, fill = activity_scaled)) +
+      geom_tile(color = "whitesmoke") +
+      facet_grid(sender_receiver~group, scales = "free", space = "free") +
+      scale_x_discrete(position = "top") +
+      theme_light() +
+      theme(
+        axis.ticks = element_blank(),
+        axis.title = element_blank(),
+        axis.text.y = element_text(face = "bold.italic", size = 9),
+        axis.text.x = element_text(size = 9,  angle = 90,hjust = 0),
+        strip.text.x.top = element_text(angle = 0),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.spacing.x = unit(0.20, "lines"),
+        panel.spacing.y = unit(0.25, "lines"),
+        strip.text.x = element_text(size = 10, color = "black", face = "bold"),
+        strip.text.y = element_blank(),
+        strip.background = element_rect(color="darkgrey", fill="whitesmoke", size=1.5, linetype="solid")
+      ) + labs(fill = "Scaled Ligand\nActivity RNA")
+    max_activity = abs(group_data$activity_scaled) %>% max(na.rm = TRUE)
+    custom_scale_fill = scale_fill_gradientn(
+      colours = c("white", RColorBrewer::brewer.pal(n = 7, name = "PuRd") %>% .[-7]),
+      values = c(0, 0.51, 0.575, 0.625, 0.675, 0.725, 1),  
+      limits = c(-1*max_activity, max_activity))
+    
+    p2 = p2 + custom_scale_fill
+  p2
+  group_data_olink = 
+    inner_join(
+      
+      group_data %>% 
+        left_join(
+          olink_df %>% filter(contrast == "M-S") %>% 
+            select(gene, olink_type, logFC) %>% 
+            dplyr::rename(ligand = gene, `ligand ` = logFC)
+          ) %>% 
+        left_join(
+          olink_df %>% filter(contrast == "M-S") %>% 
+            select(gene, olink_type, logFC) %>% 
+            dplyr::rename(receptor = gene, `receptor ` = logFC)
+          ) %>% 
+        tidyr::gather(LR, logFC,`ligand `:`receptor `),
+      
+      group_data %>% 
+        left_join(
+          olink_df %>% filter(contrast == "M-S") %>% 
+            select(gene, olink_type, pval) %>% 
+            dplyr::rename(ligand = gene, `ligand ` = pval)
+          ) %>% 
+        left_join(
+          olink_df %>% filter(contrast == "M-S") %>% 
+            select(gene, olink_type, pval) %>% 
+            dplyr::rename(receptor = gene, `receptor ` = pval)
+          ) %>% 
+        tidyr::gather(LR, pval,`ligand `:`receptor `) %>% mutate(neg_log_pval = -log10(pval))
+      
+    )
+    
+  group_data_olink = group_data_olink %>% mutate(olink_type = "Diorio")
+    
+  p_olink = group_data_olink %>% 
+      ggplot(aes(LR , lr_interaction, color = logFC, size = neg_log_pval)) +
+      geom_point() +
+      facet_grid(sender_receiver ~ olink_type, scales = "free", space = "free") +
+      scale_x_discrete(position = "top") +
+      theme_light() +
+      theme(
+        axis.ticks = element_blank(),
+        axis.title = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.y = element_blank(),
+        axis.text.x = element_text(size = 9,  angle = 90,hjust = 0),
+        strip.text.x.top = element_text(angle = 0),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.spacing.x = unit(0.20, "lines"),
+        panel.spacing.y = unit(0.25, "lines"),
+        strip.text.x = element_text(size = 10, color = "black", face = "bold"),
+        strip.text.y = element_blank(),
+        strip.background = element_rect(color="darkgrey", fill="whitesmoke", size=1.5, linetype="solid")
+      ) + labs(color = "OLink LogFC M-vs-S") + labs(size = "OLink -log10(pval)")
+    max_lfc = abs(group_data_olink$logFC) %>% max(na.rm = TRUE)
+    custom_scale_fill = scale_color_gradientn(
+      colours = RColorBrewer::brewer.pal(n = 7, name = "RdBu") %>% rev(),
+      values = c(0, 0.30, 0.40, 0.5, 0.60, 0.70, 1), 
+      limits = c(-1*max_lfc, max_lfc))
+    
+  p_olink = p_olink + custom_scale_fill + scale_size_binned_area(max_size = 4)
+  p_olink
+  p = patchwork::wrap_plots(
+        p1,p2,p_olink,
+        nrow = 1,guides = "collect",
+        widths = c(sample_data$sample %>% unique() %>% length(), 2*(sample_data$group %>% unique() %>% length()), 2*length(unique(olink_df$olink_type)))
+  )
+  return(p)
+}
+```      
+
+Check whether we can reproduce the previous figure:
+```{r, fig.width=12, fig.height=10}
+make_sample_lr_prod_activity_OLINK_plots(
+  prioritization_tables = prioritization_tables,
+  prioritized_tbl_oi = prioritized_tbl_oi
+  )
+```  
+
+Now visualize the interactions that most strongly benefited from the addition of OLINK data:
+
+```{r}
+ids_oi = comparison_table %>% 
+    filter(new_score > 0.80) %>% top_n(25, difference) %>% pull(id)
+
+prioritized_tbl_oi_all = get_top_n_lr_pairs(
+  multinichenet_output$prioritization_tables, 
+  1000, 
+  rank_per_group = TRUE, groups_oi = "M") 
+prioritized_tbl_oi = prioritized_tbl_oi_all %>% 
+  filter(id %in% ids_oi) %>% filter(group == "M")
+```
+
+```{r, fig.width=12, fig.height=8}
+plot_oi = make_sample_lr_prod_activity_OLINK_plots(
+  prioritization_tables = prioritization_tables,
+  prioritized_tbl_oi = prioritized_tbl_oi
+  )
+plot_oi
+```  
+As expected, these interactions are characterized by a strongly upregulated ligand at the protein ligand, whereas upregulation of the ligand-receptor pair at the RNA level and/or activity is not always very clear. 
+
+Now visualize the interactions that were most strongly penalized by the addition of OLINK data:
+
+```{r}
+ids_oi = comparison_table %>% 
+    filter(prioritization_score > 0.80) %>% top_n(25, -difference) %>% pull(id)
+
+prioritized_tbl_oi_all = get_top_n_lr_pairs(
+  multinichenet_output$prioritization_tables, 
+  1000, 
+  rank_per_group = TRUE, groups_oi = "S") 
+prioritized_tbl_oi = prioritized_tbl_oi_all %>% 
+  filter(id %in% ids_oi) %>% filter(group == "S")
+```
+
+```{r, fig.width=12, fig.height=8}
+plot_oi = make_sample_lr_prod_activity_OLINK_plots(
+  prioritization_tables = prioritization_tables,
+  prioritized_tbl_oi = prioritized_tbl_oi
+  )
+plot_oi
+```  
+
+As expected for interactions penalized by the OLINK addition, we see an inconsistency between the RNA and protein level with respect to the direction of expression difference between M and S patients. Here, S-specific interactions at the RNA level have higher protein levels in the M-group instead of the S group. 
+
+# Tips for other data modalites
+
+If you want to incorporate a different additional data modality, you can always open a github issue to discuss how to do this properly.
 

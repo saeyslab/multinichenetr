@@ -9,7 +9,7 @@ vignette: >
   %\VignetteIndexEntry{MultiNicheNet analysis: MIS-C threewise comparison - step-by-step}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8} 
-date: 2 April 2024
+date: 8 April 2024
 link-citations: true
 ---
 
@@ -282,7 +282,7 @@ The first plot visualizes the number of cells per celltype-sample combination, a
 abundance_info$abund_plot_sample
 ```
 
-<img src="basic_analysis_steps_MISC_files/figure-html/unnamed-chunk-12-1.png" width="100%" />
+<img src="basic_analysis_steps_MISC_files/figure-html/unnamed-chunk-76-1.png" width="100%" />
 
 The red dotted line indicates the required minimum of cells as defined above in `min_cells`. We can see here that some sample-celltype combinations are left out. For the DE analysis in the next step, only cell types will be considered if there are at least two samples per group with a sufficient number of cells. But as we can see here: all cell types will be considered for the analysis and there are no condition-specific cell types. 
 
@@ -546,7 +546,7 @@ Evaluate the distributions of p-values:
 DE_info$hist_pvals
 ```
 
-<img src="basic_analysis_steps_MISC_files/figure-html/unnamed-chunk-26-1.png" width="100%" />
+<img src="basic_analysis_steps_MISC_files/figure-html/unnamed-chunk-90-1.png" width="100%" />
 
 These distributions look fine (uniform distribution, except peak at p-value <= 0.05), so we will continue using these regular p-values. In case these p-value distributions look irregular, you can estimate empirical p-values as we will demonstrate in another vignette.
 
@@ -585,29 +585,30 @@ sender_receiver_de = combine_sender_receiver_de(
 ```r
 sender_receiver_de %>% head(20)
 ## # A tibble: 20 × 12
-##    contrast  sender receiver ligand receptor lfc_ligand lfc_receptor ligand_receptor_lfc_…¹ p_val_ligand p_adj_ligand p_val_receptor p_adj_receptor
-##    <chr>     <chr>  <chr>    <chr>  <chr>         <dbl>        <dbl>                  <dbl>        <dbl>        <dbl>          <dbl>          <dbl>
-##  1 M-(S+A)/2 M_Mon… M_Monoc… C3     VSIG4         2.96        5.76                     4.36      0.0964         0.439       0.00154          0.0923
-##  2 M-(S+A)/2 M_Mon… M_Monoc… IL10   IL10RB        5.61        0.715                    3.16      0.0052         0.142       0.0123           0.202 
-##  3 M-(S+A)/2 M_Mon… L_T_TIM… IL18   IL18RAP       1.93        4.39                     3.16      0.0445         0.321       0.000199         0.056 
-##  4 M-(S+A)/2 M_Mon… L_T_TIM… IL10   IL10RB        5.61        0.184                    2.90      0.0052         0.142       0.557            0.95  
-##  5 M-(S+A)/2 L_NK_… L_T_TIM… IL18   IL18RAP       1.29        4.39                     2.84      0.00758        0.231       0.000199         0.056 
-##  6 M-(S+A)/2 M_Mon… L_NK_CD… IL10   IL10RA        5.61        0.0393                   2.82      0.0052         0.142       0.814            0.996 
-##  7 M-(S+A)/2 M_Mon… L_T_TIM… IL10   IL10RA        5.61       -0.0612                   2.77      0.0052         0.142       0.728            0.997 
-##  8 M-(S+A)/2 M_Mon… L_NK_CD… IL10   IL10RB        5.61       -0.0727                   2.77      0.0052         0.142       0.78             0.987 
-##  9 M-(S+A)/2 M_Mon… M_Monoc… IL10   IL10RA        5.61       -0.316                    2.65      0.0052         0.142       0.233            0.621 
-## 10 M-(S+A)/2 M_Mon… L_T_TIM… C3     ITGAM         2.96        2.2                      2.58      0.0964         0.439       0.00108          0.124 
-## 11 A-(S+M)/2 L_T_T… M_Monoc… SCGB3… MARCO         4.49        0.611                    2.55      0.0492         0.932       0.577            0.937 
-## 12 M-(S+A)/2 M_Mon… M_Monoc… IL1B   IL1RAP        1.53        3.56                     2.54      0.0145         0.216       0.00294          0.114 
-## 13 M-(S+A)/2 M_Mon… M_Monoc… THBS1  CD47          4.58        0.446                    2.51      0.00784        0.166       0.0682           0.387 
-## 14 M-(S+A)/2 L_T_T… M_Monoc… TNFSF… CD163         0.484       4.54                     2.51      0.282          0.84        0.00403          0.127 
-## 15 M-(S+A)/2 M_Mon… M_Monoc… THBS1  ITGA6         4.58        0.382                    2.48      0.00784        0.166       0.527            0.83  
-## 16 M-(S+A)/2 M_Mon… L_NK_CD… THBS1  ITGA6         4.58        0.352                    2.47      0.00784        0.166       0.0844           0.524 
-## 17 M-(S+A)/2 M_Mon… L_NK_CD… THBS1  ITGA4         4.58        0.283                    2.43      0.00784        0.166       0.0206           0.341 
-## 18 M-(S+A)/2 M_Mon… L_T_TIM… THBS1  ITGA6         4.58        0.263                    2.42      0.00784        0.166       0.321            0.869 
-## 19 M-(S+A)/2 L_T_T… M_Monoc… HMGB1  CD163         0.226       4.54                     2.38      0.111          0.649       0.00403          0.127 
-## 20 M-(S+A)/2 M_Mon… M_Monoc… HMGB1  CD163         0.154       4.54                     2.35      0.287          0.673       0.00403          0.127 
+##    contrast  sender          receiver ligand receptor lfc_ligand lfc_receptor ligand_receptor_lfc_…¹ p_val_ligand p_adj_ligand
+##    <chr>     <chr>           <chr>    <chr>  <chr>         <dbl>        <dbl>                  <dbl>        <dbl>        <dbl>
+##  1 M-(S+A)/2 M_Monocyte_CD16 M_Monoc… C3     VSIG4         2.96        5.76                     4.36      0.0964         0.439
+##  2 M-(S+A)/2 M_Monocyte_CD16 M_Monoc… IL10   IL10RB        5.61        0.715                    3.16      0.0052         0.142
+##  3 M-(S+A)/2 M_Monocyte_CD16 L_T_TIM… IL18   IL18RAP       1.93        4.39                     3.16      0.0445         0.321
+##  4 M-(S+A)/2 M_Monocyte_CD16 L_T_TIM… IL10   IL10RB        5.61        0.184                    2.90      0.0052         0.142
+##  5 M-(S+A)/2 L_NK_CD56._CD1… L_T_TIM… IL18   IL18RAP       1.29        4.39                     2.84      0.00758        0.231
+##  6 M-(S+A)/2 M_Monocyte_CD16 L_NK_CD… IL10   IL10RA        5.61        0.0393                   2.82      0.0052         0.142
+##  7 M-(S+A)/2 M_Monocyte_CD16 L_T_TIM… IL10   IL10RA        5.61       -0.0612                   2.77      0.0052         0.142
+##  8 M-(S+A)/2 M_Monocyte_CD16 L_NK_CD… IL10   IL10RB        5.61       -0.0727                   2.77      0.0052         0.142
+##  9 M-(S+A)/2 M_Monocyte_CD16 M_Monoc… IL10   IL10RA        5.61       -0.316                    2.65      0.0052         0.142
+## 10 M-(S+A)/2 M_Monocyte_CD16 L_T_TIM… C3     ITGAM         2.96        2.2                      2.58      0.0964         0.439
+## 11 A-(S+M)/2 L_T_TIM3._CD38… M_Monoc… SCGB3… MARCO         4.49        0.611                    2.55      0.0492         0.932
+## 12 M-(S+A)/2 M_Monocyte_CD16 M_Monoc… IL1B   IL1RAP        1.53        3.56                     2.54      0.0145         0.216
+## 13 M-(S+A)/2 M_Monocyte_CD16 M_Monoc… THBS1  CD47          4.58        0.446                    2.51      0.00784        0.166
+## 14 M-(S+A)/2 L_T_TIM3._CD38… M_Monoc… TNFSF… CD163         0.484       4.54                     2.51      0.282          0.84 
+## 15 M-(S+A)/2 M_Monocyte_CD16 M_Monoc… THBS1  ITGA6         4.58        0.382                    2.48      0.00784        0.166
+## 16 M-(S+A)/2 M_Monocyte_CD16 L_NK_CD… THBS1  ITGA6         4.58        0.352                    2.47      0.00784        0.166
+## 17 M-(S+A)/2 M_Monocyte_CD16 L_NK_CD… THBS1  ITGA4         4.58        0.283                    2.43      0.00784        0.166
+## 18 M-(S+A)/2 M_Monocyte_CD16 L_T_TIM… THBS1  ITGA6         4.58        0.263                    2.42      0.00784        0.166
+## 19 M-(S+A)/2 L_T_TIM3._CD38… M_Monoc… HMGB1  CD163         0.226       4.54                     2.38      0.111          0.649
+## 20 M-(S+A)/2 M_Monocyte_CD16 M_Monoc… HMGB1  CD163         0.154       4.54                     2.35      0.287          0.673
 ## # ℹ abbreviated name: ¹​ligand_receptor_lfc_avg
+## # ℹ 2 more variables: p_val_receptor <dbl>, p_adj_receptor <dbl>
 ```
 
 ## Ligand activity prediction: use the DE analysis output to predict the activity of ligands in receiver cell types and infer their potential target genes
@@ -645,18 +646,18 @@ geneset_assessment = contrast_tbl$contrast %>%
   bind_rows() 
 geneset_assessment
 ## # A tibble: 9 × 12
-##   cluster_id          n_background n_geneset_up n_geneset_down prop_geneset_up prop_geneset_down in_range_up in_range_down contrast logFC_threshold
-##   <chr>                      <int>        <int>          <int>           <dbl>             <dbl> <lgl>       <lgl>         <chr>              <dbl>
-## 1 L_NK_CD56._CD16.            6621          162             82          0.0245            0.0124 TRUE        TRUE          M-(S+A)…             0.5
-## 2 L_T_TIM3._CD38._HL…         8461          401            194          0.0474            0.0229 TRUE        TRUE          M-(S+A)…             0.5
-## 3 M_Monocyte_CD16             8817          647            438          0.0734            0.0497 TRUE        TRUE          M-(S+A)…             0.5
-## 4 L_NK_CD56._CD16.            6621          150            219          0.0227            0.0331 TRUE        TRUE          S-(M+A)…             0.5
-## 5 L_T_TIM3._CD38._HL…         8461          201            320          0.0238            0.0378 TRUE        TRUE          S-(M+A)…             0.5
-## 6 M_Monocyte_CD16             8817          368            254          0.0417            0.0288 TRUE        TRUE          S-(M+A)…             0.5
-## 7 L_NK_CD56._CD16.            6621          118            110          0.0178            0.0166 TRUE        TRUE          A-(S+M)…             0.5
-## 8 L_T_TIM3._CD38._HL…         8461          225            150          0.0266            0.0177 TRUE        TRUE          A-(S+M)…             0.5
-## 9 M_Monocyte_CD16             8817          262            464          0.0297            0.0526 TRUE        TRUE          A-(S+M)…             0.5
-## # ℹ 2 more variables: p_val_threshold <dbl>, adjusted <lgl>
+##   cluster_id     n_background n_geneset_up n_geneset_down prop_geneset_up prop_geneset_down in_range_up in_range_down contrast
+##   <chr>                 <int>        <int>          <int>           <dbl>             <dbl> <lgl>       <lgl>         <chr>   
+## 1 L_NK_CD56._CD…         6621          162             82          0.0245            0.0124 TRUE        TRUE          M-(S+A)…
+## 2 L_T_TIM3._CD3…         8461          401            194          0.0474            0.0229 TRUE        TRUE          M-(S+A)…
+## 3 M_Monocyte_CD…         8817          647            438          0.0734            0.0497 TRUE        TRUE          M-(S+A)…
+## 4 L_NK_CD56._CD…         6621          150            219          0.0227            0.0331 TRUE        TRUE          S-(M+A)…
+## 5 L_T_TIM3._CD3…         8461          201            320          0.0238            0.0378 TRUE        TRUE          S-(M+A)…
+## 6 M_Monocyte_CD…         8817          368            254          0.0417            0.0288 TRUE        TRUE          S-(M+A)…
+## 7 L_NK_CD56._CD…         6621          118            110          0.0178            0.0166 TRUE        TRUE          A-(S+M)…
+## 8 L_T_TIM3._CD3…         8461          225            150          0.0266            0.0177 TRUE        TRUE          A-(S+M)…
+## 9 M_Monocyte_CD…         8817          262            464          0.0297            0.0526 TRUE        TRUE          A-(S+M)…
+## # ℹ 3 more variables: logFC_threshold <dbl>, p_val_threshold <dbl>, adjusted <lgl>
 ```
 We can see here that for all cell type / contrast combinations, all geneset/background ratio's are within the recommended range (`in_range_up` and `in_range_down` columns). When these geneset/background ratio's would not be within the recommended ranges, we should interpret ligand activity results for these cell types with more caution, or use different thresholds (for these or all cell types). 
 
@@ -672,18 +673,18 @@ geneset_assessment_adjustedPval = contrast_tbl$contrast %>%
   bind_rows() 
 geneset_assessment_adjustedPval
 ## # A tibble: 9 × 12
-##   cluster_id          n_background n_geneset_up n_geneset_down prop_geneset_up prop_geneset_down in_range_up in_range_down contrast logFC_threshold
-##   <chr>                      <int>        <int>          <int>           <dbl>             <dbl> <lgl>       <lgl>         <chr>              <dbl>
-## 1 L_NK_CD56._CD16.            6621            7              0        0.00106           0        FALSE       FALSE         M-(S+A)…             0.5
-## 2 L_T_TIM3._CD38._HL…         8461           15              5        0.00177           0.000591 FALSE       FALSE         M-(S+A)…             0.5
-## 3 M_Monocyte_CD16             8817           25             11        0.00284           0.00125  FALSE       FALSE         M-(S+A)…             0.5
-## 4 L_NK_CD56._CD16.            6621           28             50        0.00423           0.00755  FALSE       TRUE          S-(M+A)…             0.5
-## 5 L_T_TIM3._CD38._HL…         8461            2              5        0.000236          0.000591 FALSE       FALSE         S-(M+A)…             0.5
-## 6 M_Monocyte_CD16             8817           10             15        0.00113           0.00170  FALSE       FALSE         S-(M+A)…             0.5
-## 7 L_NK_CD56._CD16.            6621           36             19        0.00544           0.00287  TRUE        FALSE         A-(S+M)…             0.5
-## 8 L_T_TIM3._CD38._HL…         8461           13              1        0.00154           0.000118 FALSE       FALSE         A-(S+M)…             0.5
-## 9 M_Monocyte_CD16             8817            4              3        0.000454          0.000340 FALSE       FALSE         A-(S+M)…             0.5
-## # ℹ 2 more variables: p_val_threshold <dbl>, adjusted <lgl>
+##   cluster_id     n_background n_geneset_up n_geneset_down prop_geneset_up prop_geneset_down in_range_up in_range_down contrast
+##   <chr>                 <int>        <int>          <int>           <dbl>             <dbl> <lgl>       <lgl>         <chr>   
+## 1 L_NK_CD56._CD…         6621            7              0        0.00106           0        FALSE       FALSE         M-(S+A)…
+## 2 L_T_TIM3._CD3…         8461           15              5        0.00177           0.000591 FALSE       FALSE         M-(S+A)…
+## 3 M_Monocyte_CD…         8817           25             11        0.00284           0.00125  FALSE       FALSE         M-(S+A)…
+## 4 L_NK_CD56._CD…         6621           28             50        0.00423           0.00755  FALSE       TRUE          S-(M+A)…
+## 5 L_T_TIM3._CD3…         8461            2              5        0.000236          0.000591 FALSE       FALSE         S-(M+A)…
+## 6 M_Monocyte_CD…         8817           10             15        0.00113           0.00170  FALSE       FALSE         S-(M+A)…
+## 7 L_NK_CD56._CD…         6621           36             19        0.00544           0.00287  TRUE        FALSE         A-(S+M)…
+## 8 L_T_TIM3._CD3…         8461           13              1        0.00154           0.000118 FALSE       FALSE         A-(S+M)…
+## 9 M_Monocyte_CD…         8817            4              3        0.000454          0.000340 FALSE       FALSE         A-(S+M)…
+## # ℹ 3 more variables: logFC_threshold <dbl>, p_val_threshold <dbl>, adjusted <lgl>
 ```
 We can see here that for most cell type / contrast combinations, the geneset/background ratio's are not within the recommended range. Therefore, we will proceed with the default tresholds for the ligand activity analysis
 
@@ -814,28 +815,28 @@ First: group-based summary table
 ```r
 prioritization_tables$group_prioritization_tbl %>% head(20)
 ## # A tibble: 20 × 18
-##    contrast  group sender                receiver ligand receptor lr_interaction id    scaled_lfc_ligand scaled_p_val_ligand_…¹ scaled_lfc_receptor
-##    <chr>     <chr> <chr>                 <chr>    <chr>  <chr>    <chr>          <chr>             <dbl>                  <dbl>               <dbl>
-##  1 M-(S+A)/2 M     M_Monocyte_CD16       L_NK_CD… HLA.E  KLRC1    HLA.E_KLRC1    HLA.…             0.816                  0.982               0.954
-##  2 M-(S+A)/2 M     L_T_TIM3._CD38._HLAD… M_Monoc… IFNG   IFNGR1   IFNG_IFNGR1    IFNG…             0.958                  0.946               0.863
-##  3 A-(S+M)/2 A     M_Monocyte_CD16       L_T_TIM… LGALS3 LAG3     LGALS3_LAG3    LGAL…             0.918                  0.980               0.985
-##  4 M-(S+A)/2 M     L_T_TIM3._CD38._HLAD… M_Monoc… IFNG   IFNGR2   IFNG_IFNGR2    IFNG…             0.958                  0.946               0.691
-##  5 M-(S+A)/2 M     M_Monocyte_CD16       L_T_TIM… CXCL16 CXCR6    CXCL16_CXCR6   CXCL…             0.861                  0.936               0.966
-##  6 A-(S+M)/2 A     M_Monocyte_CD16       M_Monoc… VCAN   TLR2     VCAN_TLR2      VCAN…             0.942                  0.812               0.948
-##  7 M-(S+A)/2 M     M_Monocyte_CD16       L_T_TIM… HLA.E  CD8A     HLA.E_CD8A     HLA.…             0.816                  0.982               0.834
-##  8 M-(S+A)/2 M     M_Monocyte_CD16       M_Monoc… S100A9 CD68     S100A9_CD68    S100…             0.891                  0.880               0.857
-##  9 M-(S+A)/2 M     M_Monocyte_CD16       L_T_TIM… HLA.D… LAG3     HLA.DRA_LAG3   HLA.…             0.886                  0.978               0.784
-## 10 M-(S+A)/2 M     M_Monocyte_CD16       L_T_TIM… S100A8 CD69     S100A8_CD69    S100…             0.871                  0.791               0.920
-## 11 M-(S+A)/2 M     M_Monocyte_CD16       M_Monoc… HLA.F  LILRB1   HLA.F_LILRB1   HLA.…             0.890                  0.985               0.982
-## 12 M-(S+A)/2 M     M_Monocyte_CD16       M_Monoc… TNF    LTBR     TNF_LTBR       TNF_…             0.984                  0.953               0.902
-## 13 A-(S+M)/2 A     L_T_TIM3._CD38._HLAD… L_T_TIM… LGALS… ITGB1    LGALS3BP_ITGB1 LGAL…             0.947                  0.995               0.937
-## 14 A-(S+M)/2 A     M_Monocyte_CD16       M_Monoc… S100A8 CD36     S100A8_CD36    S100…             0.830                  0.697               0.969
-## 15 M-(S+A)/2 M     M_Monocyte_CD16       M_Monoc… HLA.F  LILRB2   HLA.F_LILRB2   HLA.…             0.890                  0.985               0.942
-## 16 M-(S+A)/2 M     M_Monocyte_CD16       L_T_TIM… HLA.A  CD8A     HLA.A_CD8A     HLA.…             0.925                  0.999               0.834
-## 17 M-(S+A)/2 M     M_Monocyte_CD16       L_NK_CD… HLA.C  KIR2DL1  HLA.C_KIR2DL1  HLA.…             0.897                  0.972               0.790
-## 18 S-(M+A)/2 S     L_T_TIM3._CD38._HLAD… L_T_TIM… CD99   CD81     CD99_CD81      CD99…             0.656                  0.780               0.962
-## 19 S-(M+A)/2 S     L_NK_CD56._CD16.      M_Monoc… TGFB1  ENG      TGFB1_ENG      TGFB…             0.672                  0.873               0.974
-## 20 S-(M+A)/2 S     M_Monocyte_CD16       M_Monoc… TGFB1  ENG      TGFB1_ENG      TGFB…             0.791                  0.930               0.974
+##    contrast  group sender                 receiver      ligand receptor lr_interaction id    scaled_lfc_ligand scaled_p_val_ligand_…¹ scaled_lfc_receptor
+##    <chr>     <chr> <chr>                  <chr>         <chr>  <chr>    <chr>          <chr>             <dbl>                  <dbl>               <dbl>
+##  1 M-(S+A)/2 M     M_Monocyte_CD16        L_NK_CD56._C… HLA.E  KLRC1    HLA.E_KLRC1    HLA.…             0.816                  0.982               0.954
+##  2 M-(S+A)/2 M     L_T_TIM3._CD38._HLADR. M_Monocyte_C… IFNG   IFNGR1   IFNG_IFNGR1    IFNG…             0.958                  0.946               0.863
+##  3 A-(S+M)/2 A     M_Monocyte_CD16        L_T_TIM3._CD… LGALS3 LAG3     LGALS3_LAG3    LGAL…             0.918                  0.980               0.985
+##  4 M-(S+A)/2 M     L_T_TIM3._CD38._HLADR. M_Monocyte_C… IFNG   IFNGR2   IFNG_IFNGR2    IFNG…             0.958                  0.946               0.691
+##  5 M-(S+A)/2 M     M_Monocyte_CD16        L_T_TIM3._CD… CXCL16 CXCR6    CXCL16_CXCR6   CXCL…             0.861                  0.936               0.966
+##  6 A-(S+M)/2 A     M_Monocyte_CD16        M_Monocyte_C… VCAN   TLR2     VCAN_TLR2      VCAN…             0.942                  0.812               0.948
+##  7 M-(S+A)/2 M     M_Monocyte_CD16        L_T_TIM3._CD… HLA.E  CD8A     HLA.E_CD8A     HLA.…             0.816                  0.982               0.834
+##  8 M-(S+A)/2 M     M_Monocyte_CD16        M_Monocyte_C… S100A9 CD68     S100A9_CD68    S100…             0.891                  0.880               0.857
+##  9 M-(S+A)/2 M     M_Monocyte_CD16        L_T_TIM3._CD… HLA.D… LAG3     HLA.DRA_LAG3   HLA.…             0.886                  0.978               0.784
+## 10 M-(S+A)/2 M     M_Monocyte_CD16        L_T_TIM3._CD… S100A8 CD69     S100A8_CD69    S100…             0.871                  0.791               0.920
+## 11 M-(S+A)/2 M     M_Monocyte_CD16        M_Monocyte_C… HLA.F  LILRB1   HLA.F_LILRB1   HLA.…             0.890                  0.985               0.982
+## 12 M-(S+A)/2 M     M_Monocyte_CD16        M_Monocyte_C… TNF    LTBR     TNF_LTBR       TNF_…             0.984                  0.953               0.902
+## 13 A-(S+M)/2 A     L_T_TIM3._CD38._HLADR. L_T_TIM3._CD… LGALS… ITGB1    LGALS3BP_ITGB1 LGAL…             0.947                  0.995               0.937
+## 14 A-(S+M)/2 A     M_Monocyte_CD16        M_Monocyte_C… S100A8 CD36     S100A8_CD36    S100…             0.830                  0.697               0.969
+## 15 M-(S+A)/2 M     M_Monocyte_CD16        M_Monocyte_C… HLA.F  LILRB2   HLA.F_LILRB2   HLA.…             0.890                  0.985               0.942
+## 16 M-(S+A)/2 M     M_Monocyte_CD16        L_T_TIM3._CD… HLA.A  CD8A     HLA.A_CD8A     HLA.…             0.925                  0.999               0.834
+## 17 M-(S+A)/2 M     M_Monocyte_CD16        L_NK_CD56._C… HLA.C  KIR2DL1  HLA.C_KIR2DL1  HLA.…             0.897                  0.972               0.790
+## 18 S-(M+A)/2 S     L_T_TIM3._CD38._HLADR. L_T_TIM3._CD… CD99   CD81     CD99_CD81      CD99…             0.656                  0.780               0.962
+## 19 S-(M+A)/2 S     L_NK_CD56._CD16.       M_Monocyte_C… TGFB1  ENG      TGFB1_ENG      TGFB…             0.672                  0.873               0.974
+## 20 S-(M+A)/2 S     M_Monocyte_CD16        M_Monocyte_C… TGFB1  ENG      TGFB1_ENG      TGFB…             0.791                  0.930               0.974
 ## # ℹ abbreviated name: ¹​scaled_p_val_ligand_adapted
 ## # ℹ 7 more variables: scaled_p_val_receptor_adapted <dbl>, max_scaled_activity <dbl>, scaled_pb_ligand <dbl>, scaled_pb_receptor <dbl>,
 ## #   fraction_expressing_ligand_receptor <dbl>, prioritization_score <dbl>, top_group <chr>
@@ -930,7 +931,7 @@ colors_receiver = RColorBrewer::brewer.pal(n = length(senders_receivers), name =
 circos_list = make_circos_group_comparison(prioritized_tbl_oi, colors_sender, colors_receiver)
 ```
 
-<img src="basic_analysis_steps_MISC_files/figure-html/unnamed-chunk-45-1.png" width="100%" /><img src="basic_analysis_steps_MISC_files/figure-html/unnamed-chunk-45-2.png" width="100%" /><img src="basic_analysis_steps_MISC_files/figure-html/unnamed-chunk-45-3.png" width="100%" /><img src="basic_analysis_steps_MISC_files/figure-html/unnamed-chunk-45-4.png" width="100%" />
+<img src="basic_analysis_steps_MISC_files/figure-html/unnamed-chunk-109-1.png" width="100%" /><img src="basic_analysis_steps_MISC_files/figure-html/unnamed-chunk-109-2.png" width="100%" /><img src="basic_analysis_steps_MISC_files/figure-html/unnamed-chunk-109-3.png" width="100%" /><img src="basic_analysis_steps_MISC_files/figure-html/unnamed-chunk-109-4.png" width="100%" />
 
 ### Interpretable bubble plots
 
@@ -961,7 +962,7 @@ plot_oi = make_sample_lr_prod_activity_plots(
 plot_oi
 ```
 
-<img src="basic_analysis_steps_MISC_files/figure-html/unnamed-chunk-48-1.png" width="100%" />
+<img src="basic_analysis_steps_MISC_files/figure-html/unnamed-chunk-112-1.png" width="100%" />
 Samples that were left out of the DE analysis are indicated with a smaller dot (this helps to indicate the samples that did not contribute to the calculation of the logFC, and thus not contributed to the final prioritization)
 
 As a further help for further prioritization, we can assess the level of curation of these LR pairs as defined by the Intercellular Communication part of the Omnipath database
@@ -981,7 +982,7 @@ plot_oi = make_sample_lr_prod_activity_plots_Omnipath(
 plot_oi
 ```
 
-<img src="basic_analysis_steps_MISC_files/figure-html/unnamed-chunk-50-1.png" width="100%" />
+<img src="basic_analysis_steps_MISC_files/figure-html/unnamed-chunk-114-1.png" width="100%" />
 
 As you can see, the HEBP1-FPR2 interaction has no Omnipath DB scores. This is because this LR pair was not documented by the Omnipath LR database. Instead it was documented by the original NicheNet LR network (source: Guide2Pharmacology) as can be seen in the table.
 
@@ -1006,7 +1007,7 @@ plot_oi = make_sample_lr_prod_activity_plots_Omnipath(
 plot_oi
 ```
 
-<img src="basic_analysis_steps_MISC_files/figure-html/unnamed-chunk-52-1.png" width="100%" />
+<img src="basic_analysis_steps_MISC_files/figure-html/unnamed-chunk-116-1.png" width="100%" />
 
 Eg M_Monocyte_CD16 as sender:
 
@@ -1027,7 +1028,7 @@ plot_oi = make_sample_lr_prod_activity_plots_Omnipath(
 plot_oi
 ```
 
-<img src="basic_analysis_steps_MISC_files/figure-html/unnamed-chunk-54-1.png" width="100%" />
+<img src="basic_analysis_steps_MISC_files/figure-html/unnamed-chunk-118-1.png" width="100%" />
 
 You can make these plots also for the other groups, like we will illustrate now for the S group
 
@@ -1049,7 +1050,7 @@ plot_oi = make_sample_lr_prod_activity_plots_Omnipath(
 plot_oi
 ```
 
-<img src="basic_analysis_steps_MISC_files/figure-html/unnamed-chunk-56-1.png" width="100%" />
+<img src="basic_analysis_steps_MISC_files/figure-html/unnamed-chunk-120-1.png" width="100%" />
 
 __Note__: Use `make_sample_lr_prod_activity_batch_plots` if you have batches and want to visualize them on this plot!
 
@@ -1088,14 +1089,14 @@ combined_plot
 ## $combined_plot
 ```
 
-<img src="basic_analysis_steps_MISC_files/figure-html/unnamed-chunk-58-1.png" width="100%" />
+<img src="basic_analysis_steps_MISC_files/figure-html/unnamed-chunk-122-1.png" width="100%" />
 
 ```
 ## 
 ## $legends
 ```
 
-<img src="basic_analysis_steps_MISC_files/figure-html/unnamed-chunk-58-2.png" width="100%" />
+<img src="basic_analysis_steps_MISC_files/figure-html/unnamed-chunk-122-2.png" width="100%" />
 
 What if there is a specific ligand you are interested in?
 
@@ -1129,14 +1130,14 @@ combined_plot
 ## $combined_plot
 ```
 
-<img src="basic_analysis_steps_MISC_files/figure-html/unnamed-chunk-60-1.png" width="100%" />
+<img src="basic_analysis_steps_MISC_files/figure-html/unnamed-chunk-124-1.png" width="100%" />
 
 ```
 ## 
 ## $legends
 ```
 
-<img src="basic_analysis_steps_MISC_files/figure-html/unnamed-chunk-60-2.png" width="100%" />
+<img src="basic_analysis_steps_MISC_files/figure-html/unnamed-chunk-124-2.png" width="100%" />
 
 ### With filtering of target genes based on LR-target expression correlation
 
@@ -1188,7 +1189,7 @@ lr_target_correlation_plot = make_lr_target_correlation_plot(
 lr_target_correlation_plot$combined_plot
 ```
 
-<img src="basic_analysis_steps_MISC_files/figure-html/unnamed-chunk-63-1.png" width="100%" />
+<img src="basic_analysis_steps_MISC_files/figure-html/unnamed-chunk-127-1.png" width="100%" />
 
 You can also visualize the expression correlation in the following way for a selected LR pair and their targets:
 
@@ -1207,7 +1208,7 @@ lr_target_scatter_plot = make_lr_target_scatter_plot(
 lr_target_scatter_plot
 ```
 
-<img src="basic_analysis_steps_MISC_files/figure-html/unnamed-chunk-64-1.png" width="100%" />
+<img src="basic_analysis_steps_MISC_files/figure-html/unnamed-chunk-128-1.png" width="100%" />
 
 ## Intercellular regulatory network inference and visualization
 
@@ -1281,7 +1282,7 @@ network_graph = visualize_network(network, colors_sender)
 network_graph$plot
 ```
 
-<img src="basic_analysis_steps_MISC_files/figure-html/unnamed-chunk-67-1.png" width="100%" />
+<img src="basic_analysis_steps_MISC_files/figure-html/unnamed-chunk-131-1.png" width="100%" />
 
 Interestingly, we can also use this network to further prioritize differential CCC interactions. Here we will assume that the most important LR interactions are the ones that are involved in this intercellular regulatory network. We can get these interactions as follows:
 
@@ -1309,18 +1310,18 @@ prioritized_tbl_oi_network = prioritized_tbl_oi %>% inner_join(
   network$prioritized_lr_interactions)
 prioritized_tbl_oi_network
 ## # A tibble: 117 × 8
-##    group sender                 receiver               ligand  receptor id                                 prioritization_score prioritization_rank
-##    <chr> <chr>                  <chr>                  <chr>   <chr>    <chr>                                             <dbl>               <dbl>
-##  1 M     M_Monocyte_CD16        L_NK_CD56._CD16.       HLA.E   KLRC1    HLA.E_KLRC1_M_Monocyte_CD16_L_NK_…                0.956                   1
-##  2 M     L_T_TIM3._CD38._HLADR. M_Monocyte_CD16        IFNG    IFNGR1   IFNG_IFNGR1_L_T_TIM3._CD38._HLADR…                0.948                   2
-##  3 M     L_T_TIM3._CD38._HLADR. M_Monocyte_CD16        IFNG    IFNGR2   IFNG_IFNGR2_L_T_TIM3._CD38._HLADR…                0.928                   4
-##  4 M     M_Monocyte_CD16        L_T_TIM3._CD38._HLADR. CXCL16  CXCR6    CXCL16_CXCR6_M_Monocyte_CD16_L_T_…                0.922                   5
-##  5 M     M_Monocyte_CD16        L_T_TIM3._CD38._HLADR. HLA.E   CD8A     HLA.E_CD8A_M_Monocyte_CD16_L_T_TI…                0.919                   7
-##  6 M     M_Monocyte_CD16        L_T_TIM3._CD38._HLADR. HLA.DRA LAG3     HLA.DRA_LAG3_M_Monocyte_CD16_L_T_…                0.910                   9
-##  7 M     M_Monocyte_CD16        L_T_TIM3._CD38._HLADR. S100A8  CD69     S100A8_CD69_M_Monocyte_CD16_L_T_T…                0.907                  10
-##  8 M     M_Monocyte_CD16        M_Monocyte_CD16        HLA.F   LILRB1   HLA.F_LILRB1_M_Monocyte_CD16_M_Mo…                0.903                  11
-##  9 M     M_Monocyte_CD16        M_Monocyte_CD16        TNF     LTBR     TNF_LTBR_M_Monocyte_CD16_M_Monocy…                0.902                  12
-## 10 M     M_Monocyte_CD16        M_Monocyte_CD16        HLA.F   LILRB2   HLA.F_LILRB2_M_Monocyte_CD16_M_Mo…                0.898                  15
+##    group sender                 receiver               ligand  receptor id                                       prioritization_score prioritization_rank
+##    <chr> <chr>                  <chr>                  <chr>   <chr>    <chr>                                                   <dbl>               <dbl>
+##  1 M     M_Monocyte_CD16        L_NK_CD56._CD16.       HLA.E   KLRC1    HLA.E_KLRC1_M_Monocyte_CD16_L_NK_CD56._…                0.956                   1
+##  2 M     L_T_TIM3._CD38._HLADR. M_Monocyte_CD16        IFNG    IFNGR1   IFNG_IFNGR1_L_T_TIM3._CD38._HLADR._M_Mo…                0.948                   2
+##  3 M     L_T_TIM3._CD38._HLADR. M_Monocyte_CD16        IFNG    IFNGR2   IFNG_IFNGR2_L_T_TIM3._CD38._HLADR._M_Mo…                0.928                   4
+##  4 M     M_Monocyte_CD16        L_T_TIM3._CD38._HLADR. CXCL16  CXCR6    CXCL16_CXCR6_M_Monocyte_CD16_L_T_TIM3._…                0.922                   5
+##  5 M     M_Monocyte_CD16        L_T_TIM3._CD38._HLADR. HLA.E   CD8A     HLA.E_CD8A_M_Monocyte_CD16_L_T_TIM3._CD…                0.919                   7
+##  6 M     M_Monocyte_CD16        L_T_TIM3._CD38._HLADR. HLA.DRA LAG3     HLA.DRA_LAG3_M_Monocyte_CD16_L_T_TIM3._…                0.910                   9
+##  7 M     M_Monocyte_CD16        L_T_TIM3._CD38._HLADR. S100A8  CD69     S100A8_CD69_M_Monocyte_CD16_L_T_TIM3._C…                0.907                  10
+##  8 M     M_Monocyte_CD16        M_Monocyte_CD16        HLA.F   LILRB1   HLA.F_LILRB1_M_Monocyte_CD16_M_Monocyte…                0.903                  11
+##  9 M     M_Monocyte_CD16        M_Monocyte_CD16        TNF     LTBR     TNF_LTBR_M_Monocyte_CD16_M_Monocyte_CD16                0.902                  12
+## 10 M     M_Monocyte_CD16        M_Monocyte_CD16        HLA.F   LILRB2   HLA.F_LILRB2_M_Monocyte_CD16_M_Monocyte…                0.898                  15
 ## # ℹ 107 more rows
 ```
 
@@ -1341,4 +1342,4 @@ plot_oi = make_sample_lr_prod_activity_plots_Omnipath(
 plot_oi
 ```
 
-<img src="basic_analysis_steps_MISC_files/figure-html/unnamed-chunk-71-1.png" width="100%" />
+<img src="basic_analysis_steps_MISC_files/figure-html/unnamed-chunk-135-1.png" width="100%" />

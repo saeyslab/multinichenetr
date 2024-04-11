@@ -245,10 +245,10 @@ In this vignette, we will demonstrate these steps one-by-one, which offers the m
 
 In this step we will calculate and visualize cell type abundances. This will give an indication about which cell types will be retained in the analysis, and which cell types will be filtered out.  
 
-In the following analysis we will a required minimum number of cells per cell type per condition at 10. Conditions that have less than `min_cells` cells will be excluded from the analysis for that specific cell type.
+In the following analysis we will a required minimum number of cells per cell type per condition at 25 Conditions that have less than `min_cells` cells will be excluded from the analysis for that specific cell type.
  
 ```{r}
-min_cells = 10
+min_cells = 25
 ```
 
 ```{r}
@@ -260,6 +260,8 @@ abundance_info = get_abundance_info(
   batches = batches
   )
 ```
+
+You see here that we set `sample_id = group_id`. This is not a mistake. Why do we do this: we use the regular MultiNicheNet code to get cell type abundances per samples and groups. Because we will ignore sample-level information in this vignette, we will set this parameter to the condition/group ID and not the sample ID.
 
 First, we will check the cell type abundance diagnostic plots.
 
@@ -390,7 +392,7 @@ genes_oi = frq_list$expressed_df %>%
 sce = sce[genes_oi, ]
 ```
 
-## Pseudobulk expression calculation: determine and normalize per-sample pseudobulk expression levels for each expressed gene in each present cell type
+## Expression calculation: determine and normalize expression levels for each expressed gene in each present cell type
 
 After filtering out absent cell types and genes, we will continue the analysis by calculating the different prioritization criteria that we will use to prioritize cell-cell communication patterns.
 
@@ -407,6 +409,8 @@ abundance_expression_info = process_abundance_expression_info(
   frq_list = frq_list, 
   abundance_info = abundance_info)
 ```
+
+You see here that we again set `sample_id = group_id`. This is not a mistake. Why do we do this: we use the regular MultiNicheNet code to get cell type abundances per samples and groups. Because we will ignore sample-level information in this vignette, we will set this parameter to the condition/group ID and not the sample ID.
 
 Normalized pseudobulk expression values per gene/celltype/condition can be inspected by:
 
@@ -546,10 +550,9 @@ In the previous steps, we calculated expression, differential expression and Nic
 
 * Upregulation of the ligand in a sender cell type and/or upregulation of the receptor in a receiver cell type - in the condition of interest.
 * Cell-type specific expression of the ligand in the sender cell type and receptor in the receiver cell type in the condition of interest (to mitigate the influence of upregulated but still relatively weakly expressed ligands/receptors). 
-* Sufficiently high expression levels of ligand and receptor in many samples of the same group.
 * High NicheNet ligand activity, to further prioritize ligand-receptor pairs based on their predicted effect of the ligand-receptor interaction on the gene expression in the receiver cell type. 
 
-We will combine these prioritization criteria in a single aggregated prioritization score. In the default setting, we will weigh each of these criteria equally (`scenario = "regular"`). This setting is strongly recommended. However, we also provide some additional setting to accomodate different biological scenarios. The setting `scenario = "lower_DE"` halves the weight for DE criteria and doubles the weight for ligand activity. This is recommended in case your hypothesis is that the differential CCC patterns in your data are less likely to be driven by DE (eg in cases of differential migration into a niche). The setting `scenario = "no_frac_LR_expr"` ignores the criterion "Sufficiently high expression levels of ligand and receptor in many samples of the same group". This may be interesting for users that have data with a limited number of samples and don’t want to penalize interactions if they are not sufficiently expressed in some samples. 
+We will combine these prioritization criteria in a single aggregated prioritization score. For the analysis on this type of data (with no or limited samples per condition), we only recommend using `scenario = "no_frac_LR_expr"`.
 
 Finally, we still need to make one choice. For NicheNet ligand activity we can choose to prioritize ligands that only induce upregulation of target genes (`ligand_activity_down = FALSE`) or can lead potentially lead to both up- and downregulation (`ligand_activity_down = TRUE`). The benefit of `ligand_activity_down = FALSE` is ease of interpretability: prioritized ligand-receptor pairs will be upregulated in the condition of interest, just like their target genes.  `ligand_activity_down = TRUE` can be harder to interpret because target genes of some interactions may be upregulated in the other conditions compared to the condition of interest. This is harder to interpret, but may help to pick up interactions that can also repress gene expression. 
 
@@ -583,13 +586,15 @@ prioritization_tables = suppressMessages(generate_prioritization_tables(
     contrast_tbl = contrast_tbl,
     sender_receiver_tbl = sender_receiver_tbl,
     grouping_tbl = grouping_tbl,
-    scenario = "regular", # all prioritization criteria will be weighted equally
+    scenario = "no_frac_LR_expr", # 
     fraction_cutoff = fraction_cutoff, 
     abundance_data_receiver = abundance_expression_info$abundance_data_receiver,
     abundance_data_sender = abundance_expression_info$abundance_data_sender,
     ligand_activity_down = ligand_activity_down
   ))
 ```
+
+Note, in contrast to the regular and default MultiNicheNet prioritization 
 
 Check the output tables
 
@@ -769,7 +774,7 @@ plot_oi
 
 In another type of plot, we can visualize the ligand activities for a group-receiver combination, and show the predicted ligand-target links, and also the expression of the predicted target genes across samples.
 
-For this, we now need to define a receiver cell type of interest. As example, we will take `L_T_TIM3._CD38._HLADR.` cells as receiver, and look at the top 10 senderLigand-receiverReceptor pairs with these cells as receiver.
+For this, we now need to define a receiver cell type of interest. As example, we will take `M_Monocyte_CD16` cells as receiver, and look at the top 10 senderLigand-receiverReceptor pairs with these cells as receiver.
 
 ```{r}
 group_oi = "M"
@@ -866,3 +871,19 @@ plot_oi = make_sample_lr_prod_activity_plots_Omnipath(
   )
 plot_oi
 ```
+## Visualize (sender-agnostic) ligand activities for each receiver-group combination
+
+In the next type of plot, we plot all the ligand activities (Both scaled and absolute activities) of each receiver-group combination. This can give us some insights in active signaling pathways across groups. Note that we can thus show top ligands based on ligand activity - irrespective and agnostic of expression in sender. Benefits of this analysis are the possibility to infer the activity of ligands that are expressed by cell types that are not in your single-cell dataset or that are hard to pick up at the RNA level. 
+
+The following block of code will show how to visualize the activities for the top5 ligands for each receiver cell type - condition combination:
+
+```{r, fig.width=13, fig.height=8}
+ligands_oi = multinichenet_output$prioritization_tables$ligand_activities_target_de_tbl %>% inner_join(contrast_tbl) %>% 
+  group_by(group, receiver) %>% distinct(ligand, receiver, group, activity) %>% 
+  top_n(5, activity) %>% pull(ligand) %>% unique()
+
+plot_oi = make_ligand_activity_plots(multinichenet_output$prioritization_tables, ligands_oi, contrast_tbl, widths = NULL)
+plot_oi
+```
+
+Here we see a type I interferon ligand activity signature in the A-group (predicted upregulation). Because type I interferons were not (sufficiently high) expressed by the cell types in our dataset, they were not retrieved by the classic MultiNicheNet analysis. However, they may have an important role in the Adult COVID19 patient group, as is supported by literature. 
