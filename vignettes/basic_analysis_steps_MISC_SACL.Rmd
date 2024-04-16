@@ -17,7 +17,7 @@ vignette: >
 </style>
 
 <!-- github markdown built using
-rmarkdown::render("vignettes/basic_analysis_steps_MISC.Rmd", clean = FALSE )
+rmarkdown::render("vignettes/basic_analysis_steps_MISC_SACL.Rmd", clean = FALSE )
 -->
 
 ```{r setup, include = FALSE}

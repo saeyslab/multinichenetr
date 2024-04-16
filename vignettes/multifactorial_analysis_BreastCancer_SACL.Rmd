@@ -16,6 +16,10 @@ vignette: >
 }
 </style>
 
+<!-- github markdown built using
+rmarkdown::render("vignettes/multifactorial_analysis_BreastCancer_SACL.rmd", clean = FALSE )
+-->
+
 ```{r setup, include = FALSE}
 knitr::opts_chunk$set(
   collapse = TRUE,
@@ -1355,7 +1359,13 @@ celltype_de_genesets = list(
   celltype_de_decrease_group2_stringent) %>% bind_rows()
 ```
 
-We will first inspect the geneset_oi-vs-background ratios for the default tresholds:
+We will first inspect the geneset_oi-vs-background ratios for the tresholds appropriate for this "multifactorial-like analysis":
+
+```{r}
+p_val_threshold = 1 # because the p-values in this setting do not make sense
+logFC_threshold = 0.125 # we can be a bit more lenient here
+```
+
 
 ```{r}
 contrast_tbl = tibble(contrast =
