@@ -2306,8 +2306,8 @@ make_ggraph_signaling_path = function(signaling_graph_list, colors, ligands_all,
   set.seed(1919)
   plot = suppressWarnings(ggraph::ggraph(graph,layout = "nicely") + 
     ggraph::geom_edge_link(aes(colour = interaction_type, width = weight), arrow = arrow(length = unit(4, 'mm')), end_cap = ggraph::circle(5.5, 'mm'), start_cap = ggraph::circle(3, 'mm')) +
-    ggraph::geom_node_label(aes(label = name, color = node_type), fontface = "bold", size = 4.5, nudge_x = 0, nudge_y = 0, family= "Serif") +
-    ggraph::theme_graph(foreground = 'black', fg_text_colour = 'white') + scale_color_manual(values = colors)) + scale_edge_color_manual(values = edge_colors) + scale_edge_width_continuous(range = c(0.5, 1.5))
+    ggraph::geom_node_label(aes(label = name, color = node_type), fontface = "bold", size = 4.5, nudge_x = 0, nudge_y = 0) +
+    ggraph::theme_graph(foreground = 'black', fg_text_colour = 'white') + scale_color_manual(values = colors)) + ggraph::scale_edge_color_manual(values = edge_colors) + ggraph::scale_edge_width_continuous(range = c(0.5, 1.5))
   return(list(plot = plot, graph = graph))
   
 }
