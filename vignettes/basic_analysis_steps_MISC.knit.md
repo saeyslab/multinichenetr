@@ -9,7 +9,7 @@ vignette: >
   %\VignetteIndexEntry{MultiNicheNet analysis: MIS-C threewise comparison - step-by-step}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8} 
-date: 8 April 2024
+date: 30 April 2024
 link-citations: true
 ---
 
@@ -282,7 +282,7 @@ The first plot visualizes the number of cells per celltype-sample combination, a
 abundance_info$abund_plot_sample
 ```
 
-<img src="basic_analysis_steps_MISC_files/figure-html/unnamed-chunk-76-1.png" width="100%" />
+<img src="basic_analysis_steps_MISC_files/figure-html/unnamed-chunk-12-1.png" width="100%" />
 
 The red dotted line indicates the required minimum of cells as defined above in `min_cells`. We can see here that some sample-celltype combinations are left out. For the DE analysis in the next step, only cell types will be considered if there are at least two samples per group with a sufficient number of cells. But as we can see here: all cell types will be considered for the analysis and there are no condition-specific cell types. 
 
@@ -492,14 +492,15 @@ abundance_expression_info$sender_receiver_info$pb_df %>% head()
 abundance_expression_info$sender_receiver_info$pb_df_group %>% head()
 ## # A tibble: 6 × 8
 ## # Groups:   group, sender [6]
-##   group sender                 receiver         ligand receptor pb_ligand_group pb_receptor_group ligand_receptor_pb_prod_group
-##   <chr> <chr>                  <chr>            <chr>  <chr>              <dbl>             <dbl>                         <dbl>
-## 1 M     L_NK_CD56._CD16.       M_Monocyte_CD16  B2M    LILRB1              14.1             10.0                           141.
-## 2 M     M_Monocyte_CD16        M_Monocyte_CD16  B2M    LILRB1              14.1             10.0                           141.
-## 3 M     L_T_TIM3._CD38._HLADR. M_Monocyte_CD16  B2M    LILRB1              14.0             10.0                           140.
-## 4 A     L_NK_CD56._CD16.       L_NK_CD56._CD16. B2M    KLRD1               14.3              9.71                          139.
-## 5 S     L_NK_CD56._CD16.       L_NK_CD56._CD16. B2M    KLRD1               14.4              9.46                          136.
-## 6 A     L_T_TIM3._CD38._HLADR. L_NK_CD56._CD16. B2M    KLRD1               13.9              9.71                          135.
+##   group sender                 receiver       ligand receptor pb_ligand_group pb_receptor_group ligand_receptor_pb_p…¹
+##   <chr> <chr>                  <chr>          <chr>  <chr>              <dbl>             <dbl>                  <dbl>
+## 1 M     L_NK_CD56._CD16.       M_Monocyte_CD… B2M    LILRB1              14.1             10.0                    141.
+## 2 M     M_Monocyte_CD16        M_Monocyte_CD… B2M    LILRB1              14.1             10.0                    141.
+## 3 M     L_T_TIM3._CD38._HLADR. M_Monocyte_CD… B2M    LILRB1              14.0             10.0                    140.
+## 4 A     L_NK_CD56._CD16.       L_NK_CD56._CD… B2M    KLRD1               14.3              9.71                   139.
+## 5 S     L_NK_CD56._CD16.       L_NK_CD56._CD… B2M    KLRD1               14.4              9.46                   136.
+## 6 A     L_T_TIM3._CD38._HLADR. L_NK_CD56._CD… B2M    KLRD1               13.9              9.71                   135.
+## # ℹ abbreviated name: ¹​ligand_receptor_pb_prod_group
 ```
 
 ## Differential expression (DE) analysis: determine which genes are differentially expressed
@@ -546,7 +547,7 @@ Evaluate the distributions of p-values:
 DE_info$hist_pvals
 ```
 
-<img src="basic_analysis_steps_MISC_files/figure-html/unnamed-chunk-90-1.png" width="100%" />
+<img src="basic_analysis_steps_MISC_files/figure-html/unnamed-chunk-26-1.png" width="100%" />
 
 These distributions look fine (uniform distribution, except peak at p-value <= 0.05), so we will continue using these regular p-values. In case these p-value distributions look irregular, you can estimate empirical p-values as we will demonstrate in another vignette.
 
@@ -585,28 +586,28 @@ sender_receiver_de = combine_sender_receiver_de(
 ```r
 sender_receiver_de %>% head(20)
 ## # A tibble: 20 × 12
-##    contrast  sender          receiver ligand receptor lfc_ligand lfc_receptor ligand_receptor_lfc_…¹ p_val_ligand p_adj_ligand
-##    <chr>     <chr>           <chr>    <chr>  <chr>         <dbl>        <dbl>                  <dbl>        <dbl>        <dbl>
-##  1 M-(S+A)/2 M_Monocyte_CD16 M_Monoc… C3     VSIG4         2.96        5.76                     4.36      0.0964         0.439
-##  2 M-(S+A)/2 M_Monocyte_CD16 M_Monoc… IL10   IL10RB        5.61        0.715                    3.16      0.0052         0.142
-##  3 M-(S+A)/2 M_Monocyte_CD16 L_T_TIM… IL18   IL18RAP       1.93        4.39                     3.16      0.0445         0.321
-##  4 M-(S+A)/2 M_Monocyte_CD16 L_T_TIM… IL10   IL10RB        5.61        0.184                    2.90      0.0052         0.142
-##  5 M-(S+A)/2 L_NK_CD56._CD1… L_T_TIM… IL18   IL18RAP       1.29        4.39                     2.84      0.00758        0.231
-##  6 M-(S+A)/2 M_Monocyte_CD16 L_NK_CD… IL10   IL10RA        5.61        0.0393                   2.82      0.0052         0.142
-##  7 M-(S+A)/2 M_Monocyte_CD16 L_T_TIM… IL10   IL10RA        5.61       -0.0612                   2.77      0.0052         0.142
-##  8 M-(S+A)/2 M_Monocyte_CD16 L_NK_CD… IL10   IL10RB        5.61       -0.0727                   2.77      0.0052         0.142
-##  9 M-(S+A)/2 M_Monocyte_CD16 M_Monoc… IL10   IL10RA        5.61       -0.316                    2.65      0.0052         0.142
-## 10 M-(S+A)/2 M_Monocyte_CD16 L_T_TIM… C3     ITGAM         2.96        2.2                      2.58      0.0964         0.439
-## 11 A-(S+M)/2 L_T_TIM3._CD38… M_Monoc… SCGB3… MARCO         4.49        0.611                    2.55      0.0492         0.932
-## 12 M-(S+A)/2 M_Monocyte_CD16 M_Monoc… IL1B   IL1RAP        1.53        3.56                     2.54      0.0145         0.216
-## 13 M-(S+A)/2 M_Monocyte_CD16 M_Monoc… THBS1  CD47          4.58        0.446                    2.51      0.00784        0.166
-## 14 M-(S+A)/2 L_T_TIM3._CD38… M_Monoc… TNFSF… CD163         0.484       4.54                     2.51      0.282          0.84 
-## 15 M-(S+A)/2 M_Monocyte_CD16 M_Monoc… THBS1  ITGA6         4.58        0.382                    2.48      0.00784        0.166
-## 16 M-(S+A)/2 M_Monocyte_CD16 L_NK_CD… THBS1  ITGA6         4.58        0.352                    2.47      0.00784        0.166
-## 17 M-(S+A)/2 M_Monocyte_CD16 L_NK_CD… THBS1  ITGA4         4.58        0.283                    2.43      0.00784        0.166
-## 18 M-(S+A)/2 M_Monocyte_CD16 L_T_TIM… THBS1  ITGA6         4.58        0.263                    2.42      0.00784        0.166
-## 19 M-(S+A)/2 L_T_TIM3._CD38… M_Monoc… HMGB1  CD163         0.226       4.54                     2.38      0.111          0.649
-## 20 M-(S+A)/2 M_Monocyte_CD16 M_Monoc… HMGB1  CD163         0.154       4.54                     2.35      0.287          0.673
+##    contrast  sender  receiver ligand receptor lfc_ligand lfc_receptor ligand_receptor_lfc_…¹ p_val_ligand p_adj_ligand
+##    <chr>     <chr>   <chr>    <chr>  <chr>         <dbl>        <dbl>                  <dbl>        <dbl>        <dbl>
+##  1 M-(S+A)/2 M_Mono… M_Monoc… C3     VSIG4         2.96        5.76                     4.36      0.0964         0.439
+##  2 M-(S+A)/2 M_Mono… M_Monoc… IL10   IL10RB        5.61        0.715                    3.16      0.0052         0.142
+##  3 M-(S+A)/2 M_Mono… L_T_TIM… IL18   IL18RAP       1.93        4.39                     3.16      0.0445         0.321
+##  4 M-(S+A)/2 M_Mono… L_T_TIM… IL10   IL10RB        5.61        0.184                    2.90      0.0052         0.142
+##  5 M-(S+A)/2 L_NK_C… L_T_TIM… IL18   IL18RAP       1.29        4.39                     2.84      0.00758        0.231
+##  6 M-(S+A)/2 M_Mono… L_NK_CD… IL10   IL10RA        5.61        0.0393                   2.82      0.0052         0.142
+##  7 M-(S+A)/2 M_Mono… L_T_TIM… IL10   IL10RA        5.61       -0.0612                   2.77      0.0052         0.142
+##  8 M-(S+A)/2 M_Mono… L_NK_CD… IL10   IL10RB        5.61       -0.0727                   2.77      0.0052         0.142
+##  9 M-(S+A)/2 M_Mono… M_Monoc… IL10   IL10RA        5.61       -0.316                    2.65      0.0052         0.142
+## 10 M-(S+A)/2 M_Mono… L_T_TIM… C3     ITGAM         2.96        2.2                      2.58      0.0964         0.439
+## 11 A-(S+M)/2 L_T_TI… M_Monoc… SCGB3… MARCO         4.49        0.611                    2.55      0.0492         0.932
+## 12 M-(S+A)/2 M_Mono… M_Monoc… IL1B   IL1RAP        1.53        3.56                     2.54      0.0145         0.216
+## 13 M-(S+A)/2 M_Mono… M_Monoc… THBS1  CD47          4.58        0.446                    2.51      0.00784        0.166
+## 14 M-(S+A)/2 L_T_TI… M_Monoc… TNFSF… CD163         0.484       4.54                     2.51      0.282          0.84 
+## 15 M-(S+A)/2 M_Mono… M_Monoc… THBS1  ITGA6         4.58        0.382                    2.48      0.00784        0.166
+## 16 M-(S+A)/2 M_Mono… L_NK_CD… THBS1  ITGA6         4.58        0.352                    2.47      0.00784        0.166
+## 17 M-(S+A)/2 M_Mono… L_NK_CD… THBS1  ITGA4         4.58        0.283                    2.43      0.00784        0.166
+## 18 M-(S+A)/2 M_Mono… L_T_TIM… THBS1  ITGA6         4.58        0.263                    2.42      0.00784        0.166
+## 19 M-(S+A)/2 L_T_TI… M_Monoc… HMGB1  CD163         0.226       4.54                     2.38      0.111          0.649
+## 20 M-(S+A)/2 M_Mono… M_Monoc… HMGB1  CD163         0.154       4.54                     2.35      0.287          0.673
 ## # ℹ abbreviated name: ¹​ligand_receptor_lfc_avg
 ## # ℹ 2 more variables: p_val_receptor <dbl>, p_adj_receptor <dbl>
 ```
@@ -646,18 +647,18 @@ geneset_assessment = contrast_tbl$contrast %>%
   bind_rows() 
 geneset_assessment
 ## # A tibble: 9 × 12
-##   cluster_id     n_background n_geneset_up n_geneset_down prop_geneset_up prop_geneset_down in_range_up in_range_down contrast
-##   <chr>                 <int>        <int>          <int>           <dbl>             <dbl> <lgl>       <lgl>         <chr>   
-## 1 L_NK_CD56._CD…         6621          162             82          0.0245            0.0124 TRUE        TRUE          M-(S+A)…
-## 2 L_T_TIM3._CD3…         8461          401            194          0.0474            0.0229 TRUE        TRUE          M-(S+A)…
-## 3 M_Monocyte_CD…         8817          647            438          0.0734            0.0497 TRUE        TRUE          M-(S+A)…
-## 4 L_NK_CD56._CD…         6621          150            219          0.0227            0.0331 TRUE        TRUE          S-(M+A)…
-## 5 L_T_TIM3._CD3…         8461          201            320          0.0238            0.0378 TRUE        TRUE          S-(M+A)…
-## 6 M_Monocyte_CD…         8817          368            254          0.0417            0.0288 TRUE        TRUE          S-(M+A)…
-## 7 L_NK_CD56._CD…         6621          118            110          0.0178            0.0166 TRUE        TRUE          A-(S+M)…
-## 8 L_T_TIM3._CD3…         8461          225            150          0.0266            0.0177 TRUE        TRUE          A-(S+M)…
-## 9 M_Monocyte_CD…         8817          262            464          0.0297            0.0526 TRUE        TRUE          A-(S+M)…
-## # ℹ 3 more variables: logFC_threshold <dbl>, p_val_threshold <dbl>, adjusted <lgl>
+##   cluster_id      n_background n_geneset_up n_geneset_down prop_geneset_up prop_geneset_down in_range_up in_range_down
+##   <chr>                  <int>        <int>          <int>           <dbl>             <dbl> <lgl>       <lgl>        
+## 1 L_NK_CD56._CD1…         6621          162             82          0.0245            0.0124 TRUE        TRUE         
+## 2 L_T_TIM3._CD38…         8461          401            194          0.0474            0.0229 TRUE        TRUE         
+## 3 M_Monocyte_CD16         8817          647            438          0.0734            0.0497 TRUE        TRUE         
+## 4 L_NK_CD56._CD1…         6621          150            219          0.0227            0.0331 TRUE        TRUE         
+## 5 L_T_TIM3._CD38…         8461          201            320          0.0238            0.0378 TRUE        TRUE         
+## 6 M_Monocyte_CD16         8817          368            254          0.0417            0.0288 TRUE        TRUE         
+## 7 L_NK_CD56._CD1…         6621          118            110          0.0178            0.0166 TRUE        TRUE         
+## 8 L_T_TIM3._CD38…         8461          225            150          0.0266            0.0177 TRUE        TRUE         
+## 9 M_Monocyte_CD16         8817          262            464          0.0297            0.0526 TRUE        TRUE         
+## # ℹ 4 more variables: contrast <chr>, logFC_threshold <dbl>, p_val_threshold <dbl>, adjusted <lgl>
 ```
 We can see here that for all cell type / contrast combinations, all geneset/background ratio's are within the recommended range (`in_range_up` and `in_range_down` columns). When these geneset/background ratio's would not be within the recommended ranges, we should interpret ligand activity results for these cell types with more caution, or use different thresholds (for these or all cell types). 
 
@@ -673,18 +674,18 @@ geneset_assessment_adjustedPval = contrast_tbl$contrast %>%
   bind_rows() 
 geneset_assessment_adjustedPval
 ## # A tibble: 9 × 12
-##   cluster_id     n_background n_geneset_up n_geneset_down prop_geneset_up prop_geneset_down in_range_up in_range_down contrast
-##   <chr>                 <int>        <int>          <int>           <dbl>             <dbl> <lgl>       <lgl>         <chr>   
-## 1 L_NK_CD56._CD…         6621            7              0        0.00106           0        FALSE       FALSE         M-(S+A)…
-## 2 L_T_TIM3._CD3…         8461           15              5        0.00177           0.000591 FALSE       FALSE         M-(S+A)…
-## 3 M_Monocyte_CD…         8817           25             11        0.00284           0.00125  FALSE       FALSE         M-(S+A)…
-## 4 L_NK_CD56._CD…         6621           28             50        0.00423           0.00755  FALSE       TRUE          S-(M+A)…
-## 5 L_T_TIM3._CD3…         8461            2              5        0.000236          0.000591 FALSE       FALSE         S-(M+A)…
-## 6 M_Monocyte_CD…         8817           10             15        0.00113           0.00170  FALSE       FALSE         S-(M+A)…
-## 7 L_NK_CD56._CD…         6621           36             19        0.00544           0.00287  TRUE        FALSE         A-(S+M)…
-## 8 L_T_TIM3._CD3…         8461           13              1        0.00154           0.000118 FALSE       FALSE         A-(S+M)…
-## 9 M_Monocyte_CD…         8817            4              3        0.000454          0.000340 FALSE       FALSE         A-(S+M)…
-## # ℹ 3 more variables: logFC_threshold <dbl>, p_val_threshold <dbl>, adjusted <lgl>
+##   cluster_id      n_background n_geneset_up n_geneset_down prop_geneset_up prop_geneset_down in_range_up in_range_down
+##   <chr>                  <int>        <int>          <int>           <dbl>             <dbl> <lgl>       <lgl>        
+## 1 L_NK_CD56._CD1…         6621            7              0        0.00106           0        FALSE       FALSE        
+## 2 L_T_TIM3._CD38…         8461           15              5        0.00177           0.000591 FALSE       FALSE        
+## 3 M_Monocyte_CD16         8817           25             11        0.00284           0.00125  FALSE       FALSE        
+## 4 L_NK_CD56._CD1…         6621           28             50        0.00423           0.00755  FALSE       TRUE         
+## 5 L_T_TIM3._CD38…         8461            2              5        0.000236          0.000591 FALSE       FALSE        
+## 6 M_Monocyte_CD16         8817           10             15        0.00113           0.00170  FALSE       FALSE        
+## 7 L_NK_CD56._CD1…         6621           36             19        0.00544           0.00287  TRUE        FALSE        
+## 8 L_T_TIM3._CD38…         8461           13              1        0.00154           0.000118 FALSE       FALSE        
+## 9 M_Monocyte_CD16         8817            4              3        0.000454          0.000340 FALSE       FALSE        
+## # ℹ 4 more variables: contrast <chr>, logFC_threshold <dbl>, p_val_threshold <dbl>, adjusted <lgl>
 ```
 We can see here that for most cell type / contrast combinations, the geneset/background ratio's are not within the recommended range. Therefore, we will proceed with the default tresholds for the ligand activity analysis
 
@@ -815,31 +816,32 @@ First: group-based summary table
 ```r
 prioritization_tables$group_prioritization_tbl %>% head(20)
 ## # A tibble: 20 × 18
-##    contrast  group sender                 receiver      ligand receptor lr_interaction id    scaled_lfc_ligand scaled_p_val_ligand_…¹ scaled_lfc_receptor
-##    <chr>     <chr> <chr>                  <chr>         <chr>  <chr>    <chr>          <chr>             <dbl>                  <dbl>               <dbl>
-##  1 M-(S+A)/2 M     M_Monocyte_CD16        L_NK_CD56._C… HLA.E  KLRC1    HLA.E_KLRC1    HLA.…             0.816                  0.982               0.954
-##  2 M-(S+A)/2 M     L_T_TIM3._CD38._HLADR. M_Monocyte_C… IFNG   IFNGR1   IFNG_IFNGR1    IFNG…             0.958                  0.946               0.863
-##  3 A-(S+M)/2 A     M_Monocyte_CD16        L_T_TIM3._CD… LGALS3 LAG3     LGALS3_LAG3    LGAL…             0.918                  0.980               0.985
-##  4 M-(S+A)/2 M     L_T_TIM3._CD38._HLADR. M_Monocyte_C… IFNG   IFNGR2   IFNG_IFNGR2    IFNG…             0.958                  0.946               0.691
-##  5 M-(S+A)/2 M     M_Monocyte_CD16        L_T_TIM3._CD… CXCL16 CXCR6    CXCL16_CXCR6   CXCL…             0.861                  0.936               0.966
-##  6 A-(S+M)/2 A     M_Monocyte_CD16        M_Monocyte_C… VCAN   TLR2     VCAN_TLR2      VCAN…             0.942                  0.812               0.948
-##  7 M-(S+A)/2 M     M_Monocyte_CD16        L_T_TIM3._CD… HLA.E  CD8A     HLA.E_CD8A     HLA.…             0.816                  0.982               0.834
-##  8 M-(S+A)/2 M     M_Monocyte_CD16        M_Monocyte_C… S100A9 CD68     S100A9_CD68    S100…             0.891                  0.880               0.857
-##  9 M-(S+A)/2 M     M_Monocyte_CD16        L_T_TIM3._CD… HLA.D… LAG3     HLA.DRA_LAG3   HLA.…             0.886                  0.978               0.784
-## 10 M-(S+A)/2 M     M_Monocyte_CD16        L_T_TIM3._CD… S100A8 CD69     S100A8_CD69    S100…             0.871                  0.791               0.920
-## 11 M-(S+A)/2 M     M_Monocyte_CD16        M_Monocyte_C… HLA.F  LILRB1   HLA.F_LILRB1   HLA.…             0.890                  0.985               0.982
-## 12 M-(S+A)/2 M     M_Monocyte_CD16        M_Monocyte_C… TNF    LTBR     TNF_LTBR       TNF_…             0.984                  0.953               0.902
-## 13 A-(S+M)/2 A     L_T_TIM3._CD38._HLADR. L_T_TIM3._CD… LGALS… ITGB1    LGALS3BP_ITGB1 LGAL…             0.947                  0.995               0.937
-## 14 A-(S+M)/2 A     M_Monocyte_CD16        M_Monocyte_C… S100A8 CD36     S100A8_CD36    S100…             0.830                  0.697               0.969
-## 15 M-(S+A)/2 M     M_Monocyte_CD16        M_Monocyte_C… HLA.F  LILRB2   HLA.F_LILRB2   HLA.…             0.890                  0.985               0.942
-## 16 M-(S+A)/2 M     M_Monocyte_CD16        L_T_TIM3._CD… HLA.A  CD8A     HLA.A_CD8A     HLA.…             0.925                  0.999               0.834
-## 17 M-(S+A)/2 M     M_Monocyte_CD16        L_NK_CD56._C… HLA.C  KIR2DL1  HLA.C_KIR2DL1  HLA.…             0.897                  0.972               0.790
-## 18 S-(M+A)/2 S     L_T_TIM3._CD38._HLADR. L_T_TIM3._CD… CD99   CD81     CD99_CD81      CD99…             0.656                  0.780               0.962
-## 19 S-(M+A)/2 S     L_NK_CD56._CD16.       M_Monocyte_C… TGFB1  ENG      TGFB1_ENG      TGFB…             0.672                  0.873               0.974
-## 20 S-(M+A)/2 S     M_Monocyte_CD16        M_Monocyte_C… TGFB1  ENG      TGFB1_ENG      TGFB…             0.791                  0.930               0.974
+##    contrast  group sender       receiver ligand receptor lr_interaction id    scaled_lfc_ligand scaled_p_val_ligand_…¹
+##    <chr>     <chr> <chr>        <chr>    <chr>  <chr>    <chr>          <chr>             <dbl>                  <dbl>
+##  1 M-(S+A)/2 M     M_Monocyte_… L_NK_CD… HLA.E  KLRC1    HLA.E_KLRC1    HLA.…             0.816                  0.982
+##  2 M-(S+A)/2 M     L_T_TIM3._C… M_Monoc… IFNG   IFNGR1   IFNG_IFNGR1    IFNG…             0.958                  0.946
+##  3 A-(S+M)/2 A     M_Monocyte_… L_T_TIM… LGALS3 LAG3     LGALS3_LAG3    LGAL…             0.918                  0.980
+##  4 M-(S+A)/2 M     L_T_TIM3._C… M_Monoc… IFNG   IFNGR2   IFNG_IFNGR2    IFNG…             0.958                  0.946
+##  5 M-(S+A)/2 M     M_Monocyte_… L_T_TIM… CXCL16 CXCR6    CXCL16_CXCR6   CXCL…             0.861                  0.936
+##  6 A-(S+M)/2 A     M_Monocyte_… M_Monoc… VCAN   TLR2     VCAN_TLR2      VCAN…             0.942                  0.812
+##  7 M-(S+A)/2 M     M_Monocyte_… L_T_TIM… HLA.E  CD8A     HLA.E_CD8A     HLA.…             0.816                  0.982
+##  8 M-(S+A)/2 M     M_Monocyte_… M_Monoc… S100A9 CD68     S100A9_CD68    S100…             0.891                  0.880
+##  9 M-(S+A)/2 M     M_Monocyte_… L_T_TIM… HLA.D… LAG3     HLA.DRA_LAG3   HLA.…             0.886                  0.978
+## 10 M-(S+A)/2 M     M_Monocyte_… L_T_TIM… S100A8 CD69     S100A8_CD69    S100…             0.871                  0.791
+## 11 M-(S+A)/2 M     M_Monocyte_… M_Monoc… HLA.F  LILRB1   HLA.F_LILRB1   HLA.…             0.890                  0.985
+## 12 M-(S+A)/2 M     M_Monocyte_… M_Monoc… TNF    LTBR     TNF_LTBR       TNF_…             0.984                  0.953
+## 13 A-(S+M)/2 A     L_T_TIM3._C… L_T_TIM… LGALS… ITGB1    LGALS3BP_ITGB1 LGAL…             0.947                  0.995
+## 14 A-(S+M)/2 A     M_Monocyte_… M_Monoc… S100A8 CD36     S100A8_CD36    S100…             0.830                  0.697
+## 15 M-(S+A)/2 M     M_Monocyte_… M_Monoc… HLA.F  LILRB2   HLA.F_LILRB2   HLA.…             0.890                  0.985
+## 16 M-(S+A)/2 M     M_Monocyte_… L_T_TIM… HLA.A  CD8A     HLA.A_CD8A     HLA.…             0.925                  0.999
+## 17 M-(S+A)/2 M     M_Monocyte_… L_NK_CD… HLA.C  KIR2DL1  HLA.C_KIR2DL1  HLA.…             0.897                  0.972
+## 18 S-(M+A)/2 S     L_T_TIM3._C… L_T_TIM… CD99   CD81     CD99_CD81      CD99…             0.656                  0.780
+## 19 S-(M+A)/2 S     L_NK_CD56._… M_Monoc… TGFB1  ENG      TGFB1_ENG      TGFB…             0.672                  0.873
+## 20 S-(M+A)/2 S     M_Monocyte_… M_Monoc… TGFB1  ENG      TGFB1_ENG      TGFB…             0.791                  0.930
 ## # ℹ abbreviated name: ¹​scaled_p_val_ligand_adapted
-## # ℹ 7 more variables: scaled_p_val_receptor_adapted <dbl>, max_scaled_activity <dbl>, scaled_pb_ligand <dbl>, scaled_pb_receptor <dbl>,
-## #   fraction_expressing_ligand_receptor <dbl>, prioritization_score <dbl>, top_group <chr>
+## # ℹ 8 more variables: scaled_lfc_receptor <dbl>, scaled_p_val_receptor_adapted <dbl>, max_scaled_activity <dbl>,
+## #   scaled_pb_ligand <dbl>, scaled_pb_receptor <dbl>, fraction_expressing_ligand_receptor <dbl>,
+## #   prioritization_score <dbl>, top_group <chr>
 ```
 This table gives the final prioritization score of each interaction, and the values of the individual prioritization criteria.
 
@@ -870,8 +872,7 @@ lr_target_prior_cor = lr_target_prior_cor_inference(
 
 ## Save all the output of MultiNicheNet 
 
-To avoid needing to redo the analysis later, we will here to save an output object that contains all information to perform all downstream analyses.
-
+To avoid needing to redo the analysis later, we will here to save an output object that contains all information to perform all downstream analyses. 
 
 ```r
 path = "./"
@@ -895,13 +896,15 @@ if(save == TRUE){
 }
 ```
 
+We suggest to split up the analysis in at least two scripts: the code to create this MultiNicheNet output object, and the code to analyze and interpret this output. For sake of demonstration, we will continue here in this vignette. 
+
 # Interpreting the MultiNicheNet analysis output
 
 ## Visualization of differential cell-cell interactions
 
 ### Summarizing ChordDiagram circos plots
 
-In a first instance, we will look at the broad overview of prioritized interactions via condition-specific Chordiagram circos plots.
+In a first instance, we will look at the broad overview of prioritized interactions via condition-specific Chordiagram circos plots. The aim of this visualizatin is to provide a summary of the top prioritized senderLigand-receiverReceptor interactions per condition (between all cell types or between cell type pairs of interest). 
 
 We will look here at the top 50 predictions across all contrasts, senders, and receivers of interest.
 
@@ -931,15 +934,24 @@ colors_receiver = RColorBrewer::brewer.pal(n = length(senders_receivers), name =
 circos_list = make_circos_group_comparison(prioritized_tbl_oi, colors_sender, colors_receiver)
 ```
 
-<img src="basic_analysis_steps_MISC_files/figure-html/unnamed-chunk-109-1.png" width="100%" /><img src="basic_analysis_steps_MISC_files/figure-html/unnamed-chunk-109-2.png" width="100%" /><img src="basic_analysis_steps_MISC_files/figure-html/unnamed-chunk-109-3.png" width="100%" /><img src="basic_analysis_steps_MISC_files/figure-html/unnamed-chunk-109-4.png" width="100%" />
+<img src="basic_analysis_steps_MISC_files/figure-html/unnamed-chunk-45-1.png" width="100%" /><img src="basic_analysis_steps_MISC_files/figure-html/unnamed-chunk-45-2.png" width="100%" /><img src="basic_analysis_steps_MISC_files/figure-html/unnamed-chunk-45-3.png" width="100%" /><img src="basic_analysis_steps_MISC_files/figure-html/unnamed-chunk-45-4.png" width="100%" />
+
+Whereas these ChordDiagram circos plots show the most specific interactions per group, they don't give insights into the data behind these predictions. Because inspecting the data behind the prioritization is recommended to decide on which interactions to validate, we created several functionalities to do this. 
+
+Therefore we will now generate "interpretable bubble plots" that indicate the different prioritization criteria used in MultiNicheNet. 
 
 ### Interpretable bubble plots
 
-Whereas these ChordDiagrams show the most specific interactions per group, they don't give insights into the data behind these predictions. Therefore we will now look at visualizations that indicate the different prioritization criteria used in MultiNicheNet. 
+In the next type of plots, we will visualize the following prioritization criteria used in MultiNicheNet: 
+* 1) differential expression of ligand and receptor: the per-sample scaled product of normalized ligand and receptor pseudobulk expression
+* 2) the scaled ligand activities
+* 3) cell-type specificity of ligand and receptor. 
 
-In the next type of plots, we will 1) visualize the per-sample scaled product of normalized ligand and receptor pseudobulk expression, 2) visualize the scaled ligand activities, 3) cell-type specificity. 
+As a further help for users to further prioritize, we also visualize:
+* the condition-average of the fraction of cells expressing the ligand and receptor in the cell types of interest
+* the level of curation of these LR pairs as defined by the Intercellular Communication part of the Omnipath database (https://omnipathdb.org/)
 
-We will now check the top 50 interactions specific for the MIS-C group
+We will create this plot for MIS-C group specific interactions of the overall top50 interactions that we visualized in the Circos Chorddiagrams above:
 
 
 ```r
@@ -948,68 +960,120 @@ group_oi = "M"
 
 
 ```r
-prioritized_tbl_oi_M_50 = get_top_n_lr_pairs(
-  multinichenet_output$prioritization_tables, 
-  top_n = 50, 
-  groups_oi = group_oi)
+prioritized_tbl_oi_M_50 = prioritized_tbl_oi_all %>% 
+  filter(group == group_oi)
 ```
 
-
-```r
-plot_oi = make_sample_lr_prod_activity_plots(
-  multinichenet_output$prioritization_tables, 
-  prioritized_tbl_oi_M_50)
-plot_oi
-```
-
-<img src="basic_analysis_steps_MISC_files/figure-html/unnamed-chunk-112-1.png" width="100%" />
-Samples that were left out of the DE analysis are indicated with a smaller dot (this helps to indicate the samples that did not contribute to the calculation of the logFC, and thus not contributed to the final prioritization)
-
-As a further help for further prioritization, we can assess the level of curation of these LR pairs as defined by the Intercellular Communication part of the Omnipath database
-
-
-```r
-prioritized_tbl_oi_M_50_omnipath = prioritized_tbl_oi_M_50 %>% 
-  inner_join(lr_network_all)
-```
-
-Now we add this to the bubble plot visualization:
 
 ```r
 plot_oi = make_sample_lr_prod_activity_plots_Omnipath(
   multinichenet_output$prioritization_tables, 
-  prioritized_tbl_oi_M_50_omnipath)
+  prioritized_tbl_oi_M_50 %>% inner_join(lr_network_all)
+  )
 plot_oi
 ```
 
-<img src="basic_analysis_steps_MISC_files/figure-html/unnamed-chunk-114-1.png" width="100%" />
+<img src="basic_analysis_steps_MISC_files/figure-html/unnamed-chunk-48-1.png" width="100%" />
+Some notes about this plot:
+* Samples that were left out of the DE analysis (because too few cells in that celltype-sample combination) are indicated with a smaller dot. This helps to indicate the samples that did not contribute to the calculation of the logFC, and thus not contributed to the final prioritization. 
+* As you can see, the HEBP1-FPR2 interaction does not have Omnipath DB scores. This is because this LR pair was not documented by the Omnipath LR database. Instead it was documented by the original NicheNet LR network (source: Guide2Pharmacology) as can be seen in the table (`lr_network_all %>% filter(ligand == "HEBP1" & receptor == "FPR2")`).
 
-As you can see, the HEBP1-FPR2 interaction has no Omnipath DB scores. This is because this LR pair was not documented by the Omnipath LR database. Instead it was documented by the original NicheNet LR network (source: Guide2Pharmacology) as can be seen in the table.
-
-Further note: Typically, there are way more than 50 differentially expressed and active ligand-receptor pairs per group across all sender-receiver combinations. Therefore it might be useful to zoom in on specific cell types as senders/receivers:
-
-Eg M_Monocyte_CD16 as receiver:
+We encourage users to make these plots also for the other groups, like we will do now first for the S group
 
 
 ```r
+group_oi = "S"
+```
+
+
+```r
+prioritized_tbl_oi_S_50 = prioritized_tbl_oi_all %>% 
+  filter(group == group_oi) 
+```
+
+
+```r
+plot_oi = make_sample_lr_prod_activity_plots_Omnipath(
+  multinichenet_output$prioritization_tables, 
+  prioritized_tbl_oi_S_50 %>% inner_join(lr_network_all)
+)
+plot_oi
+```
+
+<img src="basic_analysis_steps_MISC_files/figure-html/unnamed-chunk-51-1.png" width="100%" />
+
+and finally for the A group
+
+
+```r
+group_oi = "A"
+```
+
+
+```r
+prioritized_tbl_oi_A_50 = prioritized_tbl_oi_all %>% 
+  filter(group == group_oi) 
+```
+
+
+```r
+plot_oi = make_sample_lr_prod_activity_plots_Omnipath(
+  multinichenet_output$prioritization_tables, 
+  prioritized_tbl_oi_A_50 %>% inner_join(lr_network_all)
+)
+plot_oi
+```
+
+<img src="basic_analysis_steps_MISC_files/figure-html/unnamed-chunk-54-1.png" width="100%" />
+
+As you could observe from the Circos ChordDiagram and Interpretable Bubble plots above: we find more specific interactions for the M-group than for the S- and A-group here. 
+If you want to visualize more interactions specific for a group of interest, so not restricted to e.g. the top50 overall, but the top50 for a group of interest, you can run the following:
+
+
+```r
+prioritized_tbl_oi_A_50 = get_top_n_lr_pairs(
+  multinichenet_output$prioritization_tables, 
+  50, 
+  groups_oi = group_oi) 
+```
+
+
+```r
+plot_oi = make_sample_lr_prod_activity_plots_Omnipath(
+  multinichenet_output$prioritization_tables, 
+  prioritized_tbl_oi_A_50 %>% inner_join(lr_network_all)
+)
+plot_oi
+```
+
+<img src="basic_analysis_steps_MISC_files/figure-html/unnamed-chunk-56-1.png" width="100%" />
+Typically, there are way more than 50 differentially expressed and active ligand-receptor pairs per group across all sender-receiver combinations. Therefore it might be useful to zoom in on specific cell types as senders/receivers:
+
+We will illustrate this for the "M_Monocyte_CD16" cell type as receiver in the M group:
+
+
+```r
+group_oi = "M"
 prioritized_tbl_oi_M_50 = get_top_n_lr_pairs(
   multinichenet_output$prioritization_tables, 
   50, 
   groups_oi = group_oi, 
-  receivers_oi = "M_Monocyte_CD16")
+  receivers_oi = "M_Monocyte_CD16"
+  ) 
 ```
 
 
 ```r
 plot_oi = make_sample_lr_prod_activity_plots_Omnipath(
   multinichenet_output$prioritization_tables, 
-  prioritized_tbl_oi_M_50 %>% inner_join(lr_network_all))
+  prioritized_tbl_oi_M_50 %>% inner_join(lr_network_all)
+  )
 plot_oi
 ```
 
-<img src="basic_analysis_steps_MISC_files/figure-html/unnamed-chunk-116-1.png" width="100%" />
+<img src="basic_analysis_steps_MISC_files/figure-html/unnamed-chunk-58-1.png" width="100%" />
 
-Eg M_Monocyte_CD16 as sender:
+And now as sender:
 
 
 ```r
@@ -1028,39 +1092,321 @@ plot_oi = make_sample_lr_prod_activity_plots_Omnipath(
 plot_oi
 ```
 
-<img src="basic_analysis_steps_MISC_files/figure-html/unnamed-chunk-118-1.png" width="100%" />
+<img src="basic_analysis_steps_MISC_files/figure-html/unnamed-chunk-60-1.png" width="100%" />
 
-You can make these plots also for the other groups, like we will illustrate now for the S group
+These two types of plots created above (Circos ChordDiagram and Interpretable Bubble Plot) for the most strongly prioritized interactions are the types of plot you should always create and inspect as an end-user. 
+
+The plots that we will discuss in the rest of the vignette are more optional, and can help to dive more deeply in the data. They are however not as necessary as the plots above. 
+
+So, let's now continue with more detailed plots and downstream functionalities:
+
+## Intercellular regulatory network inference and visualization
+
+In the plots above, we showed some of the prioritized interactions, and focused on their expression and activity. These interactions were visualized as independent interactions. However, they are likely not functioning independently in a complex multicellular biological system: cells can send signals to other cells, who as a response to these signals produce extracellular signals themselves to give feedback to the original sender cells, or to propogate the signal to other cell types ("cascade"). In other words: ligands from cell type A may induce the expression of ligands and receptors in cell type B. These ligands and receptors can then be involved in other interactions towards cell type A and interactions towards cell type C. Etc. 
+
+Because one of the elements of MultiNicheNet is the ligand activity and ligand-target inference part of NicheNet, we can actually infer the predicted ligand/receptor-encoding target genes of prioritized ligand-receptor interactions. And as a result, we can get this type of functional insight in the biological system of interest, which we will demonstrate now.
+
+First, we will showcase how to do this by considering target genes supported by NicheNet's prior knowledge solely 
+
+### Without filtering of target genes based on LR-target expression correlation (for demonstration purposes only)
+
+First: get the target genes of prioritized ligand-receptor pairs (here focused on the overall top50 prioritized LR pairs that were visualized in the Circos ChordDiagrams above)
+
+```r
+lr_target_prior = prioritized_tbl_oi_all %>% inner_join(
+        multinichenet_output$ligand_activities_targets_DEgenes$ligand_activities %>%
+          distinct(ligand, target, direction_regulation, contrast) %>% inner_join(contrast_tbl) %>% ungroup() 
+        ) 
+lr_target_df = lr_target_prior %>% distinct(group, sender, receiver, ligand, receptor, id, target, direction_regulation) 
+```
+
+Second, subset on ligands/receptors as target genes
+
+```r
+lr_target_df %>% filter(target %in% union(lr_network$ligand, lr_network$receptor))
+## # A tibble: 486 × 8
+##    group sender                 receiver         ligand receptor id                        target direction_regulation
+##    <chr> <chr>                  <chr>            <chr>  <chr>    <chr>                     <chr>  <fct>               
+##  1 M     M_Monocyte_CD16        L_NK_CD56._CD16. HLA.E  KLRC1    HLA.E_KLRC1_M_Monocyte_C… AREG   up                  
+##  2 M     M_Monocyte_CD16        L_NK_CD56._CD16. HLA.E  KLRC1    HLA.E_KLRC1_M_Monocyte_C… CD55   up                  
+##  3 M     M_Monocyte_CD16        L_NK_CD56._CD16. HLA.E  KLRC1    HLA.E_KLRC1_M_Monocyte_C… KLRC1  up                  
+##  4 M     M_Monocyte_CD16        L_NK_CD56._CD16. HLA.E  KLRC1    HLA.E_KLRC1_M_Monocyte_C… S100A8 up                  
+##  5 M     M_Monocyte_CD16        L_NK_CD56._CD16. HLA.E  KLRC1    HLA.E_KLRC1_M_Monocyte_C… SLC1A5 up                  
+##  6 M     M_Monocyte_CD16        L_NK_CD56._CD16. HLA.E  KLRC1    HLA.E_KLRC1_M_Monocyte_C… TFRC   up                  
+##  7 M     M_Monocyte_CD16        L_NK_CD56._CD16. HLA.E  KLRC1    HLA.E_KLRC1_M_Monocyte_C… TIMP1  down                
+##  8 M     L_T_TIM3._CD38._HLADR. M_Monocyte_CD16  IFNG   IFNGR1   IFNG_IFNGR1_L_T_TIM3._CD… B2M    up                  
+##  9 M     L_T_TIM3._CD38._HLADR. M_Monocyte_CD16  IFNG   IFNGR1   IFNG_IFNGR1_L_T_TIM3._CD… BTN3A1 up                  
+## 10 M     L_T_TIM3._CD38._HLADR. M_Monocyte_CD16  IFNG   IFNGR1   IFNG_IFNGR1_L_T_TIM3._CD… C1QB   up                  
+## # ℹ 476 more rows
+```
+
+Whereas these code blocks are just to demonstrate that this type of information is available in MultiNicheNet, the next block of code will infer the systems-wide intercellular regulatory network automatically: 
 
 
 ```r
-group_oi = "S"
+network = infer_intercellular_regulatory_network(lr_target_df, prioritized_tbl_oi_all)
+network$links %>% head()
+## # A tibble: 6 × 6
+##   sender_ligand               receiver_target         direction_regulation group type          weight
+##   <chr>                       <chr>                   <fct>                <chr> <chr>          <dbl>
+## 1 L_T_TIM3._CD38._HLADR._IFNG M_Monocyte_CD16_B2M     up                   M     Ligand-Target      1
+## 2 L_T_TIM3._CD38._HLADR._IFNG M_Monocyte_CD16_CXCL16  up                   M     Ligand-Target      1
+## 3 L_T_TIM3._CD38._HLADR._IFNG M_Monocyte_CD16_HLA.A   up                   M     Ligand-Target      1
+## 4 L_T_TIM3._CD38._HLADR._IFNG M_Monocyte_CD16_HLA.C   up                   M     Ligand-Target      1
+## 5 L_T_TIM3._CD38._HLADR._IFNG M_Monocyte_CD16_HLA.DRA up                   M     Ligand-Target      1
+## 6 L_T_TIM3._CD38._HLADR._IFNG M_Monocyte_CD16_HLA.F   up                   M     Ligand-Target      1
+network$nodes %>% head()
+## # A tibble: 6 × 4
+##   node                         celltype               gene   type_gene      
+##   <chr>                        <chr>                  <chr>  <chr>          
+## 1 M_Monocyte_CD16_LILRB2       M_Monocyte_CD16        LILRB2 ligand/receptor
+## 2 M_Monocyte_CD16_CD47         M_Monocyte_CD16        CD47   ligand/receptor
+## 3 L_T_TIM3._CD38._HLADR._SIRPG L_T_TIM3._CD38._HLADR. SIRPG  ligand/receptor
+## 4 L_T_TIM3._CD38._HLADR._IFNG  L_T_TIM3._CD38._HLADR. IFNG   ligand         
+## 5 M_Monocyte_CD16_CXCL16       M_Monocyte_CD16        CXCL16 ligand         
+## 6 M_Monocyte_CD16_HLA.E        M_Monocyte_CD16        HLA.E  ligand
+```
+
+And this network can be visualized here in R by running:
+
+```r
+colors_sender["L_T_TIM3._CD38._HLADR."] = "pink" # the  original yellow background with white font is not very readable
+network_graph = visualize_network(network, colors_sender)
+network_graph$plot
+```
+
+<img src="basic_analysis_steps_MISC_files/figure-html/unnamed-chunk-64-1.png" width="100%" />
+
+As you can see here: we can see see here that several prioritized ligands seem to be regulated by other prioritized ligands! But, it may be challenging sometimes to discern individual links when several interactions are shown. Therefore, inspection of the underlying data tables (`network$links` and `network$nodes`) may be necessary to discern individual interactions. It is also suggested to export these data tables into more sophisticated network visualization tools (e.g., CytoScape) for better inspection of this network.
+
+To inspect interactions involving specific ligands, such as IFNG as example, we can run the following code:
+
+```r
+network$nodes %>% filter(gene == "IFNG")
+## # A tibble: 2 × 4
+##   node                        celltype               gene  type_gene
+##   <chr>                       <chr>                  <chr> <chr>    
+## 1 L_T_TIM3._CD38._HLADR._IFNG L_T_TIM3._CD38._HLADR. IFNG  ligand   
+## 2 L_NK_CD56._CD16._IFNG       L_NK_CD56._CD16.       IFNG  ligand
+```
+IFNG as regulating ligand:
+
+```r
+network$links %>% filter(sender_ligand == "L_T_TIM3._CD38._HLADR._IFNG" & direction_regulation == "up" & group == "M")
+## # A tibble: 8 × 6
+##   sender_ligand               receiver_target         direction_regulation group type          weight
+##   <chr>                       <chr>                   <fct>                <chr> <chr>          <dbl>
+## 1 L_T_TIM3._CD38._HLADR._IFNG M_Monocyte_CD16_B2M     up                   M     Ligand-Target      1
+## 2 L_T_TIM3._CD38._HLADR._IFNG M_Monocyte_CD16_CXCL16  up                   M     Ligand-Target      1
+## 3 L_T_TIM3._CD38._HLADR._IFNG M_Monocyte_CD16_HLA.A   up                   M     Ligand-Target      1
+## 4 L_T_TIM3._CD38._HLADR._IFNG M_Monocyte_CD16_HLA.C   up                   M     Ligand-Target      1
+## 5 L_T_TIM3._CD38._HLADR._IFNG M_Monocyte_CD16_HLA.DRA up                   M     Ligand-Target      1
+## 6 L_T_TIM3._CD38._HLADR._IFNG M_Monocyte_CD16_HLA.F   up                   M     Ligand-Target      1
+## 7 L_T_TIM3._CD38._HLADR._IFNG M_Monocyte_CD16_IL1B    up                   M     Ligand-Target      1
+## 8 L_T_TIM3._CD38._HLADR._IFNG M_Monocyte_CD16_TNF     up                   M     Ligand-Target      1
+```
+IFNG as regulated target:
+
+```r
+network$links %>% filter(receiver_target == "L_T_TIM3._CD38._HLADR._IFNG" & direction_regulation == "up" & group == "M")
+## # A tibble: 10 × 6
+##    sender_ligand                 receiver_target             direction_regulation group type          weight
+##    <chr>                         <chr>                       <fct>                <chr> <chr>          <dbl>
+##  1 M_Monocyte_CD16_CXCL16        L_T_TIM3._CD38._HLADR._IFNG up                   M     Ligand-Target      1
+##  2 M_Monocyte_CD16_HLA.E         L_T_TIM3._CD38._HLADR._IFNG up                   M     Ligand-Target      1
+##  3 M_Monocyte_CD16_HLA.DRA       L_T_TIM3._CD38._HLADR._IFNG up                   M     Ligand-Target      1
+##  4 M_Monocyte_CD16_S100A8        L_T_TIM3._CD38._HLADR._IFNG up                   M     Ligand-Target      1
+##  5 M_Monocyte_CD16_HLA.A         L_T_TIM3._CD38._HLADR._IFNG up                   M     Ligand-Target      1
+##  6 L_NK_CD56._CD16._CCL3         L_T_TIM3._CD38._HLADR._IFNG up                   M     Ligand-Target      1
+##  7 M_Monocyte_CD16_TYROBP        L_T_TIM3._CD38._HLADR._IFNG up                   M     Ligand-Target      1
+##  8 M_Monocyte_CD16_CD47          L_T_TIM3._CD38._HLADR._IFNG up                   M     Ligand-Target      1
+##  9 M_Monocyte_CD16_B2M           L_T_TIM3._CD38._HLADR._IFNG up                   M     Ligand-Target      1
+## 10 L_T_TIM3._CD38._HLADR._CLEC2B L_T_TIM3._CD38._HLADR._IFNG up                   M     Ligand-Target      1
+```
+
+Ligand- and receptor-encoding target genes that were shown here are predicted as target genes of ligands based on prior knowledge. However, it is uncertain whether they are also potentially active in the system under study: e.g., it is possible that some genes are regulated by their upstream ligand only in cell types that are not studied in this context. To increase the chance that inferred ligand-target links are potentially active, we can use the multi-sample nature of this data to filter target genes based on expression correlation between the upstream ligand-receptor pair and the downstream target gene. This is under the assumption that target genes that show across-sample expression correlation with their upstream ligand-receptor pairs may be more likely to be true active target genes than target genes that don’t show this pattern. This correlation was calculated in the (optional) step 7 of the MultiNicheNet analysis.
+
+In the next subsection of the inference of intercellular regulator networks, we will showcase how to consider target genes that are both supported by NicheNet's prior knowledge and expression correlation. 
+
+### With filtering of target genes based on LR-target expression correlation (recommended for analysis in practice)
+
+Now, we will filter out correlated ligand-receptor --> target links that both show high expression correlation (pearson correlation > 0.33 in this example) and have some prior knowledge to support their link. 
+
+
+```r
+lr_target_prior_cor_filtered = 
+  multinichenet_output$prioritization_tables$group_prioritization_tbl$group %>% unique() %>% 
+  lapply(function(group_oi){
+    lr_target_prior_cor_filtered = multinichenet_output$lr_target_prior_cor %>%
+      inner_join(
+        multinichenet_output$ligand_activities_targets_DEgenes$ligand_activities %>%
+          distinct(ligand, target, direction_regulation, contrast)
+        ) %>% 
+      inner_join(contrast_tbl) %>% filter(group == group_oi)
+    
+    lr_target_prior_cor_filtered_up = lr_target_prior_cor_filtered %>% 
+      filter(direction_regulation == "up") %>% 
+      filter( (rank_of_target < top_n_target) & (pearson > 0.33))
+    
+    lr_target_prior_cor_filtered_down = lr_target_prior_cor_filtered %>% 
+      filter(direction_regulation == "down") %>% 
+      filter( (rank_of_target < top_n_target) & (pearson < -0.33))
+    lr_target_prior_cor_filtered = bind_rows(
+      lr_target_prior_cor_filtered_up, 
+      lr_target_prior_cor_filtered_down
+      )
+}) %>% bind_rows()
+
+lr_target_df = lr_target_prior_cor_filtered %>% 
+  distinct(group, sender, receiver, ligand, receptor, id, target, direction_regulation) 
 ```
 
 
 ```r
-prioritized_tbl_oi_S_50 = get_top_n_lr_pairs(
-  multinichenet_output$prioritization_tables, 
-  50, 
-  groups_oi = group_oi)
+network = infer_intercellular_regulatory_network(lr_target_df, prioritized_tbl_oi_all)
+network$links %>% head()
+## # A tibble: 6 × 6
+##   sender_ligand         receiver_target      direction_regulation group type          weight
+##   <chr>                 <chr>                <fct>                <chr> <chr>          <dbl>
+## 1 M_Monocyte_CD16_B2M   M_Monocyte_CD16_IL1B up                   M     Ligand-Target      1
+## 2 M_Monocyte_CD16_B2M   M_Monocyte_CD16_TNF  up                   M     Ligand-Target      1
+## 3 M_Monocyte_CD16_HLA.A M_Monocyte_CD16_IL1B up                   M     Ligand-Target      1
+## 4 M_Monocyte_CD16_HLA.A M_Monocyte_CD16_TNF  up                   M     Ligand-Target      1
+## 5 M_Monocyte_CD16_HLA.C M_Monocyte_CD16_IL1B up                   M     Ligand-Target      1
+## 6 M_Monocyte_CD16_HLA.C M_Monocyte_CD16_TNF  up                   M     Ligand-Target      1
+network$nodes %>% head()
+## # A tibble: 6 × 4
+##   node                         celltype               gene   type_gene      
+##   <chr>                        <chr>                  <chr>  <chr>          
+## 1 M_Monocyte_CD16_LILRB2       M_Monocyte_CD16        LILRB2 ligand/receptor
+## 2 L_T_TIM3._CD38._HLADR._SIRPG L_T_TIM3._CD38._HLADR. SIRPG  ligand/receptor
+## 3 M_Monocyte_CD16_CD47         M_Monocyte_CD16        CD47   ligand/receptor
+## 4 M_Monocyte_CD16_B2M          M_Monocyte_CD16        B2M    ligand         
+## 5 M_Monocyte_CD16_HLA.A        M_Monocyte_CD16        HLA.A  ligand         
+## 6 M_Monocyte_CD16_HLA.C        M_Monocyte_CD16        HLA.C  ligand
+```
+
+
+```r
+colors_sender["L_T_TIM3._CD38._HLADR."] = "pink" # the  original yellow background with white font is not very readable
+network_graph = visualize_network(network, colors_sender)
+network_graph$plot
+```
+
+<img src="basic_analysis_steps_MISC_files/figure-html/unnamed-chunk-70-1.png" width="100%" />
+
+As can be expected, we see fewer links here than in the previously generated intercellular regulatory network. The links that are not present anymore in this network are those ligand-target links that are not supported by high across-sample expression correlation. In conclusion, the links visualized here are the most trustworthy ones, since they are both supported by prior knowledge and expression correlation.
+
+Interestingly, ligands/receptors visualized in this network can be considered as **additionally prioritized** because they are not only a prioritized ligand/receptor but also a target gene of another prioritized ligand-receptor interaction! So, we can also use this network to further prioritize differential CCC interactions. We can get these interactions as follows:
+
+```r
+network$prioritized_lr_interactions
+## # A tibble: 27 × 5
+##    group sender                 receiver        ligand receptor
+##    <chr> <chr>                  <chr>           <chr>  <chr>   
+##  1 M     M_Monocyte_CD16        M_Monocyte_CD16 B2M    LILRB1  
+##  2 M     M_Monocyte_CD16        M_Monocyte_CD16 HLA.A  LILRB1  
+##  3 M     M_Monocyte_CD16        M_Monocyte_CD16 HLA.C  LILRB1  
+##  4 M     M_Monocyte_CD16        M_Monocyte_CD16 S100A9 CD68    
+##  5 M     M_Monocyte_CD16        M_Monocyte_CD16 HLA.F  LILRB1  
+##  6 M     M_Monocyte_CD16        M_Monocyte_CD16 HLA.F  LILRB2  
+##  7 M     M_Monocyte_CD16        M_Monocyte_CD16 LILRB2 IFNGR1  
+##  8 M     L_T_TIM3._CD38._HLADR. M_Monocyte_CD16 SIRPG  CD47    
+##  9 M     M_Monocyte_CD16        M_Monocyte_CD16 TNF    LTBR    
+## 10 M     M_Monocyte_CD16        M_Monocyte_CD16 HEBP1  FPR2    
+## # ℹ 17 more rows
+```
+
+
+```r
+prioritized_tbl_oi_network = prioritized_tbl_oi_all %>% inner_join(
+  network$prioritized_lr_interactions)
+prioritized_tbl_oi_network
+## # A tibble: 27 × 8
+##    group sender                 receiver               ligand  receptor id    prioritization_score prioritization_rank
+##    <chr> <chr>                  <chr>                  <chr>   <chr>    <chr>                <dbl>               <dbl>
+##  1 M     M_Monocyte_CD16        L_NK_CD56._CD16.       HLA.E   KLRC1    HLA.…                0.956                   1
+##  2 M     L_T_TIM3._CD38._HLADR. M_Monocyte_CD16        IFNG    IFNGR1   IFNG…                0.948                   2
+##  3 M     L_T_TIM3._CD38._HLADR. M_Monocyte_CD16        IFNG    IFNGR2   IFNG…                0.928                   4
+##  4 M     M_Monocyte_CD16        L_T_TIM3._CD38._HLADR. CXCL16  CXCR6    CXCL…                0.922                   5
+##  5 M     M_Monocyte_CD16        L_T_TIM3._CD38._HLADR. HLA.E   CD8A     HLA.…                0.919                   7
+##  6 M     M_Monocyte_CD16        M_Monocyte_CD16        S100A9  CD68     S100…                0.917                   8
+##  7 M     M_Monocyte_CD16        L_T_TIM3._CD38._HLADR. HLA.DRA LAG3     HLA.…                0.910                   9
+##  8 M     M_Monocyte_CD16        M_Monocyte_CD16        HLA.F   LILRB1   HLA.…                0.903                  11
+##  9 M     M_Monocyte_CD16        M_Monocyte_CD16        TNF     LTBR     TNF_…                0.902                  12
+## 10 M     M_Monocyte_CD16        M_Monocyte_CD16        HLA.F   LILRB2   HLA.…                0.898                  15
+## # ℹ 17 more rows
+```
+
+Visualize now the expression and activity of these interactions for the M group
+
+```r
+group_oi = "M"
+```
+
+
+```r
+prioritized_tbl_oi_M = prioritized_tbl_oi_network %>% filter(group == group_oi)
 
 plot_oi = make_sample_lr_prod_activity_plots_Omnipath(
   multinichenet_output$prioritization_tables, 
-  prioritized_tbl_oi_S_50 %>% inner_join(lr_network_all))
+  prioritized_tbl_oi_M %>% inner_join(lr_network_all)
+  )
 plot_oi
 ```
 
-<img src="basic_analysis_steps_MISC_files/figure-html/unnamed-chunk-120-1.png" width="100%" />
+<img src="basic_analysis_steps_MISC_files/figure-html/unnamed-chunk-74-1.png" width="100%" />
+To summarize: this interpretable bubble plot is an important and helpful plot because:
+1) these LR interactions are all in the overall top50 of condition-specific interactions
+2) they are a likely interaction inducing one or more other prioritized LR interaction and/or they are regulated by one or more other prioritized LR interactions. 
+Because of this, interactions in this plot may be interesting candidates for follow-up experimental validation. 
 
-__Note__: Use `make_sample_lr_prod_activity_batch_plots` if you have batches and want to visualize them on this plot!
+__Note__: These networks were generated by only looking at the top50 interactions overall. In practice, we encourage users to explore more hits than the top50, certainly if many cell type pairs are considered in the analysis. 
 
-## Visualization of differential ligand-target links
+All the previous were informative for interactions where both the sender and receiver cell types are captured in the data and where ligand and receptor are sufficiently expressed at the RNA level. However, these two conditions are not always fulfilled and some interesting cell-cell communication signals may be missed as a consequence. Can we still have an idea about these potentially missed interactions? Yes, we can.
 
-### Without filtering of target genes based on LR-target expression correlation
+## Visualize sender-agnostic ligand activities for each receiver-group combination
 
-In another type of plot, we can visualize the ligand activities for a group-receiver combination, and show the predicted ligand-target links, and also the expression of the predicted target genes across samples.
+In the next type of plot, we plot all the ligand activities (both scaled and absolute activities) of each receiver-condition combination. This can give us some insights in active signaling pathways across conditions. Note that we can thus show top ligands based on ligand activity - irrespective and agnostic of expression in sender. Benefits of this analysis are the possibility to infer the activity of ligands that are expressed by cell types that are not in your single-cell dataset or that are hard to pick up at the RNA level. 
 
-For this, we now need to define a receiver cell type of interest. As example, we will take `L_T_TIM3._CD38._HLADR.` cells as receiver, and look at the top 10 senderLigand-receiverReceptor pairs with these cells as receiver.
+The following block of code will show how to visualize the activities for the top5 ligands for each receiver cell type - condition combination:
+
+
+```r
+ligands_oi = multinichenet_output$prioritization_tables$ligand_activities_target_de_tbl %>% 
+  inner_join(contrast_tbl) %>% 
+  group_by(group, receiver) %>% 
+  distinct(ligand, receiver, group, activity) %>% 
+  top_n(5, activity) %>% 
+  pull(ligand) %>% unique()
+
+plot_oi = make_ligand_activity_plots(
+  multinichenet_output$prioritization_tables, 
+  ligands_oi, 
+  contrast_tbl,
+  widths = NULL)
+plot_oi
+```
+
+<img src="basic_analysis_steps_MISC_files/figure-html/unnamed-chunk-75-1.png" width="100%" />
+
+Interestingly, we can here see a clear type I interferon (IFNA1, IFNB1, ...) ligand activity signature in the A-group with predicted upregulatory activity in NK cells and T cells. Because type I interferons were not (sufficiently high) expressed by the cell types in our dataset, they were not retrieved by the classic MultiNicheNet analysis. However, they may have an important role in the Adult COVID19 patient group, as is supported by literature! This demonstrates the usefulness of this analysis: it can help you in having an idea about relevant ligands not captured in the data at hand but with a strong predicted target gene signature in one of the cell types in the data. 
+
+__Note__ you can replace the automatically determined `ligands_oi` by any set of ligands that are of interest to you.
+
+With this plot/downstream analysis, we end the overview of visualizations that can help you in finding interesting hypotheses about important **differential ligand-receptor interactions** in your data. In case you ended up with a shortlist of interactions for further checks and potential experimental validation, we recommend going over the visualizations that are introduced in the next section. They are some additional "sound checks" for your shortlist of interactions. However, we don't recommend generating these plots before having thoroughly analyzed and inspected all the previous visualizations. Only go further now if you understood all the previous steps to avoid getting more overwhelmed.
+
+## Deep Dive into the data
+
+### Visualization of differential ligand-target links
+
+Even though the interpretable bubble plots already provide a lot of information, they do not visualize the specific target genes downstream of the prioritized interactions. Hereby, we still miss some interesting functional information and we cannot assess whether high activity values may be due to a reasonable number of specific target genes or not. Therefore we will now go over some visualizations to inspect target genes downstream of prioritized ligand-receptor interactions.
+
+#### Without filtering of target genes based on LR-target expression correlation: Ligand activity - target gene combination plots
+
+In this type of plot, we can visualize the ligand activities for a group-receiver combination, and show the predicted ligand-target links, and also the expression of the predicted target genes across samples.
+
+For this, we now need to define a receiver cell type of interest. As example, we will take `M_Monocyte_CD16` cells as receiver, and look at the top 10 senderLigand-receiverReceptor pairs with these cells as receiver.
 
 
 ```r
@@ -1089,16 +1435,17 @@ combined_plot
 ## $combined_plot
 ```
 
-<img src="basic_analysis_steps_MISC_files/figure-html/unnamed-chunk-122-1.png" width="100%" />
+<img src="basic_analysis_steps_MISC_files/figure-html/unnamed-chunk-77-1.png" width="100%" />
 
 ```
 ## 
 ## $legends
 ```
 
-<img src="basic_analysis_steps_MISC_files/figure-html/unnamed-chunk-122-2.png" width="100%" />
+<img src="basic_analysis_steps_MISC_files/figure-html/unnamed-chunk-77-2.png" width="100%" />
+One observation we can make here is that several genes upregulated in the M-group are indeed high-confident target genes of IFNG (dark purple - high regulatory potential scores). Most of these genes are also potential target genes of TNF, but some specific genes are present as well. 
 
-What if there is a specific ligand you are interested in?
+Whereas this plot just showed the top ligands for a certain receiver-contrast, you can also zoom in on specific ligands of interest. As example, we will look at IFNG and IL15:
 
 
 ```r
@@ -1130,18 +1477,20 @@ combined_plot
 ## $combined_plot
 ```
 
-<img src="basic_analysis_steps_MISC_files/figure-html/unnamed-chunk-124-1.png" width="100%" />
+<img src="basic_analysis_steps_MISC_files/figure-html/unnamed-chunk-79-1.png" width="100%" />
 
 ```
 ## 
 ## $legends
 ```
 
-<img src="basic_analysis_steps_MISC_files/figure-html/unnamed-chunk-124-2.png" width="100%" />
+<img src="basic_analysis_steps_MISC_files/figure-html/unnamed-chunk-79-2.png" width="100%" />
 
-### With filtering of target genes based on LR-target expression correlation
+In summary, these "Ligand activity - target gene combination plots" show how well ligand-target links are supported by general prior knowledge, but not whether they are likely to be active in the system under study. That's what we will look at now.
 
-In the previous plots, target genes were shown that are predicted as target gene of ligands based on prior knowledge. However, we can use the multi-sample nature of this data to filter target genes based on expression correlation between the upstream ligand-receptor pair and the downstream target gene. We will filter out correlated ligand-receptor --> target links that both show high expression correlation (spearman or pearson correlation > 0.50 in this example) and have some prior knowledge to support their link. Note that you can only make these visualization if you ran step 7 of the core MultiNicheNet analysis.
+#### With filtering of target genes based on LR-target expression correlation: Ligand activity - target gene - expression correlation combination plot
+
+In the previous plot, target genes were shown that are predicted as target gene of ligands based on prior knowledge. However, we can use the multi-sample nature of this data to filter target genes based on expression correlation between the upstream ligand-receptor pair and the downstream target gene. We will filter out correlated ligand-receptor --> target links that both show high expression correlation (pearson correlation > 0.33 in this example) and have some prior knowledge to support their link. Note that you can only make these visualization if you ran step 7 of the core MultiNicheNet analysis.
 
 
 ```r
@@ -1156,10 +1505,10 @@ lr_target_prior_cor_filtered = multinichenet_output$lr_target_prior_cor %>%
 
 lr_target_prior_cor_filtered_up = lr_target_prior_cor_filtered %>% 
   filter(direction_regulation == "up") %>% 
-  filter( (rank_of_target < top_n_target) & (pearson > 0.50 | spearman > 0.50))
+  filter( (rank_of_target < top_n_target) & (pearson > 0.33)) # replace pearson by spearman if you want to filter on the spearman correlation
 lr_target_prior_cor_filtered_down = lr_target_prior_cor_filtered %>% 
   filter(direction_regulation == "down") %>% 
-  filter( (rank_of_target < top_n_target) & (pearson < -0.50 | spearman < -0.50)) # downregulation -- negative correlation
+  filter( (rank_of_target < top_n_target) & (pearson < -0.33)) # downregulation -- negative correlation - # replace pearson by spearman if you want to filter on the spearman correlation
 lr_target_prior_cor_filtered = bind_rows(
   lr_target_prior_cor_filtered_up, 
   lr_target_prior_cor_filtered_down)
@@ -1189,14 +1538,15 @@ lr_target_correlation_plot = make_lr_target_correlation_plot(
 lr_target_correlation_plot$combined_plot
 ```
 
-<img src="basic_analysis_steps_MISC_files/figure-html/unnamed-chunk-127-1.png" width="100%" />
+<img src="basic_analysis_steps_MISC_files/figure-html/unnamed-chunk-82-1.png" width="100%" />
+This visualization can help users assess whether ligand-target links that are supported by general prior knowledge, are also potentially active in the system under study: target genes that show across-sample expression correlation with their upstream ligand-receptor pairs may be more likely true target genes than target genes that don’t show this pattern.
 
-You can also visualize the expression correlation in the following way for a selected LR pair and their targets:
-
+Even though this plot indicates the strength of the correlation between ligand-receptor expression and target gene expression, it’s hard to assess the pattern of correlation. To help users evaluate whether high correlation values are not due to artifacts, we provide the following LR-target expression scatter plot visualization for a selected LR pair and their targets:
+ 
 
 ```r
 ligand_oi = "IFNG"
-receptor_oi = "IFNGR2"
+receptor_oi = "IFNGR1"
 sender_oi = "L_T_TIM3._CD38._HLADR."
 receiver_oi = "M_Monocyte_CD16"
 lr_target_scatter_plot = make_lr_target_scatter_plot(
@@ -1208,138 +1558,281 @@ lr_target_scatter_plot = make_lr_target_scatter_plot(
 lr_target_scatter_plot
 ```
 
-<img src="basic_analysis_steps_MISC_files/figure-html/unnamed-chunk-128-1.png" width="100%" />
+<img src="basic_analysis_steps_MISC_files/figure-html/unnamed-chunk-83-1.png" width="100%" />
 
-## Intercellular regulatory network inference and visualization
+### Visualization of ligand-to-target signaling paths
 
-In the plots before, we demonstrated that some DE genes have both expression correlation and prior knowledge support to be downstream of ligand-receptor pairs. Interestingly, some target genes can be ligands or receptors themselves. This illustrates that cells can send signals to other cells, who as a response to these signals produce signals themselves to feedback to the original sender cells, or who will effect other cell types. 
+The next type of "sound check" visualization will visualize potential signaling paths between ligands and target genes of interest. In addition to this visualization, we also get a network table documenting the underlying data source(s) behind each of the links shown in this graph. This analysis can help users to assess the trustworthiness of ligand-target predictions. This is strongly recommended before going into experimental validation of ligand-target links.
 
-As last plot, we can generate a 'systems' view of these intercellular feedback and cascade processes than can be occuring between the different cell populations involved. In this plot, we will draw links between ligands of sender cell types their ligand/receptor-annotated target genes in receiver cell types. So links are ligand-target links (= gene regulatory links) and not ligand-receptor protein-protein interactions! We will infer this intercellular regulatory network here for the top250 interactions.
+This inference of 'prior knowledge' ligand-receptor-to-target signaling paths is done similarly to the workflow described in the nichenetr package https://github.com/saeyslab/nichenetr/blob/master/vignettes/ligand_target_signaling_path.md
 
+First read in the required networks:
 
 ```r
-prioritized_tbl_oi = get_top_n_lr_pairs(
-  multinichenet_output$prioritization_tables, 
-  250, 
-  rank_per_group = FALSE)
+if(organism == "human"){
+  sig_network = readRDS(url("https://zenodo.org/record/7074291/files/signaling_network_human_21122021.rds")) %>% 
+    mutate(from = make.names(from), to = make.names(to))
+  
+  gr_network = readRDS(url("https://zenodo.org/record/7074291/files/gr_network_human_21122021.rds")) %>% 
+    mutate(from = make.names(from), to = make.names(to))
+  
+  ligand_tf_matrix = readRDS(url("https://zenodo.org/record/7074291/files/ligand_tf_matrix_nsga2r_final.rds"))
+  colnames(ligand_tf_matrix) = colnames(ligand_tf_matrix) %>% make.names()
+  rownames(ligand_tf_matrix) = rownames(ligand_tf_matrix) %>% make.names()
+  
+  weighted_networks = readRDS(url("https://zenodo.org/record/7074291/files/weighted_networks_nsga2r_final.rds"))
+  weighted_networks$lr_sig = weighted_networks$lr_sig %>% mutate(from = make.names(from), to = make.names(to))
+  weighted_networks$gr = weighted_networks$gr %>% mutate(from = make.names(from), to = make.names(to))
+  
+} else if(organism == "mouse"){
+  sig_network = readRDS(url("https://zenodo.org/record/7074291/files/signaling_network_mouse_21122021.rds")) %>% 
+    mutate(from = make.names(from), to = make.names(to))
+  
+  gr_network = readRDS(url("https://zenodo.org/record/7074291/files/gr_network_mouse_21122021.rds")) %>% 
+    mutate(from = make.names(from), to = make.names(to))
+  
+  ligand_tf_matrix = readRDS(url("https://zenodo.org/record/7074291/files/ligand_tf_matrix_nsga2r_final_mouse.rds"))
+  colnames(ligand_tf_matrix) = colnames(ligand_tf_matrix) %>% make.names()
+  rownames(ligand_tf_matrix) = rownames(ligand_tf_matrix) %>% make.names()
+  
+  weighted_networks = readRDS(url("https://zenodo.org/record/7074291/files/weighted_networks_nsga2r_final_mouse.rds"))
+  weighted_networks$lr_sig = weighted_networks$lr_sig %>% mutate(from = make.names(from), to = make.names(to))
+  weighted_networks$gr = weighted_networks$gr %>% mutate(from = make.names(from), to = make.names(to))
+}
+```
 
-lr_target_prior_cor_filtered = 
-  multinichenet_output$prioritization_tables$group_prioritization_tbl$group %>% unique() %>% 
-  lapply(function(group_oi){
-    lr_target_prior_cor_filtered = multinichenet_output$lr_target_prior_cor %>%
-      inner_join(
-        multinichenet_output$ligand_activities_targets_DEgenes$ligand_activities %>%
-          distinct(ligand, target, direction_regulation, contrast)
-        ) %>% 
-      inner_join(contrast_tbl) %>% filter(group == group_oi)
-    
-    lr_target_prior_cor_filtered_up = lr_target_prior_cor_filtered %>% 
-      filter(direction_regulation == "up") %>% 
-      filter( (rank_of_target < top_n_target) & (pearson > 0.50 | spearman > 0.50))
-    
-    lr_target_prior_cor_filtered_down = lr_target_prior_cor_filtered %>% 
-      filter(direction_regulation == "down") %>% 
-      filter( (rank_of_target < top_n_target) & (pearson < -0.50 | spearman < -0.50))
-    lr_target_prior_cor_filtered = bind_rows(
-      lr_target_prior_cor_filtered_up, 
-      lr_target_prior_cor_filtered_down
-      )
-}) %>% bind_rows()
+Define which ligand and target genes you want to focus on:
+An interesting possiblity would be to focus on expression-correlated target genes downstream of IFNG, that are also encoding for prioritized ligands. To get these target genes, we rerun the following code
+IFNG as regulating ligand:
 
-lr_target_df = lr_target_prior_cor_filtered %>% 
-  distinct(group, sender, receiver, ligand, receptor, id, target, direction_regulation) 
+```r
+network$links %>% filter(sender_ligand == "L_T_TIM3._CD38._HLADR._IFNG" & direction_regulation == "up" & group == "M")
+## # A tibble: 2 × 6
+##   sender_ligand               receiver_target       direction_regulation group type          weight
+##   <chr>                       <chr>                 <fct>                <chr> <chr>          <dbl>
+## 1 L_T_TIM3._CD38._HLADR._IFNG M_Monocyte_CD16_HLA.A up                   M     Ligand-Target      1
+## 2 L_T_TIM3._CD38._HLADR._IFNG M_Monocyte_CD16_HLA.F up                   M     Ligand-Target      1
 ```
 
 
 ```r
-network = infer_intercellular_regulatory_network(lr_target_df, prioritized_tbl_oi)
-network$links %>% head()
-## # A tibble: 6 × 6
-##   sender_ligand                 receiver_target       direction_regulation group type          weight
-##   <chr>                         <chr>                 <fct>                <chr> <chr>          <dbl>
-## 1 L_T_TIM3._CD38._HLADR._CLEC2B L_NK_CD56._CD16._CCL3 up                   M     Ligand-Target      1
-## 2 M_Monocyte_CD16_ICAM1         L_NK_CD56._CD16._CCL3 up                   M     Ligand-Target      1
-## 3 M_Monocyte_CD16_B2M           M_Monocyte_CD16_IL1B  up                   M     Ligand-Target      1
-## 4 M_Monocyte_CD16_B2M           M_Monocyte_CD16_TIMP1 up                   M     Ligand-Target      1
-## 5 M_Monocyte_CD16_HLA.A         M_Monocyte_CD16_IL1B  up                   M     Ligand-Target      1
-## 6 M_Monocyte_CD16_HLA.A         M_Monocyte_CD16_TIMP1 up                   M     Ligand-Target      1
-network$nodes %>% head()
-## # A tibble: 6 × 4
-##   node                         celltype               gene    type_gene      
-##   <chr>                        <chr>                  <chr>   <chr>          
-## 1 L_T_TIM3._CD38._HLADR._ICAM3 L_T_TIM3._CD38._HLADR. ICAM3   ligand/receptor
-## 2 M_Monocyte_CD16_LILRB2       M_Monocyte_CD16        LILRB2  ligand/receptor
-## 3 M_Monocyte_CD16_ICAM3        M_Monocyte_CD16        ICAM3   ligand/receptor
-## 4 M_Monocyte_CD16_ITGB2        M_Monocyte_CD16        ITGB2   ligand/receptor
-## 5 M_Monocyte_CD16_SIGLEC9      M_Monocyte_CD16        SIGLEC9 ligand/receptor
-## 6 M_Monocyte_CD16_ENG          M_Monocyte_CD16        ENG     ligand/receptor
+ligand_oi = "IFNG"
+receptor_oi = "IFNGR1"
+targets_all = c("HLA.A", "HLA.F")
+  
+active_signaling_network = nichenetr::get_ligand_signaling_path_with_receptor(
+  ligand_tf_matrix = ligand_tf_matrix, 
+  ligands_all = ligand_oi, 
+  receptors_all = receptor_oi, 
+  targets_all = targets_all, 
+  weighted_networks = weighted_networks, 
+  top_n_regulators = 3
+  )
+
+data_source_network = nichenetr::infer_supporting_datasources(
+  signaling_graph_list = active_signaling_network,
+  lr_network = lr_network %>% dplyr::rename(from = ligand, to = receptor), 
+  sig_network = sig_network, 
+  gr_network = gr_network
+  )
 ```
 
 
 ```r
-colors_sender["L_T_TIM3._CD38._HLADR."] = "pink" # the  original yellow background with white font is not very readable
-network_graph = visualize_network(network, colors_sender)
-network_graph$plot
+active_signaling_network_min_max = active_signaling_network
+active_signaling_network_min_max$sig = active_signaling_network_min_max$sig %>% mutate(weight = ((weight-min(weight))/(max(weight)-min(weight))) + 0.75)
+active_signaling_network_min_max$gr = active_signaling_network_min_max$gr %>% mutate(weight = ((weight-min(weight))/(max(weight)-min(weight))) + 0.75)
+colors = c("ligand" = "purple", "receptor" = "orange", "target" = "royalblue", "mediator" = "grey60")
+#ggraph_signaling_path = suppressWarnings(make_ggraph_signaling_path(active_signaling_network_min_max, colors, ligand_oi, receptor_oi, targets_all))
+ggraph_signaling_path = make_ggraph_signaling_path(
+  active_signaling_network_min_max, 
+  colors, 
+  ligand_oi, 
+  receptor_oi, 
+  targets_all)
+ggraph_signaling_path$plot
 ```
 
-<img src="basic_analysis_steps_MISC_files/figure-html/unnamed-chunk-131-1.png" width="100%" />
+<img src="basic_analysis_steps_MISC_files/figure-html/unnamed-chunk-87-1.png" width="100%" />
 
-Interestingly, we can also use this network to further prioritize differential CCC interactions. Here we will assume that the most important LR interactions are the ones that are involved in this intercellular regulatory network. We can get these interactions as follows:
+As mentioned, we can also inspect the network table documenting the underlying data source(s) behind each of the links shown in this graph. This analysis can help users to assess the trustworthiness of ligand-target predictions. 
 
 ```r
-network$prioritized_lr_interactions
-## # A tibble: 117 × 5
-##    group sender                 receiver         ligand  receptor
-##    <chr> <chr>                  <chr>            <chr>   <chr>   
-##  1 M     L_T_TIM3._CD38._HLADR. L_NK_CD56._CD16. CLEC2B  KLRB1   
-##  2 M     M_Monocyte_CD16        L_NK_CD56._CD16. ICAM1   ITGAX   
-##  3 M     M_Monocyte_CD16        M_Monocyte_CD16  B2M     LILRB1  
-##  4 M     M_Monocyte_CD16        M_Monocyte_CD16  HLA.A   LILRB1  
-##  5 M     M_Monocyte_CD16        M_Monocyte_CD16  HLA.B   LILRB1  
-##  6 M     M_Monocyte_CD16        M_Monocyte_CD16  HLA.C   LILRB1  
-##  7 M     L_T_TIM3._CD38._HLADR. M_Monocyte_CD16  HLA.A   LILRB1  
-##  8 M     M_Monocyte_CD16        M_Monocyte_CD16  HLA.A   LILRB2  
-##  9 M     M_Monocyte_CD16        M_Monocyte_CD16  HLA.C   LILRB2  
-## 10 M     M_Monocyte_CD16        M_Monocyte_CD16  HLA.DRA CD63    
-## # ℹ 107 more rows
+data_source_network %>% head()
+## # A tibble: 6 × 5
+##   from  to    source                        database        layer     
+##   <chr> <chr> <chr>                         <chr>           <chr>     
+## 1 IFNG  HLA.A lr_evex_regulation_expression evex_expression regulatory
+## 2 IFNG  HLA.A CytoSig_all                   CytoSig         regulatory
+## 3 IFNG  HLA.A CytoSig_signature             CytoSig         regulatory
+## 4 IFNG  HLA.A NicheNet_LT_frequent          NicheNet_LT     regulatory
+## 5 IFNG  HLA.F CytoSig_all                   CytoSig         regulatory
+## 6 IFNG  HLA.F CytoSig_signature             CytoSig         regulatory
+```
+
+### Single-cell level visualizations
+
+The following type of "sound check" visualization will visualize the single-cell expression distribution of a ligand/receptor/target gene of interest in cell types of interest. This may be informative for users to inspect the data behind DE results. This can help users evaluate whether DE results at pseudobulk level were not due to artifacts. 
+
+#### Zoom in on specific ligand-receptor interactions: Ligand-receptor single-cell expression violin plot
+
+Single-cell expression Violin plots of ligand-receptor interaction of interest: `make_ligand_receptor_violin_plot`
+
+It is often useful to zoom in on specific ligand-receptor interactions of interest by looking in more detail to their expression at the single cell level 
+
+We will again check the IFNG-IFNGR1 interaction for sake of demonstration:
+
+```r
+ligand_oi = "IFNG"
+receptor_oi = "IFNGR1"
+group_oi = "M"
+sender_oi = "L_T_TIM3._CD38._HLADR."
+receiver_oi = "M_Monocyte_CD16"
 ```
 
 
 ```r
-prioritized_tbl_oi_network = prioritized_tbl_oi %>% inner_join(
-  network$prioritized_lr_interactions)
-prioritized_tbl_oi_network
-## # A tibble: 117 × 8
-##    group sender                 receiver               ligand  receptor id                                       prioritization_score prioritization_rank
-##    <chr> <chr>                  <chr>                  <chr>   <chr>    <chr>                                                   <dbl>               <dbl>
-##  1 M     M_Monocyte_CD16        L_NK_CD56._CD16.       HLA.E   KLRC1    HLA.E_KLRC1_M_Monocyte_CD16_L_NK_CD56._…                0.956                   1
-##  2 M     L_T_TIM3._CD38._HLADR. M_Monocyte_CD16        IFNG    IFNGR1   IFNG_IFNGR1_L_T_TIM3._CD38._HLADR._M_Mo…                0.948                   2
-##  3 M     L_T_TIM3._CD38._HLADR. M_Monocyte_CD16        IFNG    IFNGR2   IFNG_IFNGR2_L_T_TIM3._CD38._HLADR._M_Mo…                0.928                   4
-##  4 M     M_Monocyte_CD16        L_T_TIM3._CD38._HLADR. CXCL16  CXCR6    CXCL16_CXCR6_M_Monocyte_CD16_L_T_TIM3._…                0.922                   5
-##  5 M     M_Monocyte_CD16        L_T_TIM3._CD38._HLADR. HLA.E   CD8A     HLA.E_CD8A_M_Monocyte_CD16_L_T_TIM3._CD…                0.919                   7
-##  6 M     M_Monocyte_CD16        L_T_TIM3._CD38._HLADR. HLA.DRA LAG3     HLA.DRA_LAG3_M_Monocyte_CD16_L_T_TIM3._…                0.910                   9
-##  7 M     M_Monocyte_CD16        L_T_TIM3._CD38._HLADR. S100A8  CD69     S100A8_CD69_M_Monocyte_CD16_L_T_TIM3._C…                0.907                  10
-##  8 M     M_Monocyte_CD16        M_Monocyte_CD16        HLA.F   LILRB1   HLA.F_LILRB1_M_Monocyte_CD16_M_Monocyte…                0.903                  11
-##  9 M     M_Monocyte_CD16        M_Monocyte_CD16        TNF     LTBR     TNF_LTBR_M_Monocyte_CD16_M_Monocyte_CD16                0.902                  12
-## 10 M     M_Monocyte_CD16        M_Monocyte_CD16        HLA.F   LILRB2   HLA.F_LILRB2_M_Monocyte_CD16_M_Monocyte…                0.898                  15
-## # ℹ 107 more rows
+p_violin = make_ligand_receptor_violin_plot(
+  sce = sce, 
+  ligand_oi = ligand_oi,
+  receptor_oi = receptor_oi, 
+  group_oi = group_oi, 
+  group_id = group_id, 
+  sender_oi = sender_oi, 
+  receiver_oi = receiver_oi, 
+  sample_id = sample_id, 
+  celltype_id = celltype_id)
+p_violin
 ```
 
-Visualize now the expression and activity of these interactions for the M group
+<img src="basic_analysis_steps_MISC_files/figure-html/unnamed-chunk-90-1.png" width="100%" />
+
+#### Zoom in on specific ligand-target interactions: Target gene single-cell expression violin plot
+
+For the 2 IFNG-target genes we visualized the signaling paths for, we can also inspect their single-cell expression levels:
+
+```r
+list_target_plots = lapply(targets_all, function(target_oi) {
+  p = make_target_violin_plot(sce = sce, target_oi = target_oi, receiver_oi = receiver_oi, group_oi = group_oi, group_id = group_id, sample_id, celltype_id = celltype_id)
+})
+
+list_target_plots
+## [[1]]
+```
+
+<img src="basic_analysis_steps_MISC_files/figure-html/unnamed-chunk-91-1.png" width="100%" />
+
+```
+## 
+## [[2]]
+```
+
+<img src="basic_analysis_steps_MISC_files/figure-html/unnamed-chunk-91-2.png" width="100%" />
+
+### Visualize top DE genes for a cell type of interest
+
+Finally, we provide some visualizations to just inspect the DE results that were generated during the MultiNicheNet analysis. 
+
 
 ```r
 group_oi = "M"
+receiver_oi = "M_Monocyte_CD16"
+DE_genes = multinichenet_output$ligand_activities_targets_DEgenes$de_genes_df %>% 
+  inner_join(contrast_tbl) %>% 
+  filter(group == group_oi) %>% 
+  arrange(p_val) %>% 
+  filter(
+    receiver == receiver_oi & 
+      logFC > 2 & 
+      p_val <= 0.05 &
+      contrast == contrast_tbl %>% filter(group == group_oi) %>% pull(contrast)) %>% 
+  pull(gene) %>% unique()
+
+p_target = make_DEgene_dotplot_pseudobulk(
+  genes_oi = DE_genes, 
+  celltype_info = multinichenet_output$celltype_info, 
+  prioritization_tables = multinichenet_output$prioritization_tables, 
+  celltype_oi = receiver_oi, 
+  multinichenet_output$grouping_tbl)
+p_target$pseudobulk_plot + ggtitle("DE genes (pseudobulk expression)")
 ```
 
+<img src="basic_analysis_steps_MISC_files/figure-html/unnamed-chunk-92-1.png" width="100%" />
 
 ```r
-prioritized_tbl_oi_M = prioritized_tbl_oi_network %>% filter(group == group_oi)
-
-plot_oi = make_sample_lr_prod_activity_plots_Omnipath(
-  multinichenet_output$prioritization_tables, 
-  prioritized_tbl_oi_M %>% inner_join(lr_network_all)
-  )
-plot_oi
+p_target$singlecell_plot + ggtitle("DE genes (single-cell expression)")
 ```
 
-<img src="basic_analysis_steps_MISC_files/figure-html/unnamed-chunk-135-1.png" width="100%" />
+<img src="basic_analysis_steps_MISC_files/figure-html/unnamed-chunk-92-2.png" width="100%" />
+
+Among these DE genes, you may be most interested in ligands or receptors
+
+Ligands:
+
+```r
+group_oi = "M"
+receiver_oi = "M_Monocyte_CD16"
+DE_genes = multinichenet_output$ligand_activities_targets_DEgenes$de_genes_df %>% 
+  inner_join(contrast_tbl) %>% 
+  filter(group == group_oi) %>% 
+  arrange(p_val) %>% 
+  filter(
+    receiver == receiver_oi & 
+      logFC > 1 & 
+      p_val <= 0.05 &
+      contrast == contrast_tbl %>% filter(group == group_oi) %>% pull(contrast)) %>% 
+  pull(gene) %>% unique()
+DE_genes = DE_genes %>% intersect(lr_network$ligand)
+p_target = make_DEgene_dotplot_pseudobulk(
+  genes_oi = DE_genes, 
+  celltype_info = multinichenet_output$celltype_info, 
+  prioritization_tables = multinichenet_output$prioritization_tables, 
+  celltype_oi = receiver_oi, 
+  multinichenet_output$grouping_tbl)
+p_target$pseudobulk_plot + ggtitle("DE ligands (pseudobulk expression)")
+```
+
+<img src="basic_analysis_steps_MISC_files/figure-html/unnamed-chunk-93-1.png" width="100%" />
+
+```r
+p_target$singlecell_plot + ggtitle("DE ligands (single-cell expression)")
+```
+
+<img src="basic_analysis_steps_MISC_files/figure-html/unnamed-chunk-93-2.png" width="100%" />
+
+Receptors:
+
+```r
+group_oi = "M"
+receiver_oi = "M_Monocyte_CD16"
+DE_genes = multinichenet_output$ligand_activities_targets_DEgenes$de_genes_df %>% 
+  inner_join(contrast_tbl) %>% 
+  filter(group == group_oi) %>% 
+  arrange(p_val) %>% 
+  filter(
+    receiver == receiver_oi & 
+      logFC > 1 & 
+      p_val <= 0.05 &
+      contrast == contrast_tbl %>% filter(group == group_oi) %>% pull(contrast)) %>% 
+  pull(gene) %>% unique()
+DE_genes = DE_genes %>% intersect(lr_network$receptor)
+p_target = make_DEgene_dotplot_pseudobulk(
+  genes_oi = DE_genes, 
+  celltype_info = multinichenet_output$celltype_info, 
+  prioritization_tables = multinichenet_output$prioritization_tables, 
+  celltype_oi = receiver_oi, 
+  multinichenet_output$grouping_tbl)
+p_target$pseudobulk_plot + ggtitle("DE receptors (pseudobulk expression)")
+```
+
+<img src="basic_analysis_steps_MISC_files/figure-html/unnamed-chunk-94-1.png" width="100%" />
+
+```r
+p_target$singlecell_plot + ggtitle("DE receptors (single-cell expression)")
+```
+
+<img src="basic_analysis_steps_MISC_files/figure-html/unnamed-chunk-94-2.png" width="100%" />
+
+# Conclusion
+
+This vignette covered all the details of a MultiNicheNet analysis, from running the algorithm to interpreting its output till the finest details. It's important to realize that interpreting the output requires quite some time and different levels of iterations: start with the big picture and focus on the most differential LR pairs first. Then later, zoom in on target genes and perform the necessary "sound checks" when going further.  
