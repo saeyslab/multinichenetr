@@ -4,7 +4,7 @@
 \alias{process_abundance_expression_info}
 \title{process_abundance_expression_info}
 \usage{
-process_abundance_expression_info(sce, sample_id, group_id, celltype_id, min_cells, senders_oi, receivers_oi, lr_network, batches = NA, frq_list, abundance_info)
+process_abundance_expression_info(sce, sample_id, group_id, celltype_id, min_cells = 10, senders_oi, receivers_oi, lr_network, batches = NA, frq_list, abundance_info)
 }
 \arguments{
 \item{sce}{SingleCellExperiment object of the scRNAseq data of interest. Contains both sender and receiver cell types.}

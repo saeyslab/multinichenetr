@@ -1,7 +1,7 @@
 #' @title get_abundance_info
 #'
 #' @description \code{get_abundance_info} Visualize cell type abundances.
-#' @usage get_abundance_info(sce, sample_id, group_id, celltype_id, min_cells, senders_oi, receivers_oi, batches = NA)
+#' @usage get_abundance_info(sce, sample_id, group_id, celltype_id, min_cells = 10, senders_oi, receivers_oi, batches = NA)
 #'
 #' @inheritParams multi_nichenet_analysis
 #' @inheritParams combine_sender_receiver_info_ic
@@ -27,7 +27,7 @@
 #'
 #' @export
 #'
-get_abundance_info = function(sce, sample_id, group_id, celltype_id, min_cells, senders_oi, receivers_oi, batches = NA){
+get_abundance_info = function(sce, sample_id, group_id, celltype_id, min_cells = 10, senders_oi, receivers_oi, batches = NA){
   
   requireNamespace("dplyr")
   requireNamespace("ggplot2")
@@ -211,7 +211,7 @@ get_abundance_info = function(sce, sample_id, group_id, celltype_id, min_cells, 
 #' @title process_abundance_expression_info
 #'
 #' @description \code{process_abundance_expression_info} Visualize cell type abundances. Calculate the average and fraction of expression of each gene per sample and per group. Calculate relative abundances of cell types as well. Under the hood, the following functions are used: `get_avg_frac_exprs_abund`, `process_info_to_ic`, `combine_sender_receiver_info_ic`
-#' @usage process_abundance_expression_info(sce, sample_id, group_id, celltype_id, min_cells, senders_oi, receivers_oi, lr_network, batches = NA, frq_list, abundance_info)
+#' @usage process_abundance_expression_info(sce, sample_id, group_id, celltype_id, min_cells = 10, senders_oi, receivers_oi, lr_network, batches = NA, frq_list, abundance_info)
 #'
 #' @inheritParams multi_nichenet_analysis
 #' @inheritParams combine_sender_receiver_info_ic
@@ -243,7 +243,7 @@ get_abundance_info = function(sce, sample_id, group_id, celltype_id, min_cells, 
 #'
 #' @export
 #'
-process_abundance_expression_info = function(sce, sample_id, group_id, celltype_id, min_cells, senders_oi, receivers_oi, lr_network, batches = NA, frq_list, abundance_info){
+process_abundance_expression_info = function(sce, sample_id, group_id, celltype_id, min_cells = 10, senders_oi, receivers_oi, lr_network, batches = NA, frq_list, abundance_info){
   
   requireNamespace("dplyr")
   requireNamespace("ggplot2")

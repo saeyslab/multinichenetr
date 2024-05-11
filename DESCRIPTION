@@ -63,4 +63,4 @@ VignetteBuilder:
   knitr
 Remotes: 
   github::saeyslab/nichenetr
-RoxygenNote: 7.2.3
+RoxygenNote: 7.3.1

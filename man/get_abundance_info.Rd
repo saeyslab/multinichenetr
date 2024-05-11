@@ -4,7 +4,7 @@
 \alias{get_abundance_info}
 \title{get_abundance_info}
 \usage{
-get_abundance_info(sce, sample_id, group_id, celltype_id, min_cells, senders_oi, receivers_oi, batches = NA)
+get_abundance_info(sce, sample_id, group_id, celltype_id, min_cells = 10, senders_oi, receivers_oi, batches = NA)
 }
 \arguments{
 \item{sce}{SingleCellExperiment object of the scRNAseq data of interest. Contains both sender and receiver cell types.}

@@ -37,7 +37,7 @@ scale_quantile_adapted = function(x, outlier_cutoff = 0){
 #' batches = NA
 #' contrasts_oi = c("'High-Low','Low-High'")
 #' contrast_tbl = tibble(contrast = c("High-Low","Low-High"), group = c("High","Low"))
-#' 
+#' min_cells = 10
 #' metadata_abundance = SummarizedExperiment::colData(sce)[,c(sample_id, group_id, celltype_id)] 
 #' colnames(metadata_abundance) =c("sample_id", "group_id", "celltype_id")
 #' abundance_data = metadata_abundance %>% tibble::as_tibble() %>% dplyr::group_by(sample_id , celltype_id) %>% dplyr::count() %>% dplyr::inner_join(metadata_abundance %>% tibble::as_tibble() %>% dplyr::distinct(sample_id , group_id ))
@@ -273,7 +273,7 @@ generate_prioritization_tables = function(sender_receiver_info, sender_receiver_
 #' batches = NA
 #' contrasts_oi = c("'High-Low','Low-High'")
 #' contrast_tbl = tibble(contrast = c("High-Low","Low-High"), group = c("High","Low"))
-#' 
+#' min_cells = 10
 #' metadata_abundance = SummarizedExperiment::colData(sce)[,c(sample_id, group_id, celltype_id)] 
 #' colnames(metadata_abundance) =c("sample_id", "group_id", "celltype_id")
 #' abundance_data = metadata_abundance %>% tibble::as_tibble() %>% dplyr::group_by(sample_id , celltype_id) %>% dplyr::count() %>% dplyr::inner_join(metadata_abundance %>% tibble::as_tibble() %>% dplyr::distinct(sample_id , group_id ))
@@ -381,7 +381,7 @@ get_top_n_lr_pairs = function(prioritization_tables, top_n, groups_oi = NULL, se
 #' batches = NA
 #' contrasts_oi = c("'High-Low','Low-High'")
 #' contrast_tbl = tibble(contrast = c("High-Low","Low-High"), group = c("High","Low"))
-#' 
+#' min_cells = 10
 #' metadata_abundance = SummarizedExperiment::colData(sce)[,c(sample_id, group_id, celltype_id)] 
 #' colnames(metadata_abundance) =c("sample_id", "group_id", "celltype_id")
 #' abundance_data = metadata_abundance %>% tibble::as_tibble() %>% dplyr::group_by(sample_id , celltype_id) %>% dplyr::count() %>% dplyr::inner_join(metadata_abundance %>% tibble::as_tibble() %>% dplyr::distinct(sample_id , group_id ))
@@ -672,7 +672,7 @@ generate_prioritization_tables_tests = function(sender_receiver_info, sender_rec
 #' batches = NA
 #' contrasts_oi = c("'High-Low','Low-High'")
 #' contrast_tbl = tibble(contrast = c("High-Low","Low-High"), group = c("High","Low"))
-#' 
+#' min_cells = 10
 #' metadata_abundance = SummarizedExperiment::colData(sce)[,c(sample_id, group_id, celltype_id)] 
 #' colnames(metadata_abundance) =c("sample_id", "group_id", "celltype_id")
 #' abundance_data = metadata_abundance %>% tibble::as_tibble() %>% dplyr::group_by(sample_id , celltype_id) %>% dplyr::count() %>% dplyr::inner_join(metadata_abundance %>% tibble::as_tibble() %>% dplyr::distinct(sample_id , group_id ))

@@ -45,7 +45,7 @@ celltype_id = "celltype"
 batches = NA
 contrasts_oi = c("'High-Low','Low-High'")
 contrast_tbl = tibble(contrast = c("High-Low","Low-High"), group = c("High","Low"))
-
+min_cells = 10
 metadata_abundance = SummarizedExperiment::colData(sce)[,c(sample_id, group_id, celltype_id)] 
 colnames(metadata_abundance) =c("sample_id", "group_id", "celltype_id")
 abundance_data = metadata_abundance \%>\% tibble::as_tibble() \%>\% dplyr::group_by(sample_id , celltype_id) \%>\% dplyr::count() \%>\% dplyr::inner_join(metadata_abundance \%>\% tibble::as_tibble() \%>\% dplyr::distinct(sample_id , group_id ))

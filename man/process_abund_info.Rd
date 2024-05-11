@@ -23,6 +23,7 @@ library(dplyr)
 sample_id = "tumor"
 group_id = "pEMT"
 celltype_id = "celltype"
+min_cells = 10
 metadata_abundance = SummarizedExperiment::colData(sce)[,c(sample_id, group_id, celltype_id)]
 colnames(metadata_abundance) =c("sample_id", "group_id", "celltype_id")
 abundance_data = metadata_abundance \%>\% tibble::as_tibble() \%>\% dplyr::group_by(sample_id , celltype_id) \%>\% dplyr::count() \%>\% dplyr::inner_join(metadata_abundance \%>\% dplyr::distinct(sample_id , group_id ))
