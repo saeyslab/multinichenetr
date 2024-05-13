@@ -22,7 +22,7 @@ samples of interest (eg patients of different disease states).
 You can read all about MultiNicheNet in the following preprint:
 <https://www.biorxiv.org/content/10.1101/2023.06.13.544751v1>
 
-## Aim of MultiNicheNet
+## Aims of MultiNicheNet
 
 The main goal of the MultiNicheNet package is to find which
 ligand-receptor interactions are differentially expressed and
@@ -32,7 +32,7 @@ considers more information to prioritize interactions (differential and
 cell-type specific expression in addition to ligand activity); 2) is
 more suited to tackle complex experimental designs such as those with
 multiple samples and conditions, and multiple receiver cell types of
-interest; 3) enables incorporation of complementary data types for
+interest; and 3) enables incorporation of complementary data types for
 prioritization of cell-cell interactions (e.g., proteomics).
 
 <br><br> ![](vignettes/overview_figure.png) <br><br>
@@ -64,16 +64,19 @@ prioritization framework is flexible and extendable: it is possible to
 design an additional criterion based on complementary data such as serum
 proteomics.
 
-To summarize the main functionalities of multinichenetr: \* Prioritizing
-the most differential ligand-receptor interactions from different
-sender-receiver pairs between different sample groups, according to
-criteria such as condition specificity, cell-type specificity, ligand
-activity (= downstream signaling activity / target gene enrichement),
-and more. \* Predicting the specific downstream affected target genes of
-prioritized differential ligand-receptor links of interest. \*
-Predicting intercellular gene regulatory networks, connecting ligands to
-ligand- or receptor-encoding target genes in other cell types, enabling
-predictions concerning intercellular cascade and feedback mechanisms.
+To summarize the main functionalities of multinichenetr:
+
+-   Prioritizing the most differential ligand-receptor interactions from
+    different sender-receiver pairs between different sample groups,
+    according to criteria such as condition specificity, cell-type
+    specificity, ligand activity (= downstream signaling activity /
+    target gene enrichement), and more.
+-   Predicting the specific downstream affected target genes of
+    prioritized differential ligand-receptor links of interest.
+-   Predicting intercellular gene regulatory networks, connecting
+    ligands to ligand- or receptor-encoding target genes in other cell
+    types, enabling predictions concerning intercellular cascade and
+    feedback mechanisms.
 
 Note: at the basis of MultiNicheNet for defining differentially
 expressed ligands, receptors and target genes, is the the differential
@@ -129,8 +132,8 @@ version. See the tutorials for more in-depth explanation on each of
 these aspects.
 
 -   Gene filtering has been modified slightly, resulting in fewer and
-    easier to interpret parameters and more consistency with the rest of
-    the MultiNicheNet methodology
+    easier to interpret parameters and stronger consistency with the
+    rest of the MultiNicheNet methodology
 -   Prioritization can now be done by only using the up-regulatory
     ligand activities instead of both up- and downregulatory activities.
     This option was added because of the difficulty of interpreting
@@ -153,7 +156,9 @@ these aspects.
 
 multinichenetr is in ongoing development. We always appreciate it if you
 let us know how we can improve the
-software/documentation/algorithm/output visualizations further.
+software/documentation/algorithm/output visualizations further. The best
+way to do this is through the issues page:
+<https://github.com/saeyslab/multinichenetr/issues>
 
 # How to install multinichenetr?
 
@@ -183,15 +188,18 @@ We provide several vignettes demonstrating the different types of
 analysis that can be performed with MultiNicheNet, and the several types
 of downstream visualizations that can be created.
 
+## Tutorials
+
 We recommend users to start with the following vignette, which
 demonstrates the different steps in the analysis without too many
 details yet. This is the recommended vignette to learn the basics of
 MultiNicheNet.
 
--   [MultiNicheNet - comprehensive tutorial - Condition A vs Condition B
-    vs Condition C](vignettes/basic_analysis_steps_MISC.knit.md) | [**R
-    Markdown version**](vignettes/basic_analysis_steps_MISC.Rmd) |
-    [**HTML version**](vignettes/basic_analysis_steps_MISC.html)
+-   [**MultiNicheNet - comprehensive tutorial** - Condition A vs
+    Condition B vs Condition
+    C](vignettes/basic_analysis_steps_MISC.knit.md) | [*R Markdown
+    version*](vignettes/basic_analysis_steps_MISC.Rmd) | [*HTML
+    version*](vignettes/basic_analysis_steps_MISC.html)
 
 That vignette provides an example of a comparison between 3 groups. The
 following vignettes demonstrate how to analyze cell-cell communication
@@ -201,32 +209,31 @@ different questions. To reduce the length of these vignettes, the
 sections on downstream analysis has been reduced strongly. So we
 strongly recommend to read these vignettes to learn how to perform the
 analysis in other settings, but still perform all additional analyses
-and checks as demonstrated in the comprehensive vignette .
+and checks as demonstrated in the comprehensive tutorial vignette .
 
 -   [Condition A vs Condition B - without repeated
-    subjects](vignettes/pairwise_analysis_MISC.knit.md) | [**R Markdown
-    version**](vignettes/pairwise_analysis_MISC.Rmd) | [**HTML
-    version**](vignettes/pairwise_analysis_MISC.html)
+    subjects](vignettes/pairwise_analysis_MISC.knit.md) | [*R Markdown
+    version*](vignettes/pairwise_analysis_MISC.Rmd) | [*HTML
+    version*](vignettes/pairwise_analysis_MISC.html)
 -   [Condition A vs Condition B - with **repeated subjects**: paired
     analysis with subject\_id as
-    covariate](vignettes/paired_analysis_SCC.knit.md) | [**R Markdown
-    version**](vignettes/paired_analysis_SCC.Rmd) | [**HTML
-    version**](vignettes/paired_analysis_SCC.html)
+    covariate](vignettes/paired_analysis_SCC.knit.md) | [*R Markdown
+    version*](vignettes/paired_analysis_SCC.Rmd) | [*HTML
+    version*](vignettes/paired_analysis_SCC.html)
 -   [Condition A vs Condition B - from integrated atlas data: correcting
     for **batch
     effects**](vignettes/batch_correction_analysis_LungAtlas.knit.md) |
-    [**R Markdown
-    version**](vignettes/batch_correction_analysis_LungAtlas.Rmd) |
-    [**HTML
-    version**](vignettes/batch_correction_analysis_LungAtlas.html)
+    [*R Markdown
+    version*](vignettes/batch_correction_analysis_LungAtlas.Rmd) |
+    [*HTML version*](vignettes/batch_correction_analysis_LungAtlas.html)
 -   [**Multifactorial analysis**: condition-differences in cell-cell
     communication dynamics: (Time2\_ConditionA - Time1\_ConditionA) vs
     (Time2\_ConditionB -
     Time1\_ConditionB)](vignettes/multifactorial_analysis_BreastCancer.knit.md)
-    | [**R Markdown
-    version**](vignettes/multifactorial_analysis_BreastCancer.Rmd) |
-    [**HTML
-    version**](vignettes/multifactorial_analysis_BreastCancer.html)
+    | [*R Markdown
+    version*](vignettes/multifactorial_analysis_BreastCancer.Rmd) |
+    [*HTML
+    version*](vignettes/multifactorial_analysis_BreastCancer.html)
 
 In addition to these vignettes, we also provide 2 other vignettes
 showcasing the flexibility and extendibility of the MultiNicheNet
@@ -235,15 +242,14 @@ assess condition-specific cell types:
 
 -   [Incorporating **additional prioritization criteria** based on
     **complementary data** types: serum
-    **proteomics**](vignettes/add_proteomics_MISC.knit.md) | [**R
-    Markdown version**](vignettes/add_proteomics_MISC.Rmd) | [**HTML
-    version**](vignettes/add_proteomics_MISC.html)
+    **proteomics**](vignettes/add_proteomics_MISC.knit.md) | [*R
+    Markdown version*](vignettes/add_proteomics_MISC.Rmd) | [*HTML
+    version*](vignettes/add_proteomics_MISC.html)
 -   [Altnernative workflow to assess interactions involving
     **condition-specific cell
-    types**](vignettes/condition_specific_celltype_MISC.knit.md) | [**R
-    Markdown version**](vignettes/condition_specific_celltype_MISC.Rmd)
-    | [**HTML
-    version**](vignettes/condition_specific_celltype_MISC.html)
+    types**](vignettes/condition_specific_celltype_MISC.knit.md) | [*R
+    Markdown version*](vignettes/condition_specific_celltype_MISC.Rmd) |
+    [*HTML version*](vignettes/condition_specific_celltype_MISC.html)
 
 When applying MultiNicheNet on datasets with many samples and cell
 types, it is often needed to run the analysis on HPC infrastructure. In
@@ -287,7 +293,7 @@ provide the following two files:
     and non-multi-sample tools for differential cell-cell communication
     might be better alternatives. If you want to perform differential
     cell-cell communication with a MultiNicheNet-like prioritization
-    framework, you can have a look at this vignette:[Differential
+    framework, you can have a look at this vignette: [Differential
     cell-cell Communication for datasets with limited samples:
     “sample-agnostic/cell-level”
     MultiNicheNet](vignettes/basic_analysis_steps_MISC_SACL.knit.md).
