@@ -38,7 +38,7 @@ MIS-C (multisystem inflammatory syndrome in children) is a novel rare immunodysr
 
 In addition to this dataset, we will use publicly available processed OLINK **serum proteomics data** from Diorio et al (https://www.nature.com/articles/s41467-021-27544-6) who profiled MIS-C patients and healthy controls. This data could be informative for prioritizing cell-cell interactions because it may give us information about which ligands are more strongly expressed at the protein level in MIS-C patients versus healthy siblings.   
 
-In this vignette, we will first prepare the MultiNicheNet core analysis, run the MultiNicheNet core analysis, then extend the prioritization with serum proteomics data, and finally interpret the output. All steps before the the incorporation of proteomics data, are exactly the same as described in this vignette: [pairwise_analysis_MISC.knit.md](pairwise_analysis_MISC.knit.md)
+In this vignette, we will first prepare the MultiNicheNet core analysis, run the MultiNicheNet core analysis, then extend the prioritization with serum proteomics data, and finally interpret that output. All steps before the the incorporation of proteomics data, are exactly the same as described in this vignette: [pairwise_analysis_MISC.knit.md](pairwise_analysis_MISC.knit.md)
 
 # Preparation of the MultiNicheNet core analysis
 
@@ -345,8 +345,7 @@ multinichenet_output = multi_nichenet_analysis(
 
 # Inspecting the MultiNicheNet output
 
-
-## Inspecting the MultiNicheNet output
+## Inspecting output tables
 
 Before incorporating the serum proteomics, we will quickly inspect the output of this regular MultiNicheNet analysis. Please check other vignettes for a more detailed breakdown of these different steps.
 
@@ -416,10 +415,10 @@ plot_oi
 
 # Using serum proteomics data to prioritize cell-cell communication patterns
 
-Here we will demonstrate how to tailor the prioritization to additional data modalities that you may have. How to do this exactly will stronglly depend on the type of data modality. Here we show an example on how you can incorporate "targeted" serum proteomics data.
+Here we will demonstrate how to tailor the prioritization to additional data modalities that you may have. How to do this exactly will strongly depend on the type of data modality. Here we show an example on how you can incorporate "targeted" serum proteomics data.
 
 As additional data modality, we will use serum proteomics data (generated through the OLINK platform) that was published by a different research group based on serum samples of a different cohort of MIS-C patients (Diorio et al. - https://www.nature.com/articles/s41467-021-27544-6). 
-Ligands that are also upregulated in the serum at the protein level may be interesting candidates for further follow-up. Therefore, we can use this data to help in the prioritization. We will here add an additional score to each interaction related to how strongly the ligand is differentially expressed at the protein level in the serum of patients. 
+Ligands that are also upregulated in the serum at the protein level may be interesting candidates for further follow-up. Therefore, we can use this data to help in the prioritization. We will here add an additional score to each interaction related to how strongly the ligand is upregulated at the protein level in the serum of patients. 
 
 Because we don't have OLINK information of each ligand, we will consider ligands without data as being not-differentially expressed at the protein level (p-val = 1, logFC = 0). By doing this, these ligands will still be kept in the total prioritization analysis such that they could still be ranked high if the previous criteria strongly point to their importance. 
 
@@ -440,10 +439,18 @@ olink_df = xlsx::read.xlsx(file_path, 1) %>%
   dplyr::select(gene, logFC, pval) %>% 
   dplyr::mutate(gene = gene %>% make.names()) %>% 
   mutate(olink_type = "Diorio")
+olink_df %>% head()
+```
 
+Let's inspect the nr of of ligands and receptors in the OLINK data frame:
+```{r}
 olink_df %>% filter(gene %in% lr_network$ligand) %>% nrow() # nr of ligands in OLINK data
 olink_df %>% filter(gene %in% lr_network$receptor) %>% nrow() # nr of receptors in OLINK data
+```
 
+Now create a data frame with DE values for all ligands and receptors. If they were not assessed by the OLINK platform, we will consider them as being not-differentially expressed (p-val = 1, logFC = 0)
+
+```{r}
 olink_df_ligands_receptors = olink_df %>% 
   filter(gene %in% union(lr_network$ligand, lr_network$receptor))
 
@@ -498,10 +505,10 @@ olink_df_ligand_scaled = olink_df_ligand_scaled %>%
   distinct(contrast, ligand, scaled_lfc_ligand_OLINK, scaled_p_val_ligand_adapted_OLINK) %>%
   dplyr::arrange(-scaled_lfc_ligand_OLINK)
 
-olink_df_ligand_scaled
+olink_df_ligand_scaled %>% head()
 ```
 
-As you can see here, we scored each contrast-ligand combination by a between-0-and-1 scaled value for the logFC and p-value of differential expression in the OLINK proteomics data. 
+As you can see here, we scored each contrast-ligand combination by a between-0-and-1 scaled value for the logFC and p-value of differential expression in the OLINK proteomics data. The higher this value, the stronger the DE at protein level, and thus the stronger this interaction will be prioritized for this criterion.
 
 ## Calculate the new prioritization score by including the score of the criterion based on the additional data modality
 
@@ -552,7 +559,8 @@ prioritization_tables = add_extra_criterion(
   multinichenet_output$prioritization_tables, 
   new_criteria_tbl, 
   regular_criteria_tbl, 
-  scenario = "regular") 
+  scenario = "regular"
+  ) 
 ```
 
 ```{r}
@@ -848,6 +856,7 @@ p_olink = group_data_olink %>%
 p_olink = p_olink + custom_scale_fill + scale_size_binned_area(max_size = 4)
 p_olink
 ```      
+
 And now we will put everything together:
 ```{r, fig.width=12, fig.height=10}
 p = patchwork::wrap_plots(
@@ -857,6 +866,7 @@ p = patchwork::wrap_plots(
 )
 p
 ```      
+
 Let's now put all this code to generate this visualization in a function we will use to visualize the interactions of which the ranking was most strongly affected by the incorporation of the additional data modality.
 
 ```{r}
@@ -1024,14 +1034,16 @@ make_sample_lr_prod_activity_OLINK_plots = function(prioritization_tables, prior
 ```      
 
 Check whether we can reproduce the previous figure:
-```{r, fig.width=12, fig.height=10}
+```{r, fig.width=13, fig.height=10}
 make_sample_lr_prod_activity_OLINK_plots(
   prioritization_tables = prioritization_tables,
   prioritized_tbl_oi = prioritized_tbl_oi
   )
 ```  
 
-Now visualize the interactions that most strongly benefited from the addition of OLINK data:
+For these top MIS-C specific interactions we can see: some interactions are supported by upregulation at the protein level of the ligand. However, other without complementary proteomics data did still end up in the top results overall because they scored very highly on the regular criteria.
+
+Now visualize the interactions that most strongly benefited from the addition of OLINK data (top25 different interactions that are in the top1000 overall and have a new prioritization scorre > 0.80):
 
 ```{r}
 ids_oi = comparison_table %>% 
@@ -1040,21 +1052,25 @@ ids_oi = comparison_table %>%
 prioritized_tbl_oi_all = get_top_n_lr_pairs(
   multinichenet_output$prioritization_tables, 
   1000, 
-  rank_per_group = TRUE, groups_oi = "M") 
+  rank_per_group = TRUE, 
+  groups_oi = "M"
+  ) 
+
 prioritized_tbl_oi = prioritized_tbl_oi_all %>% 
   filter(id %in% ids_oi) %>% filter(group == "M")
 ```
 
-```{r, fig.width=12, fig.height=8}
+```{r, fig.width=13, fig.height=8}
 plot_oi = make_sample_lr_prod_activity_OLINK_plots(
   prioritization_tables = prioritization_tables,
   prioritized_tbl_oi = prioritized_tbl_oi
   )
 plot_oi
 ```  
+
 As expected, these interactions are characterized by a strongly upregulated ligand at the protein ligand, whereas upregulation of the ligand-receptor pair at the RNA level and/or activity is not always very clear. 
 
-Now visualize the interactions that were most strongly penalized by the addition of OLINK data:
+Now visualize the interactions that were most strongly penalized by the addition of OLINK data - those were mainly interactions in the S-group:
 
 ```{r}
 ids_oi = comparison_table %>% 
@@ -1068,7 +1084,7 @@ prioritized_tbl_oi = prioritized_tbl_oi_all %>%
   filter(id %in% ids_oi) %>% filter(group == "S")
 ```
 
-```{r, fig.width=12, fig.height=8}
+```{r, fig.width=13, fig.height=8}
 plot_oi = make_sample_lr_prod_activity_OLINK_plots(
   prioritization_tables = prioritization_tables,
   prioritized_tbl_oi = prioritized_tbl_oi
@@ -1076,7 +1092,7 @@ plot_oi = make_sample_lr_prod_activity_OLINK_plots(
 plot_oi
 ```  
 
-As expected for interactions penalized by the OLINK addition, we see an inconsistency between the RNA and protein level with respect to the direction of expression difference between M and S patients. Here, S-specific interactions at the RNA level have higher protein levels in the M-group instead of the S group. 
+As expected for interactions penalized by the OLINK addition, we see an inconsistency between the RNA and protein level with respect to the direction of expression difference between M and S patients. Here, S-specific interactions at the RNA level have higher protein levels in the M-group instead of the S group. Because of this incongruency, these interactions are penalized in the final prioritization score.
 
 # Tips for other data modalites
 

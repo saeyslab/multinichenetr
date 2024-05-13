@@ -9,7 +9,7 @@ vignette: >
   %\VignetteIndexEntry{MultiNicheNet analysis: include additional data modalities: serum proteomics in MIS-C}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8} 
-date: 3 April 2024
+date: 13 May 2024
 link-citations: true
 ---
 
@@ -32,7 +32,7 @@ MIS-C (multisystem inflammatory syndrome in children) is a novel rare immunodysr
 
 In addition to this dataset, we will use publicly available processed OLINK **serum proteomics data** from Diorio et al (https://www.nature.com/articles/s41467-021-27544-6) who profiled MIS-C patients and healthy controls. This data could be informative for prioritizing cell-cell interactions because it may give us information about which ligands are more strongly expressed at the protein level in MIS-C patients versus healthy siblings.   
 
-In this vignette, we will first prepare the MultiNicheNet core analysis, run the MultiNicheNet core analysis, then extend the prioritization with serum proteomics data, and finally interpret the output. All steps before the the incorporation of proteomics data, are exactly the same as described in this vignette: [pairwise_analysis_MISC.knit.md](pairwise_analysis_MISC.knit.md)
+In this vignette, we will first prepare the MultiNicheNet core analysis, run the MultiNicheNet core analysis, then extend the prioritization with serum proteomics data, and finally interpret that output. All steps before the the incorporation of proteomics data, are exactly the same as described in this vignette: [pairwise_analysis_MISC.knit.md](pairwise_analysis_MISC.knit.md)
 
 # Preparation of the MultiNicheNet core analysis
 
@@ -384,8 +384,7 @@ multinichenet_output = multi_nichenet_analysis(
 
 # Inspecting the MultiNicheNet output
 
-
-## Inspecting the MultiNicheNet output
+## Inspecting output tables
 
 Before incorporating the serum proteomics, we will quickly inspect the output of this regular MultiNicheNet analysis. Please check other vignettes for a more detailed breakdown of these different steps.
 
@@ -395,21 +394,15 @@ Before incorporating the serum proteomics, we will quickly inspect the output of
 ```r
 multinichenet_output$prioritization_tables$group_prioritization_tbl %>% head()
 ## # A tibble: 6 × 18
-##   contrast group sender               receiver ligand receptor
-##   <chr>    <chr> <chr>                <chr>    <chr>  <chr>   
-## 1 M-S      M     M_Monocyte_CD16      L_T_TIM… S100A8 CD69    
-## 2 M-S      M     L_T_TIM3._CD38._HLA… M_Monoc… IFNG   IFNGR1  
-## 3 M-S      M     M_Monocyte_CD16      M_Monoc… TIMP1  CD63    
-## 4 M-S      M     L_T_TIM3._CD38._HLA… M_Monoc… IFNG   IFNGR2  
-## 5 M-S      M     M_Monocyte_CD16      L_T_TIM… HLA.D… LAG3    
-## 6 M-S      M     M_Monocyte_CD16      M_Monoc… S100A9 CD68    
-## # ℹ 12 more variables: lr_interaction <chr>, id <chr>,
-## #   scaled_lfc_ligand <dbl>,
-## #   scaled_p_val_ligand_adapted <dbl>,
-## #   scaled_lfc_receptor <dbl>,
-## #   scaled_p_val_receptor_adapted <dbl>,
-## #   max_scaled_activity <dbl>, scaled_pb_ligand <dbl>,
-## #   scaled_pb_receptor <dbl>, …
+##   contrast group sender                 receiver               ligand  receptor lr_interaction id      scaled_lfc_ligand scaled_p_val_ligand_…¹ scaled_lfc_receptor scaled_p_val_recepto…² max_scaled_activity scaled_pb_ligand scaled_pb_receptor fraction_expressing_…³ prioritization_score top_group
+##   <chr>    <chr> <chr>                  <chr>                  <chr>   <chr>    <chr>          <chr>               <dbl>                  <dbl>               <dbl>                  <dbl>               <dbl>            <dbl>              <dbl>                  <dbl>                <dbl> <chr>    
+## 1 M-S      M     M_Monocyte_CD16        L_T_TIM3._CD38._HLADR. S100A8  CD69     S100A8_CD69    S100A8…             0.952                  0.910               0.963                  0.998               0.888             1.00               1.00                  0.857                0.943 M        
+## 2 M-S      M     L_T_TIM3._CD38._HLADR. M_Monocyte_CD16        IFNG    IFNGR1   IFNG_IFNGR1    IFNG_I…             0.977                  0.885               0.848                  0.854               1.00              1.00               1.00                  0.857                0.940 M        
+## 3 M-S      M     M_Monocyte_CD16        M_Monocyte_CD16        TIMP1   CD63     TIMP1_CD63     TIMP1_…             0.973                  0.993               0.985                  0.993               0.749             1.00               1.00                  0.857                0.930 M        
+## 4 M-S      M     L_T_TIM3._CD38._HLADR. M_Monocyte_CD16        IFNG    IFNGR2   IFNG_IFNGR2    IFNG_I…             0.977                  0.885               0.726                  0.846               1.00              1.00               1.00                  0.857                0.930 M        
+## 5 M-S      M     M_Monocyte_CD16        L_T_TIM3._CD38._HLADR. HLA.DRA LAG3     HLA.DRA_LAG3   HLA.DR…             0.791                  0.861               0.978                  0.981               0.766             1.00               1.00                  1                    0.929 M        
+## 6 M-S      M     M_Monocyte_CD16        M_Monocyte_CD16        S100A9  CD68     S100A9_CD68    S100A9…             0.924                  0.906               0.790                  0.953               0.732             1.00               1.00                  1                    0.920 M        
+## # ℹ abbreviated names: ¹​scaled_p_val_ligand_adapted, ²​scaled_p_val_receptor_adapted, ³​fraction_expressing_ligand_receptor
 ```
 
 ## Visualization of differential cell-cell interactions
@@ -446,7 +439,7 @@ colors_receiver = RColorBrewer::brewer.pal(n = length(senders_receivers), name =
 circos_list = make_circos_group_comparison(prioritized_tbl_oi, colors_sender, colors_receiver)
 ```
 
-<img src="add_proteomics_MISC_files/figure-html/unnamed-chunk-103-1.png" width="100%" /><img src="add_proteomics_MISC_files/figure-html/unnamed-chunk-103-2.png" width="100%" /><img src="add_proteomics_MISC_files/figure-html/unnamed-chunk-103-3.png" width="100%" />
+<img src="add_proteomics_MISC_files/figure-html/unnamed-chunk-88-1.png" width="100%" /><img src="add_proteomics_MISC_files/figure-html/unnamed-chunk-88-2.png" width="100%" /><img src="add_proteomics_MISC_files/figure-html/unnamed-chunk-88-3.png" width="100%" />
 
 ### Interpretable bubble plots
 
@@ -477,14 +470,14 @@ plot_oi = make_sample_lr_prod_activity_plots(
 plot_oi
 ```
 
-<img src="add_proteomics_MISC_files/figure-html/unnamed-chunk-106-1.png" width="100%" />
+<img src="add_proteomics_MISC_files/figure-html/unnamed-chunk-91-1.png" width="100%" />
 
 # Using serum proteomics data to prioritize cell-cell communication patterns
 
-Here we will demonstrate how to tailor the prioritization to additional data modalities that you may have. How to do this exactly will stronglly depend on the type of data modality. Here we show an example on how you can incorporate "targeted" serum proteomics data.
+Here we will demonstrate how to tailor the prioritization to additional data modalities that you may have. How to do this exactly will strongly depend on the type of data modality. Here we show an example on how you can incorporate "targeted" serum proteomics data.
 
 As additional data modality, we will use serum proteomics data (generated through the OLINK platform) that was published by a different research group based on serum samples of a different cohort of MIS-C patients (Diorio et al. - https://www.nature.com/articles/s41467-021-27544-6). 
-Ligands that are also upregulated in the serum at the protein level may be interesting candidates for further follow-up. Therefore, we can use this data to help in the prioritization. We will here add an additional score to each interaction related to how strongly the ligand is differentially expressed at the protein level in the serum of patients. 
+Ligands that are also upregulated in the serum at the protein level may be interesting candidates for further follow-up. Therefore, we can use this data to help in the prioritization. We will here add an additional score to each interaction related to how strongly the ligand is upregulated at the protein level in the serum of patients. 
 
 Because we don't have OLINK information of each ligand, we will consider ligands without data as being not-differentially expressed at the protein level (p-val = 1, logFC = 0). By doing this, these ligands will still be kept in the total prioritization analysis such that they could still be ranked high if the previous criteria strongly point to their importance. 
 
@@ -506,12 +499,31 @@ olink_df = xlsx::read.xlsx(file_path, 1) %>%
   dplyr::select(gene, logFC, pval) %>% 
   dplyr::mutate(gene = gene %>% make.names()) %>% 
   mutate(olink_type = "Diorio")
+olink_df %>% head()
+## # A tibble: 6 × 4
+##   gene         logFC     pval olink_type
+##   <chr>        <dbl>    <dbl> <chr>     
+## 1 PLA2G2A       7.01 2.16e-21 Diorio    
+## 2 IL1RL1        4.59 3.77e-18 Diorio    
+## 3 MPO           3.26 3.77e-18 Diorio    
+## 4 DEFA1_DEFA1B  3.26 4.32e-18 Diorio    
+## 5 FRZB         -2.24 4.32e-18 Diorio    
+## 6 LILRB4        2.60 4.55e-18 Diorio
+```
 
+Let's inspect the nr of of ligands and receptors in the OLINK data frame:
+
+```r
 olink_df %>% filter(gene %in% lr_network$ligand) %>% nrow() # nr of ligands in OLINK data
 ## [1] 425
 olink_df %>% filter(gene %in% lr_network$receptor) %>% nrow() # nr of receptors in OLINK data
 ## [1] 310
+```
 
+Now create a data frame with DE values for all ligands and receptors. If they were not assessed by the OLINK platform, we will consider them as being not-differentially expressed (p-val = 1, logFC = 0)
+
+
+```r
 olink_df_ligands_receptors = olink_df %>% 
   filter(gene %in% union(lr_network$ligand, lr_network$receptor))
 
@@ -596,24 +608,19 @@ olink_df_ligand_scaled = olink_df_ligand_scaled %>%
   distinct(contrast, ligand, scaled_lfc_ligand_OLINK, scaled_p_val_ligand_adapted_OLINK) %>%
   dplyr::arrange(-scaled_lfc_ligand_OLINK)
 
-olink_df_ligand_scaled
-## # A tibble: 388 × 4
-##    contrast ligand   scaled_lfc_ligand_OLINK scaled_p_val_ligand_adapted_OLINK
-##    <chr>    <chr>                      <dbl>                             <dbl>
-##  1 M-S      GZMB                       1                                 0.892
-##  2 M-S      CEACAM21                   0.997                             0.902
-##  3 M-S      IFNG                       0.995                             0.856
-##  4 M-S      CD14                       0.992                             0.879
-##  5 M-S      SPON2                      0.990                             0.894
-##  6 M-S      BST2                       0.987                             0.925
-##  7 M-S      NID1                       0.985                             0.979
-##  8 M-S      CCL3                       0.982                             0.951
-##  9 M-S      TNFSF14                    0.979                             0.987
-## 10 M-S      S100A12                    0.977                             0.948
-## # ℹ 378 more rows
+olink_df_ligand_scaled %>% head()
+## # A tibble: 6 × 4
+##   contrast ligand   scaled_lfc_ligand_OLINK scaled_p_val_ligand_adapted_OLINK
+##   <chr>    <chr>                      <dbl>                             <dbl>
+## 1 M-S      GZMB                       1                                 0.892
+## 2 M-S      CEACAM21                   0.997                             0.902
+## 3 M-S      IFNG                       0.995                             0.856
+## 4 M-S      CD14                       0.992                             0.879
+## 5 M-S      SPON2                      0.990                             0.894
+## 6 M-S      BST2                       0.987                             0.925
 ```
 
-As you can see here, we scored each contrast-ligand combination by a between-0-and-1 scaled value for the logFC and p-value of differential expression in the OLINK proteomics data. 
+As you can see here, we scored each contrast-ligand combination by a between-0-and-1 scaled value for the logFC and p-value of differential expression in the OLINK proteomics data. The higher this value, the stronger the DE at protein level, and thus the stronger this interaction will be prioritized for this criterion.
 
 ## Calculate the new prioritization score by including the score of the criterion based on the additional data modality
 
@@ -667,40 +674,38 @@ prioritization_tables = add_extra_criterion(
   multinichenet_output$prioritization_tables, 
   new_criteria_tbl, 
   regular_criteria_tbl, 
-  scenario = "regular") 
+  scenario = "regular"
+  ) 
 ```
 
 
 ```r
 prioritization_tables$group_prioritization_tbl %>% head(20)
 ## # A tibble: 20 × 20
-##    contrast group sender      receiver ligand receptor lr_interaction id    scaled_lfc_ligand
-##    <chr>    <chr> <chr>       <chr>    <chr>  <chr>    <chr>          <chr>             <dbl>
-##  1 M-S      M     L_T_TIM3._… M_Monoc… IFNG   IFNGR1   IFNG_IFNGR1    IFNG…             0.977
-##  2 M-S      M     M_Monocyte… M_Monoc… TIMP1  CD63     TIMP1_CD63     TIMP…             0.973
-##  3 M-S      M     L_T_TIM3._… M_Monoc… IFNG   IFNGR2   IFNG_IFNGR2    IFNG…             0.977
-##  4 M-S      M     L_NK_CD56.… L_T_TIM… CCL4   CCR5     CCL4_CCR5      CCL4…             0.876
-##  5 M-S      M     L_NK_CD56.… L_T_TIM… CCL3   CCR5     CCL3_CCR5      CCL3…             0.979
-##  6 M-S      M     M_Monocyte… M_Monoc… LILRB2 IFNGR1   LILRB2_IFNGR1  LILR…             0.948
-##  7 M-S      M     M_Monocyte… L_T_TIM… CXCL16 CXCR6    CXCL16_CXCR6   CXCL…             0.749
-##  8 M-S      M     M_Monocyte… L_T_TIM… HLA.D… LAG3     HLA.DRA_LAG3   HLA.…             0.791
-##  9 S-M      S     L_T_TIM3._… M_Monoc… CD28   CD4      CD28_CD4       CD28…             0.853
-## 10 M-S      M     L_NK_CD56.… M_Monoc… BST2   LILRA5   BST2_LILRA5    BST2…             0.798
-## 11 M-S      M     M_Monocyte… M_Monoc… C1QA   CR1      C1QA_CR1       C1QA…             0.998
-## 12 M-S      M     L_T_TIM3._… L_T_TIM… CCL4   CCR5     CCL4_CCR5      CCL4…             0.990
-## 13 M-S      M     M_Monocyte… L_NK_CD… HLA.E  KLRC1    HLA.E_KLRC1    HLA.…             0.602
-## 14 M-S      M     M_Monocyte… L_T_TIM… IL15   IL2RG    IL15_IL2RG     IL15…             0.604
-## 15 M-S      M     M_Monocyte… L_T_TIM… S100A8 CD69     S100A8_CD69    S100…             0.952
-## 16 M-S      M     L_NK_CD56.… M_Monoc… CCL3   CCR1     CCL3_CCR1      CCL3…             0.979
-## 17 M-S      M     M_Monocyte… M_Monoc… LILRB2 SIGLEC9  LILRB2_SIGLEC9 LILR…             0.948
-## 18 M-S      M     M_Monocyte… L_T_TIM… ICAM1  IL2RG    ICAM1_IL2RG    ICAM…             0.818
-## 19 S-M      S     M_Monocyte… M_Monoc… ENG    BMPR2    ENG_BMPR2      ENG_…             0.925
-## 20 M-S      M     M_Monocyte… L_T_TIM… LGALS3 LAG3     LGALS3_LAG3    LGAL…             0.579
-## # ℹ 11 more variables: scaled_p_val_ligand_adapted <dbl>, scaled_lfc_receptor <dbl>,
-## #   scaled_p_val_receptor_adapted <dbl>, max_scaled_activity <dbl>, scaled_pb_ligand <dbl>,
-## #   scaled_pb_receptor <dbl>, fraction_expressing_ligand_receptor <dbl>,
-## #   prioritization_score <dbl>, top_group <chr>, scaled_lfc_ligand_OLINK <dbl>,
-## #   scaled_p_val_ligand_adapted_OLINK <dbl>
+##    contrast group sender          receiver ligand receptor lr_interaction id    scaled_lfc_ligand scaled_p_val_ligand_…¹ scaled_lfc_receptor scaled_p_val_recepto…² max_scaled_activity scaled_pb_ligand scaled_pb_receptor fraction_expressing_…³ prioritization_score top_group scaled_lfc_ligand_OL…⁴
+##    <chr>    <chr> <chr>           <chr>    <chr>  <chr>    <chr>          <chr>             <dbl>                  <dbl>               <dbl>                  <dbl>               <dbl>            <dbl>              <dbl>                  <dbl>                <dbl> <chr>                      <dbl>
+##  1 M-S      M     L_T_TIM3._CD38… M_Monoc… IFNG   IFNGR1   IFNG_IFNGR1    IFNG…             0.977                  0.885               0.848                  0.854               1.00             1.00               1.00                   0.857                0.938 M                          0.995
+##  2 M-S      M     M_Monocyte_CD16 M_Monoc… TIMP1  CD63     TIMP1_CD63     TIMP…             0.973                  0.993               0.985                  0.993               0.749            1.00               1.00                   0.857                0.936 M                          0.941
+##  3 M-S      M     L_T_TIM3._CD38… M_Monoc… IFNG   IFNGR2   IFNG_IFNGR2    IFNG…             0.977                  0.885               0.726                  0.846               1.00             1.00               1.00                   0.857                0.929 M                          0.995
+##  4 M-S      M     L_NK_CD56._CD1… L_T_TIM… CCL4   CCR5     CCL4_CCR5      CCL4…             0.876                  0.930               0.900                  0.769               0.923            1.00               1.00                   0.857                0.924 M                          0.956
+##  5 M-S      M     L_NK_CD56._CD1… L_T_TIM… CCL3   CCR5     CCL3_CCR5      CCL3…             0.979                  0.989               0.900                  0.769               0.780            1.00               1.00                   0.857                0.918 M                          0.982
+##  6 M-S      M     M_Monocyte_CD16 M_Monoc… LILRB2 IFNGR1   LILRB2_IFNGR1  LILR…             0.948                  0.987               0.848                  0.854               0.751            1.00               1.00                   0.857                0.911 M                          0.923
+##  7 M-S      M     M_Monocyte_CD16 L_T_TIM… CXCL16 CXCR6    CXCL16_CXCR6   CXCL…             0.749                  0.789               0.973                  0.918               0.867            1.00               1.00                   0.857                0.909 M                          0.905
+##  8 M-S      M     M_Monocyte_CD16 L_T_TIM… HLA.D… LAG3     HLA.DRA_LAG3   HLA.…             0.791                  0.861               0.978                  0.981               0.766            1.00               1.00                   1                    0.908 M                          0.789
+##  9 S-M      S     L_T_TIM3._CD38… M_Monoc… CD28   CD4      CD28_CD4       CD28…             0.853                  0.852               0.815                  0.912               0.789            1.00               1.00                   1                    0.898 S                          0.781
+## 10 M-S      M     L_NK_CD56._CD1… M_Monoc… BST2   LILRA5   BST2_LILRA5    BST2…             0.798                  0.894               0.959                  0.988               0.585            1.00               1.00                   0.857                0.888 M                          0.987
+## 11 M-S      M     M_Monocyte_CD16 M_Monoc… C1QA   CR1      C1QA_CR1       C1QA…             0.998                  0.996               0.845                  0.808               0.821            1.00               1.00                   0.714                0.887 M                          0.851
+## 12 M-S      M     L_T_TIM3._CD38… L_T_TIM… CCL4   CCR5     CCL4_CCR5      CCL4…             0.990                  0.984               0.900                  0.769               0.923            0.634              1.00                   0.857                0.883 M                          0.956
+## 13 M-S      M     M_Monocyte_CD16 L_NK_CD… HLA.E  KLRC1    HLA.E_KLRC1    HLA.…             0.602                  0.714               0.963                  0.991               1.00             0.685              1.00                   1                    0.881 M                          0.838
+## 14 M-S      M     M_Monocyte_CD16 L_T_TIM… IL15   IL2RG    IL15_IL2RG     IL15…             0.604                  0.586               0.847                  0.870               0.919            1.00               0.985                  0.857                0.881 M                          0.928
+## 15 M-S      M     M_Monocyte_CD16 L_T_TIM… S100A8 CD69     S100A8_CD69    S100…             0.952                  0.910               0.963                  0.998               0.888            1.00               1.00                   0.857                0.880 M                          0.501
+## 16 M-S      M     L_NK_CD56._CD1… M_Monoc… CCL3   CCR1     CCL3_CCR1      CCL3…             0.979                  0.989               0.961                  0.960               0.665            1.00               1.00                   0.571                0.878 M                          0.982
+## 17 M-S      M     M_Monocyte_CD16 M_Monoc… LILRB2 SIGLEC9  LILRB2_SIGLEC9 LILR…             0.948                  0.987               0.773                  0.735               0.751            1.00               1.00                   0.714                0.877 M                          0.923
+## 18 M-S      M     M_Monocyte_CD16 L_T_TIM… ICAM1  IL2RG    ICAM1_IL2RG    ICAM…             0.818                  0.792               0.847                  0.870               0.836            1.00               0.985                  0.714                0.876 M                          0.907
+## 19 S-M      S     M_Monocyte_CD16 M_Monoc… ENG    BMPR2    ENG_BMPR2      ENG_…             0.925                  0.934               0.877                  0.844               0.743            1.00               1.00                   0.8                  0.875 S                          0.778
+## 20 M-S      M     M_Monocyte_CD16 L_T_TIM… LGALS3 LAG3     LGALS3_LAG3    LGAL…             0.579                  0.606               0.978                  0.981               0.879            1.00               1.00                   0.857                0.874 M                          0.814
+## # ℹ abbreviated names: ¹​scaled_p_val_ligand_adapted, ²​scaled_p_val_receptor_adapted, ³​fraction_expressing_ligand_receptor, ⁴​scaled_lfc_ligand_OLINK
+## # ℹ 1 more variable: scaled_p_val_ligand_adapted_OLINK <dbl>
 ```
 
 Here we see the updated prioritization table with updated scores after inclusion of the additional data modality.
@@ -725,18 +730,18 @@ comparison_table %>%
   arrange(-difference) %>% 
   filter(new_score > 0.80)
 ## # A tibble: 168 × 5
-##    group id                                         prioritization_score new_score difference
-##    <chr> <chr>                                                     <dbl>     <dbl>      <dbl>
-##  1 M     LILRB4_LAIR1_M_Monocyte_CD16_L_T_TIM3._CD…                0.777     0.807     0.0296
-##  2 M     TNFSF13_TNFRSF14_M_Monocyte_CD16_M_Monocy…                0.771     0.800     0.0296
-##  3 M     RETN_TLR4_M_Monocyte_CD16_M_Monocyte_CD16                 0.787     0.815     0.0282
-##  4 M     CCL3_CCR5_L_T_TIM3._CD38._HLADR._L_T_TIM3…                0.776     0.804     0.0271
-##  5 M     CCL3_CCR1_L_NK_CD56._CD16._L_T_TIM3._CD38…                0.777     0.804     0.0271
-##  6 M     TNFSF13_FAS_M_Monocyte_CD16_M_Monocyte_CD…                0.795     0.821     0.0261
-##  7 M     TIMD4_SIGLEC9_L_T_TIM3._CD38._HLADR._M_Mo…                0.789     0.815     0.0257
-##  8 M     TIMD4_SIGLEC7_L_T_TIM3._CD38._HLADR._M_Mo…                0.796     0.821     0.0247
-##  9 M     TIMP1_CD63_M_Monocyte_CD16_L_T_TIM3._CD38…                0.798     0.822     0.0245
-## 10 M     BST2_LILRA5_M_Monocyte_CD16_M_Monocyte_CD…                0.790     0.813     0.0238
+##    group id                                                      prioritization_score new_score difference
+##    <chr> <chr>                                                                  <dbl>     <dbl>      <dbl>
+##  1 M     LILRB4_LAIR1_M_Monocyte_CD16_L_T_TIM3._CD38._HLADR.                    0.777     0.807     0.0296
+##  2 M     TNFSF13_TNFRSF14_M_Monocyte_CD16_M_Monocyte_CD16                       0.771     0.800     0.0296
+##  3 M     RETN_TLR4_M_Monocyte_CD16_M_Monocyte_CD16                              0.787     0.815     0.0282
+##  4 M     CCL3_CCR5_L_T_TIM3._CD38._HLADR._L_T_TIM3._CD38._HLADR.                0.776     0.804     0.0271
+##  5 M     CCL3_CCR1_L_NK_CD56._CD16._L_T_TIM3._CD38._HLADR.                      0.777     0.804     0.0271
+##  6 M     TNFSF13_FAS_M_Monocyte_CD16_M_Monocyte_CD16                            0.795     0.821     0.0261
+##  7 M     TIMD4_SIGLEC9_L_T_TIM3._CD38._HLADR._M_Monocyte_CD16                   0.789     0.815     0.0257
+##  8 M     TIMD4_SIGLEC7_L_T_TIM3._CD38._HLADR._M_Monocyte_CD16                   0.796     0.821     0.0247
+##  9 M     TIMP1_CD63_M_Monocyte_CD16_L_T_TIM3._CD38._HLADR.                      0.798     0.822     0.0245
+## 10 M     BST2_LILRA5_M_Monocyte_CD16_M_Monocyte_CD16                            0.790     0.813     0.0238
 ## # ℹ 158 more rows
 ```
 
@@ -748,18 +753,18 @@ comparison_table %>%
   arrange(difference) %>% 
   filter(new_score > 0.80)
 ## # A tibble: 168 × 5
-##    group id                                         prioritization_score new_score difference
-##    <chr> <chr>                                                     <dbl>     <dbl>      <dbl>
-##  1 S     TGFBI_ITGA4_M_Monocyte_CD16_M_Monocyte_CD…                0.919     0.809    -0.110 
-##  2 S     TGFBI_ITGB1_M_Monocyte_CD16_L_T_TIM3._CD3…                0.917     0.807    -0.109 
-##  3 M     S100A8_CD69_M_Monocyte_CD16_L_T_TIM3._CD3…                0.943     0.880    -0.0631
-##  4 M     S100A9_CD68_M_Monocyte_CD16_M_Monocyte_CD…                0.920     0.860    -0.0598
-##  5 M     S100A8_CD68_M_Monocyte_CD16_M_Monocyte_CD…                0.912     0.853    -0.0586
-##  6 S     HLA.DQA1_CD4_M_Monocyte_CD16_M_Monocyte_C…                0.909     0.851    -0.0582
-##  7 S     SEMA4A_PLXNB2_M_Monocyte_CD16_M_Monocyte_…                0.905     0.848    -0.0577
-##  8 M     HLA.F_KLRC1_M_Monocyte_CD16_L_NK_CD56._CD…                0.901     0.844    -0.0572
-##  9 S     GNAS_ADRB2_M_Monocyte_CD16_L_NK_CD56._CD1…                0.901     0.844    -0.0570
-## 10 M     HLA.F_LILRB1_M_Monocyte_CD16_M_Monocyte_C…                0.900     0.843    -0.0570
+##    group id                                                 prioritization_score new_score difference
+##    <chr> <chr>                                                             <dbl>     <dbl>      <dbl>
+##  1 S     TGFBI_ITGA4_M_Monocyte_CD16_M_Monocyte_CD16                       0.919     0.809    -0.110 
+##  2 S     TGFBI_ITGB1_M_Monocyte_CD16_L_T_TIM3._CD38._HLADR.                0.917     0.807    -0.109 
+##  3 M     S100A8_CD69_M_Monocyte_CD16_L_T_TIM3._CD38._HLADR.                0.943     0.880    -0.0631
+##  4 M     S100A9_CD68_M_Monocyte_CD16_M_Monocyte_CD16                       0.920     0.860    -0.0598
+##  5 M     S100A8_CD68_M_Monocyte_CD16_M_Monocyte_CD16                       0.912     0.853    -0.0586
+##  6 S     HLA.DQA1_CD4_M_Monocyte_CD16_M_Monocyte_CD16                      0.909     0.851    -0.0582
+##  7 S     SEMA4A_PLXNB2_M_Monocyte_CD16_M_Monocyte_CD16                     0.905     0.848    -0.0577
+##  8 M     HLA.F_KLRC1_M_Monocyte_CD16_L_NK_CD56._CD16.                      0.901     0.844    -0.0572
+##  9 S     GNAS_ADRB2_M_Monocyte_CD16_L_NK_CD56._CD16.                       0.901     0.844    -0.0570
+## 10 M     HLA.F_LILRB1_M_Monocyte_CD16_M_Monocyte_CD16                      0.900     0.843    -0.0570
 ## # ℹ 158 more rows
 ```
 
@@ -807,7 +812,7 @@ circos_list = make_circos_group_comparison(
   colors_sender, colors_receiver)
 ```
 
-<img src="add_proteomics_MISC_files/figure-html/unnamed-chunk-118-1.png" width="100%" /><img src="add_proteomics_MISC_files/figure-html/unnamed-chunk-118-2.png" width="100%" /><img src="add_proteomics_MISC_files/figure-html/unnamed-chunk-118-3.png" width="100%" />
+<img src="add_proteomics_MISC_files/figure-html/unnamed-chunk-105-1.png" width="100%" /><img src="add_proteomics_MISC_files/figure-html/unnamed-chunk-105-2.png" width="100%" /><img src="add_proteomics_MISC_files/figure-html/unnamed-chunk-105-3.png" width="100%" />
 
 ### Visualization of scaled ligand-receptor pseudobulk products and ligand activity
 
@@ -830,7 +835,7 @@ plot_oi = make_sample_lr_prod_activity_plots(
 plot_oi
 ```
 
-<img src="add_proteomics_MISC_files/figure-html/unnamed-chunk-120-1.png" width="100%" />
+<img src="add_proteomics_MISC_files/figure-html/unnamed-chunk-107-1.png" width="100%" />
 
 We will now check the MIS-C specific interactions
 
@@ -850,7 +855,7 @@ plot_oi = make_sample_lr_prod_activity_plots(
 plot_oi
 ```
 
-<img src="add_proteomics_MISC_files/figure-html/unnamed-chunk-122-1.png" width="100%" />
+<img src="add_proteomics_MISC_files/figure-html/unnamed-chunk-109-1.png" width="100%" />
 
 Whereas these are the classical plots with default multinichenetr code, we can also adapt this function to visualize the additional criteria that we used for prioritization. 
 
@@ -911,7 +916,7 @@ p1 = sample_data %>%
 p1
 ```
 
-<img src="add_proteomics_MISC_files/figure-html/unnamed-chunk-123-1.png" width="100%" />
+<img src="add_proteomics_MISC_files/figure-html/unnamed-chunk-110-1.png" width="100%" />
 Second: scaled ligand activity based on RNA data
 
 
@@ -962,7 +967,7 @@ p2 = group_data %>%
 p2
 ```
 
-<img src="add_proteomics_MISC_files/figure-html/unnamed-chunk-124-1.png" width="100%" />
+<img src="add_proteomics_MISC_files/figure-html/unnamed-chunk-111-1.png" width="100%" />
 
 Third: OLINK logFC MISC-vs-Sibling
 
@@ -1063,7 +1068,8 @@ p_olink = p_olink + custom_scale_fill + scale_size_binned_area(max_size = 4)
 p_olink
 ```
 
-<img src="add_proteomics_MISC_files/figure-html/unnamed-chunk-126-1.png" width="100%" />
+<img src="add_proteomics_MISC_files/figure-html/unnamed-chunk-113-1.png" width="100%" />
+
 And now we will put everything together:
 
 ```r
@@ -1075,7 +1081,8 @@ p = patchwork::wrap_plots(
 p
 ```
 
-<img src="add_proteomics_MISC_files/figure-html/unnamed-chunk-127-1.png" width="100%" />
+<img src="add_proteomics_MISC_files/figure-html/unnamed-chunk-114-1.png" width="100%" />
+
 Let's now put all this code to generate this visualization in a function we will use to visualize the interactions of which the ranking was most strongly affected by the incorporation of the additional data modality.
 
 
@@ -1252,9 +1259,11 @@ make_sample_lr_prod_activity_OLINK_plots(
   )
 ```
 
-<img src="add_proteomics_MISC_files/figure-html/unnamed-chunk-129-1.png" width="100%" />
+<img src="add_proteomics_MISC_files/figure-html/unnamed-chunk-116-1.png" width="100%" />
 
-Now visualize the interactions that most strongly benefited from the addition of OLINK data:
+For these top MIS-C specific interactions we can see: some interactions are supported by upregulation at the protein level of the ligand. However, other without complementary proteomics data did still end up in the top results overall because they scored very highly on the regular criteria.
+
+Now visualize the interactions that most strongly benefited from the addition of OLINK data (top25 different interactions that are in the top1000 overall and have a new prioritization scorre > 0.80):
 
 
 ```r
@@ -1264,7 +1273,10 @@ ids_oi = comparison_table %>%
 prioritized_tbl_oi_all = get_top_n_lr_pairs(
   multinichenet_output$prioritization_tables, 
   1000, 
-  rank_per_group = TRUE, groups_oi = "M") 
+  rank_per_group = TRUE, 
+  groups_oi = "M"
+  ) 
+
 prioritized_tbl_oi = prioritized_tbl_oi_all %>% 
   filter(id %in% ids_oi) %>% filter(group == "M")
 ```
@@ -1278,10 +1290,11 @@ plot_oi = make_sample_lr_prod_activity_OLINK_plots(
 plot_oi
 ```
 
-<img src="add_proteomics_MISC_files/figure-html/unnamed-chunk-131-1.png" width="100%" />
+<img src="add_proteomics_MISC_files/figure-html/unnamed-chunk-118-1.png" width="100%" />
+
 As expected, these interactions are characterized by a strongly upregulated ligand at the protein ligand, whereas upregulation of the ligand-receptor pair at the RNA level and/or activity is not always very clear. 
 
-Now visualize the interactions that were most strongly penalized by the addition of OLINK data:
+Now visualize the interactions that were most strongly penalized by the addition of OLINK data - those were mainly interactions in the S-group:
 
 
 ```r
@@ -1305,9 +1318,9 @@ plot_oi = make_sample_lr_prod_activity_OLINK_plots(
 plot_oi
 ```
 
-<img src="add_proteomics_MISC_files/figure-html/unnamed-chunk-133-1.png" width="100%" />
+<img src="add_proteomics_MISC_files/figure-html/unnamed-chunk-120-1.png" width="100%" />
 
-As expected for interactions penalized by the OLINK addition, we see an inconsistency between the RNA and protein level with respect to the direction of expression difference between M and S patients. Here, S-specific interactions at the RNA level have higher protein levels in the M-group instead of the S group. 
+As expected for interactions penalized by the OLINK addition, we see an inconsistency between the RNA and protein level with respect to the direction of expression difference between M and S patients. Here, S-specific interactions at the RNA level have higher protein levels in the M-group instead of the S group. Because of this incongruency, these interactions are penalized in the final prioritization score.
 
 # Tips for other data modalites
 

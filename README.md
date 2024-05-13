@@ -253,14 +253,15 @@ assess condition-specific cell types:
 
 When applying MultiNicheNet on datasets with many samples and cell
 types, it is often needed to run the analysis on HPC infrastructure. In
-those cases, we recommend to first run the core analysis on HPC
-infrastructure and save the output, and then interpret this output
-locally. In the following scripts you can see an example of how we split
-up the analysis in two parts: 1) running MultiNicheNet (with qsub on
-gridengine cluster) and saving necessary output and plots; and 2)
-interpreting the results and generating visualizations. These scripts
-are illustrative and will not work directly when you would just run
-them.
+those cases, we recommend to first set up your pipeline locally on a
+subset of the data (eg subset of 2/3 cell types). Then we recommend to
+run the core analysis on HPC infrastructure and save the output, and
+finally interpret this output locally. In the following scripts you can
+see an example of how we split up the analysis in two parts: 1) running
+MultiNicheNet (with qsub on gridengine cluster) and saving necessary
+output and plots; and 2) interpreting the results and generating
+visualizations. These scripts are illustrative and will not work
+directly when you would just run them.
 
 -   [MultiNicheNet core analysis on gridengine cluster via
     HPC](vignettes/multinichenet_qsub.Rmd)
