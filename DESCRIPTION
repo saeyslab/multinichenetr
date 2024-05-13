@@ -5,7 +5,7 @@ Version: 2.0.0
 Author: person("Robin", "Browaeys", email = "robin.browaeys@ugent.be",
   role = c("aut", "cre"))
 Maintainer: Robin Browaeys <robin.browaeys@ugent.be>
-Description: This package allows you the investigate differences in intercellular communication between multiple conditions of interest. It is a flexible framework that builds upon the NicheNet framework (https://github.com/saeyslab/nichenetr) to better suit scRNAseq datasets with complex designs.
+Description: This package allows you the investigate differences in intercellular communication between multiple conditions of interest. It is a flexible framework that enables multi-criteria prioritization of cell-cell communication patterns from scRNAseq datasets with complex experimental designs.
     These datasets can contain multiple samples (e.g. patients) over different groups of interest (e.g. disease subtypes). With MultiNicheNet, you can now better analyze the differences in cell-cell signaling between the different groups of interest.
 License: GPL-3 + file LICENSE
 Encoding: UTF-8
