@@ -74,8 +74,13 @@ for(i in seq(length(celltype_labels))){
 ```{r}
 ### read in NicheNet model
 lr_network_all = readRDS("../../../NicheNet_V2/networks/data/ligand_receptor/lr_network_human_allInfo_30112033.rds") %>% mutate(ligand = convert_alias_to_symbols(ligand, organism = "human"), receptor = convert_alias_to_symbols(receptor, organism = "human"))
-lr_network = lr_network_all  %>% mutate(ligand = make.names(ligand), receptor = make.names(receptor)) %>% distinct(ligand, receptor)
 
+lr_network_all = lr_network_all  %>% 
+    mutate(ligand = make.names(ligand), receptor = make.names(receptor)) 
+  
+lr_network = lr_network_all %>% 
+    distinct(ligand, receptor)
+  
 ligand_target_matrix = readRDS("../../../NicheNet_V2/model_construction/models/ligand_target_matrix_nsga2r_final.rds")
 colnames(ligand_target_matrix) = colnames(ligand_target_matrix) %>% convert_alias_to_symbols(organism = "human") %>% make.names()
 rownames(ligand_target_matrix) = rownames(ligand_target_matrix) %>% convert_alias_to_symbols(organism = "human") %>% make.names()
@@ -366,7 +371,7 @@ The following block of code will show how to visualize the activities for the to
 ```{r, fig.width=17, fig.height=6}
 ligands_oi = multinichenet_output$prioritization_tables$ligand_activities_target_de_tbl %>% 
   inner_join(contrast_tbl) %>% 
-  group_by(group, receiver) %>% 
+  group_by(group, receiver) %>% filter(direction_regulation == "up") %>% 
   distinct(ligand, receiver, group, activity) %>% 
   top_n(5, activity) %>% 
   pull(ligand) %>% unique()

@@ -102,11 +102,11 @@ We provide several vignettes demonstrating the different types of analysis that 
 
 ## Tutorials
 
-We recommend users to start with the following vignette, which demonstrates the different steps in the analysis without too many details yet. This is the recommended vignette to learn the basics of MultiNicheNet.
+We recommend users to start with the following vignette, which demonstrates the different steps in the analysis and exploration of the output. This is the recommended vignette to learn MultiNicheNet.
 
 * [**MultiNicheNet - comprehensive tutorial** - Condition A vs Condition B vs Condition C](vignettes/basic_analysis_steps_MISC.knit.md) | [_R Markdown version_](vignettes/basic_analysis_steps_MISC.Rmd) | [_HTML version_](vignettes/basic_analysis_steps_MISC.html)
 
-That vignette provides an example of a comparison between 3 groups. The following vignettes demonstrate how to analyze cell-cell communication differences in other settings. These vignettes are the best vignettes to learn how to apply MultiNicheNet to different datastes for addressing different questions. To reduce the length of these vignettes, the sections on downstream analysis has been reduced strongly. So we strongly recommend to read these vignettes to learn how to perform the analysis in other settings, but still perform all additional analyses and checks as demonstrated in the comprehensive tutorial vignette . 
+That vignette provides an example of a comparison between 3 groups. The following vignettes demonstrate how to analyze cell-cell communication differences in other settings. These vignettes are the best vignettes to learn how to apply MultiNicheNet to different datastes for addressing different questions. To reduce the length of these vignettes, the sections on downstream analysis has been reduced strongly and a wrapper function is sometimes used to perform the core analysis. So we strongly recommend to read these vignettes to learn how to perform the analysis in different settings, but still perform all additional analyses and checks as demonstrated in the comprehensive tutorial vignette. 
 
 * [Condition A vs Condition B - without repeated subjects](vignettes/pairwise_analysis_MISC.knit.md) | [_R Markdown version_](vignettes/pairwise_analysis_MISC.Rmd) | [_HTML version_](vignettes/pairwise_analysis_MISC.html)
 * [Condition A vs Condition B - with **repeated subjects**: paired analysis with subject_id as covariate](vignettes/paired_analysis_SCC.knit.md) | [_R Markdown version_](vignettes/paired_analysis_SCC.Rmd) | [_HTML version_](vignettes/paired_analysis_SCC.html)

@@ -1011,7 +1011,7 @@ The following block of code will show how to visualize the activities for the to
 ```{r, fig.width=13, fig.height=8}
 ligands_oi = multinichenet_output$prioritization_tables$ligand_activities_target_de_tbl %>% 
   inner_join(contrast_tbl) %>% 
-  group_by(group, receiver) %>% 
+  group_by(group, receiver) %>% filter(direction_regulation == "up") %>% 
   distinct(ligand, receiver, group, activity) %>% 
   top_n(5, activity) %>% 
   pull(ligand) %>% unique()

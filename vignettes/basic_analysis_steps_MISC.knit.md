@@ -9,7 +9,7 @@ vignette: >
   %\VignetteIndexEntry{MultiNicheNet analysis: MIS-C threewise comparison - step-by-step}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8} 
-date: 30 April 2024
+date: 22 May 2024
 link-citations: true
 ---
 
@@ -492,15 +492,14 @@ abundance_expression_info$sender_receiver_info$pb_df %>% head()
 abundance_expression_info$sender_receiver_info$pb_df_group %>% head()
 ## # A tibble: 6 × 8
 ## # Groups:   group, sender [6]
-##   group sender                 receiver       ligand receptor pb_ligand_group pb_receptor_group ligand_receptor_pb_p…¹
-##   <chr> <chr>                  <chr>          <chr>  <chr>              <dbl>             <dbl>                  <dbl>
-## 1 M     L_NK_CD56._CD16.       M_Monocyte_CD… B2M    LILRB1              14.1             10.0                    141.
-## 2 M     M_Monocyte_CD16        M_Monocyte_CD… B2M    LILRB1              14.1             10.0                    141.
-## 3 M     L_T_TIM3._CD38._HLADR. M_Monocyte_CD… B2M    LILRB1              14.0             10.0                    140.
-## 4 A     L_NK_CD56._CD16.       L_NK_CD56._CD… B2M    KLRD1               14.3              9.71                   139.
-## 5 S     L_NK_CD56._CD16.       L_NK_CD56._CD… B2M    KLRD1               14.4              9.46                   136.
-## 6 A     L_T_TIM3._CD38._HLADR. L_NK_CD56._CD… B2M    KLRD1               13.9              9.71                   135.
-## # ℹ abbreviated name: ¹​ligand_receptor_pb_prod_group
+##   group sender                 receiver         ligand receptor pb_ligand_group pb_receptor_group ligand_receptor_pb_prod_group
+##   <chr> <chr>                  <chr>            <chr>  <chr>              <dbl>             <dbl>                         <dbl>
+## 1 M     L_NK_CD56._CD16.       M_Monocyte_CD16  B2M    LILRB1              14.1             10.0                           141.
+## 2 M     M_Monocyte_CD16        M_Monocyte_CD16  B2M    LILRB1              14.1             10.0                           141.
+## 3 M     L_T_TIM3._CD38._HLADR. M_Monocyte_CD16  B2M    LILRB1              14.0             10.0                           140.
+## 4 A     L_NK_CD56._CD16.       L_NK_CD56._CD16. B2M    KLRD1               14.3              9.71                          139.
+## 5 S     L_NK_CD56._CD16.       L_NK_CD56._CD16. B2M    KLRD1               14.4              9.46                          136.
+## 6 A     L_T_TIM3._CD38._HLADR. L_NK_CD56._CD16. B2M    KLRD1               13.9              9.71                          135.
 ```
 
 ## Differential expression (DE) analysis: determine which genes are differentially expressed
@@ -586,30 +585,30 @@ sender_receiver_de = combine_sender_receiver_de(
 ```r
 sender_receiver_de %>% head(20)
 ## # A tibble: 20 × 12
-##    contrast  sender  receiver ligand receptor lfc_ligand lfc_receptor ligand_receptor_lfc_…¹ p_val_ligand p_adj_ligand
-##    <chr>     <chr>   <chr>    <chr>  <chr>         <dbl>        <dbl>                  <dbl>        <dbl>        <dbl>
-##  1 M-(S+A)/2 M_Mono… M_Monoc… C3     VSIG4         2.96        5.76                     4.36      0.0964         0.439
-##  2 M-(S+A)/2 M_Mono… M_Monoc… IL10   IL10RB        5.61        0.715                    3.16      0.0052         0.142
-##  3 M-(S+A)/2 M_Mono… L_T_TIM… IL18   IL18RAP       1.93        4.39                     3.16      0.0445         0.321
-##  4 M-(S+A)/2 M_Mono… L_T_TIM… IL10   IL10RB        5.61        0.184                    2.90      0.0052         0.142
-##  5 M-(S+A)/2 L_NK_C… L_T_TIM… IL18   IL18RAP       1.29        4.39                     2.84      0.00758        0.231
-##  6 M-(S+A)/2 M_Mono… L_NK_CD… IL10   IL10RA        5.61        0.0393                   2.82      0.0052         0.142
-##  7 M-(S+A)/2 M_Mono… L_T_TIM… IL10   IL10RA        5.61       -0.0612                   2.77      0.0052         0.142
-##  8 M-(S+A)/2 M_Mono… L_NK_CD… IL10   IL10RB        5.61       -0.0727                   2.77      0.0052         0.142
-##  9 M-(S+A)/2 M_Mono… M_Monoc… IL10   IL10RA        5.61       -0.316                    2.65      0.0052         0.142
-## 10 M-(S+A)/2 M_Mono… L_T_TIM… C3     ITGAM         2.96        2.2                      2.58      0.0964         0.439
-## 11 A-(S+M)/2 L_T_TI… M_Monoc… SCGB3… MARCO         4.49        0.611                    2.55      0.0492         0.932
-## 12 M-(S+A)/2 M_Mono… M_Monoc… IL1B   IL1RAP        1.53        3.56                     2.54      0.0145         0.216
-## 13 M-(S+A)/2 M_Mono… M_Monoc… THBS1  CD47          4.58        0.446                    2.51      0.00784        0.166
-## 14 M-(S+A)/2 L_T_TI… M_Monoc… TNFSF… CD163         0.484       4.54                     2.51      0.282          0.84 
-## 15 M-(S+A)/2 M_Mono… M_Monoc… THBS1  ITGA6         4.58        0.382                    2.48      0.00784        0.166
-## 16 M-(S+A)/2 M_Mono… L_NK_CD… THBS1  ITGA6         4.58        0.352                    2.47      0.00784        0.166
-## 17 M-(S+A)/2 M_Mono… L_NK_CD… THBS1  ITGA4         4.58        0.283                    2.43      0.00784        0.166
-## 18 M-(S+A)/2 M_Mono… L_T_TIM… THBS1  ITGA6         4.58        0.263                    2.42      0.00784        0.166
-## 19 M-(S+A)/2 L_T_TI… M_Monoc… HMGB1  CD163         0.226       4.54                     2.38      0.111          0.649
-## 20 M-(S+A)/2 M_Mono… M_Monoc… HMGB1  CD163         0.154       4.54                     2.35      0.287          0.673
+##    contrast  sender    receiver ligand receptor lfc_ligand lfc_receptor ligand_receptor_lfc_…¹ p_val_ligand p_adj_ligand p_val_receptor
+##    <chr>     <chr>     <chr>    <chr>  <chr>         <dbl>        <dbl>                  <dbl>        <dbl>        <dbl>          <dbl>
+##  1 M-(S+A)/2 M_Monocy… M_Monoc… C3     VSIG4         2.96        5.76                     4.36      0.0964         0.439       0.00154 
+##  2 M-(S+A)/2 M_Monocy… M_Monoc… IL10   IL10RB        5.61        0.715                    3.16      0.0052         0.142       0.0123  
+##  3 M-(S+A)/2 M_Monocy… L_T_TIM… IL18   IL18RAP       1.93        4.39                     3.16      0.0445         0.321       0.000199
+##  4 M-(S+A)/2 M_Monocy… L_T_TIM… IL10   IL10RB        5.61        0.184                    2.90      0.0052         0.142       0.557   
+##  5 M-(S+A)/2 L_NK_CD5… L_T_TIM… IL18   IL18RAP       1.29        4.39                     2.84      0.00758        0.231       0.000199
+##  6 M-(S+A)/2 M_Monocy… L_NK_CD… IL10   IL10RA        5.61        0.0393                   2.82      0.0052         0.142       0.814   
+##  7 M-(S+A)/2 M_Monocy… L_T_TIM… IL10   IL10RA        5.61       -0.0612                   2.77      0.0052         0.142       0.728   
+##  8 M-(S+A)/2 M_Monocy… L_NK_CD… IL10   IL10RB        5.61       -0.0727                   2.77      0.0052         0.142       0.78    
+##  9 M-(S+A)/2 M_Monocy… M_Monoc… IL10   IL10RA        5.61       -0.316                    2.65      0.0052         0.142       0.233   
+## 10 M-(S+A)/2 M_Monocy… L_T_TIM… C3     ITGAM         2.96        2.2                      2.58      0.0964         0.439       0.00108 
+## 11 A-(S+M)/2 L_T_TIM3… M_Monoc… SCGB3… MARCO         4.49        0.611                    2.55      0.0492         0.932       0.577   
+## 12 M-(S+A)/2 M_Monocy… M_Monoc… IL1B   IL1RAP        1.53        3.56                     2.54      0.0145         0.216       0.00294 
+## 13 M-(S+A)/2 M_Monocy… M_Monoc… THBS1  CD47          4.58        0.446                    2.51      0.00784        0.166       0.0682  
+## 14 M-(S+A)/2 L_T_TIM3… M_Monoc… TNFSF… CD163         0.484       4.54                     2.51      0.282          0.84        0.00403 
+## 15 M-(S+A)/2 M_Monocy… M_Monoc… THBS1  ITGA6         4.58        0.382                    2.48      0.00784        0.166       0.527   
+## 16 M-(S+A)/2 M_Monocy… L_NK_CD… THBS1  ITGA6         4.58        0.352                    2.47      0.00784        0.166       0.0844  
+## 17 M-(S+A)/2 M_Monocy… L_NK_CD… THBS1  ITGA4         4.58        0.283                    2.43      0.00784        0.166       0.0206  
+## 18 M-(S+A)/2 M_Monocy… L_T_TIM… THBS1  ITGA6         4.58        0.263                    2.42      0.00784        0.166       0.321   
+## 19 M-(S+A)/2 L_T_TIM3… M_Monoc… HMGB1  CD163         0.226       4.54                     2.38      0.111          0.649       0.00403 
+## 20 M-(S+A)/2 M_Monocy… M_Monoc… HMGB1  CD163         0.154       4.54                     2.35      0.287          0.673       0.00403 
 ## # ℹ abbreviated name: ¹​ligand_receptor_lfc_avg
-## # ℹ 2 more variables: p_val_receptor <dbl>, p_adj_receptor <dbl>
+## # ℹ 1 more variable: p_adj_receptor <dbl>
 ```
 
 ## Ligand activity prediction: use the DE analysis output to predict the activity of ligands in receiver cell types and infer their potential target genes
@@ -647,18 +646,18 @@ geneset_assessment = contrast_tbl$contrast %>%
   bind_rows() 
 geneset_assessment
 ## # A tibble: 9 × 12
-##   cluster_id      n_background n_geneset_up n_geneset_down prop_geneset_up prop_geneset_down in_range_up in_range_down
-##   <chr>                  <int>        <int>          <int>           <dbl>             <dbl> <lgl>       <lgl>        
-## 1 L_NK_CD56._CD1…         6621          162             82          0.0245            0.0124 TRUE        TRUE         
-## 2 L_T_TIM3._CD38…         8461          401            194          0.0474            0.0229 TRUE        TRUE         
-## 3 M_Monocyte_CD16         8817          647            438          0.0734            0.0497 TRUE        TRUE         
-## 4 L_NK_CD56._CD1…         6621          150            219          0.0227            0.0331 TRUE        TRUE         
-## 5 L_T_TIM3._CD38…         8461          201            320          0.0238            0.0378 TRUE        TRUE         
-## 6 M_Monocyte_CD16         8817          368            254          0.0417            0.0288 TRUE        TRUE         
-## 7 L_NK_CD56._CD1…         6621          118            110          0.0178            0.0166 TRUE        TRUE         
-## 8 L_T_TIM3._CD38…         8461          225            150          0.0266            0.0177 TRUE        TRUE         
-## 9 M_Monocyte_CD16         8817          262            464          0.0297            0.0526 TRUE        TRUE         
-## # ℹ 4 more variables: contrast <chr>, logFC_threshold <dbl>, p_val_threshold <dbl>, adjusted <lgl>
+##   cluster_id             n_background n_geneset_up n_geneset_down prop_geneset_up prop_geneset_down in_range_up in_range_down contrast 
+##   <chr>                         <int>        <int>          <int>           <dbl>             <dbl> <lgl>       <lgl>         <chr>    
+## 1 L_NK_CD56._CD16.               6621          162             82          0.0245            0.0124 TRUE        TRUE          M-(S+A)/2
+## 2 L_T_TIM3._CD38._HLADR.         8461          401            194          0.0474            0.0229 TRUE        TRUE          M-(S+A)/2
+## 3 M_Monocyte_CD16                8817          647            438          0.0734            0.0497 TRUE        TRUE          M-(S+A)/2
+## 4 L_NK_CD56._CD16.               6621          150            219          0.0227            0.0331 TRUE        TRUE          S-(M+A)/2
+## 5 L_T_TIM3._CD38._HLADR.         8461          201            320          0.0238            0.0378 TRUE        TRUE          S-(M+A)/2
+## 6 M_Monocyte_CD16                8817          368            254          0.0417            0.0288 TRUE        TRUE          S-(M+A)/2
+## 7 L_NK_CD56._CD16.               6621          118            110          0.0178            0.0166 TRUE        TRUE          A-(S+M)/2
+## 8 L_T_TIM3._CD38._HLADR.         8461          225            150          0.0266            0.0177 TRUE        TRUE          A-(S+M)/2
+## 9 M_Monocyte_CD16                8817          262            464          0.0297            0.0526 TRUE        TRUE          A-(S+M)/2
+## # ℹ 3 more variables: logFC_threshold <dbl>, p_val_threshold <dbl>, adjusted <lgl>
 ```
 We can see here that for all cell type / contrast combinations, all geneset/background ratio's are within the recommended range (`in_range_up` and `in_range_down` columns). When these geneset/background ratio's would not be within the recommended ranges, we should interpret ligand activity results for these cell types with more caution, or use different thresholds (for these or all cell types). 
 
@@ -674,18 +673,18 @@ geneset_assessment_adjustedPval = contrast_tbl$contrast %>%
   bind_rows() 
 geneset_assessment_adjustedPval
 ## # A tibble: 9 × 12
-##   cluster_id      n_background n_geneset_up n_geneset_down prop_geneset_up prop_geneset_down in_range_up in_range_down
-##   <chr>                  <int>        <int>          <int>           <dbl>             <dbl> <lgl>       <lgl>        
-## 1 L_NK_CD56._CD1…         6621            7              0        0.00106           0        FALSE       FALSE        
-## 2 L_T_TIM3._CD38…         8461           15              5        0.00177           0.000591 FALSE       FALSE        
-## 3 M_Monocyte_CD16         8817           25             11        0.00284           0.00125  FALSE       FALSE        
-## 4 L_NK_CD56._CD1…         6621           28             50        0.00423           0.00755  FALSE       TRUE         
-## 5 L_T_TIM3._CD38…         8461            2              5        0.000236          0.000591 FALSE       FALSE        
-## 6 M_Monocyte_CD16         8817           10             15        0.00113           0.00170  FALSE       FALSE        
-## 7 L_NK_CD56._CD1…         6621           36             19        0.00544           0.00287  TRUE        FALSE        
-## 8 L_T_TIM3._CD38…         8461           13              1        0.00154           0.000118 FALSE       FALSE        
-## 9 M_Monocyte_CD16         8817            4              3        0.000454          0.000340 FALSE       FALSE        
-## # ℹ 4 more variables: contrast <chr>, logFC_threshold <dbl>, p_val_threshold <dbl>, adjusted <lgl>
+##   cluster_id             n_background n_geneset_up n_geneset_down prop_geneset_up prop_geneset_down in_range_up in_range_down contrast 
+##   <chr>                         <int>        <int>          <int>           <dbl>             <dbl> <lgl>       <lgl>         <chr>    
+## 1 L_NK_CD56._CD16.               6621            7              0        0.00106           0        FALSE       FALSE         M-(S+A)/2
+## 2 L_T_TIM3._CD38._HLADR.         8461           15              5        0.00177           0.000591 FALSE       FALSE         M-(S+A)/2
+## 3 M_Monocyte_CD16                8817           25             11        0.00284           0.00125  FALSE       FALSE         M-(S+A)/2
+## 4 L_NK_CD56._CD16.               6621           28             50        0.00423           0.00755  FALSE       TRUE          S-(M+A)/2
+## 5 L_T_TIM3._CD38._HLADR.         8461            2              5        0.000236          0.000591 FALSE       FALSE         S-(M+A)/2
+## 6 M_Monocyte_CD16                8817           10             15        0.00113           0.00170  FALSE       FALSE         S-(M+A)/2
+## 7 L_NK_CD56._CD16.               6621           36             19        0.00544           0.00287  TRUE        FALSE         A-(S+M)/2
+## 8 L_T_TIM3._CD38._HLADR.         8461           13              1        0.00154           0.000118 FALSE       FALSE         A-(S+M)/2
+## 9 M_Monocyte_CD16                8817            4              3        0.000454          0.000340 FALSE       FALSE         A-(S+M)/2
+## # ℹ 3 more variables: logFC_threshold <dbl>, p_val_threshold <dbl>, adjusted <lgl>
 ```
 We can see here that for most cell type / contrast combinations, the geneset/background ratio's are not within the recommended range. Therefore, we will proceed with the default tresholds for the ligand activity analysis
 
@@ -816,32 +815,31 @@ First: group-based summary table
 ```r
 prioritization_tables$group_prioritization_tbl %>% head(20)
 ## # A tibble: 20 × 18
-##    contrast  group sender       receiver ligand receptor lr_interaction id    scaled_lfc_ligand scaled_p_val_ligand_…¹
-##    <chr>     <chr> <chr>        <chr>    <chr>  <chr>    <chr>          <chr>             <dbl>                  <dbl>
-##  1 M-(S+A)/2 M     M_Monocyte_… L_NK_CD… HLA.E  KLRC1    HLA.E_KLRC1    HLA.…             0.816                  0.982
-##  2 M-(S+A)/2 M     L_T_TIM3._C… M_Monoc… IFNG   IFNGR1   IFNG_IFNGR1    IFNG…             0.958                  0.946
-##  3 A-(S+M)/2 A     M_Monocyte_… L_T_TIM… LGALS3 LAG3     LGALS3_LAG3    LGAL…             0.918                  0.980
-##  4 M-(S+A)/2 M     L_T_TIM3._C… M_Monoc… IFNG   IFNGR2   IFNG_IFNGR2    IFNG…             0.958                  0.946
-##  5 M-(S+A)/2 M     M_Monocyte_… L_T_TIM… CXCL16 CXCR6    CXCL16_CXCR6   CXCL…             0.861                  0.936
-##  6 A-(S+M)/2 A     M_Monocyte_… M_Monoc… VCAN   TLR2     VCAN_TLR2      VCAN…             0.942                  0.812
-##  7 M-(S+A)/2 M     M_Monocyte_… L_T_TIM… HLA.E  CD8A     HLA.E_CD8A     HLA.…             0.816                  0.982
-##  8 M-(S+A)/2 M     M_Monocyte_… M_Monoc… S100A9 CD68     S100A9_CD68    S100…             0.891                  0.880
-##  9 M-(S+A)/2 M     M_Monocyte_… L_T_TIM… HLA.D… LAG3     HLA.DRA_LAG3   HLA.…             0.886                  0.978
-## 10 M-(S+A)/2 M     M_Monocyte_… L_T_TIM… S100A8 CD69     S100A8_CD69    S100…             0.871                  0.791
-## 11 M-(S+A)/2 M     M_Monocyte_… M_Monoc… HLA.F  LILRB1   HLA.F_LILRB1   HLA.…             0.890                  0.985
-## 12 M-(S+A)/2 M     M_Monocyte_… M_Monoc… TNF    LTBR     TNF_LTBR       TNF_…             0.984                  0.953
-## 13 A-(S+M)/2 A     L_T_TIM3._C… L_T_TIM… LGALS… ITGB1    LGALS3BP_ITGB1 LGAL…             0.947                  0.995
-## 14 A-(S+M)/2 A     M_Monocyte_… M_Monoc… S100A8 CD36     S100A8_CD36    S100…             0.830                  0.697
-## 15 M-(S+A)/2 M     M_Monocyte_… M_Monoc… HLA.F  LILRB2   HLA.F_LILRB2   HLA.…             0.890                  0.985
-## 16 M-(S+A)/2 M     M_Monocyte_… L_T_TIM… HLA.A  CD8A     HLA.A_CD8A     HLA.…             0.925                  0.999
-## 17 M-(S+A)/2 M     M_Monocyte_… L_NK_CD… HLA.C  KIR2DL1  HLA.C_KIR2DL1  HLA.…             0.897                  0.972
-## 18 S-(M+A)/2 S     L_T_TIM3._C… L_T_TIM… CD99   CD81     CD99_CD81      CD99…             0.656                  0.780
-## 19 S-(M+A)/2 S     L_NK_CD56._… M_Monoc… TGFB1  ENG      TGFB1_ENG      TGFB…             0.672                  0.873
-## 20 S-(M+A)/2 S     M_Monocyte_… M_Monoc… TGFB1  ENG      TGFB1_ENG      TGFB…             0.791                  0.930
+##    contrast  group sender    receiver ligand receptor lr_interaction id    scaled_lfc_ligand scaled_p_val_ligand_…¹ scaled_lfc_receptor
+##    <chr>     <chr> <chr>     <chr>    <chr>  <chr>    <chr>          <chr>             <dbl>                  <dbl>               <dbl>
+##  1 M-(S+A)/2 M     M_Monocy… L_NK_CD… HLA.E  KLRC1    HLA.E_KLRC1    HLA.…             0.816                  0.982               0.954
+##  2 M-(S+A)/2 M     L_T_TIM3… M_Monoc… IFNG   IFNGR1   IFNG_IFNGR1    IFNG…             0.958                  0.946               0.863
+##  3 A-(S+M)/2 A     M_Monocy… L_T_TIM… LGALS3 LAG3     LGALS3_LAG3    LGAL…             0.918                  0.980               0.985
+##  4 M-(S+A)/2 M     L_T_TIM3… M_Monoc… IFNG   IFNGR2   IFNG_IFNGR2    IFNG…             0.958                  0.946               0.691
+##  5 M-(S+A)/2 M     M_Monocy… L_T_TIM… CXCL16 CXCR6    CXCL16_CXCR6   CXCL…             0.861                  0.936               0.966
+##  6 A-(S+M)/2 A     M_Monocy… M_Monoc… VCAN   TLR2     VCAN_TLR2      VCAN…             0.942                  0.812               0.948
+##  7 M-(S+A)/2 M     M_Monocy… L_T_TIM… HLA.E  CD8A     HLA.E_CD8A     HLA.…             0.816                  0.982               0.834
+##  8 M-(S+A)/2 M     M_Monocy… M_Monoc… S100A9 CD68     S100A9_CD68    S100…             0.891                  0.880               0.857
+##  9 M-(S+A)/2 M     M_Monocy… L_T_TIM… HLA.D… LAG3     HLA.DRA_LAG3   HLA.…             0.886                  0.978               0.784
+## 10 M-(S+A)/2 M     M_Monocy… L_T_TIM… S100A8 CD69     S100A8_CD69    S100…             0.871                  0.791               0.920
+## 11 M-(S+A)/2 M     M_Monocy… M_Monoc… HLA.F  LILRB1   HLA.F_LILRB1   HLA.…             0.890                  0.985               0.982
+## 12 M-(S+A)/2 M     M_Monocy… M_Monoc… TNF    LTBR     TNF_LTBR       TNF_…             0.984                  0.953               0.902
+## 13 A-(S+M)/2 A     L_T_TIM3… L_T_TIM… LGALS… ITGB1    LGALS3BP_ITGB1 LGAL…             0.947                  0.995               0.937
+## 14 A-(S+M)/2 A     M_Monocy… M_Monoc… S100A8 CD36     S100A8_CD36    S100…             0.830                  0.697               0.969
+## 15 M-(S+A)/2 M     M_Monocy… M_Monoc… HLA.F  LILRB2   HLA.F_LILRB2   HLA.…             0.890                  0.985               0.942
+## 16 M-(S+A)/2 M     M_Monocy… L_T_TIM… HLA.A  CD8A     HLA.A_CD8A     HLA.…             0.925                  0.999               0.834
+## 17 M-(S+A)/2 M     M_Monocy… L_NK_CD… HLA.C  KIR2DL1  HLA.C_KIR2DL1  HLA.…             0.897                  0.972               0.790
+## 18 S-(M+A)/2 S     L_T_TIM3… L_T_TIM… CD99   CD81     CD99_CD81      CD99…             0.656                  0.780               0.962
+## 19 S-(M+A)/2 S     L_NK_CD5… M_Monoc… TGFB1  ENG      TGFB1_ENG      TGFB…             0.672                  0.873               0.974
+## 20 S-(M+A)/2 S     M_Monocy… M_Monoc… TGFB1  ENG      TGFB1_ENG      TGFB…             0.791                  0.930               0.974
 ## # ℹ abbreviated name: ¹​scaled_p_val_ligand_adapted
-## # ℹ 8 more variables: scaled_lfc_receptor <dbl>, scaled_p_val_receptor_adapted <dbl>, max_scaled_activity <dbl>,
-## #   scaled_pb_ligand <dbl>, scaled_pb_receptor <dbl>, fraction_expressing_ligand_receptor <dbl>,
-## #   prioritization_score <dbl>, top_group <chr>
+## # ℹ 7 more variables: scaled_p_val_receptor_adapted <dbl>, max_scaled_activity <dbl>, scaled_pb_ligand <dbl>,
+## #   scaled_pb_receptor <dbl>, fraction_expressing_ligand_receptor <dbl>, prioritization_score <dbl>, top_group <chr>
 ```
 This table gives the final prioritization score of each interaction, and the values of the individual prioritization criteria.
 
@@ -1125,18 +1123,18 @@ Second, subset on ligands/receptors as target genes
 ```r
 lr_target_df %>% filter(target %in% union(lr_network$ligand, lr_network$receptor))
 ## # A tibble: 486 × 8
-##    group sender                 receiver         ligand receptor id                        target direction_regulation
-##    <chr> <chr>                  <chr>            <chr>  <chr>    <chr>                     <chr>  <fct>               
-##  1 M     M_Monocyte_CD16        L_NK_CD56._CD16. HLA.E  KLRC1    HLA.E_KLRC1_M_Monocyte_C… AREG   up                  
-##  2 M     M_Monocyte_CD16        L_NK_CD56._CD16. HLA.E  KLRC1    HLA.E_KLRC1_M_Monocyte_C… CD55   up                  
-##  3 M     M_Monocyte_CD16        L_NK_CD56._CD16. HLA.E  KLRC1    HLA.E_KLRC1_M_Monocyte_C… KLRC1  up                  
-##  4 M     M_Monocyte_CD16        L_NK_CD56._CD16. HLA.E  KLRC1    HLA.E_KLRC1_M_Monocyte_C… S100A8 up                  
-##  5 M     M_Monocyte_CD16        L_NK_CD56._CD16. HLA.E  KLRC1    HLA.E_KLRC1_M_Monocyte_C… SLC1A5 up                  
-##  6 M     M_Monocyte_CD16        L_NK_CD56._CD16. HLA.E  KLRC1    HLA.E_KLRC1_M_Monocyte_C… TFRC   up                  
-##  7 M     M_Monocyte_CD16        L_NK_CD56._CD16. HLA.E  KLRC1    HLA.E_KLRC1_M_Monocyte_C… TIMP1  down                
-##  8 M     L_T_TIM3._CD38._HLADR. M_Monocyte_CD16  IFNG   IFNGR1   IFNG_IFNGR1_L_T_TIM3._CD… B2M    up                  
-##  9 M     L_T_TIM3._CD38._HLADR. M_Monocyte_CD16  IFNG   IFNGR1   IFNG_IFNGR1_L_T_TIM3._CD… BTN3A1 up                  
-## 10 M     L_T_TIM3._CD38._HLADR. M_Monocyte_CD16  IFNG   IFNGR1   IFNG_IFNGR1_L_T_TIM3._CD… C1QB   up                  
+##    group sender                 receiver         ligand receptor id                                         target direction_regulation
+##    <chr> <chr>                  <chr>            <chr>  <chr>    <chr>                                      <chr>  <fct>               
+##  1 M     M_Monocyte_CD16        L_NK_CD56._CD16. HLA.E  KLRC1    HLA.E_KLRC1_M_Monocyte_CD16_L_NK_CD56._CD… AREG   up                  
+##  2 M     M_Monocyte_CD16        L_NK_CD56._CD16. HLA.E  KLRC1    HLA.E_KLRC1_M_Monocyte_CD16_L_NK_CD56._CD… CD55   up                  
+##  3 M     M_Monocyte_CD16        L_NK_CD56._CD16. HLA.E  KLRC1    HLA.E_KLRC1_M_Monocyte_CD16_L_NK_CD56._CD… KLRC1  up                  
+##  4 M     M_Monocyte_CD16        L_NK_CD56._CD16. HLA.E  KLRC1    HLA.E_KLRC1_M_Monocyte_CD16_L_NK_CD56._CD… S100A8 up                  
+##  5 M     M_Monocyte_CD16        L_NK_CD56._CD16. HLA.E  KLRC1    HLA.E_KLRC1_M_Monocyte_CD16_L_NK_CD56._CD… SLC1A5 up                  
+##  6 M     M_Monocyte_CD16        L_NK_CD56._CD16. HLA.E  KLRC1    HLA.E_KLRC1_M_Monocyte_CD16_L_NK_CD56._CD… TFRC   up                  
+##  7 M     M_Monocyte_CD16        L_NK_CD56._CD16. HLA.E  KLRC1    HLA.E_KLRC1_M_Monocyte_CD16_L_NK_CD56._CD… TIMP1  down                
+##  8 M     L_T_TIM3._CD38._HLADR. M_Monocyte_CD16  IFNG   IFNGR1   IFNG_IFNGR1_L_T_TIM3._CD38._HLADR._M_Mono… B2M    up                  
+##  9 M     L_T_TIM3._CD38._HLADR. M_Monocyte_CD16  IFNG   IFNGR1   IFNG_IFNGR1_L_T_TIM3._CD38._HLADR._M_Mono… BTN3A1 up                  
+## 10 M     L_T_TIM3._CD38._HLADR. M_Monocyte_CD16  IFNG   IFNGR1   IFNG_IFNGR1_L_T_TIM3._CD38._HLADR._M_Mono… C1QB   up                  
 ## # ℹ 476 more rows
 ```
 
@@ -1323,18 +1321,18 @@ prioritized_tbl_oi_network = prioritized_tbl_oi_all %>% inner_join(
   network$prioritized_lr_interactions)
 prioritized_tbl_oi_network
 ## # A tibble: 27 × 8
-##    group sender                 receiver               ligand  receptor id    prioritization_score prioritization_rank
-##    <chr> <chr>                  <chr>                  <chr>   <chr>    <chr>                <dbl>               <dbl>
-##  1 M     M_Monocyte_CD16        L_NK_CD56._CD16.       HLA.E   KLRC1    HLA.…                0.956                   1
-##  2 M     L_T_TIM3._CD38._HLADR. M_Monocyte_CD16        IFNG    IFNGR1   IFNG…                0.948                   2
-##  3 M     L_T_TIM3._CD38._HLADR. M_Monocyte_CD16        IFNG    IFNGR2   IFNG…                0.928                   4
-##  4 M     M_Monocyte_CD16        L_T_TIM3._CD38._HLADR. CXCL16  CXCR6    CXCL…                0.922                   5
-##  5 M     M_Monocyte_CD16        L_T_TIM3._CD38._HLADR. HLA.E   CD8A     HLA.…                0.919                   7
-##  6 M     M_Monocyte_CD16        M_Monocyte_CD16        S100A9  CD68     S100…                0.917                   8
-##  7 M     M_Monocyte_CD16        L_T_TIM3._CD38._HLADR. HLA.DRA LAG3     HLA.…                0.910                   9
-##  8 M     M_Monocyte_CD16        M_Monocyte_CD16        HLA.F   LILRB1   HLA.…                0.903                  11
-##  9 M     M_Monocyte_CD16        M_Monocyte_CD16        TNF     LTBR     TNF_…                0.902                  12
-## 10 M     M_Monocyte_CD16        M_Monocyte_CD16        HLA.F   LILRB2   HLA.…                0.898                  15
+##    group sender                 receiver               ligand  receptor id                     prioritization_score prioritization_rank
+##    <chr> <chr>                  <chr>                  <chr>   <chr>    <chr>                                 <dbl>               <dbl>
+##  1 M     M_Monocyte_CD16        L_NK_CD56._CD16.       HLA.E   KLRC1    HLA.E_KLRC1_M_Monocyt…                0.956                   1
+##  2 M     L_T_TIM3._CD38._HLADR. M_Monocyte_CD16        IFNG    IFNGR1   IFNG_IFNGR1_L_T_TIM3.…                0.948                   2
+##  3 M     L_T_TIM3._CD38._HLADR. M_Monocyte_CD16        IFNG    IFNGR2   IFNG_IFNGR2_L_T_TIM3.…                0.928                   4
+##  4 M     M_Monocyte_CD16        L_T_TIM3._CD38._HLADR. CXCL16  CXCR6    CXCL16_CXCR6_M_Monocy…                0.922                   5
+##  5 M     M_Monocyte_CD16        L_T_TIM3._CD38._HLADR. HLA.E   CD8A     HLA.E_CD8A_M_Monocyte…                0.919                   7
+##  6 M     M_Monocyte_CD16        M_Monocyte_CD16        S100A9  CD68     S100A9_CD68_M_Monocyt…                0.917                   8
+##  7 M     M_Monocyte_CD16        L_T_TIM3._CD38._HLADR. HLA.DRA LAG3     HLA.DRA_LAG3_M_Monocy…                0.910                   9
+##  8 M     M_Monocyte_CD16        M_Monocyte_CD16        HLA.F   LILRB1   HLA.F_LILRB1_M_Monocy…                0.903                  11
+##  9 M     M_Monocyte_CD16        M_Monocyte_CD16        TNF     LTBR     TNF_LTBR_M_Monocyte_C…                0.902                  12
+## 10 M     M_Monocyte_CD16        M_Monocyte_CD16        HLA.F   LILRB2   HLA.F_LILRB2_M_Monocy…                0.898                  15
 ## # ℹ 17 more rows
 ```
 
@@ -1375,7 +1373,7 @@ The following block of code will show how to visualize the activities for the to
 ```r
 ligands_oi = multinichenet_output$prioritization_tables$ligand_activities_target_de_tbl %>% 
   inner_join(contrast_tbl) %>% 
-  group_by(group, receiver) %>% 
+  group_by(group, receiver) %>% filter(direction_regulation == "up") %>% 
   distinct(ligand, receiver, group, activity) %>% 
   top_n(5, activity) %>% 
   pull(ligand) %>% unique()
