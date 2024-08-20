@@ -355,11 +355,19 @@ multi_nichenet_analysis = function(sce,
   # do not do this -- this could give errors if only interested in one contrast but multiple groups
   
   if(verbose == TRUE){
-    print("Make diagnostic abundance plots + define expressed genes")
+    print("Cell type & sample filtering")
   }
   ## check abundance info
 
-  abundance_info = get_abundance_info(sce = sce, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id, min_cells = min_cells, senders_oi = senders_oi, receivers_oi = receivers_oi, batches = batches)
+  abundance_info = get_abundance_info(
+    sce = sce, 
+    sample_id = sample_id, 
+    group_id = group_id, 
+    celltype_id = celltype_id, 
+    min_cells = min_cells, 
+    senders_oi = senders_oi, 
+    receivers_oi = receivers_oi, 
+    batches = batches)
   
   ## check for condition-specific cell types
   sample_group_celltype_df = abundance_info$abundance_data %>% filter(n > min_cells) %>% ungroup() %>% distinct(sample_id, group_id) %>% cross_join(abundance_info$abundance_data %>% ungroup() %>% distinct(celltype_id)) %>% arrange(sample_id)
@@ -377,6 +385,9 @@ multi_nichenet_analysis = function(sce,
   print("condition-specific celltypes:")
   print(condition_specific_celltypes)
   
+  condition_specific_celltypes_senders = condition_specific_celltypes %>% intersect(senders_oi)
+  condition_specific_celltypes_receivers = condition_specific_celltypes %>% intersect(receivers_oi)
+  
   print("absent celltypes:")
   print(absent_celltypes)
   
@@ -388,9 +399,28 @@ multi_nichenet_analysis = function(sce,
   sce = sce[, SummarizedExperiment::colData(sce)[,celltype_id] %in% retained_celltypes]
   
   ## define expressed genes
+  if(verbose == TRUE){
+    print("Gene filtering")
+  }
   frq_list = get_frac_exprs(sce = sce, sample_id = sample_id, celltype_id =  celltype_id, group_id = group_id, batches = batches, min_cells = min_cells, fraction_cutoff = fraction_cutoff, min_sample_prop = min_sample_prop)
   
-  ### Perform the DE analysis ----------------------------------------------------------------
+  ## filter out non-expressed genes
+  genes_oi = frq_list$expressed_df %>% 
+    filter(expressed == TRUE) %>% pull(gene) %>% unique() 
+  sce = sce[genes_oi, ]
+  
+  ## calculate PB expresion
+  if(verbose == TRUE){
+    print("Calculate normalized average and pseudobulk expression")
+  }
+  abundance_expression_info = process_abundance_expression_info(
+    sce = sce, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id, min_cells = min_cells, 
+    senders_oi = union(senders_oi, condition_specific_celltypes_senders), 
+    receivers_oi = union(receivers_oi, condition_specific_celltypes_receivers), 
+    lr_network = lr_network, batches = batches, frq_list = frq_list, abundance_info = abundance_info
+    )
+  
+  ## Perform the DE analysis ----------------------------------------------------------------
 
   if(verbose == TRUE){
     print("Calculate differential expression for all cell types")
@@ -432,9 +462,9 @@ multi_nichenet_analysis = function(sce,
   
   # print(celltype_de %>% dplyr::group_by(cluster_id, contrast) %>% dplyr::filter(p_adj <= p_val_threshold & abs(logFC) >= logFC_threshold) %>% dplyr::count() %>% dplyr::arrange(-n))
   
-  senders_oi = celltype_de$cluster_id %>% unique()
-  receivers_oi = celltype_de$cluster_id %>% unique()
-  genes_oi = celltype_de$gene %>% unique()
+  senders_oi = intersect(celltype_de$cluster_id %>% unique(), senders_oi)
+  receivers_oi = intersect(celltype_de$cluster_id %>% unique(), receivers_oi)
+  genes_oi = intersect(genes_oi, celltype_de$gene %>% unique())
   
   retained_celltypes = c(senders_oi, receivers_oi) %>% unique()
   retained_celltypes = c(retained_celltypes, condition_specific_celltypes) 
@@ -453,12 +483,6 @@ multi_nichenet_analysis = function(sce,
   ))
   sender_receiver_tbl = sender_receiver_de %>% dplyr::distinct(sender, receiver)
   
-  ### Receiver abundance plots + Calculate expression information
-  if(verbose == TRUE){
-    print("Calculate normalized average and pseudobulk expression")
-  }
-  abundance_expression_info = process_abundance_expression_info(sce = sce, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id, min_cells = min_cells, senders_oi = union(senders_oi, condition_specific_celltypes), receivers_oi = union(receivers_oi, condition_specific_celltypes), lr_network = lr_network, batches = batches, frq_list = frq_list, abundance_info = abundance_info)
-  
   metadata_combined = SummarizedExperiment::colData(sce) %>% tibble::as_tibble()
   
   if(!is.na(batches)){
@@ -470,10 +494,13 @@ multi_nichenet_analysis = function(sce,
   }
   
   rm(sce)
-  ### Use the DE analysis for defining the DE genes in the receiver cell type and perform NicheNet ligand activity and ligand-target inference ----------------------------------------------------------------
+  ## Use the DE analysis for defining the DE genes in the receiver cell type and perform NicheNet ligand activity and ligand-target inference ----------------------------------------------------------------
   if(verbose == TRUE){
     print("Calculate NicheNet ligand activities and ligand-target links")
   }
+  
+  n.cores = min(n.cores, celltype_de$cluster_id %>% unique() %>% length()) 
+  
   ligand_activities_targets_DEgenes = suppressMessages(suppressWarnings(get_ligand_activities_targets_DEgenes(
     receiver_de = celltype_de,
     receivers_oi = receivers_oi,
@@ -486,7 +513,8 @@ multi_nichenet_analysis = function(sce,
     n.cores = n.cores
   )))
 
-  ### Combine the three types of information calculated above to prioritize ligand-receptor interactions ----------------------------------------------------------------
+  
+  ## Combine the three types of information calculated above to prioritize ligand-receptor interactions ----------------------------------------------------------------
   if(verbose == TRUE){
     print("Combine all the information in prioritization tables")
   }
@@ -505,7 +533,7 @@ multi_nichenet_analysis = function(sce,
     ligand_activity_down = ligand_activity_down # use only upregulatory ligand activities to prioritize
   ))
 
-  # Prepare Unsupervised analysis of samples! ------------------------------------------------------------------------------------------------------------
+  ## Prepare Unsupervised analysis of samples! ------------------------------------------------------------------------------------------------------------
   
   if(return_lr_prod_matrix == TRUE){
     

@@ -420,6 +420,9 @@ We will now check the top 50 interactions specific for the MIS-C group
 
 ```{r}
 group_oi = "M"
+
+print(prioritized_tbl_oi_all)
+
 ```
 
 ```{r}

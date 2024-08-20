@@ -33,10 +33,9 @@ In this vignette, you can learn how to perform a MultiNicheNet analysis when you
 As the best solution, we recommend - if possible and biologically sensible to annotate your cells at one level higher in the cell type annotation hierarchy (eg sub cell type can be seen as a different cell state). Hereby, you will not have this problem of condition-specific cell types anymore. 
 
 A a second solution, we propose the procedure as showcased in this vignette. This consists of 3 consecutive workflows: 
-
 *1) General Workflow: This is the regular MultiNicheNet approach. In the general workflow, condition-specific cell types are excluded from the analysis. This approach focuses on achieving the best prioritization for other cell types that are present across different conditions, allowing for a standard DE analysis. The exclusion of condition-specific cell types simplifies the analysis but at the expense of potentially missing out on valuable insights that these unique cell types could provide. Therefore you can go further with the next two workflows: 
 *2) Workflow A (Sender Cell Types): This workflow adapts the analysis to include condition-specific cell types as sender cell types. It circumvents the need for DE analysis of the ligand by only focusing the ligand-prioritization on ligand cell type specificity and ligand activity. 
-*3) Workflow B (Receiver Cell Types): Workflow B allows for the inclusion of condition-specific cell types as receiver cell types by forgoing the DE analysis of the receiver, meaning that we cannot consider receptor differential expresion and ligand activity. Instead, receptor prioritization is based solely on the receptor cell type specificity. 
+*3) Workflow B (Receiver Cell Types): Workflow B allows for the inclusion of condition-specific cell types as receiver cell types by forgoing the DE analysis of the receiver, meaning that we cannot consider receptor differential expresion and ligand activity. Instead, receptor prioritization is based solely on the receptor cell type specificity.
 
 As example expression data of interacting cells, we will here use scRNAseq data of immune cells in MIS-C patients and healthy siblings from this paper of Hoste et al.: [TIM3+ TRBV11-2 T cells and IFNγ signature in patrolling monocytes and CD16+ NK cells delineate MIS-C](https://rupress.org/jem/article/219/2/e20211381/212918/TIM3-TRBV11-2-T-cells-and-IFN-signature-in) [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.6362434.svg)](https://doi.org/10.5281/zenodo.6362434)
 . MIS-C (multisystem inflammatory syndrome in children) is a novel rare immunodysregulation syndrome that can arise after SARS-CoV-2 infection in children. We will use NicheNet to explore immune cell crosstalk enriched in MIS-C compared to healthy siblings and patients with adult COVID-19. 
@@ -59,7 +58,6 @@ The Nichenet v2 networks and matrices for both mouse and human can be downloaded
 
 We will read these object in for human because our expression data is of human patients. 
 Gene names are here made syntactically valid via `make.names()` to avoid the loss of genes (eg H2-M3) in downstream visualizations.
-
 
 ```{r}
 organism = "human"
