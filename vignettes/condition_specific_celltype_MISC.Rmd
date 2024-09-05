@@ -282,25 +282,9 @@ The red dotted line indicates the required minimum of cells as defined above in 
 
 Running the following block of code can help you automatically determine which cell types are condition-specific and which cell types are absent. 
 
+
 ```{r}
-sample_group_celltype_df = abundance_info$abundance_data %>% 
-  filter(n > min_cells) %>% 
-  ungroup() %>% 
-  distinct(sample_id, group_id) %>% 
-  cross_join(
-    abundance_info$abundance_data %>% 
-      ungroup() %>% 
-      distinct(celltype_id)
-    ) %>% 
-  arrange(sample_id)
-
-abundance_df = sample_group_celltype_df %>% left_join(
-  abundance_info$abundance_data %>% ungroup()
-  )
-
-abundance_df$n[is.na(abundance_df$n)] = 0
-abundance_df$keep[is.na(abundance_df$keep)] = FALSE
-abundance_df_summarized = abundance_df %>% 
+abundance_df_summarized = abundance_info$abundance_data %>% 
   mutate(keep = as.logical(keep)) %>% 
   group_by(group_id, celltype_id) %>% 
   summarise(samples_present = sum((keep)))

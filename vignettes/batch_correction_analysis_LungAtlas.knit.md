@@ -1,7 +1,7 @@
 ---
 title: "MultiNicheNet analysis: Integrated lung atlas analysis - correct for batch effects to infer differences between IPF and healthy subjects"
 author: "Robin Browaeys"
-package: "multinichenetr 2.0.0"
+package: "multinichenetr 2.0.1"
 output: 
   BiocStyle::html_document
 output_dir: "/Users/robinb/Work/multinichenetr/vignettes"
@@ -9,7 +9,7 @@ vignette: >
   %\VignetteIndexEntry{MultiNicheNet analysis: Integrated lung atlas analysis - correct for batch effects to infer differences between IPF and healthy subjects}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8} 
-date: 16 April 2024
+date: 5 September 2024
 link-citations: true
 ---
 
@@ -38,7 +38,7 @@ We will first prepare the MultiNicheNet core analysis, then run the several step
 # Preparation of the MultiNicheNet core analysis
 
 
-```r
+``` r
 library(SingleCellExperiment)
 library(dplyr)
 library(ggplot2)
@@ -56,12 +56,12 @@ We will read these object in for human because our expression data is of human p
 Gene names are here made syntactically valid via `make.names()` to avoid the loss of genes (eg H2-M3) in downstream visualizations.
 
 
-```r
+``` r
 organism = "human"
 ```
 
 
-```r
+``` r
 options(timeout = 120)
 
 if(organism == "human"){
@@ -129,7 +129,7 @@ If you start from a Seurat object, you can convert it easily to a SingleCellExpe
 Because the NicheNet 2.0. networks are in the most recent version of the official gene symbols, we will make sure that the gene symbols used in the expression data are also updated (= converted from their "aliases" to official gene symbols). Afterwards, we will make them again syntactically valid. 
 
 
-```r
+``` r
 sce = readRDS(url(
   "https://zenodo.org/record/8010790/files/sce_subset_lung.rds"
   ))
@@ -148,7 +148,7 @@ Cell type annotations are indicated in the `annotation.l1` column, and the sampl
 If your cells are annotated in multiple hierarchical levels, we recommend using a relatively high level in the hierarchy. This for 2 reasons: 1) MultiNicheNet focuses on differential expression and not differential abundance, and 2) there should be sufficient cells per sample-celltype combination (see later).
 
 
-```r
+``` r
 sample_id = "donor"
 group_id = "disease"
 celltype_id = "annotation.l1"
@@ -159,7 +159,7 @@ __Important__: It is required that each sample-id is uniquely assigned to only o
 If you would have batch effects or covariates you can correct for, you can define this here as well. Here, we want to correct for the source study, which is indicated in the following meta data column: `dataset_origin`, which has 4 different values: adams_2020, habermann_2020, morse_2019, reyfman_2019 and normal.
 
 
-```r
+``` r
 covariates = NA
 batches = "dataset_origin"
 ```
@@ -175,7 +175,7 @@ __Important__: All group, sample, cell type, batch and covariate names should be
 For this analysis, we want to compare how cell-cell communication differs between IPF and normal lungs.
 
 
-```r
+``` r
 contrasts_oi = c("'idiopathic.pulmonary.fibrosis-normal','normal-idiopathic.pulmonary.fibrosis'")
 ```
 
@@ -190,7 +190,7 @@ For downstream visualizations and linking contrasts to their main condition, we 
 This is necessary because we will also calculate cell-type+condition specificity of ligands and receptors. 
 
 
-```r
+``` r
 contrast_tbl = tibble(contrast =
                         c("idiopathic.pulmonary.fibrosis-normal", "normal-idiopathic.pulmonary.fibrosis"),
                       group = c("idiopathic.pulmonary.fibrosis", "normal"))
@@ -205,7 +205,7 @@ If you want to focus the analysis on specific cell types (e.g. because you know 
 Here we will consider all cell types in the data:
 
 
-```r
+``` r
 senders_oi = SummarizedExperiment::colData(sce)[,celltype_id] %>% unique()
 receivers_oi = SummarizedExperiment::colData(sce)[,celltype_id] %>% unique()
 sce = sce[, SummarizedExperiment::colData(sce)[,celltype_id] %in% 
@@ -216,7 +216,7 @@ sce = sce[, SummarizedExperiment::colData(sce)[,celltype_id] %in%
 In case you would have samples in your data that do not belong to one of the groups/conditions of interest, we recommend removing them and only keeping conditions of interest. This may be especially relevant in atlas settings where you may have cells from patients belonging to diseases that are outside of the scope of the current comparison.
 
 
-```r
+``` r
 conditions_keep = c("normal", "idiopathic.pulmonary.fibrosis")
 sce = sce[, SummarizedExperiment::colData(sce)[,group_id] %in% 
             conditions_keep
@@ -248,14 +248,14 @@ In this step we will calculate and visualize cell type abundances. This will giv
 Since MultiNicheNet will infer group differences at the sample level for each cell type (currently via Muscat - pseudobulking + EdgeR), we need to have sufficient cells per sample of a cell type, and this for all groups. In the following analysis we will set this minimum number of cells per cell type per sample at 10. Samples that have less than `min_cells` cells will be excluded from the analysis for that specific cell type.
  
 
-```r
+``` r
 min_cells = 10
 ```
 
 We recommend using `min_cells = 10`, except for datasets with several lowly abundant cell types of interest. For those datasets, we recommend using `min_cells = 5`.
 
 
-```r
+``` r
 abundance_info = get_abundance_info(
   sce = sce, 
   sample_id = sample_id, group_id = group_id, celltype_id = celltype_id, 
@@ -272,11 +272,11 @@ First, we will check the cell type abundance diagnostic plots.
 The first plot visualizes the number of cells per celltype-sample combination, and indicates which combinations are removed during the DE analysis because there are less than `min_cells` in the celltype-sample combination. 
 
 
-```r
+``` r
 abundance_info$abund_plot_sample
 ```
 
-<img src="batch_correction_analysis_LungAtlas_files/figure-html/unnamed-chunk-192-1.png" width="100%" />
+<img src="batch_correction_analysis_LungAtlas_files/figure-html/unnamed-chunk-12-1.png" width="100%" />
 
 The red dotted line indicates the required minimum of cells as defined above in `min_cells`. We can see here that some sample-celltype combinations are left out. For the DE analysis in the next step, only cell types will be considered if there are at least two samples per condition-batch combination with a sufficient number of cells. 
 
@@ -288,25 +288,8 @@ __Important__: Based on the cell type abundance diagnostics, we recommend users 
 Running the following block of code can help you determine which cell types are condition-specific and which cell types are absent. 
 
 
-```r
-sample_group_celltype_df = abundance_info$abundance_data %>% 
-  filter(n > min_cells) %>% 
-  ungroup() %>% 
-  distinct(sample_id, group_id) %>% 
-  cross_join(
-    abundance_info$abundance_data %>% 
-      ungroup() %>% 
-      distinct(celltype_id)
-    ) %>% 
-  arrange(sample_id)
-
-abundance_df = sample_group_celltype_df %>% left_join(
-  abundance_info$abundance_data %>% ungroup()
-  )
-
-abundance_df$n[is.na(abundance_df$n)] = 0
-abundance_df$keep[is.na(abundance_df$keep)] = FALSE
-abundance_df_summarized = abundance_df %>% 
+``` r
+abundance_df_summarized = abundance_info$abundance_data %>% 
   mutate(keep = as.logical(keep)) %>% 
   group_by(group_id, celltype_id) %>% 
   summarise(samples_present = sum((keep)))
@@ -348,12 +331,12 @@ print(absent_celltypes)
 Absent cell types will be filtered out, condition-specific cell types can be filtered out if you as a user do not want to run the alternative workflow for condition-specific cell types in the optional step 8 of the core MultiNicheNet analysis. 
 
 
-```r
+``` r
 analyse_condition_specific_celltypes = FALSE
 ```
 
 
-```r
+``` r
 if(analyse_condition_specific_celltypes == TRUE){
   senders_oi = senders_oi %>% setdiff(absent_celltypes)
   receivers_oi = receivers_oi %>% setdiff(absent_celltypes)
@@ -377,14 +360,14 @@ We will perform gene filtering based on a similar procedure as used in `edgeR::f
 For each cell type, we will consider genes expressed if they are expressed in at least a `min_sample_prop` fraction of samples in the condition with the lowest number of samples. By default, we set `min_sample_prop = 0.50`, which means that genes should be expressed in at least 2 samples if the group with lowest nr. of samples has 4 samples like this dataset. 
 
 
-```r
+``` r
 min_sample_prop = 0.50
 ```
 
 But how do we define which genes are expressed in a sample? For this we will consider genes as expressed if they have non-zero expression values in a `fraction_cutoff` fraction of cells of that cell type in that sample. By default, we set `fraction_cutoff = 0.05`, which means that genes should show non-zero expression values in at least 5% of cells in a sample. 
 
 
-```r
+``` r
 fraction_cutoff = 0.05
 ```
 
@@ -393,7 +376,7 @@ We recommend using these default values unless there is specific interest in pri
 Now we will calculate the information required for gene filtering with the following command:
 
 
-```r
+``` r
 frq_list = get_frac_exprs(
   sce = sce, 
   sample_id = sample_id, celltype_id =  celltype_id, group_id = group_id, 
@@ -415,7 +398,7 @@ frq_list = get_frac_exprs(
 Now only keep genes that are expressed by at least one cell type:
 
 
-```r
+``` r
 genes_oi = frq_list$expressed_df %>% 
   filter(expressed == TRUE) %>% pull(gene) %>% unique() 
 sce = sce[genes_oi, ]
@@ -428,7 +411,7 @@ After filtering out absent cell types and genes, we will continue the analysis b
 First, we will determine and normalize per-sample pseudobulk expression levels for each expressed gene in each present cell type. The function `process_abundance_expression_info` will link this expression information for ligands of the sender cell types to the corresponding receptors of the receiver cell types. This will later on allow us to define the cell-type specicificy criteria for ligands and receptors.
 
 
-```r
+``` r
 abundance_expression_info = process_abundance_expression_info(
   sce = sce, 
   sample_id = sample_id, group_id = group_id, celltype_id = celltype_id, 
@@ -443,7 +426,7 @@ abundance_expression_info = process_abundance_expression_info(
 Normalized pseudobulk expression values per gene/celltype/sample can be inspected by:
 
 
-```r
+``` r
 abundance_expression_info$celltype_info$pb_df %>% head()
 ## # A tibble: 6 × 4
 ##   gene    sample  pb_sample celltype      
@@ -459,7 +442,7 @@ abundance_expression_info$celltype_info$pb_df %>% head()
 An average of these sample-level expression values per condition/group can be inspected by:
 
 
-```r
+``` r
 abundance_expression_info$celltype_info$pb_df_group %>% head()
 ## # A tibble: 6 × 4
 ## # Groups:   group, celltype [1]
@@ -476,7 +459,7 @@ abundance_expression_info$celltype_info$pb_df_group %>% head()
 Inspecting these values for ligand-receptor interactions can be done by:
 
 
-```r
+``` r
 abundance_expression_info$sender_receiver_info$pb_df %>% head()
 ## # A tibble: 6 × 8
 ##   sample    sender         receiver                   ligand receptor pb_ligand pb_receptor ligand_receptor_pb_prod
@@ -507,7 +490,7 @@ In this step, we will perform genome-wide differential expression analysis of re
 We will apply pseudobulking followed by EdgeR to perform multi-condition multi-sample differential expression (DE) analysis (also called 'differential state' analysis by the developers of Muscat). 
 
 
-```r
+``` r
 DE_info = get_DE_info(
   sce = sce, 
   sample_id = sample_id, group_id = group_id, celltype_id = celltype_id, 
@@ -525,7 +508,7 @@ DE_info = get_DE_info(
 Check DE output information in table with logFC and p-values for each gene-celltype-contrast:
 
 
-```r
+``` r
 DE_info$celltype_de$de_output_tidy %>% head()
 ## # A tibble: 6 × 9
 ##   gene  cluster_id       logFC logCPM       F  p_val p_adj.loc p_adj contrast                            
@@ -540,21 +523,21 @@ DE_info$celltype_de$de_output_tidy %>% head()
 Evaluate the distributions of p-values:
 
 
-```r
+``` r
 DE_info$hist_pvals
 ```
 
-<img src="batch_correction_analysis_LungAtlas_files/figure-html/unnamed-chunk-206-1.png" width="100%" />
+<img src="batch_correction_analysis_LungAtlas_files/figure-html/unnamed-chunk-26-1.png" width="100%" />
 
 These distributions look fine (uniform distribution, except peak at p-value <= 0.05), so we will continue using these regular p-values. In case these p-value distributions look irregular, you can estimate empirical p-values as we will demonstrate in another vignette.
 
 
-```r
+``` r
 empirical_pval = FALSE
 ```
 
 
-```r
+``` r
 if(empirical_pval == TRUE){
   DE_info_emp = get_empirical_pvals(DE_info$celltype_de$de_output_tidy)
   celltype_de = DE_info_emp$de_output_tidy_emp %>% select(-p_val, -p_adj) %>% 
@@ -569,7 +552,7 @@ if(empirical_pval == TRUE){
 To end this step, we will combine the DE information of senders and receivers by linking their ligands and receptors together based on the prior knowledge ligand-receptor network.
 
 
-```r
+``` r
 sender_receiver_de = combine_sender_receiver_de(
   sender_de = celltype_de,
   receiver_de = celltype_de,
@@ -580,32 +563,31 @@ sender_receiver_de = combine_sender_receiver_de(
 ```
 
 
-```r
+``` r
 sender_receiver_de %>% head(20)
 ## # A tibble: 20 × 12
-##    contrast                             sender        receiver ligand receptor lfc_ligand lfc_receptor ligand_receptor_lfc_…¹ p_val_ligand p_adj_ligand p_val_receptor p_adj_receptor
-##    <chr>                                <chr>         <chr>    <chr>  <chr>         <dbl>        <dbl>                  <dbl>        <dbl>        <dbl>          <dbl>          <dbl>
-##  1 idiopathic.pulmonary.fibrosis-normal Alveolar.Epi… Alveola… CDH2   CDH2           4.05        4.05                    4.05     2.21e-10     9.40e- 8       2.21e-10    0.000000094
-##  2 idiopathic.pulmonary.fibrosis-normal Alveolar.Epi… Prolife… AREG   MMP9           2.94        3.86                    3.4      1.22e- 7     2.64e- 5       3.76e- 5    0.00345    
-##  3 idiopathic.pulmonary.fibrosis-normal Proliferatin… Prolife… PPBP   GRM7           5.42        1.21                    3.32     2.43e- 8     2.43e- 5       1.05e- 2    0.112      
-##  4 idiopathic.pulmonary.fibrosis-normal Proliferatin… Fibrobl… SPP1   ITGA8          5.01        1.51                    3.26     1.24e- 6     3.58e- 4       6.5 e- 5    0.00239    
-##  5 idiopathic.pulmonary.fibrosis-normal Proliferatin… Alveola… SPP1   ITGB6          5.01        1.44                    3.22     1.24e- 6     3.58e- 4       2.44e- 9    0.000000804
-##  6 idiopathic.pulmonary.fibrosis-normal Proliferatin… Fibrobl… PPBP   ADRA2A         5.42        0.968                   3.19     2.43e- 8     2.43e- 5       2.21e- 2    0.132      
-##  7 idiopathic.pulmonary.fibrosis-normal Proliferatin… Alveola… SPP1   ITGAV          5.01        1.31                    3.16     1.24e- 6     3.58e- 4       6.28e- 7    0.000108   
-##  8 idiopathic.pulmonary.fibrosis-normal Proliferatin… Prolife… PPBP   OPRD1          5.42        0.817                   3.12     2.43e- 8     2.43e- 5       2.68e- 1    0.608      
-##  9 idiopathic.pulmonary.fibrosis-normal Proliferatin… Prolife… CCL7   CCR3           4.92        1.25                    3.08     1.15e- 8     2.14e- 5       4.15e- 2    0.237      
-## 10 idiopathic.pulmonary.fibrosis-normal Proliferatin… Prolife… SPP1   ITGA8          5.01        1.07                    3.04     1.24e- 6     3.58e- 4       1.07e- 1    0.394      
-## 11 idiopathic.pulmonary.fibrosis-normal Proliferatin… Prolife… CCL22  DPP4           3.27        2.78                    3.02     3.05e- 3     5.32e- 2       4.44e- 3    0.0662     
-## 12 idiopathic.pulmonary.fibrosis-normal Proliferatin… Fibrobl… PPBP   OPRM1          5.42        0.592                   3.01     2.43e- 8     2.43e- 5       1.99e- 1    0.486      
-## 13 idiopathic.pulmonary.fibrosis-normal Proliferatin… Prolife… TIMP3  MMP9           2.03        3.86                    2.94     1.37e- 3     3.37e- 2       3.76e- 5    0.00345    
-## 14 idiopathic.pulmonary.fibrosis-normal Proliferatin… Fibrobl… PPBP   GRM7           5.42        0.353                   2.89     2.43e- 8     2.43e- 5       2.37e- 1    0.532      
-## 15 idiopathic.pulmonary.fibrosis-normal Proliferatin… Alveola… SPP1   ITGB5          5.01        0.714                   2.86     1.24e- 6     3.58e- 4       2.67e- 2    0.275      
-## 16 idiopathic.pulmonary.fibrosis-normal Proliferatin… Prolife… CCL7   CCR5           4.92        0.801                   2.86     1.15e- 8     2.14e- 5       9.49e- 2    0.371      
-## 17 normal-idiopathic.pulmonary.fibrosis Fibroblast    Alveola… HP     APOA1          2.61        3.06                    2.84     5.18e- 5     2.03e- 3       6.25e- 5    0.00472    
-## 18 idiopathic.pulmonary.fibrosis-normal Alveolar.Epi… Alveola… MMP7   ERBB4          4.48        1.15                    2.82     1.75e-13     2.54e-10       1.03e- 2    0.158      
-## 19 idiopathic.pulmonary.fibrosis-normal Proliferatin… Prolife… SPP1   ITGA9          5.01        0.598                   2.80     1.24e- 6     3.58e- 4       2.13e- 1    0.546      
-## 20 idiopathic.pulmonary.fibrosis-normal Proliferatin… Alveola… PPBP   GRM7           5.42        0.177                   2.80     2.43e- 8     2.43e- 5       7.77e- 1    0.961      
-## # ℹ abbreviated name: ¹​ligand_receptor_lfc_avg
+##    contrast                             sender                     receiver                   ligand receptor lfc_ligand lfc_receptor ligand_receptor_lfc_avg p_val_ligand p_adj_ligand p_val_receptor p_adj_receptor
+##    <chr>                                <chr>                      <chr>                      <chr>  <chr>         <dbl>        <dbl>                   <dbl>        <dbl>        <dbl>          <dbl>          <dbl>
+##  1 idiopathic.pulmonary.fibrosis-normal Alveolar.Epithelial.Type.1 Alveolar.Epithelial.Type.1 CDH2   CDH2           4.05        4.05                     4.05     2.21e-10     9.40e- 8       2.21e-10    0.000000094
+##  2 idiopathic.pulmonary.fibrosis-normal Alveolar.Epithelial.Type.1 Proliferating.Macrophage   AREG   MMP9           2.94        3.86                     3.4      1.22e- 7     2.64e- 5       3.76e- 5    0.00345    
+##  3 idiopathic.pulmonary.fibrosis-normal Proliferating.Macrophage   Proliferating.Macrophage   PPBP   GRM7           5.42        1.21                     3.32     2.43e- 8     2.43e- 5       1.05e- 2    0.112      
+##  4 idiopathic.pulmonary.fibrosis-normal Proliferating.Macrophage   Fibroblast                 SPP1   ITGA8          5.01        1.51                     3.26     1.24e- 6     3.58e- 4       6.5 e- 5    0.00239    
+##  5 idiopathic.pulmonary.fibrosis-normal Proliferating.Macrophage   Alveolar.Epithelial.Type.1 SPP1   ITGB6          5.01        1.44                     3.22     1.24e- 6     3.58e- 4       2.44e- 9    0.000000804
+##  6 idiopathic.pulmonary.fibrosis-normal Proliferating.Macrophage   Fibroblast                 PPBP   ADRA2A         5.42        0.968                    3.19     2.43e- 8     2.43e- 5       2.21e- 2    0.132      
+##  7 idiopathic.pulmonary.fibrosis-normal Proliferating.Macrophage   Alveolar.Epithelial.Type.1 SPP1   ITGAV          5.01        1.31                     3.16     1.24e- 6     3.58e- 4       6.28e- 7    0.000108   
+##  8 idiopathic.pulmonary.fibrosis-normal Proliferating.Macrophage   Proliferating.Macrophage   PPBP   OPRD1          5.42        0.817                    3.12     2.43e- 8     2.43e- 5       2.68e- 1    0.608      
+##  9 idiopathic.pulmonary.fibrosis-normal Proliferating.Macrophage   Proliferating.Macrophage   CCL7   CCR3           4.92        1.25                     3.08     1.15e- 8     2.14e- 5       4.15e- 2    0.237      
+## 10 idiopathic.pulmonary.fibrosis-normal Proliferating.Macrophage   Proliferating.Macrophage   SPP1   ITGA8          5.01        1.07                     3.04     1.24e- 6     3.58e- 4       1.07e- 1    0.394      
+## 11 idiopathic.pulmonary.fibrosis-normal Proliferating.Macrophage   Proliferating.Macrophage   CCL22  DPP4           3.27        2.78                     3.02     3.05e- 3     5.32e- 2       4.44e- 3    0.0662     
+## 12 idiopathic.pulmonary.fibrosis-normal Proliferating.Macrophage   Fibroblast                 PPBP   OPRM1          5.42        0.592                    3.01     2.43e- 8     2.43e- 5       1.99e- 1    0.486      
+## 13 idiopathic.pulmonary.fibrosis-normal Proliferating.Macrophage   Proliferating.Macrophage   TIMP3  MMP9           2.03        3.86                     2.94     1.37e- 3     3.37e- 2       3.76e- 5    0.00345    
+## 14 idiopathic.pulmonary.fibrosis-normal Proliferating.Macrophage   Fibroblast                 PPBP   GRM7           5.42        0.353                    2.89     2.43e- 8     2.43e- 5       2.37e- 1    0.532      
+## 15 idiopathic.pulmonary.fibrosis-normal Proliferating.Macrophage   Alveolar.Epithelial.Type.1 SPP1   ITGB5          5.01        0.714                    2.86     1.24e- 6     3.58e- 4       2.67e- 2    0.275      
+## 16 idiopathic.pulmonary.fibrosis-normal Proliferating.Macrophage   Proliferating.Macrophage   CCL7   CCR5           4.92        0.801                    2.86     1.15e- 8     2.14e- 5       9.49e- 2    0.371      
+## 17 normal-idiopathic.pulmonary.fibrosis Fibroblast                 Alveolar.Epithelial.Type.1 HP     APOA1          2.61        3.06                     2.84     5.18e- 5     2.03e- 3       6.25e- 5    0.00472    
+## 18 idiopathic.pulmonary.fibrosis-normal Alveolar.Epithelial.Type.1 Alveolar.Epithelial.Type.1 MMP7   ERBB4          4.48        1.15                     2.82     1.75e-13     2.54e-10       1.03e- 2    0.158      
+## 19 idiopathic.pulmonary.fibrosis-normal Proliferating.Macrophage   Proliferating.Macrophage   SPP1   ITGA9          5.01        0.598                    2.80     1.24e- 6     3.58e- 4       2.13e- 1    0.546      
+## 20 idiopathic.pulmonary.fibrosis-normal Proliferating.Macrophage   Alveolar.Epithelial.Type.1 PPBP   GRM7           5.42        0.177                    2.80     2.43e- 8     2.43e- 5       7.77e- 1    0.961
 ```
 
 ## Ligand activity prediction: use the DE analysis output to predict the activity of ligands in receiver cell types and infer their potential target genes
@@ -623,18 +605,18 @@ To determine the genesets of interest based on DE output, we need to define some
 Because we have data with many samples here, we will first inspect the geneset_oi-vs-background ratios in case of using the adjusted p-values:
 
 
-```r
+``` r
 logFC_threshold = 0.50
 p_val_threshold = 0.05
 ```
 
 
-```r
+``` r
 p_val_adj = TRUE 
 ```
 
 
-```r
+``` r
 geneset_assessment = contrast_tbl$contrast %>% 
   lapply(
     process_geneset_data, 
@@ -643,16 +625,16 @@ geneset_assessment = contrast_tbl$contrast %>%
   bind_rows() 
 geneset_assessment
 ## # A tibble: 8 × 12
-##   cluster_id                 n_background n_geneset_up n_geneset_down prop_geneset_up prop_geneset_down in_range_up in_range_down contrast   logFC_threshold p_val_threshold adjusted
-##   <chr>                             <int>        <int>          <int>           <dbl>             <dbl> <lgl>       <lgl>         <chr>                <dbl>           <dbl> <lgl>   
-## 1 Alveolar.Epithelial.Type.1        10193          227             91         0.0223            0.00893 TRUE        TRUE          idiopathi…             0.5            0.05 TRUE    
-## 2 CD16..Monocyte                     8810          249            366         0.0283            0.0415  TRUE        TRUE          idiopathi…             0.5            0.05 TRUE    
-## 3 Fibroblast                        10643          658            302         0.0618            0.0284  TRUE        TRUE          idiopathi…             0.5            0.05 TRUE    
-## 4 Proliferating.Macrophage          11018          259            270         0.0235            0.0245  TRUE        TRUE          idiopathi…             0.5            0.05 TRUE    
-## 5 Alveolar.Epithelial.Type.1        10193           91            227         0.00893           0.0223  TRUE        TRUE          normal-id…             0.5            0.05 TRUE    
-## 6 CD16..Monocyte                     8810          366            249         0.0415            0.0283  TRUE        TRUE          normal-id…             0.5            0.05 TRUE    
-## 7 Fibroblast                        10643          302            658         0.0284            0.0618  TRUE        TRUE          normal-id…             0.5            0.05 TRUE    
-## 8 Proliferating.Macrophage          11018          270            259         0.0245            0.0235  TRUE        TRUE          normal-id…             0.5            0.05 TRUE
+##   cluster_id                 n_background n_geneset_up n_geneset_down prop_geneset_up prop_geneset_down in_range_up in_range_down contrast                             logFC_threshold p_val_threshold adjusted
+##   <chr>                             <int>        <int>          <int>           <dbl>             <dbl> <lgl>       <lgl>         <chr>                                          <dbl>           <dbl> <lgl>   
+## 1 Alveolar.Epithelial.Type.1        10193          227             91         0.0223            0.00893 TRUE        TRUE          idiopathic.pulmonary.fibrosis-normal             0.5            0.05 TRUE    
+## 2 CD16..Monocyte                     8810          249            366         0.0283            0.0415  TRUE        TRUE          idiopathic.pulmonary.fibrosis-normal             0.5            0.05 TRUE    
+## 3 Fibroblast                        10643          658            302         0.0618            0.0284  TRUE        TRUE          idiopathic.pulmonary.fibrosis-normal             0.5            0.05 TRUE    
+## 4 Proliferating.Macrophage          11018          259            270         0.0235            0.0245  TRUE        TRUE          idiopathic.pulmonary.fibrosis-normal             0.5            0.05 TRUE    
+## 5 Alveolar.Epithelial.Type.1        10193           91            227         0.00893           0.0223  TRUE        TRUE          normal-idiopathic.pulmonary.fibrosis             0.5            0.05 TRUE    
+## 6 CD16..Monocyte                     8810          366            249         0.0415            0.0283  TRUE        TRUE          normal-idiopathic.pulmonary.fibrosis             0.5            0.05 TRUE    
+## 7 Fibroblast                        10643          302            658         0.0284            0.0618  TRUE        TRUE          normal-idiopathic.pulmonary.fibrosis             0.5            0.05 TRUE    
+## 8 Proliferating.Macrophage          11018          270            259         0.0245            0.0235  TRUE        TRUE          normal-idiopathic.pulmonary.fibrosis             0.5            0.05 TRUE
 ```
 We can see here that for all cell type / contrast combinations, all geneset/background ratio's are within the recommended range (`in_range_up` and `in_range_down` columns), and we will therefore proceed with these tresholds for the ligand activity analysis. When these geneset/background ratio's would not be within the recommended ranges, we should interpret ligand activity results for these cell types with more caution, or use different thresholds (for these or all cell types). 
 
@@ -661,14 +643,14 @@ We can see here that for all cell type / contrast combinations, all geneset/back
 After the ligand activity prediction, we will also infer the predicted target genes of these ligands in each contrast. For this ligand-target inference procedure, we also need to select which top n of the predicted target genes will be considered (here: top 250 targets per ligand). This parameter will not affect the ligand activity predictions. It will only affect ligand-target visualizations and construction of the intercellular regulatory network during the downstream analysis. We recommend users to test other settings in case they would be interested in exploring fewer, but more confident target genes, or vice versa. 
 
 
-```r
+``` r
 top_n_target = 250
 ```
 
 The NicheNet ligand activity analysis can be run in parallel for each receiver cell type, by changing the number of cores as defined here. Using more cores will speed up the analysis at the cost of needing more memory. This is only recommended if you have many receiver cell types of interest. 
 
 
-```r
+``` r
 verbose = TRUE
 cores_system = 8
 n.cores = min(cores_system, celltype_de$cluster_id %>% unique() %>% length()) 
@@ -677,7 +659,7 @@ n.cores = min(cores_system, celltype_de$cluster_id %>% unique() %>% length())
 Running the ligand activity prediction will take some time (the more cell types and contrasts, the more time)
 
 
-```r
+``` r
 ligand_activities_targets_DEgenes = suppressMessages(suppressWarnings(
   get_ligand_activities_targets_DEgenes(
     receiver_de = celltype_de,
@@ -696,7 +678,7 @@ ligand_activities_targets_DEgenes = suppressMessages(suppressWarnings(
 You can check the output of the ligand activity and ligand-target inference here:
 
 
-```r
+``` r
 ligand_activities_targets_DEgenes$ligand_activities %>% head(20)
 ## # A tibble: 20 × 8
 ## # Groups:   receiver, contrast [1]
@@ -740,12 +722,12 @@ Finally, we still need to make one choice. For NicheNet ligand activity we can c
 Here we will choose for setting `ligand_activity_down = FALSE` and focus specifically on upregulating ligands.
 
 
-```r
+``` r
 ligand_activity_down = FALSE
 ```
 
 
-```r
+``` r
 sender_receiver_tbl = sender_receiver_de %>% distinct(sender, receiver)
 
 metadata_combined = SummarizedExperiment::colData(sce) %>% tibble::as_tibble()
@@ -780,33 +762,32 @@ Check the output tables
 First: group-based summary table
 
 
-```r
+``` r
 prioritization_tables$group_prioritization_tbl %>% head(20)
 ## # A tibble: 20 × 18
-##    contrast        group sender receiver ligand receptor lr_interaction id    scaled_lfc_ligand scaled_p_val_ligand_…¹ scaled_lfc_receptor scaled_p_val_recepto…² max_scaled_activity
-##    <chr>           <chr> <chr>  <chr>    <chr>  <chr>    <chr>          <chr>             <dbl>                  <dbl>               <dbl>                  <dbl>               <dbl>
-##  1 idiopathic.pul… idio… Fibro… Fibrobl… ITM2B  ROR2     ITM2B_ROR2     ITM2…             0.771                  0.947               0.834                  0.938               0.802
-##  2 normal-idiopat… norm… CD16.… CD16..M… IL10   IL10RA   IL10_IL10RA    IL10…             0.947                  0.978               0.732                  0.912               1.00 
-##  3 idiopathic.pul… idio… Fibro… CD16..M… TGM2   ITGA4    TGM2_ITGA4     TGM2…             0.843                  0.927               0.839                  0.950               0.861
-##  4 idiopathic.pul… idio… Fibro… CD16..M… CXCL14 CXCR4    CXCL14_CXCR4   CXCL…             0.981                  0.993               0.911                  0.980               0.648
-##  5 idiopathic.pul… idio… Fibro… Prolife… COL14… CD44     COL14A1_CD44   COL1…             0.952                  0.992               0.775                  0.941               0.708
-##  6 idiopathic.pul… idio… Fibro… CD16..M… CXCL12 CXCR4    CXCL12_CXCR4   CXCL…             0.973                  0.998               0.911                  0.980               0.642
-##  7 idiopathic.pul… idio… Fibro… Fibrobl… BMP4   ACVR1    BMP4_ACVR1     BMP4…             0.913                  0.974               0.709                  0.836               1.00 
-##  8 idiopathic.pul… idio… Fibro… Fibrobl… A2M    MMP2     A2M_MMP2       A2M_…             0.939                  0.976               0.887                  0.985               0.581
-##  9 idiopathic.pul… idio… Proli… Alveola… FN1    ITGB6    FN1_ITGB6      FN1_…             0.957                  0.986               0.974                  0.998               0.745
-## 10 idiopathic.pul… idio… Fibro… Fibrobl… SLIT3  ROBO2    SLIT3_ROBO2    SLIT…             0.889                  0.981               0.972                  0.991               0.627
-## 11 idiopathic.pul… idio… Fibro… Fibrobl… SLIT3  ROBO1    SLIT3_ROBO1    SLIT…             0.889                  0.981               0.931                  0.992               0.627
-## 12 idiopathic.pul… idio… Proli… Prolife… SPP1   CD44     SPP1_CD44      SPP1…             1.00                   0.979               0.775                  0.941               0.601
-## 13 idiopathic.pul… idio… Fibro… Fibrobl… COL6A3 ITGA1    COL6A3_ITGA1   COL6…             0.836                  0.956               0.819                  0.903               0.747
-## 14 idiopathic.pul… idio… Proli… Prolife… FN1    SDC2     FN1_SDC2       FN1_…             0.957                  0.986               0.874                  0.909               0.573
-## 15 idiopathic.pul… idio… Fibro… CD16..M… MDK    ITGA4    MDK_ITGA4      MDK_…             0.877                  0.901               0.839                  0.950               0.750
-## 16 idiopathic.pul… idio… Proli… Fibrobl… FN1    ITGA8    FN1_ITGA8      FN1_…             0.957                  0.986               0.979                  0.979               0.622
-## 17 idiopathic.pul… idio… Fibro… Fibrobl… COL5A1 ITGA1    COL5A1_ITGA1   COL5…             0.676                  0.765               0.819                  0.903               0.912
-## 18 idiopathic.pul… idio… Fibro… Fibrobl… COL5A1 SDC3     COL5A1_SDC3    COL5…             0.676                  0.765               0.965                  0.990               0.912
-## 19 idiopathic.pul… idio… Fibro… Alveola… FN1    ITGB6    FN1_ITGB6      FN1_…             0.846                  0.945               0.974                  0.998               0.745
-## 20 idiopathic.pul… idio… Fibro… Prolife… CFH    ITGAM    CFH_ITGAM      CFH_…             0.919                  0.989               0.949                  0.994               0.543
-## # ℹ abbreviated names: ¹​scaled_p_val_ligand_adapted, ²​scaled_p_val_receptor_adapted
-## # ℹ 5 more variables: scaled_pb_ligand <dbl>, scaled_pb_receptor <dbl>, fraction_expressing_ligand_receptor <dbl>, prioritization_score <dbl>, top_group <chr>
+##    contrast                      group sender receiver ligand receptor lr_interaction id    scaled_lfc_ligand scaled_p_val_ligand_…¹ scaled_lfc_receptor scaled_p_val_recepto…² max_scaled_activity scaled_pb_ligand scaled_pb_receptor fraction_expressing_…³ prioritization_score top_group
+##    <chr>                         <chr> <chr>  <chr>    <chr>  <chr>    <chr>          <chr>             <dbl>                  <dbl>               <dbl>                  <dbl>               <dbl>            <dbl>              <dbl>                  <dbl>                <dbl> <chr>    
+##  1 idiopathic.pulmonary.fibrosi… idio… Fibro… Fibrobl… ITM2B  ROR2     ITM2B_ROR2     ITM2…             0.771                  0.947               0.834                  0.938               0.802            1.00                1.00                  0.922                0.912 idiopath…
+##  2 normal-idiopathic.pulmonary.… norm… CD16.… CD16..M… IL10   IL10RA   IL10_IL10RA    IL10…             0.947                  0.978               0.732                  0.912               1.00             1.00                1.00                  0.673                0.910 normal   
+##  3 idiopathic.pulmonary.fibrosi… idio… Fibro… CD16..M… TGM2   ITGA4    TGM2_ITGA4     TGM2…             0.843                  0.927               0.839                  0.950               0.861            1.00                1.00                  0.804                0.908 idiopath…
+##  4 idiopathic.pulmonary.fibrosi… idio… Fibro… CD16..M… CXCL14 CXCR4    CXCL14_CXCR4   CXCL…             0.981                  0.993               0.911                  0.980               0.648            1.00                1.00                  0.863                0.908 idiopath…
+##  5 idiopathic.pulmonary.fibrosi… idio… Fibro… Prolife… COL14… CD44     COL14A1_CD44   COL1…             0.952                  0.992               0.775                  0.941               0.708            1.00                1.00                  0.902                0.907 idiopath…
+##  6 idiopathic.pulmonary.fibrosi… idio… Fibro… CD16..M… CXCL12 CXCR4    CXCL12_CXCR4   CXCL…             0.973                  0.998               0.911                  0.980               0.642            1.00                1.00                  0.863                0.906 idiopath…
+##  7 idiopathic.pulmonary.fibrosi… idio… Fibro… Fibrobl… BMP4   ACVR1    BMP4_ACVR1     BMP4…             0.913                  0.974               0.709                  0.836               1.00             1.00                1.00                  0.706                0.904 idiopath…
+##  8 idiopathic.pulmonary.fibrosi… idio… Fibro… Fibrobl… A2M    MMP2     A2M_MMP2       A2M_…             0.939                  0.976               0.887                  0.985               0.581            1.00                1.00                  0.941                0.903 idiopath…
+##  9 idiopathic.pulmonary.fibrosi… idio… Proli… Alveola… FN1    ITGB6    FN1_ITGB6      FN1_…             0.957                  0.986               0.974                  0.998               0.745            1.00                1.00                  0.706                0.902 idiopath…
+## 10 idiopathic.pulmonary.fibrosi… idio… Fibro… Fibrobl… SLIT3  ROBO2    SLIT3_ROBO2    SLIT…             0.889                  0.981               0.972                  0.991               0.627            1.00                1.00                  0.843                0.898 idiopath…
+## 11 idiopathic.pulmonary.fibrosi… idio… Fibro… Fibrobl… SLIT3  ROBO1    SLIT3_ROBO1    SLIT…             0.889                  0.981               0.931                  0.992               0.627            1.00                1.00                  0.863                0.898 idiopath…
+## 12 idiopathic.pulmonary.fibrosi… idio… Proli… Prolife… SPP1   CD44     SPP1_CD44      SPP1…             1.00                   0.979               0.775                  0.941               0.601            1.00                1.00                  0.922                0.895 idiopath…
+## 13 idiopathic.pulmonary.fibrosi… idio… Fibro… Fibrobl… COL6A3 ITGA1    COL6A3_ITGA1   COL6…             0.836                  0.956               0.819                  0.903               0.747            1.00                1.00                  0.863                0.895 idiopath…
+## 14 idiopathic.pulmonary.fibrosi… idio… Proli… Prolife… FN1    SDC2     FN1_SDC2       FN1_…             0.957                  0.986               0.874                  0.909               0.573            1.00                1.00                  0.922                0.893 idiopath…
+## 15 idiopathic.pulmonary.fibrosi… idio… Fibro… CD16..M… MDK    ITGA4    MDK_ITGA4      MDK_…             0.877                  0.901               0.839                  0.950               0.750            1.00                1.00                  0.824                0.893 idiopath…
+## 16 idiopathic.pulmonary.fibrosi… idio… Proli… Fibrobl… FN1    ITGA8    FN1_ITGA8      FN1_…             0.957                  0.986               0.979                  0.979               0.622            1.00                1.00                  0.784                0.893 idiopath…
+## 17 idiopathic.pulmonary.fibrosi… idio… Fibro… Fibrobl… COL5A1 ITGA1    COL5A1_ITGA1   COL5…             0.676                  0.765               0.819                  0.903               0.912            1.00                1.00                  0.863                0.893 idiopath…
+## 18 idiopathic.pulmonary.fibrosi… idio… Fibro… Fibrobl… COL5A1 SDC3     COL5A1_SDC3    COL5…             0.676                  0.765               0.965                  0.990               0.912            1.00                1.00                  0.745                0.893 idiopath…
+## 19 idiopathic.pulmonary.fibrosi… idio… Fibro… Alveola… FN1    ITGB6    FN1_ITGB6      FN1_…             0.846                  0.945               0.974                  0.998               0.745            0.983               1.00                  0.745                0.893 idiopath…
+## 20 idiopathic.pulmonary.fibrosi… idio… Fibro… Prolife… CFH    ITGAM    CFH_ITGAM      CFH_…             0.919                  0.989               0.949                  0.994               0.543            1.00                1.00                  0.882                0.892 idiopath…
+## # ℹ abbreviated names: ¹​scaled_p_val_ligand_adapted, ²​scaled_p_val_receptor_adapted, ³​fraction_expressing_ligand_receptor
 ```
 This table gives the final prioritization score of each interaction, and the values of the individual prioritization criteria.
 
@@ -821,7 +802,7 @@ Here we will only focus on the expression correlation step:
 In multi-sample datasets, we have the opportunity to look whether expression of ligand-receptor across all samples is correlated with the expression of their by NicheNet predicted target genes. This is what we will do with the following line of code:
 
 
-```r
+``` r
 lr_target_prior_cor = lr_target_prior_cor_inference(
   receivers_oi = prioritization_tables$group_prioritization_tbl$receiver %>% unique(), 
   abundance_expression_info = abundance_expression_info, 
@@ -840,7 +821,7 @@ lr_target_prior_cor = lr_target_prior_cor_inference(
 To avoid needing to redo the analysis later, we will here to save an output object that contains all information to perform all downstream analyses.
 
 
-```r
+``` r
 path = "./"
 
 multinichenet_output = list(
@@ -873,7 +854,7 @@ In a first instance, we will look at the broad overview of prioritized interacti
 We will look here at the top 50 predictions across all contrasts, senders, and receivers of interest.
 
 
-```r
+``` r
 prioritized_tbl_oi_all = get_top_n_lr_pairs(
   multinichenet_output$prioritization_tables, 
   top_n = 50, 
@@ -882,7 +863,7 @@ prioritized_tbl_oi_all = get_top_n_lr_pairs(
 ```
 
 
-```r
+``` r
 prioritized_tbl_oi = 
   multinichenet_output$prioritization_tables$group_prioritization_tbl %>%
   filter(id %in% prioritized_tbl_oi_all$id) %>%
@@ -898,7 +879,7 @@ colors_receiver = RColorBrewer::brewer.pal(n = length(senders_receivers), name =
 circos_list = make_circos_group_comparison(prioritized_tbl_oi, colors_sender, colors_receiver)
 ```
 
-<img src="batch_correction_analysis_LungAtlas_files/figure-html/unnamed-chunk-224-1.png" width="100%" /><img src="batch_correction_analysis_LungAtlas_files/figure-html/unnamed-chunk-224-2.png" width="100%" /><img src="batch_correction_analysis_LungAtlas_files/figure-html/unnamed-chunk-224-3.png" width="100%" />
+<img src="batch_correction_analysis_LungAtlas_files/figure-html/unnamed-chunk-44-1.png" width="100%" /><img src="batch_correction_analysis_LungAtlas_files/figure-html/unnamed-chunk-44-2.png" width="100%" /><img src="batch_correction_analysis_LungAtlas_files/figure-html/unnamed-chunk-44-3.png" width="100%" />
 
 ### Interpretable bubble plots
 
@@ -909,12 +890,12 @@ In the next type of plots, we will 1) visualize the per-sample scaled product of
 We will now check the top 50 interactions specific for the Tumor-tissue
 
 
-```r
+``` r
 group_oi = "idiopathic.pulmonary.fibrosis"
 ```
 
 
-```r
+``` r
 prioritized_tbl_oi_IPF_50 = get_top_n_lr_pairs(
   multinichenet_output$prioritization_tables, 
   top_n = 50, 
@@ -922,41 +903,41 @@ prioritized_tbl_oi_IPF_50 = get_top_n_lr_pairs(
 ```
 
 
-```r
+``` r
 plot_oi = make_sample_lr_prod_activity_plots(
   multinichenet_output$prioritization_tables, 
   prioritized_tbl_oi_IPF_50)
 plot_oi
 ```
 
-<img src="batch_correction_analysis_LungAtlas_files/figure-html/unnamed-chunk-227-1.png" width="100%" />
+<img src="batch_correction_analysis_LungAtlas_files/figure-html/unnamed-chunk-47-1.png" width="100%" />
 Samples that were left out of the DE analysis are indicated with a smaller dot (this helps to indicate the samples that did not contribute to the calculation of the logFC, and thus not contributed to the final prioritization)
 
 As a further help for further prioritization, we can assess the level of curation of these LR pairs as defined by the Intercellular Communication part of the Omnipath database
 
 
-```r
+``` r
 prioritized_tbl_oi_IPF_50_omnipath = prioritized_tbl_oi_IPF_50 %>% 
   inner_join(lr_network_all)
 ```
 
 Now we add this to the bubble plot visualization:
 
-```r
+``` r
 plot_oi = make_sample_lr_prod_activity_plots_Omnipath(
   multinichenet_output$prioritization_tables, 
   prioritized_tbl_oi_IPF_50_omnipath)
 plot_oi
 ```
 
-<img src="batch_correction_analysis_LungAtlas_files/figure-html/unnamed-chunk-229-1.png" width="100%" />
+<img src="batch_correction_analysis_LungAtlas_files/figure-html/unnamed-chunk-49-1.png" width="100%" />
 
 Further note: Typically, there are way more than 50 differentially expressed and active ligand-receptor pairs per group across all sender-receiver combinations. Therefore it might be useful to zoom in on specific cell types as senders/receivers:
 
 Eg CD16..Monocyte as receiver:
 
 
-```r
+``` r
 prioritized_tbl_oi_IPF_50 = get_top_n_lr_pairs(
   multinichenet_output$prioritization_tables, 
   50, 
@@ -965,19 +946,19 @@ prioritized_tbl_oi_IPF_50 = get_top_n_lr_pairs(
 ```
 
 
-```r
+``` r
 plot_oi = make_sample_lr_prod_activity_plots_Omnipath(
   multinichenet_output$prioritization_tables, 
   prioritized_tbl_oi_IPF_50 %>% inner_join(lr_network_all))
 plot_oi
 ```
 
-<img src="batch_correction_analysis_LungAtlas_files/figure-html/unnamed-chunk-231-1.png" width="100%" />
+<img src="batch_correction_analysis_LungAtlas_files/figure-html/unnamed-chunk-51-1.png" width="100%" />
 
 Eg CD14.Monocyte as sender:
 
 
-```r
+``` r
 prioritized_tbl_oi_IPF_50 = get_top_n_lr_pairs(
   multinichenet_output$prioritization_tables, 
   50, 
@@ -986,24 +967,24 @@ prioritized_tbl_oi_IPF_50 = get_top_n_lr_pairs(
 ```
 
 
-```r
+``` r
 plot_oi = make_sample_lr_prod_activity_plots_Omnipath(
   multinichenet_output$prioritization_tables, 
   prioritized_tbl_oi_IPF_50 %>% inner_join(lr_network_all))
 plot_oi
 ```
 
-<img src="batch_correction_analysis_LungAtlas_files/figure-html/unnamed-chunk-233-1.png" width="100%" />
+<img src="batch_correction_analysis_LungAtlas_files/figure-html/unnamed-chunk-53-1.png" width="100%" />
 
 You can make these plots also for the other groups, like we will illustrate now for the S group
 
 
-```r
+``` r
 group_oi = "normal"
 ```
 
 
-```r
+``` r
 prioritized_tbl_oi_Normal_50 = get_top_n_lr_pairs(
   multinichenet_output$prioritization_tables, 
   50, 
@@ -1015,12 +996,12 @@ plot_oi = make_sample_lr_prod_activity_plots_Omnipath(
 plot_oi
 ```
 
-<img src="batch_correction_analysis_LungAtlas_files/figure-html/unnamed-chunk-235-1.png" width="100%" />
+<img src="batch_correction_analysis_LungAtlas_files/figure-html/unnamed-chunk-55-1.png" width="100%" />
 
 __Note__: We can use `make_sample_lr_prod_activity_batch_plots` to visualize batches on this plot!
 
 
-```r
+``` r
 plot_oi = make_sample_lr_prod_activity_batch_plots(
   multinichenet_output$prioritization_tables, 
   prioritized_tbl_oi_IPF_50, 
@@ -1029,7 +1010,7 @@ plot_oi = make_sample_lr_prod_activity_batch_plots(
 plot_oi
 ```
 
-<img src="batch_correction_analysis_LungAtlas_files/figure-html/unnamed-chunk-236-1.png" width="100%" />
+<img src="batch_correction_analysis_LungAtlas_files/figure-html/unnamed-chunk-56-1.png" width="100%" />
 
 ## Visualization of differential ligand-target links
 
@@ -1040,7 +1021,7 @@ In another type of plot, we can visualize the ligand activities for a group-rece
 For this, we now need to define a receiver cell type of interest. As example, we will take `CLEC9A` cells as receiver, and look at the top 10 senderLigand-receiverReceptor pairs with these cells as receiver.
 
 
-```r
+``` r
 group_oi = "idiopathic.pulmonary.fibrosis"
 receiver_oi = "CD16..Monocyte"
 prioritized_tbl_oi_IPF_10 = get_top_n_lr_pairs(
@@ -1051,7 +1032,7 @@ prioritized_tbl_oi_IPF_10 = get_top_n_lr_pairs(
 ```
 
 
-```r
+``` r
 combined_plot = make_ligand_activity_target_plot(
   group_oi, 
   receiver_oi, 
@@ -1066,19 +1047,19 @@ combined_plot
 ## $combined_plot
 ```
 
-<img src="batch_correction_analysis_LungAtlas_files/figure-html/unnamed-chunk-238-1.png" width="100%" />
+<img src="batch_correction_analysis_LungAtlas_files/figure-html/unnamed-chunk-58-1.png" width="100%" />
 
 ```
 ## 
 ## $legends
 ```
 
-<img src="batch_correction_analysis_LungAtlas_files/figure-html/unnamed-chunk-238-2.png" width="100%" />
+<img src="batch_correction_analysis_LungAtlas_files/figure-html/unnamed-chunk-58-2.png" width="100%" />
 
 What if there is a specific ligand you are interested in?
 
 
-```r
+``` r
 group_oi = "idiopathic.pulmonary.fibrosis"
 receiver_oi = "CD16..Monocyte"
 ligands_oi = c("BMP1","BMP4","BMP5")
@@ -1091,7 +1072,7 @@ prioritized_tbl_ligands_oi = get_top_n_lr_pairs(
 ```
 
 
-```r
+``` r
 combined_plot = make_ligand_activity_target_plot(
   group_oi, 
   receiver_oi, 
@@ -1107,21 +1088,21 @@ combined_plot
 ## $combined_plot
 ```
 
-<img src="batch_correction_analysis_LungAtlas_files/figure-html/unnamed-chunk-240-1.png" width="100%" />
+<img src="batch_correction_analysis_LungAtlas_files/figure-html/unnamed-chunk-60-1.png" width="100%" />
 
 ```
 ## 
 ## $legends
 ```
 
-<img src="batch_correction_analysis_LungAtlas_files/figure-html/unnamed-chunk-240-2.png" width="100%" />
+<img src="batch_correction_analysis_LungAtlas_files/figure-html/unnamed-chunk-60-2.png" width="100%" />
 
 ### With filtering of target genes based on LR-target expression correlation
 
 In the previous plots, target genes were shown that are predicted as target gene of ligands based on prior knowledge. However, we can use the multi-sample nature of this data to filter target genes based on expression correlation between the upstream ligand-receptor pair and the downstream target gene. We will filter out correlated ligand-receptor --> target links that both show high expression correlation (spearman or pearson correlation > 0.50 in this example) and have some prior knowledge to support their link. Note that you can only make these visualization if you ran step 7 of the core MultiNicheNet analysis.
 
 
-```r
+``` r
 group_oi = "idiopathic.pulmonary.fibrosis"
 receiver_oi = "CD16..Monocyte"
 lr_target_prior_cor_filtered = multinichenet_output$lr_target_prior_cor %>%
@@ -1145,7 +1126,7 @@ lr_target_prior_cor_filtered = bind_rows(
 Now we will visualize the top correlated target genes for the LR pairs that are also in the top 50 LR pairs discriminating the groups from each other:
 
 
-```r
+``` r
 prioritized_tbl_oi = get_top_n_lr_pairs(
   multinichenet_output$prioritization_tables, 
   50, 
@@ -1154,7 +1135,7 @@ prioritized_tbl_oi = get_top_n_lr_pairs(
 ```
 
 
-```r
+``` r
 lr_target_correlation_plot = make_lr_target_correlation_plot(
   multinichenet_output$prioritization_tables, 
   prioritized_tbl_oi,  
@@ -1166,12 +1147,12 @@ lr_target_correlation_plot = make_lr_target_correlation_plot(
 lr_target_correlation_plot$combined_plot
 ```
 
-<img src="batch_correction_analysis_LungAtlas_files/figure-html/unnamed-chunk-243-1.png" width="100%" />
+<img src="batch_correction_analysis_LungAtlas_files/figure-html/unnamed-chunk-63-1.png" width="100%" />
 
 You can also visualize the expression correlation in the following way for a selected LR pair and their targets:
 
 
-```r
+``` r
 ligand_oi = "CXCL12"
 receptor_oi = "CXCR4"
 sender_oi = "Fibroblast"
@@ -1185,7 +1166,7 @@ lr_target_scatter_plot = make_lr_target_scatter_plot(
 lr_target_scatter_plot
 ```
 
-<img src="batch_correction_analysis_LungAtlas_files/figure-html/unnamed-chunk-244-1.png" width="100%" />
+<img src="batch_correction_analysis_LungAtlas_files/figure-html/unnamed-chunk-64-1.png" width="100%" />
 
 ## Intercellular regulatory network inference and visualization
 
@@ -1194,7 +1175,7 @@ In the plots before, we demonstrated that some DE genes have both expression cor
 As last plot, we can generate a 'systems' view of these intercellular feedback and cascade processes than can be occuring between the different cell populations involved. In this plot, we will draw links between ligands of sender cell types their ligand/receptor-annotated target genes in receiver cell types. So links are ligand-target links (= gene regulatory links) and not ligand-receptor protein-protein interactions! We will infer this intercellular regulatory network here for the top100 interactions. You can increase this to include more hits of course (recommended). 
 
 
-```r
+``` r
 prioritized_tbl_oi = get_top_n_lr_pairs(
   multinichenet_output$prioritization_tables, 
   100, 
@@ -1228,7 +1209,7 @@ lr_target_df = lr_target_prior_cor_filtered %>%
 ```
 
 
-```r
+``` r
 network = infer_intercellular_regulatory_network(lr_target_df, prioritized_tbl_oi)
 network$links %>% head()
 ## # A tibble: 6 × 6
@@ -1253,17 +1234,17 @@ network$nodes %>% head()
 ```
 
 
-```r
+``` r
 network_graph = visualize_network(network, colors_sender)
 network_graph$plot
 ```
 
-<img src="batch_correction_analysis_LungAtlas_files/figure-html/unnamed-chunk-247-1.png" width="100%" />
+<img src="batch_correction_analysis_LungAtlas_files/figure-html/unnamed-chunk-67-1.png" width="100%" />
 
 Interestingly, we can also use this network to further prioritize differential CCC interactions. Here we will assume that the most important LR interactions are the ones that are involved in this intercellular regulatory network. We can get these interactions as follows:
 
 
-```r
+``` r
 network$prioritized_lr_interactions
 ## # A tibble: 60 × 5
 ##    group                         sender                   receiver   ligand receptor
@@ -1282,34 +1263,34 @@ network$prioritized_lr_interactions
 ```
 
 
-```r
+``` r
 prioritized_tbl_oi_network = prioritized_tbl_oi %>% inner_join(
   network$prioritized_lr_interactions)
 prioritized_tbl_oi_network
 ## # A tibble: 60 × 8
-##    group                         sender                   receiver                 ligand  receptor id                                       prioritization_score prioritization_rank
-##    <chr>                         <chr>                    <chr>                    <chr>   <chr>    <chr>                                                   <dbl>               <dbl>
-##  1 idiopathic.pulmonary.fibrosis Fibroblast               Fibroblast               ITM2B   ROR2     ITM2B_ROR2_Fibroblast_Fibroblast                        0.912                   1
-##  2 normal                        CD16..Monocyte           CD16..Monocyte           IL10    IL10RA   IL10_IL10RA_CD16..Monocyte_CD16..Monocy…                0.910                   2
-##  3 idiopathic.pulmonary.fibrosis Fibroblast               Proliferating.Macrophage COL14A1 CD44     COL14A1_CD44_Fibroblast_Proliferating.M…                0.907                   5
-##  4 idiopathic.pulmonary.fibrosis Fibroblast               CD16..Monocyte           CXCL12  CXCR4    CXCL12_CXCR4_Fibroblast_CD16..Monocyte                  0.906                   6
-##  5 idiopathic.pulmonary.fibrosis Fibroblast               Fibroblast               BMP4    ACVR1    BMP4_ACVR1_Fibroblast_Fibroblast                        0.904                   7
-##  6 idiopathic.pulmonary.fibrosis Fibroblast               Fibroblast               A2M     MMP2     A2M_MMP2_Fibroblast_Fibroblast                          0.903                   8
-##  7 idiopathic.pulmonary.fibrosis Fibroblast               Fibroblast               SLIT3   ROBO2    SLIT3_ROBO2_Fibroblast_Fibroblast                       0.898                  10
-##  8 idiopathic.pulmonary.fibrosis Fibroblast               Fibroblast               SLIT3   ROBO1    SLIT3_ROBO1_Fibroblast_Fibroblast                       0.898                  11
-##  9 idiopathic.pulmonary.fibrosis Proliferating.Macrophage Proliferating.Macrophage SPP1    CD44     SPP1_CD44_Proliferating.Macrophage_Prol…                0.895                  12
-## 10 idiopathic.pulmonary.fibrosis Fibroblast               Fibroblast               COL6A3  ITGA1    COL6A3_ITGA1_Fibroblast_Fibroblast                      0.895                  13
+##    group                         sender                   receiver                 ligand  receptor id                                                          prioritization_score prioritization_rank
+##    <chr>                         <chr>                    <chr>                    <chr>   <chr>    <chr>                                                                      <dbl>               <dbl>
+##  1 idiopathic.pulmonary.fibrosis Fibroblast               Fibroblast               ITM2B   ROR2     ITM2B_ROR2_Fibroblast_Fibroblast                                           0.912                   1
+##  2 normal                        CD16..Monocyte           CD16..Monocyte           IL10    IL10RA   IL10_IL10RA_CD16..Monocyte_CD16..Monocyte                                  0.910                   2
+##  3 idiopathic.pulmonary.fibrosis Fibroblast               Proliferating.Macrophage COL14A1 CD44     COL14A1_CD44_Fibroblast_Proliferating.Macrophage                           0.907                   5
+##  4 idiopathic.pulmonary.fibrosis Fibroblast               CD16..Monocyte           CXCL12  CXCR4    CXCL12_CXCR4_Fibroblast_CD16..Monocyte                                     0.906                   6
+##  5 idiopathic.pulmonary.fibrosis Fibroblast               Fibroblast               BMP4    ACVR1    BMP4_ACVR1_Fibroblast_Fibroblast                                           0.904                   7
+##  6 idiopathic.pulmonary.fibrosis Fibroblast               Fibroblast               A2M     MMP2     A2M_MMP2_Fibroblast_Fibroblast                                             0.903                   8
+##  7 idiopathic.pulmonary.fibrosis Fibroblast               Fibroblast               SLIT3   ROBO2    SLIT3_ROBO2_Fibroblast_Fibroblast                                          0.898                  10
+##  8 idiopathic.pulmonary.fibrosis Fibroblast               Fibroblast               SLIT3   ROBO1    SLIT3_ROBO1_Fibroblast_Fibroblast                                          0.898                  11
+##  9 idiopathic.pulmonary.fibrosis Proliferating.Macrophage Proliferating.Macrophage SPP1    CD44     SPP1_CD44_Proliferating.Macrophage_Proliferating.Macrophage                0.895                  12
+## 10 idiopathic.pulmonary.fibrosis Fibroblast               Fibroblast               COL6A3  ITGA1    COL6A3_ITGA1_Fibroblast_Fibroblast                                         0.895                  13
 ## # ℹ 50 more rows
 ```
 
 Visualize now the expression and activity of these interactions for the Tumor group
 
-```r
+``` r
 group_oi = "idiopathic.pulmonary.fibrosis"
 ```
 
 
-```r
+``` r
 prioritized_tbl_oi_IPF = prioritized_tbl_oi_network %>% filter(group == group_oi)
 
 plot_oi = make_sample_lr_prod_activity_plots_Omnipath(
@@ -1319,14 +1300,14 @@ plot_oi = make_sample_lr_prod_activity_plots_Omnipath(
 plot_oi
 ```
 
-<img src="batch_correction_analysis_LungAtlas_files/figure-html/unnamed-chunk-251-1.png" width="100%" />
+<img src="batch_correction_analysis_LungAtlas_files/figure-html/unnamed-chunk-71-1.png" width="100%" />
 
 
 # Comparing the MultiNicheNet analysis with batch correction versus without
 
 To assess how much difference the batch correction made, we will now run the MultiNicheNet analysis without batch correction with the wrapper function using the same parameters, and saving these analysis results in `multinichenet_output_noBC`
 
-```r
+``` r
 batches =  NA
 
 multinichenet_output_noBC = multi_nichenet_analysis(
@@ -1349,11 +1330,12 @@ multinichenet_output_noBC = multi_nichenet_analysis(
   n.cores = n.cores, 
   verbose = TRUE
   )
-## [1] "Make diagnostic abundance plots + define expressed genes"
+## [1] "Cell type & sample filtering"
 ## [1] "condition-specific celltypes:"
 ## character(0)
 ## [1] "absent celltypes:"
 ## character(0)
+## [1] "Gene filtering"
 ## [1] "Samples are considered if they have more than 10 cells of the cell type of interest"
 ## [1] "Genes with non-zero counts in at least 5% of cells of a cell type of interest in a particular sample will be considered as expressed in that sample."
 ## [1] "Genes expressed in at least 6 samples will considered as expressed in the cell type: Alveolar.Epithelial.Type.1"
@@ -1364,13 +1346,13 @@ multinichenet_output_noBC = multi_nichenet_analysis(
 ## [1] "8810 genes are considered as expressed in the cell type: CD16..Monocyte"
 ## [1] "10643 genes are considered as expressed in the cell type: Fibroblast"
 ## [1] "11018 genes are considered as expressed in the cell type: Proliferating.Macrophage"
+## [1] "Calculate normalized average and pseudobulk expression"
 ## [1] "Calculate differential expression for all cell types"
 ## [1] "DE analysis is done:"
 ## [1] "included cell types are:"
 ## [1] "CD16..Monocyte"             "Alveolar.Epithelial.Type.1" "Fibroblast"                 "Proliferating.Macrophage"  
 ## [1] "retained cell types"
 ## [1] "CD16..Monocyte"             "Alveolar.Epithelial.Type.1" "Fibroblast"                 "Proliferating.Macrophage"  
-## [1] "Calculate normalized average and pseudobulk expression"
 ## [1] "Calculate NicheNet ligand activities and ligand-target links"
 ## [1] "Combine all the information in prioritization tables"
 ## [1] "Calculate correlation between LR pairs and target genes"
@@ -1380,13 +1362,13 @@ multinichenet_output_noBC = multi_nichenet_analysis(
 First we will show the top 50 interactions from the batch-corrected analysis (BC analysis) with non-corrected pseudobulk expression values
 
 
-```r
+``` r
 group_oi = "idiopathic.pulmonary.fibrosis"
 batches =  "dataset_origin"
 ```
 
 
-```r
+``` r
 prioritized_tbl_oi_top_50 = get_top_n_lr_pairs(
   multinichenet_output$prioritization_tables, 
   50, 
@@ -1400,14 +1382,14 @@ plot_oi = make_sample_lr_prod_activity_batch_plots(
 plot_oi
 ```
 
-<img src="batch_correction_analysis_LungAtlas_files/figure-html/unnamed-chunk-254-1.png" width="100%" />
+<img src="batch_correction_analysis_LungAtlas_files/figure-html/unnamed-chunk-74-1.png" width="100%" />
 
 For this dataset and these cell types, the non-corrected expression values look similar to the corrected ones.
 
 Now we will combine the prioritization tables of both analyses. This will then later be used to define which interactions are most specific to the BC analysis compared to the non-BC analysis
 
 
-```r
+``` r
 prioritized_tbl_oi_high5000_withBC = get_top_n_lr_pairs(
   multinichenet_output$prioritization_tables, 
   5000, 
@@ -1429,14 +1411,14 @@ prioritized_tbl_oi_high5000 = prioritized_tbl_oi_high5000_withBC %>%
 
 head(prioritized_tbl_oi_high5000) # you can see some interactions NA in an analysis: this because ligand or receptor gene was filtered out
 ## # A tibble: 6 × 10
-##   group                         sender         receiver                 ligand  receptor id                           score_BC rank_BC score_noBC rank_noBC
-##   <chr>                         <chr>          <chr>                    <chr>   <chr>    <chr>                           <dbl>   <dbl>      <dbl>     <dbl>
-## 1 idiopathic.pulmonary.fibrosis Fibroblast     Fibroblast               ITM2B   ROR2     ITM2B_ROR2_Fibroblast_Fibro…    0.912       1      0.892         6
-## 2 normal                        CD16..Monocyte CD16..Monocyte           IL10    IL10RA   IL10_IL10RA_CD16..Monocyte_…    0.910       2      0.910         2
-## 3 idiopathic.pulmonary.fibrosis Fibroblast     CD16..Monocyte           TGM2    ITGA4    TGM2_ITGA4_Fibroblast_CD16.…    0.908       3      0.796       421
-## 4 idiopathic.pulmonary.fibrosis Fibroblast     CD16..Monocyte           CXCL14  CXCR4    CXCL14_CXCR4_Fibroblast_CD1…    0.908       4      0.889         9
-## 5 idiopathic.pulmonary.fibrosis Fibroblast     Proliferating.Macrophage COL14A1 CD44     COL14A1_CD44_Fibroblast_Pro…    0.907       5      0.896         5
-## 6 idiopathic.pulmonary.fibrosis Fibroblast     CD16..Monocyte           CXCL12  CXCR4    CXCL12_CXCR4_Fibroblast_CD1…    0.906       6      0.926         1
+##   group                         sender         receiver                 ligand  receptor id                                               score_BC rank_BC score_noBC rank_noBC
+##   <chr>                         <chr>          <chr>                    <chr>   <chr>    <chr>                                               <dbl>   <dbl>      <dbl>     <dbl>
+## 1 idiopathic.pulmonary.fibrosis Fibroblast     Fibroblast               ITM2B   ROR2     ITM2B_ROR2_Fibroblast_Fibroblast                    0.912       1      0.892         6
+## 2 normal                        CD16..Monocyte CD16..Monocyte           IL10    IL10RA   IL10_IL10RA_CD16..Monocyte_CD16..Monocyte           0.910       2      0.910         2
+## 3 idiopathic.pulmonary.fibrosis Fibroblast     CD16..Monocyte           TGM2    ITGA4    TGM2_ITGA4_Fibroblast_CD16..Monocyte                0.908       3      0.796       421
+## 4 idiopathic.pulmonary.fibrosis Fibroblast     CD16..Monocyte           CXCL14  CXCR4    CXCL14_CXCR4_Fibroblast_CD16..Monocyte              0.908       4      0.889         9
+## 5 idiopathic.pulmonary.fibrosis Fibroblast     Proliferating.Macrophage COL14A1 CD44     COL14A1_CD44_Fibroblast_Proliferating.Macrophage    0.907       5      0.896         5
+## 6 idiopathic.pulmonary.fibrosis Fibroblast     CD16..Monocyte           CXCL12  CXCR4    CXCL12_CXCR4_Fibroblast_CD16..Monocyte              0.906       6      0.926         1
 
 prioritized_tbl_oi_high5000 = prioritized_tbl_oi_high5000 %>% 
   mutate(
@@ -1447,14 +1429,14 @@ prioritized_tbl_oi_high5000 = prioritized_tbl_oi_high5000 %>%
 Inspecting `prioritized_tbl_oi_high5000` enables you to see how prioritization scores and ranks differ between both analyses.
 
 
-```r
+``` r
 prioritized_tbl_oi_high5000 %>% View()
 ```
 
 Now we will define which interactions are most specific to the BC analysis compared to the non-BC analysis
 
 
-```r
+``` r
 BC_interactions = prioritized_tbl_oi_high5000 %>% 
   arrange(-diff_score) %>% 
   filter(group == group_oi) %>% 
@@ -1496,7 +1478,7 @@ noBC_specific_interactions_df = prioritized_tbl_oi_high5000 %>%
 #### BC-specific hits with BC expression values plot
 
 
-```r
+``` r
 plot_oi = make_sample_lr_prod_activity_batch_plots(
   multinichenet_output$prioritization_tables, 
   BC_specific_interactions_df, 
@@ -1505,12 +1487,12 @@ plot_oi = make_sample_lr_prod_activity_batch_plots(
 plot_oi
 ```
 
-<img src="batch_correction_analysis_LungAtlas_files/figure-html/unnamed-chunk-258-1.png" width="100%" />
+<img src="batch_correction_analysis_LungAtlas_files/figure-html/unnamed-chunk-78-1.png" width="100%" />
 
 #### BC-specific hits with noBC expression values plot
 
 
-```r
+``` r
 plot_oi = make_sample_lr_prod_activity_batch_plots(
   multinichenet_output_noBC$prioritization_tables,  
   BC_specific_interactions_df, 
@@ -1519,14 +1501,14 @@ plot_oi = make_sample_lr_prod_activity_batch_plots(
 plot_oi
 ```
 
-<img src="batch_correction_analysis_LungAtlas_files/figure-html/unnamed-chunk-259-1.png" width="100%" />
+<img src="batch_correction_analysis_LungAtlas_files/figure-html/unnamed-chunk-79-1.png" width="100%" />
 
 You can here indeed see the clear effects of the source-dataset in expression levels of some interactions (which may cloud the true DE signal that we pick up after correction).
 
 #### noBC-specific hits with BC expression values plot
 
 
-```r
+``` r
 plot_oi = make_sample_lr_prod_activity_batch_plots(
   multinichenet_output$prioritization_tables, 
   noBC_specific_interactions_df, 
@@ -1535,12 +1517,12 @@ plot_oi = make_sample_lr_prod_activity_batch_plots(
 plot_oi
 ```
 
-<img src="batch_correction_analysis_LungAtlas_files/figure-html/unnamed-chunk-260-1.png" width="100%" />
+<img src="batch_correction_analysis_LungAtlas_files/figure-html/unnamed-chunk-80-1.png" width="100%" />
 
 #### noBC-specific hits with no BC expression values plots
 
 
-```r
+``` r
 plot_oi = make_sample_lr_prod_activity_batch_plots(
   multinichenet_output_noBC$prioritization_tables, 
   noBC_specific_interactions_df, 
@@ -1549,7 +1531,7 @@ plot_oi = make_sample_lr_prod_activity_batch_plots(
 plot_oi
 ```
 
-<img src="batch_correction_analysis_LungAtlas_files/figure-html/unnamed-chunk-261-1.png" width="100%" />
+<img src="batch_correction_analysis_LungAtlas_files/figure-html/unnamed-chunk-81-1.png" width="100%" />
 What you can see in these last two plots: some of these interactions are predicted as DE without batch correction because the expression is specific for the dataset of origin with the highest number of samples. This points to the need to correct for this during the analysis.
 
 Important to note is that the interactions we visualize here were prioritized also by including ligand activity, so not only the DE of the LR pair! However, ligand activity may also be affected by batch effect correction because the underlying DE genes in receivers is affected by batch effect correction. Therefore, we will now check the effect of the dataset of origin on gene expression of some DE genes
@@ -1559,7 +1541,7 @@ Important to note is that the interactions we visualize here were prioritized al
 Show now also DE genes that are different! -  this is important for the ligand activities!
 
 
-```r
+``` r
 pval_df_targets = multinichenet_output_noBC$celltype_de %>% 
   filter(contrast == "idiopathic.pulmonary.fibrosis-normal") %>% 
   select(gene, cluster_id, p_adj, logFC) %>% 
@@ -1662,7 +1644,7 @@ pval_df_targets %>%
 Define BC-specific DE genes in Fibroblast
 
 
-```r
+``` r
 targets_oi = pval_df_targets %>% 
   filter(logFC_BC > 0) %>% 
   mutate(prop = p_adj_BC/p_adj_noBC, prop_logFC = logFC_noBC/logFC_BC) %>% 
@@ -1685,7 +1667,7 @@ targets_oi %>% tibble(gene = .)
 Visualize these BC_specific_targets with corrected expression values:
 
 
-```r
+``` r
 p_target = make_DEgene_dotplot_pseudobulk_batch(
   genes_oi = targets_oi, 
   celltype_info = multinichenet_output$celltype_info, 
@@ -1696,12 +1678,12 @@ p_target = make_DEgene_dotplot_pseudobulk_batch(
 p_target$pseudobulk_plot
 ```
 
-<img src="batch_correction_analysis_LungAtlas_files/figure-html/unnamed-chunk-264-1.png" width="100%" />
+<img src="batch_correction_analysis_LungAtlas_files/figure-html/unnamed-chunk-84-1.png" width="100%" />
 
 Visualize these BC_specific_targets with non-corrected expression values:
 
 
-```r
+``` r
 p_target = make_DEgene_dotplot_pseudobulk_batch(
   genes_oi = targets_oi, 
   celltype_info = multinichenet_output_noBC$celltype_info, 
@@ -1712,7 +1694,7 @@ p_target = make_DEgene_dotplot_pseudobulk_batch(
 p_target$pseudobulk_plot
 ```
 
-<img src="batch_correction_analysis_LungAtlas_files/figure-html/unnamed-chunk-265-1.png" width="100%" />
+<img src="batch_correction_analysis_LungAtlas_files/figure-html/unnamed-chunk-85-1.png" width="100%" />
 
 Based on these plots, we can appreciate why they were DE more strongly after correction that before.
 

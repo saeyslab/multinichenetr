@@ -370,11 +370,7 @@ multi_nichenet_analysis = function(sce,
     batches = batches)
   
   ## check for condition-specific cell types
-  sample_group_celltype_df = abundance_info$abundance_data %>% filter(n > min_cells) %>% ungroup() %>% distinct(sample_id, group_id) %>% cross_join(abundance_info$abundance_data %>% ungroup() %>% distinct(celltype_id)) %>% arrange(sample_id)
-  abundance_df = sample_group_celltype_df %>% left_join(abundance_info$abundance_data %>% ungroup())
-  abundance_df$n[is.na(abundance_df$n)] = 0
-  abundance_df$keep[is.na(abundance_df$keep)] = FALSE
-  abundance_df_summarized = abundance_df %>% mutate(keep = as.logical(keep)) %>% group_by(group_id, celltype_id) %>% summarise(samples_present = sum((keep)))
+  abundance_df_summarized = abundance_info$abundance_data %>% mutate(keep = as.logical(keep)) %>% group_by(group_id, celltype_id) %>% summarise(samples_present = sum((keep)))
   celltypes_absent_one_condition = abundance_df_summarized %>% filter(samples_present == 0) %>% pull(celltype_id) %>% unique() # find truly condition-specific cell types by searching for cell types truely absent in at least one condition
   celltypes_present_one_condition = abundance_df_summarized %>% filter(samples_present >= 2) %>% pull(celltype_id) %>% unique() # require presence in at least 2 samples of one group so it is really present in at least one condition
   condition_specific_celltypes = intersect(celltypes_absent_one_condition, celltypes_present_one_condition)
