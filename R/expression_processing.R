@@ -450,9 +450,35 @@ get_avg_pb_exprs = function(sce, sample_id, celltype_id, group_id, batches = NA,
   if ("celltype_id" != celltype_id) {
     metadata$celltype_id = metadata[[celltype_id]]
   }
+  #metadata_abundance = metadata %>% dplyr::select(sample_id, group_id, celltype_id) %>% tibble::as_tibble()
+  #colnames(metadata_abundance) =c("sample", "group", "celltype")
+  #abundance_data = metadata_abundance %>% tibble::as_tibble() %>% dplyr::group_by(sample , celltype) %>% dplyr::count() %>% dplyr::inner_join(metadata_abundance %>% tibble::as_tibble() %>% dplyr::distinct(sample , group ), by = "sample")
+  #abundance_data = abundance_data %>% dplyr::mutate(keep_sample = n >= min_cells) %>% dplyr::mutate(keep_sample = factor(keep_sample, levels = c(TRUE,FALSE)))
+  
   metadata_abundance = metadata %>% dplyr::select(sample_id, group_id, celltype_id) %>% tibble::as_tibble()
-  colnames(metadata_abundance) =c("sample", "group", "celltype")
-  abundance_data = metadata_abundance %>% tibble::as_tibble() %>% dplyr::group_by(sample , celltype) %>% dplyr::count() %>% dplyr::inner_join(metadata_abundance %>% tibble::as_tibble() %>% dplyr::distinct(sample , group ), by = "sample")
+  #colnames(metadata_abundance) =c("sample", "group", "celltype")
+  #abundance_data = metadata_abundance %>% tibble::as_tibble() %>% dplyr::group_by(sample , celltype) %>% dplyr::count() %>% dplyr::inner_join(metadata_abundance %>% tibble::as_tibble() %>% dplyr::distinct(sample , group ), by = "sample")
+  #abundance_data = abundance_data %>% dplyr::mutate(keep_sample = n >= min_cells) %>% dplyr::mutate(keep_sample = factor(keep_sample, levels = c(TRUE,FALSE)))
+  
+  # Ensure column names are consistent
+  colnames(metadata_abundance) <- c("sample", "group", "celltype")
+  
+  # Get unique sample and celltype combinations, fill in missing with n = 0
+  all_combinations <- metadata_abundance %>%
+    dplyr::distinct(sample, celltype) %>%
+    tidyr::expand(sample, celltype)
+  
+  # Calculate abundance
+  abundance_data <- metadata_abundance %>%
+    dplyr::group_by(sample, celltype) %>%
+    dplyr::count() %>%
+    dplyr::right_join(all_combinations, by = c("sample", "celltype")) %>%
+    dplyr::mutate(n = ifelse(is.na(n), 0, n))  # Set missing counts to 0
+  
+  # Add group information
+  abundance_data <- abundance_data %>%
+    dplyr::left_join(metadata_abundance %>% distinct(sample, group), by = "sample")
+  
   abundance_data = abundance_data %>% dplyr::mutate(keep_sample = n >= min_cells) %>% dplyr::mutate(keep_sample = factor(keep_sample, levels = c(TRUE,FALSE)))
   
   grouping_df = metadata %>% dplyr::select(sample_id, group_id) %>% 
@@ -577,9 +603,31 @@ get_frac_exprs = function(sce, sample_id, celltype_id, group_id, batches = NA, m
     metadata$celltype_id = metadata[[celltype_id]]
   }
   metadata_abundance = metadata %>% dplyr::select(sample_id, group_id, celltype_id) %>% tibble::as_tibble()
-  colnames(metadata_abundance) =c("sample", "group", "celltype")
-  abundance_data = metadata_abundance %>% tibble::as_tibble() %>% dplyr::group_by(sample , celltype) %>% dplyr::count() %>% dplyr::inner_join(metadata_abundance %>% tibble::as_tibble() %>% dplyr::distinct(sample , group ), by = "sample")
+  #colnames(metadata_abundance) =c("sample", "group", "celltype")
+  #abundance_data = metadata_abundance %>% tibble::as_tibble() %>% dplyr::group_by(sample , celltype) %>% dplyr::count() %>% dplyr::inner_join(metadata_abundance %>% tibble::as_tibble() %>% dplyr::distinct(sample , group ), by = "sample")
+  #abundance_data = abundance_data %>% dplyr::mutate(keep_sample = n >= min_cells) %>% dplyr::mutate(keep_sample = factor(keep_sample, levels = c(TRUE,FALSE)))
+  
+  # Ensure column names are consistent
+  colnames(metadata_abundance) <- c("sample", "group", "celltype")
+  
+  # Get unique sample and celltype combinations, fill in missing with n = 0
+  all_combinations <- metadata_abundance %>%
+    dplyr::distinct(sample, celltype) %>%
+    tidyr::expand(sample, celltype)
+  
+  # Calculate abundance
+  abundance_data <- metadata_abundance %>%
+    dplyr::group_by(sample, celltype) %>%
+    dplyr::count() %>%
+    dplyr::right_join(all_combinations, by = c("sample", "celltype")) %>%
+    dplyr::mutate(n = ifelse(is.na(n), 0, n))  # Set missing counts to 0
+  
+  # Add group information
+  abundance_data <- abundance_data %>%
+    dplyr::left_join(metadata_abundance %>% distinct(sample, group), by = "sample")
+  
   abundance_data = abundance_data %>% dplyr::mutate(keep_sample = n >= min_cells) %>% dplyr::mutate(keep_sample = factor(keep_sample, levels = c(TRUE,FALSE)))
+  
   
   grouping_df = metadata %>% dplyr::select(sample_id, group_id) %>% 
     tibble::as_tibble() %>% dplyr::distinct() %>% dplyr::rename(sample = sample_id, 

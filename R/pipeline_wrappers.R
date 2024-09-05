@@ -11,9 +11,9 @@
 #' @import dplyr
 #' @import tibble
 #' @import ggplot2
-#' @importFrom tidyr gather
+#' @importFrom tidyr gather expand
 #' @importFrom SummarizedExperiment colData
-#'
+#' 
 #' @examples
 #' \dontrun{
 #' library(dplyr)
@@ -70,10 +70,36 @@ get_abundance_info = function(sce, sample_id, group_id, celltype_id, min_cells =
   
   ### Receiver abundance plots
   
-  metadata_abundance = SummarizedExperiment::colData(sce)[,c(sample_id, group_id, celltype_id)] %>% tibble::as_tibble()
-  colnames(metadata_abundance) =c("sample_id", "group_id", "celltype_id")
+  ## old code that did not consider 0-cell samples properly
+  ##metadata_abundance = SummarizedExperiment::colData(sce)[,c(sample_id, group_id, celltype_id)] %>% tibble::as_tibble()
+  ##colnames(metadata_abundance) =c("sample_id", "group_id", "celltype_id")
   
-  abundance_data = metadata_abundance %>% tibble::as_tibble() %>% dplyr::group_by(sample_id , celltype_id) %>% dplyr::count() %>% dplyr::inner_join(metadata_abundance %>% tibble::as_tibble() %>% dplyr::distinct(sample_id , group_id ), by = "sample_id")
+  ##abundance_data = metadata_abundance %>% tibble::as_tibble() %>% dplyr::group_by(sample_id , celltype_id) %>% dplyr::count() %>% dplyr::inner_join(metadata_abundance %>% tibble::as_tibble() %>% dplyr::distinct(sample_id , group_id ), by = "sample_id")
+  ##abundance_data = abundance_data %>% dplyr::mutate(keep = n >= min_cells) %>% dplyr::mutate(keep = factor(keep, levels = c(TRUE,FALSE)))
+
+  # Get the metadata
+  metadata_abundance <- SummarizedExperiment::colData(sce)[, c(sample_id, group_id, celltype_id)] %>% 
+    tibble::as_tibble() 
+  
+  # Ensure column names are consistent
+  colnames(metadata_abundance) <- c("sample_id", "group_id", "celltype_id")
+  
+  # Get unique sample_id and celltype_id combinations, fill in missing with n = 0
+  all_combinations <- metadata_abundance %>%
+    dplyr::distinct(sample_id, celltype_id) %>%
+    tidyr::expand(sample_id, celltype_id)
+  
+  # Calculate abundance
+  abundance_data <- metadata_abundance %>%
+    dplyr::group_by(sample_id, celltype_id) %>%
+    dplyr::count() %>%
+    dplyr::right_join(all_combinations, by = c("sample_id", "celltype_id")) %>%
+    dplyr::mutate(n = ifelse(is.na(n), 0, n))  # Set missing counts to 0
+  
+  # Add group_id information
+  abundance_data <- abundance_data %>%
+    dplyr::left_join(metadata_abundance %>% distinct(sample_id, group_id), by = "sample_id")
+  
   abundance_data = abundance_data %>% dplyr::mutate(keep = n >= min_cells) %>% dplyr::mutate(keep = factor(keep, levels = c(TRUE,FALSE)))
   
   if(is.na(batches)){
@@ -123,9 +149,22 @@ get_abundance_info = function(sce, sample_id, group_id, celltype_id, min_cells =
     colnames(extra_metadata) = c("sample_id","batch_oi")
     metadata_abundance = metadata_abundance %>% dplyr::inner_join(extra_metadata, by = "sample_id") %>% mutate(group_batch_id = paste(group_id, batch_oi, sep = "_"))
     
-    abundance_data = metadata_abundance %>% tibble::as_tibble() %>% dplyr::group_by(sample_id , celltype_id) %>% dplyr::count() %>% dplyr::inner_join(metadata_abundance %>% tibble::as_tibble() %>% dplyr::distinct(sample_id , group_batch_id), by = "sample_id")
+    #abundance_data = metadata_abundance %>% tibble::as_tibble() %>% dplyr::group_by(sample_id , celltype_id) %>% dplyr::count() %>% dplyr::inner_join(metadata_abundance %>% tibble::as_tibble() %>% dplyr::distinct(sample_id , group_batch_id), by = "sample_id")
+    
+    # Calculate abundance
+    abundance_data <- metadata_abundance %>%
+      dplyr::group_by(sample_id, celltype_id) %>%
+      dplyr::count() %>%
+      dplyr::right_join(all_combinations, by = c("sample_id", "celltype_id")) %>%
+      dplyr::mutate(n = ifelse(is.na(n), 0, n))  # Set missing counts to 0
+    
+    # Add group_id information
+    abundance_data <- abundance_data %>%
+      dplyr::left_join(metadata_abundance %>% distinct(sample_id, group_batch_id), by = "sample_id")
+    
     abundance_data = abundance_data %>% dplyr::mutate(keep = n >= min_cells) %>% dplyr::mutate(keep = factor(keep, levels = c(TRUE,FALSE)))
-    abundance_data = abundance_data%>% dplyr::inner_join(metadata_abundance %>% distinct(sample_id, group_id, batch_oi), by = "sample_id")
+    abundance_data = abundance_data %>% dplyr::inner_join(metadata_abundance %>% distinct(sample_id, group_id, batch_oi), by = "sample_id")
+    
     
     for(celltype_oi in abundance_data$celltype_id %>% unique()){
       n_group_batch_id = abundance_data %>% dplyr::filter(keep == TRUE & celltype_id == celltype_oi) %>% pull(group_batch_id) %>% unique() %>% length()

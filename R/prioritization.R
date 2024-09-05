@@ -140,7 +140,6 @@ generate_prioritization_tables = function(sender_receiver_info, sender_receiver_
     dplyr::summarise(n_samples = n(), n_expressing = sum(fraction_ligand > fraction_cutoff & fraction_receptor > fraction_cutoff)) %>%
     dplyr::mutate(fraction_expressing_ligand_receptor = n_expressing/n_samples) %>% dplyr::arrange(-fraction_expressing_ligand_receptor) %>% dplyr::select(-n_samples, -n_expressing)  %>% dplyr::ungroup()
 
-
   # final group-based prioritization
   if(ligand_activity_down == TRUE){
     group_prioritization_tbl = contrast_tbl %>%
