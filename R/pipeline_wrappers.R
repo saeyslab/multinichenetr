@@ -329,7 +329,8 @@ process_abundance_expression_info = function(sce, sample_id, group_id, celltype_
     sample_id = sample_id,
     celltype_id =  celltype_id,
     group_id = group_id, 
-    batches = batches))
+    batches = batches, 
+    min_cells = min_cells))
   
   celltype_info$frq_df = frq_list$frq_df
   celltype_info$frq_df_group = frq_list$frq_df_group
