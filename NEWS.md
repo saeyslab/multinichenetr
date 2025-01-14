@@ -1,0 +1,2 @@
+# Version 2.1.0
+Bugfix: `get_avg_pb_exprs` in the function `process_abundance_expression_info` did use default value for `min_cells` instead of user-input. This can effect group-averages of the pseudobulk expression values for cell types with few cells. As a result, prioritization scores could be slightly affected. Test on own datasets: spearman correlations of >0.99 between bug-fixed and old prioritization scores. 
