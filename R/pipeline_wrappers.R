@@ -571,30 +571,61 @@ get_DE_info = function (sce, sample_id, group_id, celltype_id, batches, covariat
   }
   celltypes = SummarizedExperiment::colData(sce)[, celltype_id] %>% 
     unique()
-  DE_list = celltypes %>% lapply(function(celltype_oi, sce) {
-    sce_oi = sce[, SummarizedExperiment::colData(sce)[, celltype_id] == 
-                   celltype_oi]
-    DE_result = tryCatch({
-      perform_muscat_de_analysis(sce = sce_oi, sample_id = sample_id, 
-                                 celltype_id = celltype_id, group_id = group_id, 
-                                 batches = batches, covariates = covariates, contrasts = contrasts_oi, 
-                                 expressed_df = expressed_df, assay_oi_pb = assay_oi_pb, 
-                                 fun_oi_pb = fun_oi_pb, de_method_oi = de_method_oi, 
-                                 min_cells = min_cells)
+  
+  #DE_list = celltypes %>% lapply(function(celltype_oi, sce) {
+  #  sce_oi = sce[, SummarizedExperiment::colData(sce)[, celltype_id] == 
+  #                 celltype_oi]
+  #  DE_result = tryCatch({
+  #    perform_muscat_de_analysis(sce = sce_oi, sample_id = sample_id, 
+  #                               celltype_id = celltype_id, group_id = group_id, 
+  #                               batches = batches, covariates = covariates, contrasts = contrasts_oi, 
+  #                               expressed_df = expressed_df, assay_oi_pb = assay_oi_pb, 
+  #                               fun_oi_pb = fun_oi_pb, de_method_oi = de_method_oi, 
+  #                               min_cells = min_cells)
+  #  }, error = function(cond) {
+  #    message(paste0("perform_muscat_de_analysis errored for celltype: ", 
+  #                   celltype_oi))
+  #    message("Here's the original error message:")
+  #    message(cond)
+  #    message("")
+  #   print(cond)
+  #   message(paste0("perform_muscat_de_analysis errored for celltype: ", 
+  #                  celltype_oi))
+  #   message("")
+  #  print("In case: Error in x[[1]]: subscript out of bounds: this likely means that there are not enough samples per group with sufficient cells of this cell type. This cell type will thus be ignored for further analyses, other cell types will still be considered.")
+  #   return(NA)
+  #  })
+  #}, sce)
+  
+  DE_list <- celltypes %>% lapply(function(celltype_oi, sce) {
+    sce_oi <- sce[, SummarizedExperiment::colData(sce)[[celltype_id]] == celltype_oi]
+    
+    DE_result <- tryCatch({
+      result <- perform_muscat_de_analysis(
+        sce = sce_oi,
+        sample_id = sample_id,
+        celltype_id = celltype_id,
+        group_id = group_id,
+        batches = batches,
+        covariates = covariates,
+        contrasts = contrasts_oi,
+        expressed_df = expressed_df,
+        assay_oi_pb = assay_oi_pb,
+        fun_oi_pb = fun_oi_pb,
+        de_method_oi = de_method_oi,
+        min_cells = min_cells
+      )
+      message(paste0("Success for cell type: ", celltype_oi))
+      result
     }, error = function(cond) {
-      message(paste0("perform_muscat_de_analysis errored for celltype: ", 
-                     celltype_oi))
-      message("Here's the original error message:")
-      message(cond)
-      message("")
-      print(cond)
-      message(paste0("perform_muscat_de_analysis errored for celltype: ", 
-                     celltype_oi))
-      message("")
-      print("In case: Error in x[[1]]: subscript out of bounds: this likely means that there are not enough samples per group with sufficient cells of this cell type. This cell type will thus be ignored for further analyses, other cell types will still be considered.")
+      message(paste0("❌ Error for cell type: ", celltype_oi))
+      message("Error message: ", conditionMessage(cond))
+      message("In case: Error in x[[1]]: subscript out of bounds: this likely means that there are not enough samples per group with sufficient cells of this cell type. This cell type will thus be ignored for further analyses, other cell types will still be considered.")
       return(NA)
     })
+    return(DE_result)
   }, sce)
+  
   celltype_de = list(de_output = c(DE_list %>% purrr::map("de_output")), 
                      de_output_tidy = DE_list %>% purrr::map("de_output_tidy") %>% 
                        bind_rows())
