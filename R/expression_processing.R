@@ -99,7 +99,7 @@ get_muscat_exprs_frac = function(sce, sample_id, celltype_id, group_id){
 #'
 #' @export
 #'
-get_muscat_exprs_avg = function(sce, sample_id, celltype_id, group_id){
+get_muscat_exprs_avg = function(sce, sample_id, celltype_id, group_id,...){
 
   requireNamespace("dplyr")
   
@@ -121,7 +121,7 @@ get_muscat_exprs_avg = function(sce, sample_id, celltype_id, group_id){
     # sce = suppressWarnings(scater::logNormCounts(sce))
   }
 
-  avg = muscat::aggregateData(sce, assay = "logcounts", fun = "mean", by = c("cluster_id", "sample_id"))
+  avg = muscat::aggregateData(sce, assay = "logcounts", fun = "mean", by = c("cluster_id", "sample_id"),...)
 
   avg_df = sce$cluster_id %>% unique() %>% lapply(function(celltype_oi, avg){
     avg_celltype = avg@assays@data[[celltype_oi]]
@@ -162,7 +162,7 @@ get_muscat_exprs_avg = function(sce, sample_id, celltype_id, group_id){
 #'
 #' @export
 #'
-get_pseudobulk_logCPM_exprs = function(sce, sample_id, celltype_id, group_id, batches = NA, assay_oi_pb = "counts", fun_oi_pb = "sum"){
+get_pseudobulk_logCPM_exprs = function(sce, sample_id, celltype_id, group_id, batches = NA, assay_oi_pb = "counts", fun_oi_pb = "sum",...){
   
   requireNamespace("dplyr")
   
@@ -174,7 +174,7 @@ get_pseudobulk_logCPM_exprs = function(sce, sample_id, celltype_id, group_id, ba
                         sid = "id",   # sample IDs (ctrl/stim.1234)
                         drop = FALSE)  #
   
-  pb = muscat::aggregateData(sce, assay = assay_oi_pb, fun = fun_oi_pb, by = c("cluster_id", "sample_id"))
+  pb = muscat::aggregateData(sce, assay = assay_oi_pb, fun = fun_oi_pb, by = c("cluster_id", "sample_id"),...)
   
   # Prepare the design (group and batch effects) for the combat correction
   if(length(batches) > 1){
@@ -363,7 +363,7 @@ fix_frq_df = function(sce, frq_celltype_samples){
 #'
 #' @export
 #'
-get_avg_pb_exprs = function(sce, sample_id, celltype_id, group_id, batches = NA, min_cells = 10){
+get_avg_pb_exprs = function(sce, sample_id, celltype_id, group_id, batches = NA, min_cells = 10,...){
   
   requireNamespace("dplyr")
   
@@ -429,10 +429,10 @@ get_avg_pb_exprs = function(sce, sample_id, celltype_id, group_id, batches = NA,
   ## calculate averages, fractions, relative abundance of a cell type in a group
 
   # calculate average expression
-  avg_df = get_muscat_exprs_avg(sce, sample_id = sample_id, celltype_id =  celltype_id, group_id = group_id)
+  avg_df = get_muscat_exprs_avg(sce, sample_id = sample_id, celltype_id =  celltype_id, group_id = group_id,...)
 
   # calculate pseudobulked counts
-  pb_df = get_pseudobulk_logCPM_exprs(sce, sample_id = sample_id, celltype_id = celltype_id, group_id = group_id, batches = batches, assay_oi_pb = "counts", fun_oi_pb = "sum") # should be these parameters
+  pb_df = get_pseudobulk_logCPM_exprs(sce, sample_id = sample_id, celltype_id = celltype_id, group_id = group_id, batches = batches, assay_oi_pb = "counts", fun_oi_pb = "sum",...) # should be these parameters
   
   # check whether something needs to be fixed
   if(nrow(avg_df %>% dplyr::filter(is.na(average_sample))) > 0 | nrow(avg_df %>% dplyr::filter(is.nan(average_sample))) > 0) {

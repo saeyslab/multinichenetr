@@ -48,7 +48,7 @@
 #' @export
 #'
 #'
-perform_muscat_de_analysis = function(sce, sample_id, celltype_id, group_id, batches, covariates, contrasts, expressed_df, assay_oi_pb = "counts", fun_oi_pb = "sum", de_method_oi = "edgeR", min_cells = 10){
+perform_muscat_de_analysis = function(sce, sample_id, celltype_id, group_id, batches, covariates, contrasts, expressed_df, assay_oi_pb = "counts", fun_oi_pb = "sum", de_method_oi = "edgeR", min_cells = 10,...){
   requireNamespace("dplyr")
 
   if (class(sce) != "SingleCellExperiment") {
@@ -209,7 +209,7 @@ perform_muscat_de_analysis = function(sce, sample_id, celltype_id, group_id, bat
   
   pb = muscat::aggregateData(sce,
                              assay = assay_oi_pb, fun = fun_oi_pb,
-                             by = c("cluster_id", "sample_id"))
+                             by = c("cluster_id", "sample_id"),...)
   
   if(assay_oi_pb == "counts"){
     libsizes = colSums(SummarizedExperiment::assay(pb))
@@ -306,7 +306,7 @@ perform_muscat_de_analysis = function(sce, sample_id, celltype_id, group_id, bat
   pb = pb[genes_to_keep, ]
   
   # run DS analysis
-  res = muscat::pbDS(pb, method = de_method_oi , design = design, contrast = contrast, min_cells = min_cells, verbose = FALSE, filter = "none")
+  res = muscat::pbDS(pb, method = de_method_oi , design = design, contrast = contrast, min_cells = min_cells, verbose = FALSE, filter = "none",...)
   de_output_tidy = muscat::resDS(sce, res, bind = "row", cpm = FALSE, frq = FALSE) %>% tibble::as_tibble() %>% dplyr::rename(p_adj = p_adj.glb)
   
   # # check which cell types were excluded 
